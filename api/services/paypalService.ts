@@ -13,12 +13,22 @@ let ordersController: OrdersController;
 
 function getPayPalClient() {
   if (!paypalClient) {
+    const isProduction = config.PAYPAL_MODE === 'production' || config.PAYPAL_MODE === 'live';
+    const environment = isProduction ? Environment.Production : Environment.Sandbox;
+    
+    console.log('PayPal Client Configuration:', {
+      mode: config.PAYPAL_MODE,
+      environment: isProduction ? 'Production' : 'Sandbox',
+      hasClientId: !!config.PAYPAL_CLIENT_ID,
+      hasClientSecret: !!config.PAYPAL_CLIENT_SECRET
+    });
+    
     paypalClient = new Client({
       clientCredentialsAuthCredentials: {
         oAuthClientId: config.PAYPAL_CLIENT_ID,
         oAuthClientSecret: config.PAYPAL_CLIENT_SECRET,
       },
-      environment: config.PAYPAL_MODE === 'production' ? Environment.Production : Environment.Sandbox,
+      environment,
     });
     ordersController = new OrdersController(paypalClient);
   }
