@@ -54,7 +54,7 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/skyvps360/containerstacks
    cd containerstacks
    ```
 
@@ -64,7 +64,7 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    ```
 
 3. **Set up environment variables**
-   Create a `.env` file in the root directory:
+   Create a `.env` file in the root directory you can copy the .env.example with `cp .env.example .env`:
    ```env
    # Database
    DATABASE_URL=postgresql://username:password@localhost:5432/containerstacks
