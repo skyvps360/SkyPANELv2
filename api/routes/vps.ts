@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
+import { logActivity } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -208,8 +209,23 @@ router.post('/', async (req: Request, res: Response) => {
         configuration,
       ]
     );
+    const instance = insertRes.rows[0];
+    // Log instance creation
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.create',
+        entityType: 'vps',
+        entityId: String(instance.id),
+        message: `Created VPS '${label}' (${instance.provider_instance_id})`,
+        status: 'success',
+        metadata: { label, type, region: regionToUse, image }
+      }, req as any);
+    } catch {}
 
-    res.status(201).json({ instance: insertRes.rows[0] });
+    res.status(201).json({ instance });
   } catch (err: any) {
     console.error('VPS create error:', err);
     res.status(500).json({ error: err.message || 'Failed to create VPS instance' });
@@ -231,6 +247,19 @@ router.post('/:id/boot', async (req: Request, res: Response) => {
     const detail = await linodeService.getLinodeInstance(providerId);
     const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
     await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    // Log boot action
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.boot',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Booted VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS boot error:', err);
@@ -251,6 +280,19 @@ router.post('/:id/shutdown', async (req: Request, res: Response) => {
     const detail = await linodeService.getLinodeInstance(providerId);
     const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
     await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    // Log shutdown action
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.shutdown',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Shutdown VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS shutdown error:', err);
@@ -271,6 +313,19 @@ router.post('/:id/reboot', async (req: Request, res: Response) => {
     const detail = await linodeService.getLinodeInstance(providerId);
     const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
     await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    // Log reboot action
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.reboot',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Rebooted VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS reboot error:', err);
@@ -289,6 +344,19 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const providerId = Number(row.provider_instance_id);
     await linodeService.deleteLinodeInstance(providerId);
     await query('DELETE FROM vps_instances WHERE id = $1', [id]);
+    // Log delete action
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.delete',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Deleted VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
     res.json({ deleted: true });
   } catch (err: any) {
     console.error('VPS delete error:', err);

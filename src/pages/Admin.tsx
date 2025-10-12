@@ -118,6 +118,15 @@ const Admin: React.FC = () => {
   const [editContainerPlan, setEditContainerPlan] = useState<Partial<ContainerPlan>>({});
   const [deleteContainerPlanId, setDeleteContainerPlanId] = useState<string | null>(null);
   
+  // Compute container plan price based on pricing configuration
+  const computeContainerPlanPrice = (plan: ContainerPlan) => {
+    const cpuPrice = (plan.cpu_cores || 0) * (pricing.price_per_cpu || 0);
+    const ramPrice = (plan.ram_gb || 0) * (pricing.price_per_ram_gb || 0);
+    const storagePrice = (plan.storage_gb || 0) * (pricing.price_per_storage_gb || 0);
+    const networkPrice = (plan.network_mbps || 0) * (pricing.price_per_network_mbps || 0);
+    return cpuPrice + ramPrice + storagePrice + networkPrice;
+  };
+  
   // Linode VPS state
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
   const [linodeRegions, setLinodeRegions] = useState<LinodeRegion[]>([]);
@@ -142,6 +151,22 @@ const Admin: React.FC = () => {
   const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null);
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+
+  // Allowed regions strictly from admin provider configuration
+  const allowedRegionIds = useMemo(() => {
+    const linodeProvider = providers.find(p => p.type === 'linode' && p.active);
+    const list = (linodeProvider && linodeProvider.configuration && Array.isArray(linodeProvider.configuration.allowed_regions))
+      ? linodeProvider.configuration.allowed_regions as string[]
+      : [];
+    return list;
+  }, [providers]);
+
+  const allowedLinodeRegions = useMemo(() => {
+    // If admin hasn't configured allowed regions, fall back to all regions from Linode API
+    if (!allowedRegionIds || allowedRegionIds.length === 0) return linodeRegions;
+    const set = new Set(allowedRegionIds);
+    return linodeRegions.filter(r => set.has(r.id));
+  }, [linodeRegions, allowedRegionIds]);
 
   useEffect(() => {
     if (!token) {
@@ -934,14 +959,18 @@ const Admin: React.FC = () => {
                             value={newVPSPlan.selectedRegion}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, selectedRegion: e.target.value }))}
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            disabled={allowedLinodeRegions.length === 0}
                           >
                             <option value="">Select a region</option>
-                            {linodeRegions.map(region => (
+                            {allowedLinodeRegions.map(region => (
                               <option key={region.id} value={region.id}>
                                 {region.label} ({region.country})
                               </option>
                             ))}
                           </select>
+                          {allowedLinodeRegions.length === 0 && (
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No regions available. Check Linode API token or network.</p>
+                          )}
                         </div>
                         
                         <div>
@@ -1114,7 +1143,7 @@ const Admin: React.FC = () => {
                             <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.ram_gb} GB</td>
                             <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.storage_gb} GB</td>
                             <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.network_mbps} Mbps</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${Number(p.base_price).toFixed(2)}</td>
+                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${computeContainerPlanPrice(p).toFixed(2)}</td>
                             <td className="px-4 py-2 text-sm">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{p.active ? 'Active' : 'Inactive'}</span>
                             </td>

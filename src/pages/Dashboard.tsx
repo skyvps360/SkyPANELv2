@@ -132,7 +132,22 @@ const Dashboard: React.FC = () => {
         }
       });
 
-      setRecentActivity([]);
+      try {
+        const actRes = await fetch('/api/activity/recent?limit=10', { headers: { Authorization: `Bearer ${token}` } });
+        const actData = await actRes.json();
+        if (actRes.ok) {
+          const mapped: ActivityItem[] = (actData.activities || []).map((a: any) => ({
+            id: a.id,
+            type: a.type || a.entity_type || 'activity',
+            message: a.message || `${a.event_type}`,
+            timestamp: a.timestamp || a.created_at,
+            status: a.status || 'info'
+          }));
+          setRecentActivity(mapped);
+        }
+      } catch (e) {
+        console.warn('Failed to load recent activity');
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -275,56 +290,6 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Containers Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Containers</h2>
-                <Link
-                  to="/containers"
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Container
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {containers.slice(0, 3).map((container) => (
-                  <div key={container.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Container className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{container.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{container.image}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">CPU: {container.cpu}%</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {container.memory}%</p>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(container.status)}`}>
-                        {container.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Link
-                  to="/containers"
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
-                >
-                  View all containers →
-                </Link>
-              </div>
-            </div>
-          </div>
-
           {/* VPS Overview */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -370,6 +335,56 @@ const Dashboard: React.FC = () => {
                   className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
                 >
                   View all VPS instances →
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Containers Overview */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Containers</h2>
+                <Link
+                  to="/containers"
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Container
+                </Link>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {containers.slice(0, 3).map((container) => (
+                  <div key={container.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Container className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{container.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{container.image}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">CPU: {container.cpu}%</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {container.memory}%</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(container.status)}`}>
+                        {container.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <Link
+                  to="/containers"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
+                >
+                  View all containers →
                 </Link>
               </div>
             </div>

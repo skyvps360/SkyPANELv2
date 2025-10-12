@@ -114,21 +114,28 @@ class LinodeService {
       if (!this.apiToken) {
         throw new Error('Linode API token not configured');
       }
-
-      console.log('Fetching Linode types with token:', this.apiToken.substring(0, 10) + '...');
+      const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV !== 'production'
+      if (isDebug) {
+        console.log('Fetching Linode types')
+      }
       const response = await fetch(`${this.baseUrl}/linode/types`, {
         headers: this.getHeaders(),
       });
-
-      console.log('Linode API response status:', response.status);
+      if (isDebug) {
+        console.log('Linode API response status:', response.status)
+      }
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Linode API error response:', errorText);
+        if (isDebug) {
+          const errorText = await response.text()
+          console.error('Linode API error response:', errorText)
+        }
         throw new Error(`Linode API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('Fetched Linode types:', data.data.length);
+      if (isDebug) {
+        console.log('Fetched Linode types:', data.data.length)
+      }
       return data.data.map((type: any) => ({
         id: type.id,
         label: type.label,
@@ -154,21 +161,28 @@ class LinodeService {
       if (!this.apiToken) {
         throw new Error('Linode API token not configured');
       }
-
-      console.log('Fetching Linode regions with token:', this.apiToken.substring(0, 10) + '...');
+      const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV !== 'production'
+      if (isDebug) {
+        console.log('Fetching Linode regions')
+      }
       const response = await fetch(`${this.baseUrl}/regions`, {
         headers: this.getHeaders(),
       });
-
-      console.log('Linode API response status:', response.status);
+      if (isDebug) {
+        console.log('Linode API response status:', response.status)
+      }
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Linode API error response:', errorText);
+        if (isDebug) {
+          const errorText = await response.text()
+          console.error('Linode API error response:', errorText)
+        }
         throw new Error(`Linode API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('Fetched Linode regions:', data.data.length);
+      if (isDebug) {
+        console.log('Fetched Linode regions:', data.data.length)
+      }
       return data.data.map((region: any) => ({
         id: region.id,
         label: region.label,

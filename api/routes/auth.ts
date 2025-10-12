@@ -6,6 +6,7 @@ import { Router, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AuthService } from '../services/authService.js';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
+import { logActivity } from '../services/activityLogger.js';
 import { query } from '../lib/database.js';
 
 const router = Router();
@@ -68,6 +69,20 @@ router.post('/login', [
     
     const result = await AuthService.login({ email, password });
 
+    // Log successful login
+    try {
+      await logActivity({
+        userId: result.user.id,
+        organizationId: result.user.organizationId,
+        eventType: 'auth.login',
+        entityType: 'user',
+        entityId: result.user.id,
+        message: `User ${result.user.email} logged in`,
+        status: 'success',
+        metadata: { email }
+      }, req);
+    } catch {}
+
     res.json({
       message: 'Login successful',
       user: result.user,
@@ -87,6 +102,19 @@ router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res:
   try {
     // In a stateless JWT system, logout is handled client-side by removing the token
     // For enhanced security, you could maintain a blacklist of tokens
+    if (req.user) {
+      try {
+        await logActivity({
+          userId: req.user.id,
+          organizationId: req.user.organizationId,
+          eventType: 'auth.logout',
+          entityType: 'user',
+          entityId: req.user.id,
+          message: `User ${req.user.email} logged out`,
+          status: 'success'
+        }, req as any);
+      } catch {}
+    }
     res.json({ message: 'Logout successful' });
   } catch (error: any) {
     console.error('Logout error:', error);
@@ -543,8 +571,15 @@ router.get('/api-keys', authenticateToken, async (req: AuthenticatedRequest, res
       return;
     }
 
+    // Support both legacy schema ('name') and current schema ('key_name')
     const apiKeysRes = await query(
-      `SELECT id, key_name, key_prefix, created_at, last_used_at, expires_at, active
+      `SELECT id,
+              COALESCE(key_name, name) AS name,
+              key_prefix AS key_preview,
+              created_at,
+              last_used_at,
+              expires_at,
+              active
        FROM user_api_keys
        WHERE user_id = $1 AND active = TRUE
        ORDER BY created_at DESC`,
@@ -589,18 +624,62 @@ router.post(
       // Hash the key for storage (in production, use proper hashing)
       const keyHash = Buffer.from(apiKey).toString('base64');
 
-      const insertRes = await query(
-        `INSERT INTO user_api_keys (user_id, key_name, key_hash, key_prefix, created_at, active)
-         VALUES ($1, $2, $3, $4, $5, TRUE)
-         RETURNING id, key_name, key_prefix, created_at`,
-        [req.user.id, name, keyHash, keyPrefix, new Date().toISOString()]
+      // Introspect schema to handle legacy 'name' column vs new 'key_name'
+      const columnsCheck = await query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = 'user_api_keys'
+           AND column_name IN ('name', 'key_name')`
       );
+      const colNames: string[] = (columnsCheck.rows || []).map((r: any) => r.column_name);
+      const hasLegacyName = colNames.includes('name');
+      const hasKeyName = colNames.includes('key_name');
+
+      const baseCols = ['user_id', 'key_hash', 'key_prefix', 'created_at', 'active'];
+      const baseVals = [req.user.id, keyHash, keyPrefix, new Date().toISOString(), true];
+      let insertCols = [...baseCols];
+      let insertVals = [...baseVals];
+
+      if (hasLegacyName && hasKeyName) {
+        insertCols = ['user_id', 'name', 'key_name', 'key_hash', 'key_prefix', 'created_at', 'active'];
+        insertVals = [req.user.id, name, name, keyHash, keyPrefix, new Date().toISOString(), true];
+      } else if (hasLegacyName && !hasKeyName) {
+        insertCols = ['user_id', 'name', 'key_hash', 'key_prefix', 'created_at', 'active'];
+        insertVals = [req.user.id, name, keyHash, keyPrefix, new Date().toISOString(), true];
+      } else {
+        // Default to modern schema with key_name
+        insertCols = ['user_id', 'key_name', 'key_hash', 'key_prefix', 'created_at', 'active'];
+        insertVals = [req.user.id, name, keyHash, keyPrefix, new Date().toISOString(), true];
+      }
+
+      const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
+      const insertSQL = `INSERT INTO user_api_keys (${insertCols.join(', ')})
+                         VALUES (${placeholders})
+                         RETURNING id,
+                                   COALESCE(key_name, name) AS name,
+                                   key_prefix AS key_preview,
+                                   created_at`;
+
+      const insertRes = await query(insertSQL, insertVals);
       if (insertRes.rows.length === 0) {
         res.status(500).json({ error: 'Failed to create API key' });
         return;
       }
 
       const newKey = insertRes.rows[0];
+      // Log API key creation
+      try {
+        await logActivity({
+          userId: req.user.id,
+          organizationId: req.user.organizationId,
+          eventType: 'api_key.create',
+          entityType: 'api_key',
+          entityId: newKey.id,
+          message: `Created API key '${newKey.name}'`,
+          status: 'success',
+          metadata: { key_preview: newKey.key_preview }
+        }, req as any);
+      } catch {}
       res.status(201).json({
         message: 'API key created successfully',
         apiKey: {
@@ -610,6 +689,22 @@ router.post(
       });
     } catch (error: any) {
       console.error('API key creation error:', error);
+      // Provide clearer errors for common schema issues
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('null value in column') && msg.includes('violates not-null constraint')) {
+        res.status(500).json({
+          error: 'Database schema mismatch detected for user_api_keys. Please apply migrations or run scripts to update the table.',
+          details: error.message
+        });
+        return;
+      }
+      if (msg.includes('relation') && msg.includes('does not exist')) {
+        res.status(500).json({
+          error: 'user_api_keys table is missing. Apply migrations or run fix-schema script.',
+          details: error.message
+        });
+        return;
+      }
       res.status(500).json({ error: error.message || 'Failed to create API key' });
     }
   }
@@ -636,6 +731,18 @@ router.delete('/api-keys/:id', authenticateToken, async (req: AuthenticatedReque
       res.status(404).json({ error: 'API key not found' });
       return;
     }
+    // Log API key revocation
+    try {
+      await logActivity({
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        eventType: 'api_key.revoke',
+        entityType: 'api_key',
+        entityId: id,
+        message: `Revoked API key '${id}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
     res.json({ message: 'API key revoked successfully' });
   } catch (error: any) {
     console.error('API key revocation error:', error);

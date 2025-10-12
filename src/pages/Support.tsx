@@ -48,6 +48,7 @@ const Support: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<string[]>([]);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -118,6 +119,7 @@ const Support: React.FC = () => {
 
   const handleCreateTicket = async () => {
     if (!newTicket.subject.trim() || !newTicket.description.trim()) {
+      setCreateErrors(['Subject and Description are required']);
       toast.error('Please fill in all required fields');
       return;
     }
@@ -135,7 +137,14 @@ const Support: React.FC = () => {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create ticket');
+      if (!res.ok) {
+        const messages: string[] = Array.isArray(data.errors)
+          ? data.errors.map((e: any) => (e.msg && e.param ? `${e.param}: ${e.msg}` : e.msg || 'Validation error'))
+          : (data.error ? [data.error] : ['Failed to create ticket']);
+        setCreateErrors(messages);
+        toast.error(messages.join('\n'));
+        return;
+      }
 
       const ticket: SupportTicket = {
         id: data.ticket.id,
@@ -151,11 +160,14 @@ const Support: React.FC = () => {
 
       setTickets(prev => [ticket, ...prev]);
       setNewTicket({ subject: '', description: '', priority: 'medium', category: 'general' });
+      setCreateErrors([]);
       setIsCreateModalOpen(false);
       toast.success('Support ticket created successfully');
     } catch (error: any) {
       console.error('Error creating ticket:', error);
-      toast.error(error.message || 'Failed to create support ticket');
+      const message = error?.message || 'Failed to create support ticket';
+      setCreateErrors([message]);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -393,6 +405,16 @@ const Support: React.FC = () => {
               </div>
 
               <div className="space-y-4">
+                {createErrors.length > 0 && (
+                  <div className="rounded-md border border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400">
+                    <div className="font-medium mb-1">Unable to create ticket:</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {createErrors.map((err, idx) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Subject *

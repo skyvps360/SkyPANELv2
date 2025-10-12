@@ -112,7 +112,7 @@ router.post(
 
       // Create reply
       const replyResult = await query(
-        `INSERT INTO ticket_replies (ticket_id, user_id, message, is_admin_reply, created_at) 
+        `INSERT INTO support_ticket_replies (ticket_id, user_id, message, is_staff_reply, created_at) 
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
         [id, (req as any).user?.id, message, true, new Date().toISOString()]
       );
@@ -129,6 +129,9 @@ router.post(
 
       res.status(201).json({ reply: replyResult.rows[0] });
     } catch (err: any) {
+      if (isMissingTableError(err)) {
+        return res.status(400).json({ error: 'support_ticket_replies table not found. Apply migrations before replying.' });
+      }
       console.error('Admin ticket reply error:', err);
       res.status(500).json({ error: err.message || 'Failed to add reply' });
     }
@@ -422,8 +425,7 @@ router.get('/container/pricing', authenticateToken, requireAdmin, async (req: Re
     );
     res.json({ pricing: result.rows?.[0] || null });
   } catch (err: any) {
-    const msg = (err?.message || '').toLowerCase();
-    if (msg.includes('relation') && msg.includes('does not exist')) {
+    if (isMissingTableError(err)) {
       return res.json({ pricing: null, warning: 'container_pricing_config table not found. Apply migrations.' });
     }
     console.error('Admin container pricing get error:', err);
@@ -497,8 +499,7 @@ router.put(
           return res.json({ pricing: insertRes.rows[0] });
         }
       } catch (err: any) {
-        const msg = (err?.message || '').toLowerCase();
-        if (msg.includes('relation') && msg.includes('does not exist')) {
+        if (isMissingTableError(err)) {
           return res.status(400).json({ error: 'container_pricing_config table not found. Apply migrations before updating.' });
         }
         throw err;
@@ -518,8 +519,7 @@ router.get('/container/plans', authenticateToken, requireAdmin, async (req: Requ
     );
     res.json({ plans: result.rows || [] });
   } catch (err: any) {
-    const msg = (err?.message || '').toLowerCase();
-    if (msg.includes('relation') && msg.includes('does not exist')) {
+    if (isMissingTableError(err)) {
       return res.json({ plans: [], warning: 'container_plans table not found. Apply migrations.' });
     }
     console.error('Admin container plans list error:', err);
@@ -568,6 +568,9 @@ router.post(
       );
       res.status(201).json({ plan: insertRes.rows[0] });
     } catch (err: any) {
+      if (isMissingTableError(err)) {
+        return res.status(400).json({ error: 'container_plans table not found. Apply migrations before creating.' });
+      }
       console.error('Admin container plan create error:', err);
       res.status(500).json({ error: err.message || 'Failed to create container plan' });
     }
@@ -616,6 +619,9 @@ router.put(
       }
       res.json({ plan: result.rows[0] });
     } catch (err: any) {
+      if (isMissingTableError(err)) {
+        return res.status(400).json({ error: 'container_plans table not found. Apply migrations before updating.' });
+      }
       console.error('Admin container plan update error:', err);
       res.status(500).json({ error: err.message || 'Failed to update container plan' });
     }
@@ -636,6 +642,9 @@ router.delete(
       );
       res.status(204).send();
     } catch (err: any) {
+      if (isMissingTableError(err)) {
+        return res.status(400).json({ error: 'container_plans table not found. Apply migrations before deleting.' });
+      }
       console.error('Admin container plan delete error:', err);
       res.status(500).json({ error: err.message || 'Failed to delete container plan' });
     }

@@ -3,7 +3,7 @@
  * Handles Linode VPS instance creation, management, and monitoring
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Server, 
@@ -119,15 +119,13 @@ const VPS: React.FC = () => {
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
-  const linodeRegions: LinodeRegion[] = [
-    { id: 'us-east', label: 'Newark, NJ', country: 'US' },
-    { id: 'us-west', label: 'Fremont, CA', country: 'US' },
-    { id: 'us-central', label: 'Dallas, TX', country: 'US' },
-    { id: 'eu-west', label: 'London, UK', country: 'UK' },
-    { id: 'eu-central', label: 'Frankfurt, DE', country: 'DE' },
-    { id: 'ap-south', label: 'Singapore, SG', country: 'SG' },
-    { id: 'ap-northeast', label: 'Tokyo, JP', country: 'JP' }
-  ];
+  // Regions allowed by admin configuration: derive strictly from configured VPS plans
+  const allowedRegions: LinodeRegion[] = useMemo(() => {
+    const ids = Array.from(new Set((linodeTypes || [])
+      .map(t => t.region)
+      .filter((r): r is string => typeof r === 'string' && r.trim().length > 0)));
+    return ids.map(id => ({ id, label: id, country: '' }));
+  }, [linodeTypes]);
 
   const osImages = [
     { id: 'linode/ubuntu24.04', label: 'Ubuntu 24.04 LTS' },
@@ -508,7 +506,7 @@ const VPS: React.FC = () => {
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
               >
                 <option value="all">All Regions</option>
-                {linodeRegions.map(region => (
+                {allowedRegions.map(region => (
                   <option key={region.id} value={region.id}>{region.label}</option>
                 ))}
               </select>
@@ -622,7 +620,7 @@ const VPS: React.FC = () => {
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{instance.label}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {instance.ipv4[0]} • {(instance.regionLabel || linodeRegions.find(r => r.id === instance.region)?.label || instance.region)}
+                  {instance.ipv4[0]} • {(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}
                           </div>
                         </div>
                       </div>
@@ -817,7 +815,7 @@ const VPS: React.FC = () => {
                       (() => {
                         const selectedType = linodeTypes.find(t => t.id === createForm.type);
                         if (!selectedType) return null;
-                        const selectedRegion = selectedType.region ? linodeRegions.find(r => r.id === selectedType.region) : null;
+  const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -830,7 +828,7 @@ const VPS: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-gray-400">Storage:</span>
-                              <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedType.disk} GB SSD</span>
+                              <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedType.disk} GB</span>
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-gray-400">Transfer:</span>

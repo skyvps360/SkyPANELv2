@@ -50,11 +50,11 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
 - **Redis** server
 - **InfluxDB** (optional for metrics)
 
-## 🏗️ Installation
+## 🏗️ Setup & Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/skyvps360/containerstacks
    cd containerstacks
    ```
 
@@ -64,39 +64,80 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    ```
 
 3. **Set up environment variables**
-   Create a `.env` file in the root directory:
+   Create a `.env` file in the root directory (you can copy `.env.example` with `cp .env.example .env`) and update values as needed. Key variables from `.env.example`:
    ```env
-   # Database
-   DATABASE_URL=postgresql://username:password@localhost:5432/containerstacks
+   # App
+   NODE_ENV=development
+   PORT=3001
+   CLIENT_URL=http://localhost:5173
+   VITE_API_URL=http://localhost:3001/api
+   JWT_SECRET=your-super-secret-jwt-key-here
+   JWT_EXPIRES_IN=7d
 
-   # Redis
-   REDIS_URL=redis://localhost:6379
-
-   # JWT
-   JWT_SECRET=your-secret-key
+   # PostgreSQL
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/containerstacks
+   # For Neon/Cloud Postgres:
+   # DATABASE_URL=postgresql://username:password@ep-example.us-east-1.aws.neon.tech/containerstacks?sslmode=require
 
    # PayPal
    PAYPAL_CLIENT_ID=your-paypal-client-id
    PAYPAL_CLIENT_SECRET=your-paypal-client-secret
+   PAYPAL_MODE=sandbox
 
-   # Email
-   SMTP_HOST=smtp2go.com
-   SMTP_USER=your-smtp-username
-   SMTP_PASS=your-smtp-password
+   # SMTP2GO Email
+   SMTP2GO_API_KEY=your-smtp2go-api-key
+   SMTP2GO_USERNAME=your-smtp2go-username
+   SMTP2GO_PASSWORD=your-smtp2go-password
+   FROM_EMAIL=noreply@containerstacks.com
+   FROM_NAME=ContainerStacks
 
-   # Other configurations...
+   # Linode (VPS)
+   LINODE_API_TOKEN=your-linode-api-token
+   LINODE_API_URL=https://api.linode.com/v4
+
+   # Optional: DigitalOcean
+   DIGITALOCEAN_API_TOKEN=your-digitalocean-api-token
+
+   # Docker
+   DOCKER_HOST=unix:///var/run/docker.sock
+   DOCKER_REGISTRY_URL=registry.containerstacks.com
+
+   # Redis
+   REDIS_URL=redis://localhost:6379
+   REDIS_PASSWORD=
+
+   # Encryption for API keys
+   ENCRYPTION_KEY=your-32-character-encryption-key
+
+   # Rate limiting
+   RATE_LIMIT_WINDOW_MS=900000
+   RATE_LIMIT_MAX_REQUESTS=100
+
+   # Uploads
+   MAX_FILE_SIZE=10485760
+   UPLOAD_PATH=./uploads
+
+   # Metrics (optional)
+   INFLUXDB_URL=http://localhost:8086
+   INFLUXDB_TOKEN=your-influxdb-token
+   INFLUXDB_ORG=containerstacks
+   INFLUXDB_BUCKET=metrics
+
+   # Backups
+   BACKUP_STORAGE_PROVIDER=local
+   BACKUP_RETENTION_DAYS=30
    ```
 
 4. **Set up the database**
-   - Run migrations from `migrations/` or use the provided scripts
+   - Run migrations from `migrations/` or use the provided scripts in `scripts/`
    - Ensure Row Level Security policies are applied as per the architecture docs
 
 5. **Start the development servers**
    ```bash
-   npm run dev  # Starts both client and server
+   npm run dev  # Starts both client (Vite) and server (Nodemon)
    ```
 
-   Or separately:
+   Or start them separately:
    ```bash
    npm run client:dev  # Frontend only
    npm run server:dev  # Backend only
@@ -125,22 +166,40 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
 - **[Technical Architecture](./.trae/documents/ContainerStacks_Technical_Architecture.md)**: Detailed system design and API specifications
 - **[Product Requirements](./.trae/documents/ContainerStacks_PRD.md)**: Feature descriptions and user flows
 - **[Windsurf Rules](./.windsurf/rules.json)**: Development guidelines for the project
+- **[Trae Project Rules](./.trae/rules/project_rules.md)**: IDE automation and workflow conventions
 
 ## 🚦 Development
 
 ### Available Scripts
-- `npm run dev` - Start both frontend and backend
+- `npm run dev` - Start both frontend and backend (uses `concurrently`)
 - `npm run client:dev` - Start frontend only
 - `npm run server:dev` - Start backend only
 - `npm run build` - Build for production
 - `npm run lint` - Run ESLint
 - `npm run check` - Run TypeScript checks
+- `npm run kill-ports` - Free ports `3001` and `5173` if conflicts occur
+- `npm run seed:admin` - Seed an initial admin user
+
+### Ports & Preview
+- Frontend serves at `http://localhost:5173`
+- Backend runs on `http://localhost:3001` with API under `http://localhost:3001/api`
+- If a port is in use (`EADDRINUSE`), run `npm run kill-ports` and restart `npm run dev`
+
+### Admin & Seeding
+- To quickly access the Admin Panel, run `npm run seed:admin` to create an initial admin user (see script in `scripts/seed-admin.js`).
+- Configure provider settings and allowed regions in the Admin Panel. If no specific Linode regions are configured, the UI falls back to showing all available regions when a valid `LINODE_API_TOKEN` is present.
 
 ### Code Guidelines
 - Use functional React components with hooks
 - Follow the data model in architecture docs for database schemas
 - Maintain TypeScript strictness and RLS for security
 - Update documentation for feature changes
+
+### Troubleshooting
+- Vite loads but API fails: confirm `PORT=3001` and `VITE_API_URL=http://localhost:3001/api` in `.env`
+- Region dropdown empty: verify `LINODE_API_TOKEN`, provider configuration, and network connectivity
+- Port conflicts: use `npm run kill-ports` before `npm run dev`
+- Missing table errors: ensure migrations are applied and review server logs
 
 ## 🤝 Contributing
 

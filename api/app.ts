@@ -23,6 +23,7 @@ import adminRoutes from './routes/admin.js'
 import containersRoutes from './routes/containers.js'
 import vpsRoutes from './routes/vps.js'
 import supportRoutes from './routes/support.js'
+import activityRoutes from './routes/activity.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -58,10 +59,14 @@ const limiter = rateLimit({
 app.use('/api/', limiter)
 
 // CORS configuration
+// CORS configuration with sensible dev defaults and optional override
+const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : (process.env.NODE_ENV === 'production' ? ['https://your-domain.com'] : devOrigins)
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] // Replace with your production domain
-    : ['http://localhost:5173', 'http://localhost:3000'],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -86,6 +91,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/containers', containersRoutes)
 app.use('/api/vps', vpsRoutes)
 app.use('/api/support', supportRoutes)
+app.use('/api/activity', activityRoutes)
 
 /**
  * health
@@ -104,9 +110,12 @@ app.use(
  * error handler middleware
  */
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+  // Log full error details server-side
+  console.error('API error:', error)
+  const isDev = process.env.NODE_ENV !== 'production'
   res.status(500).json({
     success: false,
-    error: 'Server internal error',
+    error: isDev ? (error?.message || 'Server internal error') : 'Server internal error',
   })
 })
 

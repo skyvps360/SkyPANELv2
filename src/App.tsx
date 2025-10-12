@@ -14,6 +14,7 @@ import Admin from "./pages/Admin";
 import ContainerDetail from "./pages/ContainerDetail";
 import VPSDetail from "./pages/VPSDetail";
 import AppLayout from "./components/AppLayout";
+import ActivityPage from "./pages/Activity";
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -161,6 +162,14 @@ function AppRoutes() {
         } 
       />
       <Route 
+        path="/activity" 
+        element={
+          <ProtectedRoute>
+            <ActivityPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/admin" 
         element={
           <AdminRoute>
@@ -179,7 +188,7 @@ export default function App() {
       <Router>
         <AppRoutes />
         <Toaster 
-          position="top-right"
+          position="bottom-right"
           richColors
           closeButton
         />
