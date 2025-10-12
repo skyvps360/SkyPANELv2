@@ -28,8 +28,8 @@ const Sidebar: React.FC = () => {
 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Containers', href: '/containers', icon: Container },
     { name: 'VPS', href: '/vps', icon: Server },
+    { name: 'Containers', href: '/containers', icon: Container },
     { name: 'Billing', href: '/billing', icon: CreditCard },
     { name: 'Support', href: '/support', icon: HelpCircle },
     { name: 'Settings', href: '/settings', icon: Settings },
@@ -42,13 +42,13 @@ const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className={`hidden md:block ${collapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)] transition-all duration-200`}>
+    <aside className={`hidden md:block ${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-4rem)] transition-all duration-200`}>
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className={`text-xs uppercase text-gray-500 ${collapsed ? 'sr-only' : ''}`}>Navigation</div>
+          <div className={`text-xs uppercase text-gray-500 dark:text-gray-400 ${collapsed ? 'sr-only' : ''}`}>Navigation</div>
           <button
             onClick={toggleCollapsed}
-            className="rounded p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -71,11 +71,11 @@ const Sidebar: React.FC = () => {
                 to={item.href}
                 className={`group flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-2'} ${active ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-2'} ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
                 <span className={collapsed ? 'sr-only' : ''}>{item.name}</span>
               </Link>
             );

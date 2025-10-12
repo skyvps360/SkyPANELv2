@@ -1,15 +1,51 @@
--- Migration: Add missing columns to user_api_keys table for API key management
--- Run this after the initial schema to add API key functionality
+-- Migration: Ensure user_api_keys table has correct structure for API key management
+-- This migration handles transition from old schema to new schema
 
--- Add missing columns to user_api_keys if they don't exist
-ALTER TABLE user_api_keys
-ADD COLUMN IF NOT EXISTS key_name VARCHAR(255) NOT NULL DEFAULT '',
-ADD COLUMN IF NOT EXISTS key_hash TEXT NOT NULL DEFAULT '',
-ADD COLUMN IF NOT EXISTS key_prefix VARCHAR(255) NOT NULL DEFAULT '',
-ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+-- First, check if we need to migrate from old 'name' column to 'key_name'
+DO $$
+BEGIN
+    -- If 'name' column exists and 'key_name' doesn't, we need to migrate
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'name')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'key_name') THEN
+        
+        -- Add new columns
+        ALTER TABLE user_api_keys 
+        ADD COLUMN key_name VARCHAR(255),
+        ADD COLUMN key_prefix VARCHAR(255),
+        ADD COLUMN active BOOLEAN DEFAULT TRUE;
+        
+        -- Migrate data from 'name' to 'key_name'
+        UPDATE user_api_keys SET key_name = name WHERE key_name IS NULL;
+        
+        -- Set key_prefix for existing records (generate from existing data)
+        UPDATE user_api_keys SET key_prefix = 'sk_live_...' WHERE key_prefix IS NULL;
+        
+        -- Make key_name and key_prefix NOT NULL
+        ALTER TABLE user_api_keys 
+        ALTER COLUMN key_name SET NOT NULL,
+        ALTER COLUMN key_prefix SET NOT NULL;
+        
+        -- Drop old 'name' column
+        ALTER TABLE user_api_keys DROP COLUMN name;
+    END IF;
+    
+    -- Add any other missing columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'key_name') THEN
+        ALTER TABLE user_api_keys ADD COLUMN key_name VARCHAR(255) NOT NULL DEFAULT '';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'key_prefix') THEN
+        ALTER TABLE user_api_keys ADD COLUMN key_prefix VARCHAR(255) NOT NULL DEFAULT '';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'active') THEN
+        ALTER TABLE user_api_keys ADD COLUMN active BOOLEAN DEFAULT TRUE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_api_keys' AND column_name = 'updated_at') THEN
+        ALTER TABLE user_api_keys ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+END $$;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys(user_id);

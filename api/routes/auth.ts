@@ -543,9 +543,6 @@ router.get('/api-keys', authenticateToken, async (req: AuthenticatedRequest, res
       return;
     }
 
-    // Set current user ID for RLS
-    await query('SET app.current_user_id = $1', [req.user.id]);
-
     const apiKeysRes = await query(
       `SELECT id, key_name, key_prefix, created_at, last_used_at, expires_at, active
        FROM user_api_keys
@@ -584,9 +581,6 @@ router.post(
       }
 
       const { name } = req.body;
-      
-      // Set current user ID for RLS
-      await query('SET app.current_user_id = $1', [req.user.id]);
 
       // Generate API key
       const apiKey = `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
