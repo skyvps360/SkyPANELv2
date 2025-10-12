@@ -64,12 +64,10 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    ```
 
 3. **Set up environment variables**
-<<<<<<< HEAD
+
    Create a `.env` file in the root directory (you can copy `.env.example` with `cp .env.example .env`) and update values as needed. Key variables from `.env.example`:
-=======
-   Create a `.env` file in the root directory you can copy the .env.example with `cp .env.example .env`:
->>>>>>> df09eb41fb17c522dd07fe9ccf35e1b77af9f13d
-   ```env
+
+    ```env
    # App
    NODE_ENV=development
    PORT=3001
@@ -132,11 +130,11 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    BACKUP_RETENTION_DAYS=30
    ```
 
-4. **Set up the database**
+5. **Set up the database**
    - Run migrations from `migrations/` or use the provided scripts in `scripts/`
    - Ensure Row Level Security policies are applied as per the architecture docs
 
-5. **Start the development servers**
+6. **Start the development servers**
    ```bash
    npm run dev  # Starts both client (Vite) and server (Nodemon)
    ```
@@ -147,7 +145,7 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    npm run server:dev  # Backend only
    ```
 
-6. **Access the application**
+7. **Access the application**
    Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ## 🎯 Usage
