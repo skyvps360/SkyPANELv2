@@ -7,6 +7,11 @@
 
 ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that enables service providers to offer comprehensive Docker container hosting, management, and orchestration services. It includes built-in billing, monitoring, collaboration features, and supports multi-tenant environments with white-label capabilities.
 
+## 💝 Support Our Work
+If you find my work helpful, consider supporting me:
+
+[![PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=TEY7YEJC8X5HW)
+
 ## 🚀 Features
 
 - **Container Management**: Deploy, scale, and monitor Docker containers with ease
@@ -251,4 +256,5 @@ For support, create a ticket through the in-app support system or refer to the [
 
 ---
 
-**Made with ❤️ for the container orchestration community**
+⭐️ From [skyvps360](https://github.com/skyvps360) | **Made with ❤️ for the container orchestration community**
+
