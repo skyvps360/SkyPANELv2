@@ -1,0 +1,664 @@
+/**
+ * Authentication API routes
+ * Handle user registration, login, token management, etc.
+ */
+import { Router, type Request, type Response } from 'express';
+import { body, validationResult } from 'express-validator';
+import { AuthService } from '../services/authService.js';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
+import { query } from '../lib/database.js';
+
+const router = Router();
+
+/**
+ * User Registration
+ * POST /api/auth/register
+ */
+router.post('/register', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required'),
+  body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required'),
+  body('organizationName').optional().trim()
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { email, password, firstName, lastName, organizationName } = req.body;
+    
+    const result = await AuthService.register({
+      email,
+      password,
+      firstName,
+      lastName,
+      organizationName
+    });
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: result.user,
+      token: result.token
+    });
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * User Login
+ * POST /api/auth/login
+ */
+router.post('/login', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { email, password } = req.body;
+    
+    const result = await AuthService.login({ email, password });
+
+    res.json({
+      message: 'Login successful',
+      user: result.user,
+      token: result.token
+    });
+  } catch (error: any) {
+    console.error('Login error:', error);
+    res.status(401).json({ error: error.message });
+  }
+});
+
+/**
+ * User Logout
+ * POST /api/auth/logout
+ */
+router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // In a stateless JWT system, logout is handled client-side by removing the token
+    // For enhanced security, you could maintain a blacklist of tokens
+    res.json({ message: 'Logout successful' });
+  } catch (error: any) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+/**
+ * Verify Email
+ * POST /api/auth/verify-email
+ */
+router.post('/verify-email', [
+  body('token').notEmpty().withMessage('Verification token is required')
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { token } = req.body;
+    const result = await AuthService.verifyEmail(token);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Email verification error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * Request Password Reset
+ * POST /api/auth/forgot-password
+ */
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail()
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { email } = req.body;
+    const result = await AuthService.requestPasswordReset(email);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Password reset request error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
+  }
+});
+
+/**
+ * Reset Password
+ * POST /api/auth/reset-password
+ */
+router.post('/reset-password', [
+  body('token').notEmpty().withMessage('Reset token is required'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { token, password } = req.body;
+    const result = await AuthService.resetPassword(token, password);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Password reset error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * Refresh Token
+ * POST /api/auth/refresh
+ */
+router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const result = await AuthService.refreshToken(req.user.id);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({ error: error.message });
+  }
+});
+
+/**
+ * Get Current User
+ * GET /api/auth/me
+ */
+router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    res.json({ user: req.user });
+  } catch (error: any) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Failed to get user information' });
+  }
+});
+
+/**
+ * Debug endpoint to test database connectivity
+ * GET /api/auth/debug/user
+ */
+router.get('/debug/user', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // Test basic user lookup
+    const userResult = await query(
+      'SELECT * FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    // Test table structure
+    const tableResult = await query(
+      `SELECT column_name, data_type 
+       FROM information_schema.columns 
+       WHERE table_name = 'users' AND table_schema = 'public'`
+    );
+
+    res.json({
+      user: userResult.rows[0] || null,
+      userFound: userResult.rows.length > 0,
+      tableStructure: tableResult.rows,
+      requestUserId: req.user.id
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: 'Debug failed', details: error });
+  }
+});
+
+/**
+ * Update Current User Profile (extended)
+ * PUT /api/auth/profile
+ */
+router.put(
+  '/profile',
+  authenticateToken,
+  [
+    body('firstName').optional().isString().trim().isLength({ min: 1 }),
+    body('lastName').optional().isString().trim().isLength({ min: 1 }),
+    body('phone').optional().isString().trim(),
+    body('timezone').optional().isString().trim()
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { firstName, lastName, phone, timezone } = req.body as { 
+        firstName?: string; 
+        lastName?: string; 
+        phone?: string; 
+        timezone?: string; 
+      };
+
+      // Fetch current user to derive existing name parts
+      const currentResult = await query(
+        'SELECT id, email, role, name, phone, timezone FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      
+      if (currentResult.rows.length === 0) {
+        console.error('Profile update - User lookup failed:', {
+          userId: req.user.id,
+          userExists: false
+        });
+        res.status(404).json({ 
+          error: 'User not found',
+          details: 'User does not exist in database'
+        });
+        return;
+      }
+
+      const current = currentResult.rows[0];
+      const existingFirst = (current.name || '').split(' ')[0] || '';
+      const existingLast = (current.name || '').split(' ').slice(1).join(' ');
+      const newFirst = typeof firstName !== 'undefined' ? firstName : existingFirst;
+      const newLast = typeof lastName !== 'undefined' ? lastName : existingLast;
+      const newName = `${newFirst} ${newLast}`.trim();
+
+      // Build update query dynamically
+      const updateFields = ['name = $2', 'updated_at = $3'];
+      const updateValues = [req.user.id, newName, new Date().toISOString()];
+      let paramIndex = 4;
+
+      if (typeof phone !== 'undefined') {
+        updateFields.push(`phone = $${paramIndex}`);
+        updateValues.push(phone);
+        paramIndex++;
+      }
+      if (typeof timezone !== 'undefined') {
+        updateFields.push(`timezone = $${paramIndex}`);
+        updateValues.push(timezone);
+        paramIndex++;
+      }
+
+      const updateQuery = `
+        UPDATE users 
+        SET ${updateFields.join(', ')} 
+        WHERE id = $1 
+        RETURNING id, email, role, name, phone, timezone
+      `;
+
+      const updateResult = await query(updateQuery, updateValues);
+
+      if (updateResult.rows.length === 0) {
+        res.status(500).json({ error: 'Failed to update profile' });
+        return;
+      }
+
+      const updated = updateResult.rows[0];
+
+      // Get user's organization membership to include in response for consistency
+      let orgMember = null;
+      try {
+        const orgResult = await query(
+          'SELECT organization_id, role FROM organization_members WHERE user_id = $1',
+          [req.user.id]
+        );
+        orgMember = orgResult.rows[0] || null;
+      } catch (err) {
+        console.warn('organization_members table not found, skipping organization lookup');
+      }
+
+      res.json({
+        user: {
+          id: updated.id,
+          email: updated.email,
+          firstName: newFirst,
+          lastName: newLast,
+          phone: updated.phone,
+          timezone: updated.timezone,
+          role: updated.role,
+          emailVerified: true,
+          organizationId: orgMember?.organization_id,
+          organizationRole: orgMember?.role
+        }
+      });
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update profile' });
+    }
+  }
+);
+
+/**
+ * Update Organization Settings
+ * PUT /api/auth/organization
+ */
+router.put(
+  '/organization',
+  authenticateToken,
+  [
+    body('name').optional().isString().trim().isLength({ min: 1 }),
+    body('website').optional().isURL().withMessage('Invalid website URL'),
+    body('address').optional().isString().trim(),
+    body('taxId').optional().isString().trim()
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      if (!req.user?.organizationId) {
+        res.status(400).json({ error: 'No organization associated with user' });
+        return;
+      }
+
+      const { name, website, address, taxId } = req.body;
+      const updateData: any = { updated_at: new Date().toISOString() };
+      
+      if (typeof name !== 'undefined') updateData.name = name;
+      if (typeof website !== 'undefined') updateData.website = website;
+      if (typeof address !== 'undefined') updateData.address = address;
+      if (typeof taxId !== 'undefined') updateData.tax_id = taxId;
+
+      const { data: updated, error: updateErr } = await supabaseAdmin
+        .from('organizations')
+        .update(updateData)
+        .eq('id', req.user.organizationId)
+        .select('id, name, website, address, tax_id')
+        .single();
+
+      if (updateErr || !updated) {
+        res.status(500).json({ error: updateErr?.message || 'Failed to update organization' });
+        return;
+      }
+
+      res.json({
+        organization: {
+          id: updated.id,
+          name: updated.name,
+          website: updated.website,
+          address: updated.address,
+          taxId: updated.tax_id
+        }
+      });
+    } catch (error: any) {
+      console.error('Organization update error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update organization' });
+    }
+  }
+);
+
+/**
+ * Change Password
+ * PUT /api/auth/password
+ */
+router.put(
+  '/password',
+  authenticateToken,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      // Verify current password using AuthService
+      try {
+        await AuthService.login({ email: req.user.email, password: currentPassword });
+      } catch (error) {
+        res.status(400).json({ error: 'Current password is incorrect' });
+        return;
+      }
+
+      // Update password
+      const result = await AuthService.changePassword(req.user.id, newPassword);
+      
+      res.json({ message: 'Password changed successfully' });
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      res.status(500).json({ error: error.message || 'Failed to change password' });
+    }
+  }
+);
+
+/**
+ * Update Notification Preferences
+ * PUT /api/auth/preferences
+ */
+router.put(
+  '/preferences',
+  authenticateToken,
+  [
+    body('notifications').optional().isObject(),
+    body('security').optional().isObject()
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { notifications, security } = req.body;
+
+      // Get current preferences
+      const { data: current, error: currentErr } = await supabaseAdmin
+        .from('users')
+        .select('preferences')
+        .eq('id', req.user.id)
+        .single();
+
+      if (currentErr) {
+        res.status(500).json({ error: 'Failed to fetch current preferences' });
+        return;
+      }
+
+      const currentPrefs = current?.preferences || {};
+      const updatedPrefs = { ...currentPrefs };
+
+      if (notifications) {
+        updatedPrefs.notifications = { ...currentPrefs.notifications, ...notifications };
+      }
+      if (security) {
+        updatedPrefs.security = { ...currentPrefs.security, ...security };
+      }
+
+      const { error: updateErr } = await supabaseAdmin
+        .from('users')
+        .update({ 
+          preferences: updatedPrefs,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', req.user.id);
+
+      if (updateErr) {
+        res.status(500).json({ error: updateErr.message || 'Failed to update preferences' });
+        return;
+      }
+
+      res.json({ 
+        message: 'Preferences updated successfully',
+        preferences: updatedPrefs
+      });
+    } catch (error: any) {
+      console.error('Preferences update error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update preferences' });
+    }
+  }
+);
+
+/**
+ * Get User API Keys
+ * GET /api/auth/api-keys
+ */
+router.get('/api-keys', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const { data: apiKeys, error } = await supabaseAdmin
+      .from('user_api_keys')
+      .select('id, key_name, key_prefix, created_at, last_used_at, expires_at, active')
+      .eq('user_id', req.user.id)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      res.status(500).json({ error: error.message || 'Failed to fetch API keys' });
+      return;
+    }
+
+    res.json({ apiKeys: apiKeys || [] });
+  } catch (error: any) {
+    console.error('API keys fetch error:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch API keys' });
+  }
+});
+
+/**
+ * Generate New API Key
+ * POST /api/auth/api-keys
+ */
+router.post(
+  '/api-keys',
+  authenticateToken,
+  [
+    body('name').isString().trim().isLength({ min: 1 }).withMessage('API key name is required')
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { name } = req.body;
+      
+      // Generate API key
+      const apiKey = `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+      const keyPrefix = apiKey.substring(0, 12) + '...';
+      
+      // Hash the key for storage (in production, use proper hashing)
+      const keyHash = Buffer.from(apiKey).toString('base64');
+
+      const { data: newKey, error } = await supabaseAdmin
+        .from('user_api_keys')
+        .insert({
+          user_id: req.user.id,
+          key_name: name,
+          key_hash: keyHash,
+          key_prefix: keyPrefix
+        })
+        .select('id, key_name, key_prefix, created_at')
+        .single();
+
+      if (error) {
+        res.status(500).json({ error: error.message || 'Failed to create API key' });
+        return;
+      }
+
+      res.status(201).json({
+        message: 'API key created successfully',
+        apiKey: {
+          ...newKey,
+          key: apiKey // Only return the full key once
+        }
+      });
+    } catch (error: any) {
+      console.error('API key creation error:', error);
+      res.status(500).json({ error: error.message || 'Failed to create API key' });
+    }
+  }
+);
+
+/**
+ * Revoke API Key
+ * DELETE /api/auth/api-keys/:id
+ */
+router.delete('/api-keys/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const { error } = await supabaseAdmin
+      .from('user_api_keys')
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', req.user.id);
+
+    if (error) {
+      res.status(500).json({ error: error.message || 'Failed to revoke API key' });
+      return;
+    }
+
+    res.json({ message: 'API key revoked successfully' });
+  } catch (error: any) {
+    console.error('API key revocation error:', error);
+    res.status(500).json({ error: error.message || 'Failed to revoke API key' });
+  }
+});
+
+export default router;
