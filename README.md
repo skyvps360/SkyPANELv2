@@ -50,6 +50,36 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
 - **Redis** server
 - **InfluxDB** (optional for metrics)
 
+## Example Images
+<img width="1909" height="918" alt="image" src="https://github.com/user-attachments/assets/684ffc14-ff53-49bb-98d9-765d3c5969f1" />
+<img width="1917" height="919" alt="image" src="https://github.com/user-attachments/assets/665e936c-066e-4d6f-9550-af0ad6b25a55" />
+<img width="1912" height="918" alt="image" src="https://github.com/user-attachments/assets/8e64457e-b042-490c-872f-840b7db00de3" />
+<img width="1914" height="920" alt="image" src="https://github.com/user-attachments/assets/9b34eec4-94a8-47ea-a6c8-81fb67fb5a9e" />
+<img width="1917" height="918" alt="image" src="https://github.com/user-attachments/assets/391f2434-b6e1-4498-aba9-35d4a928dd14" />
+<img width="1903" height="910" alt="image" src="https://github.com/user-attachments/assets/fc1f1e1d-599a-42d9-af0e-ac9a7f8a7631" />
+<img width="1907" height="919" alt="image" src="https://github.com/user-attachments/assets/892104d2-83c9-4ea8-9702-26ff746d39d5" />
+<img width="1917" height="922" alt="image" src="https://github.com/user-attachments/assets/08da58b7-14d0-4255-866c-090b47f4ad31" />
+<img width="1895" height="920" alt="image" src="https://github.com/user-attachments/assets/7214027f-381d-4cd8-8910-926df9f70180" />
+<img width="1903" height="916" alt="image" src="https://github.com/user-attachments/assets/44e76532-ce8b-4384-ac16-e4b9be8afd78" />
+<img width="1906" height="921" alt="image" src="https://github.com/user-attachments/assets/3bac1630-ab05-465a-82f3-55eb273ae1cc" />
+<img width="1910" height="918" alt="image" src="https://github.com/user-attachments/assets/051f20a9-e034-44be-a10f-d21ede872efd" />
+<img width="1918" height="917" alt="image" src="https://github.com/user-attachments/assets/7a0df052-d65b-4400-9d8d-10919da674c9" />
+<img width="1911" height="917" alt="image" src="https://github.com/user-attachments/assets/dc8bce55-bcdd-4f78-92c5-595a7f54f5bb" />
+<img width="1906" height="916" alt="image" src="https://github.com/user-attachments/assets/c0083700-52e0-48f6-af6a-23bd5c61068b" />
+<img width="1908" height="919" alt="image" src="https://github.com/user-attachments/assets/34ba43ea-8559-46e7-9742-d2df35cf5d92" />
+<img width="1911" height="920" alt="image" src="https://github.com/user-attachments/assets/43fb6890-ba5a-4dd5-8d5a-69dc1240d211" />
+<img width="1902" height="915" alt="image" src="https://github.com/user-attachments/assets/1144f534-e56a-4c48-abc2-48626589cef8" />
+<img width="1907" height="918" alt="image" src="https://github.com/user-attachments/assets/6dfb616e-e807-491a-8f1a-d1e46c28a068" />
+<img width="1914" height="917" alt="image" src="https://github.com/user-attachments/assets/0c424865-1689-4e81-8a0e-0d05173b54c4" />
+<img width="1910" height="918" alt="image" src="https://github.com/user-attachments/assets/236b424d-5fbd-410e-844d-9fde438f5bb8" />
+<img width="1903" height="917" alt="image" src="https://github.com/user-attachments/assets/7992012f-daf4-49bd-8d4d-764371ae1af4" />
+<img width="1909" height="916" alt="image" src="https://github.com/user-attachments/assets/f041b85f-8820-493a-a501-d99cf78047ce" />
+<img width="1906" height="919" alt="image" src="https://github.com/user-attachments/assets/1b3b1e8a-9377-47eb-a458-0fea0c497e8f" />
+<img width="1908" height="914" alt="image" src="https://github.com/user-attachments/assets/d713d86e-3ad2-4467-9776-6b1411059279" />
+<img width="1908" height="916" alt="image" src="https://github.com/user-attachments/assets/f7e11be1-0249-42d9-a857-6128f4bedce2" />
+<img width="1910" height="916" alt="image" src="https://github.com/user-attachments/assets/f64c5ca0-e021-45ab-94c4-f55c4f0ad9f9" />
+
+
 ## 🏗️ Setup & Installation
 
 1. **Clone the repository**
