@@ -10,27 +10,46 @@ export interface Config {
   DATABASE_URL: string;
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX_REQUESTS: number;
-  PAYPAL_CLIENT_ID?: string;
-  PAYPAL_CLIENT_SECRET?: string;
-  PAYPAL_MODE?: string;
+  PAYPAL_CLIENT_ID: string;
+  PAYPAL_CLIENT_SECRET: string;
+  PAYPAL_MODE: string;
   SMTP2GO_API_KEY?: string;
   LINODE_API_TOKEN?: string;
 }
 
-export const config: Config = {
-  PORT: parseInt(process.env.PORT || '3001', 10),
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-  DATABASE_URL: process.env.DATABASE_URL || '',
-  RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
-  PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
-  PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
-  PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox',
-  SMTP2GO_API_KEY: process.env.SMTP2GO_API_KEY,
-  LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
-};
+// Use getter functions to read env vars at runtime, not at import time
+function getConfig(): Config {
+  const config = {
+    PORT: parseInt(process.env.PORT || '3001', 10),
+    NODE_ENV: process.env.NODE_ENV || 'development',
+    JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
+    DATABASE_URL: process.env.DATABASE_URL || '',
+    RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
+    RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+    PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID || '',
+    PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET || '',
+    PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox',
+    SMTP2GO_API_KEY: process.env.SMTP2GO_API_KEY,
+    LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
+  };
+
+  // Debug logging
+  console.log('Config loaded:', {
+    hasPayPalClientId: !!config.PAYPAL_CLIENT_ID,
+    hasPayPalClientSecret: !!config.PAYPAL_CLIENT_SECRET,
+    paypalMode: config.PAYPAL_MODE
+  });
+
+  return config;
+}
+
+// Export a proxy that reads config values dynamically
+export const config = new Proxy({} as Config, {
+  get(target, prop: keyof Config) {
+    return getConfig()[prop];
+  }
+});
 
 export function validateConfig(): void {
   const requiredEnvVars = [

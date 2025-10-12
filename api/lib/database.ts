@@ -131,11 +131,13 @@ export interface Wallet {
 export interface UserApiKey {
   id: string;
   user_id: string;
-  name: string;
+  key_name: string;
   key_hash: string;
-  permissions: any;
+  key_prefix: string;
+  permissions?: any;
   last_used_at?: string;
   expires_at?: string;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }

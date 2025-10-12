@@ -72,6 +72,24 @@ router.patch(
   }
 );
 
+// Delete a ticket (admin)
+router.delete(
+  '/tickets/:id',
+  authenticateToken,
+  requireAdmin,
+  [param('id').isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await query('DELETE FROM support_tickets WHERE id = $1', [id]);
+      res.status(204).send();
+    } catch (err: any) {
+      console.error('Admin ticket delete error:', err);
+      res.status(500).json({ error: err.message || 'Failed to delete ticket' });
+    }
+  }
+);
+
 // Reply to a ticket (admin)
 router.post(
   '/tickets/:id/replies',
@@ -120,16 +138,11 @@ router.post(
 // List VPS plans
 router.get('/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('vps_plans')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const result = await query(
+      'SELECT * FROM vps_plans ORDER BY created_at DESC'
+    );
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    res.json({ plans: data || [] });
+    res.json({ plans: result.rows || [] });
   } catch (err: any) {
     console.error('Admin plans list error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch plans' });
@@ -143,6 +156,7 @@ router.put(
   requireAdmin,
   [
     param('id').isUUID().withMessage('Invalid plan id'),
+    body('name').optional().isString().trim().notEmpty(),
     body('base_price').optional().isFloat({ min: 0 }),
     body('markup_price').optional().isFloat({ min: 0 }),
     body('active').optional().isBoolean()
@@ -158,27 +172,54 @@ router.put(
       const { id } = req.params;
       const updateFields: any = {};
 
-      const { base_price, markup_price, active } = req.body as any;
+      const { name, base_price, markup_price, active } = req.body as any;
+      if (typeof name !== 'undefined') updateFields.name = name;
       if (typeof base_price !== 'undefined') updateFields.base_price = base_price;
       if (typeof markup_price !== 'undefined') updateFields.markup_price = markup_price;
       if (typeof active !== 'undefined') updateFields.active = active;
       updateFields.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabaseAdmin
-        .from('vps_plans')
-        .update(updateFields)
-        .eq('id', id)
-        .select('*')
-        .single();
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      for (const [key, val] of Object.entries(updateFields)) {
+        setClauses.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      values.push(id);
 
-      if (error) {
-        throw new Error(error.message);
+      const result = await query(
+        `UPDATE vps_plans SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('Plan not found');
       }
 
-      res.json({ plan: data });
+      res.json({ plan: result.rows[0] });
     } catch (err: any) {
       console.error('Admin plan update error:', err);
       res.status(500).json({ error: err.message || 'Failed to update plan' });
+    }
+  }
+);
+
+// Delete a VPS plan
+router.delete(
+  '/plans/:id',
+  authenticateToken,
+  requireAdmin,
+  [param('id').isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await query('DELETE FROM vps_plans WHERE id = $1', [id]);
+      res.status(204).send();
+    } catch (err: any) {
+      console.error('Admin VPS plan delete error:', err);
+      res.status(500).json({ error: err.message || 'Failed to delete VPS plan' });
     }
   }
 );
@@ -216,21 +257,21 @@ router.post(
       } = req.body as any;
 
       // Ensure provider exists
-      const { data: provider, error: providerError } = await supabaseAdmin
-        .from('service_providers')
-        .select('id')
-        .eq('id', provider_id)
-        .single();
+      const providerCheck = await query(
+        'SELECT id FROM service_providers WHERE id = $1 LIMIT 1',
+        [provider_id]
+      );
 
-      if (providerError || !provider) {
+      if (providerCheck.rows.length === 0) {
         res.status(400).json({ error: 'Provider not found' });
         return;
       }
 
       const now = new Date().toISOString();
-      const { data, error } = await supabaseAdmin
-        .from('vps_plans')
-        .insert({
+      const insertResult = await query(
+        `INSERT INTO vps_plans (name, provider_id, provider_plan_id, base_price, markup_price, specifications, active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [
           name,
           provider_id,
           provider_plan_id,
@@ -238,17 +279,12 @@ router.post(
           markup_price,
           specifications,
           active,
-          created_at: now,
-          updated_at: now
-        })
-        .select('*')
-        .single();
+          now,
+          now,
+        ]
+      );
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      res.status(201).json({ plan: data });
+      res.status(201).json({ plan: insertResult.rows[0] });
     } catch (err: any) {
       console.error('Admin plan create error:', err);
       res.status(500).json({ error: err.message || 'Failed to create plan' });
@@ -259,16 +295,11 @@ router.post(
 // Providers: list and create
 router.get('/providers', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('service_providers')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const result = await query(
+      'SELECT * FROM service_providers ORDER BY created_at DESC'
+    );
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    res.json({ providers: data || [] });
+    res.json({ providers: result.rows || [] });
   } catch (err: any) {
     console.error('Admin providers list error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch providers' });
@@ -283,40 +314,24 @@ router.post(
     body('name').isString().trim().notEmpty(),
     body('type').isIn(['linode', 'digitalocean', 'aws', 'gcp']),
     body('apiKey').isString().trim().notEmpty(),
-    body('configuration').optional().isObject(),
     body('active').optional().isBoolean()
   ],
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
-        return;
+        return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, type, apiKey, configuration = {}, active = true } = req.body as any;
-      const api_key_encrypted = Buffer.from(apiKey).toString('base64');
+      const { name, type, apiKey, active = true } = req.body;
+      const result = await query(
+        `INSERT INTO service_providers (name, type, api_key_encrypted, active)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [name, type, apiKey, active]
+      );
 
-      const now = new Date().toISOString();
-      const { data, error } = await supabaseAdmin
-        .from('service_providers')
-        .insert({
-          name,
-          type,
-          api_key_encrypted,
-          configuration,
-          active,
-          created_at: now,
-          updated_at: now
-        })
-        .select('*')
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      res.status(201).json({ provider: data });
+      res.status(201).json({ provider: result.rows[0] });
     } catch (err: any) {
       console.error('Admin provider create error:', err);
       res.status(500).json({ error: err.message || 'Failed to create provider' });
@@ -324,23 +339,93 @@ router.post(
   }
 );
 
+// Update a provider
+router.put(
+  '/providers/:id',
+  authenticateToken,
+  requireAdmin,
+  [
+    param('id').isUUID(),
+    body('name').optional().isString().trim().notEmpty(),
+    body('active').optional().isBoolean()
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { name, active } = req.body;
+      
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      if (name !== undefined) {
+        updates.push(`name = $${paramCount++}`);
+        values.push(name);
+      }
+      if (active !== undefined) {
+        updates.push(`active = $${paramCount++}`);
+        values.push(active);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
+
+      updates.push(`updated_at = NOW()`);
+      values.push(id);
+
+      const result = await query(
+        `UPDATE service_providers SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Provider not found' });
+      }
+
+      res.json({ provider: result.rows[0] });
+    } catch (err: any) {
+      console.error('Admin provider update error:', err);
+      res.status(500).json({ error: err.message || 'Failed to update provider' });
+    }
+  }
+);
+
+// Delete a provider
+router.delete(
+  '/providers/:id',
+  authenticateToken,
+  requireAdmin,
+  [param('id').isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await query('DELETE FROM service_providers WHERE id = $1', [id]);
+      res.status(204).send();
+    } catch (err: any) {
+      console.error('Admin provider delete error:', err);
+      res.status(500).json({ error: err.message || 'Failed to delete provider' });
+    }
+  }
+);
+
 // Container pricing configuration: get and upsert
 router.get('/container/pricing', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('container_pricing_config')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1);
-    if (error) {
-      if (isMissingTableError(error)) {
-        // Gracefully handle missing table with a safe default
-        return res.json({ pricing: null, warning: 'container_pricing_config table not found. Apply migrations.' });
-      }
-      throw new Error(error.message);
-    }
-    res.json({ pricing: data?.[0] || null });
+    const result = await query(
+      'SELECT * FROM container_pricing_config ORDER BY updated_at DESC LIMIT 1'
+    );
+    res.json({ pricing: result.rows?.[0] || null });
   } catch (err: any) {
+    const msg = (err?.message || '').toLowerCase();
+    if (msg.includes('relation') && msg.includes('does not exist')) {
+      return res.json({ pricing: null, warning: 'container_pricing_config table not found. Apply migrations.' });
+    }
     console.error('Admin container pricing get error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch pricing config' });
   }
@@ -366,39 +451,58 @@ router.put(
       }
       const now = new Date().toISOString();
       const payload = { ...req.body, updated_at: now };
-      // Upsert single row (create if none exists)
-      const { data: existing, error: readErr } = await supabaseAdmin
-        .from('container_pricing_config')
-        .select('id')
-        .limit(1);
-      if (readErr) {
-        if (isMissingTableError(readErr)) {
+      try {
+        const existing = await query(
+          'SELECT id FROM container_pricing_config LIMIT 1'
+        );
+
+        if (existing.rows.length > 0) {
+          const updateRes = await query(
+            `UPDATE container_pricing_config
+             SET price_per_cpu = $1,
+                 price_per_ram_gb = $2,
+                 price_per_storage_gb = $3,
+                 price_per_network_mbps = $4,
+                 currency = COALESCE($5, currency),
+                 updated_at = $6
+             WHERE id = $7
+             RETURNING *`,
+            [
+              payload.price_per_cpu,
+              payload.price_per_ram_gb,
+              payload.price_per_storage_gb,
+              payload.price_per_network_mbps,
+              payload.currency || null,
+              now,
+              existing.rows[0].id,
+            ]
+          );
+          return res.json({ pricing: updateRes.rows[0] });
+        } else {
+          const insertRes = await query(
+            `INSERT INTO container_pricing_config
+             (price_per_cpu, price_per_ram_gb, price_per_storage_gb, price_per_network_mbps, currency, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, COALESCE($5, 'USD'), $6, $7)
+             RETURNING *`,
+            [
+              payload.price_per_cpu,
+              payload.price_per_ram_gb,
+              payload.price_per_storage_gb,
+              payload.price_per_network_mbps,
+              payload.currency || null,
+              now,
+              now,
+            ]
+          );
+          return res.json({ pricing: insertRes.rows[0] });
+        }
+      } catch (err: any) {
+        const msg = (err?.message || '').toLowerCase();
+        if (msg.includes('relation') && msg.includes('does not exist')) {
           return res.status(400).json({ error: 'container_pricing_config table not found. Apply migrations before updating.' });
         }
-        throw new Error(readErr.message);
+        throw err;
       }
-      let result;
-      if (existing && existing.length > 0) {
-        result = await supabaseAdmin
-          .from('container_pricing_config')
-          .update(payload)
-          .eq('id', existing[0].id)
-          .select('*')
-          .single();
-      } else {
-        result = await supabaseAdmin
-          .from('container_pricing_config')
-          .insert({ ...payload, created_at: now })
-          .select('*')
-          .single();
-      }
-      if (result.error) {
-        if (isMissingTableError(result.error)) {
-          return res.status(400).json({ error: 'container_pricing_config table not found. Apply migrations before inserting.' });
-        }
-        throw new Error(result.error.message);
-      }
-      res.json({ pricing: result.data });
     } catch (err: any) {
       console.error('Admin container pricing upsert error:', err);
       res.status(500).json({ error: err.message || 'Failed to save pricing config' });
@@ -409,18 +513,15 @@ router.put(
 // Container plans CRUD
 router.get('/container/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('container_plans')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) {
-      if (isMissingTableError(error)) {
-        return res.json({ plans: [], warning: 'container_plans table not found. Apply migrations.' });
-      }
-      throw new Error(error.message);
-    }
-    res.json({ plans: data || [] });
+    const result = await query(
+      'SELECT * FROM container_plans ORDER BY created_at DESC'
+    );
+    res.json({ plans: result.rows || [] });
   } catch (err: any) {
+    const msg = (err?.message || '').toLowerCase();
+    if (msg.includes('relation') && msg.includes('does not exist')) {
+      return res.json({ plans: [], warning: 'container_plans table not found. Apply migrations.' });
+    }
     console.error('Admin container plans list error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch container plans' });
   }
@@ -448,18 +549,24 @@ router.post(
         return;
       }
       const now = new Date().toISOString();
-      const { data, error } = await supabaseAdmin
-        .from('container_plans')
-        .insert({ ...req.body, created_at: now, updated_at: now })
-        .select('*')
-        .single();
-      if (error) {
-        if (isMissingTableError(error)) {
-          return res.status(400).json({ error: 'container_plans table not found. Apply migrations before creating.' });
-        }
-        throw new Error(error.message);
-      }
-      res.status(201).json({ plan: data });
+      const insertRes = await query(
+        `INSERT INTO container_plans (name, cpu_cores, ram_gb, storage_gb, network_mbps, base_price, markup_price, active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, true), $9, $10)
+         RETURNING *`,
+        [
+          req.body.name,
+          req.body.cpu_cores,
+          req.body.ram_gb,
+          req.body.storage_gb,
+          req.body.network_mbps,
+          req.body.base_price,
+          req.body.markup_price,
+          req.body.active,
+          now,
+          now,
+        ]
+      );
+      res.status(201).json({ plan: insertRes.rows[0] });
     } catch (err: any) {
       console.error('Admin container plan create error:', err);
       res.status(500).json({ error: err.message || 'Failed to create container plan' });
@@ -490,20 +597,24 @@ router.put(
         return;
       }
       const { id } = req.params;
-      const update = { ...req.body, updated_at: new Date().toISOString() };
-      const { data, error } = await supabaseAdmin
-        .from('container_plans')
-        .update(update)
-        .eq('id', id)
-        .select('*')
-        .single();
-      if (error) {
-        if (isMissingTableError(error)) {
-          return res.status(400).json({ error: 'container_plans table not found. Apply migrations before updating.' });
-        }
-        throw new Error(error.message);
+      const update: any = { ...req.body, updated_at: new Date().toISOString() };
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      for (const [key, val] of Object.entries(update)) {
+        setClauses.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
       }
-      res.json({ plan: data });
+      values.push(id);
+      const result = await query(
+        `UPDATE container_plans SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      if (result.rows.length === 0) {
+        throw new Error('Container plan not found');
+      }
+      res.json({ plan: result.rows[0] });
     } catch (err: any) {
       console.error('Admin container plan update error:', err);
       res.status(500).json({ error: err.message || 'Failed to update container plan' });
@@ -519,16 +630,10 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { error } = await supabaseAdmin
-        .from('container_plans')
-        .delete()
-        .eq('id', id);
-      if (error) {
-        if (isMissingTableError(error)) {
-          return res.status(400).json({ error: 'container_plans table not found. Apply migrations before deleting.' });
-        }
-        throw new Error(error.message);
-      }
+      const result = await query(
+        'DELETE FROM container_plans WHERE id = $1',
+        [id]
+      );
       res.status(204).send();
     } catch (err: any) {
       console.error('Admin container plan delete error:', err);
@@ -541,23 +646,25 @@ router.delete(
 router.get('/schema/check', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
   const requiredTables = ['container_pricing_config', 'container_plans'];
   const result: Record<string, { exists: boolean; error?: string }> = {};
-  for (const table of requiredTables) {
-    try {
-      const { error } = await supabaseAdmin.from(table as any).select('id').limit(1);
-      if (error) {
-        if (isMissingTableError(error)) {
-          result[table] = { exists: false, error: 'missing' };
-        } else {
-          result[table] = { exists: false, error: error.message };
-        }
-      } else {
-        result[table] = { exists: true };
-      }
-    } catch (e: any) {
+  try {
+    for (const table of requiredTables) {
+      const check = await query(
+        `SELECT EXISTS (
+           SELECT 1 FROM information_schema.tables 
+           WHERE table_schema = 'public' AND table_name = $1
+         ) AS exists`,
+        [table]
+      );
+      const exists = check.rows[0]?.exists === true;
+      result[table] = { exists };
+    }
+    res.json({ schema: result });
+  } catch (e: any) {
+    for (const table of requiredTables) {
       result[table] = { exists: false, error: e.message };
     }
+    res.json({ schema: result });
   }
-  res.json({ schema: result });
 });
 
 // Get Linode plans (types)

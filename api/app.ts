@@ -2,6 +2,10 @@
  * ContainerStacks API Server
  */
 
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv'
+dotenv.config()
+
 import express, {
   type Request,
   type Response,
@@ -11,7 +15,6 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
-import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { config, validateConfig } from './config/index.js'
 import authRoutes from './routes/auth.js'
@@ -24,9 +27,6 @@ import supportRoutes from './routes/support.js'
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-// load env
-dotenv.config()
 
 // Validate configuration
 validateConfig()

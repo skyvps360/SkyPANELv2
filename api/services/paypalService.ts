@@ -3,18 +3,27 @@
  * Handles wallet management, payments, and PayPal integration
  */
 
-import { Client, Environment } from '@paypal/paypal-server-sdk';
+import { Client, Environment, OrdersController, CheckoutPaymentIntent, OrderApplicationContextUserAction } from '@paypal/paypal-server-sdk';
 import { config } from '../config/index.js';
 import { query, transaction } from '../lib/database.js';
 
 // Initialize PayPal client
-const paypalClient = new Client({
-  clientCredentialsAuthCredentials: {
-    oAuthClientId: config.PAYPAL_CLIENT_ID || '',
-    oAuthClientSecret: config.PAYPAL_CLIENT_SECRET || '',
-  },
-  environment: config.PAYPAL_MODE === 'production' ? Environment.Production : Environment.Sandbox,
-});
+let paypalClient: Client;
+let ordersController: OrdersController;
+
+function getPayPalClient() {
+  if (!paypalClient) {
+    paypalClient = new Client({
+      clientCredentialsAuthCredentials: {
+        oAuthClientId: config.PAYPAL_CLIENT_ID,
+        oAuthClientSecret: config.PAYPAL_CLIENT_SECRET,
+      },
+      environment: config.PAYPAL_MODE === 'production' ? Environment.Production : Environment.Sandbox,
+    });
+    ordersController = new OrdersController(paypalClient);
+  }
+  return { client: paypalClient, orders: ordersController };
+}
 
 export interface PaymentIntent {
   amount: number;
@@ -48,6 +57,10 @@ export class PayPalService {
   static async createPayment(paymentIntent: PaymentIntent): Promise<PaymentResult> {
     try {
       if (!config.PAYPAL_CLIENT_ID || !config.PAYPAL_CLIENT_SECRET) {
+        console.error('PayPal credentials missing:', {
+          hasClientId: !!config.PAYPAL_CLIENT_ID,
+          hasClientSecret: !!config.PAYPAL_CLIENT_SECRET
+        });
         return {
           success: false,
           error: 'PayPal configuration not found'
@@ -56,7 +69,7 @@ export class PayPalService {
 
       const request = {
         body: {
-          intent: 'CAPTURE',
+          intent: CheckoutPaymentIntent.CAPTURE,
           purchaseUnits: [
             {
               amount: {
@@ -68,14 +81,19 @@ export class PayPalService {
             },
           ],
           applicationContext: {
-            returnUrl: `${process.env.CLIENT_URL}/billing/payment/success`,
-            cancelUrl: `${process.env.CLIENT_URL}/billing/payment/cancel`,
-            userAction: 'PAY_NOW',
+            returnUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/billing/payment/success`,
+            cancelUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/billing/payment/cancel`,
+            userAction: OrderApplicationContextUserAction.PayNow,
           },
         },
       };
 
-      const response = await paypalClient.orders.ordersCreate(request);
+      console.log('Creating PayPal order with request:', JSON.stringify(request, null, 2));
+
+      const { orders } = getPayPalClient();
+      const response = await orders.ordersCreate(request);
+
+      console.log('PayPal response:', { statusCode: response.statusCode, hasResult: !!response.result });
 
       if (response.statusCode === 201 && response.result) {
         const order = response.result;
@@ -83,9 +101,9 @@ export class PayPalService {
 
         // Store payment transaction in database
         await query(
-          `INSERT INTO payment_transactions (id, organization_id, amount, currency, payment_method, payment_provider, provider_transaction_id, status, description)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [order.id, paymentIntent.organizationId, paymentIntent.amount, paymentIntent.currency, 'paypal', 'paypal', order.id, 'pending', paymentIntent.description]
+          `INSERT INTO payment_transactions (organization_id, amount, currency, payment_method, payment_provider, provider_transaction_id, status, description)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [paymentIntent.organizationId, paymentIntent.amount, paymentIntent.currency, 'paypal', 'paypal', order.id, 'pending', paymentIntent.description]
         );
 
         return {
@@ -95,15 +113,22 @@ export class PayPalService {
         };
       }
 
+      console.error('PayPal order creation failed - unexpected response:', response);
       return {
         success: false,
         error: 'Failed to create PayPal order',
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('PayPal payment creation error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        statusCode: error?.statusCode,
+        body: error?.body,
+        stack: error?.stack
+      });
       return {
         success: false,
-        error: 'Payment creation failed',
+        error: error?.message || 'Payment creation failed',
       };
     }
   }
@@ -118,7 +143,8 @@ export class PayPalService {
         body: {},
       };
 
-      const response = await paypalClient.orders.ordersCapture(request);
+      const { orders } = getPayPalClient();
+      const response = await orders.ordersCapture(request);
 
       if (response.statusCode === 201 && response.result) {
         const order = response.result;
@@ -297,7 +323,7 @@ export class PayPalService {
     try {
       const result = await query(
         `SELECT id, organization_id, amount, payment_method as type, description, 
-                provider_transaction_id as paymentId, created_at
+                provider_transaction_id as payment_id, created_at
          FROM payment_transactions 
          WHERE organization_id = $1 
          ORDER BY created_at DESC 
@@ -311,7 +337,7 @@ export class PayPalService {
         amount: parseFloat(row.amount),
         type: row.type.includes('credit') ? 'credit' : 'debit',
         description: row.description,
-        paymentId: row.paymentid,
+        paymentId: row.payment_id,
         createdAt: row.created_at
       }));
     } catch (error) {

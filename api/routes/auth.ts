@@ -393,18 +393,26 @@ router.put(
       if (typeof address !== 'undefined') updateData.address = address;
       if (typeof taxId !== 'undefined') updateData.tax_id = taxId;
 
-      const { data: updated, error: updateErr } = await supabaseAdmin
-        .from('organizations')
-        .update(updateData)
-        .eq('id', req.user.organizationId)
-        .select('id, name, website, address, tax_id')
-        .single();
+      // Build dynamic UPDATE with parameterized values
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      if (typeof name !== 'undefined') { fields.push(`name = $${idx++}`); values.push(name); }
+      if (typeof website !== 'undefined') { fields.push(`website = $${idx++}`); values.push(website); }
+      if (typeof address !== 'undefined') { fields.push(`address = $${idx++}`); values.push(address); }
+      if (typeof taxId !== 'undefined') { fields.push(`tax_id = $${idx++}`); values.push(taxId); }
+      fields.push(`updated_at = $${idx++}`); values.push(new Date().toISOString());
 
-      if (updateErr || !updated) {
-        res.status(500).json({ error: updateErr?.message || 'Failed to update organization' });
+      const updateSql = `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, name, website, address, tax_id`;
+      values.push(req.user.organizationId);
+
+      const updatedResult = await query(updateSql, values);
+      if (updatedResult.rows.length === 0) {
+        res.status(500).json({ error: 'Failed to update organization' });
         return;
       }
 
+      const updated = updatedResult.rows[0];
       res.json({
         organization: {
           id: updated.id,
@@ -492,19 +500,9 @@ router.put(
 
       const { notifications, security } = req.body;
 
-      // Get current preferences
-      const { data: current, error: currentErr } = await supabaseAdmin
-        .from('users')
-        .select('preferences')
-        .eq('id', req.user.id)
-        .single();
-
-      if (currentErr) {
-        res.status(500).json({ error: 'Failed to fetch current preferences' });
-        return;
-      }
-
-      const currentPrefs = current?.preferences || {};
+      // Get current preferences from PostgreSQL
+      const currentRes = await query('SELECT preferences FROM users WHERE id = $1', [req.user.id]);
+      const currentPrefs = currentRes.rows[0]?.preferences || {};
       const updatedPrefs = { ...currentPrefs };
 
       if (notifications) {
@@ -514,16 +512,12 @@ router.put(
         updatedPrefs.security = { ...currentPrefs.security, ...security };
       }
 
-      const { error: updateErr } = await supabaseAdmin
-        .from('users')
-        .update({ 
-          preferences: updatedPrefs,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', req.user.id);
-
-      if (updateErr) {
-        res.status(500).json({ error: updateErr.message || 'Failed to update preferences' });
+      const prefUpdate = await query(
+        'UPDATE users SET preferences = $1, updated_at = $2 WHERE id = $3 RETURNING id',
+        [updatedPrefs, new Date().toISOString(), req.user.id]
+      );
+      if (prefUpdate.rowCount === 0) {
+        res.status(500).json({ error: 'Failed to update preferences' });
         return;
       }
 
@@ -549,19 +543,17 @@ router.get('/api-keys', authenticateToken, async (req: AuthenticatedRequest, res
       return;
     }
 
-    const { data: apiKeys, error } = await supabaseAdmin
-      .from('user_api_keys')
-      .select('id, key_name, key_prefix, created_at, last_used_at, expires_at, active')
-      .eq('user_id', req.user.id)
-      .eq('active', true)
-      .order('created_at', { ascending: false });
+    // Set current user ID for RLS
+    await query('SET app.current_user_id = $1', [req.user.id]);
 
-    if (error) {
-      res.status(500).json({ error: error.message || 'Failed to fetch API keys' });
-      return;
-    }
-
-    res.json({ apiKeys: apiKeys || [] });
+    const apiKeysRes = await query(
+      `SELECT id, key_name, key_prefix, created_at, last_used_at, expires_at, active
+       FROM user_api_keys
+       WHERE user_id = $1 AND active = TRUE
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ apiKeys: apiKeysRes.rows || [] });
   } catch (error: any) {
     console.error('API keys fetch error:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch API keys' });
@@ -593,6 +585,9 @@ router.post(
 
       const { name } = req.body;
       
+      // Set current user ID for RLS
+      await query('SET app.current_user_id = $1', [req.user.id]);
+
       // Generate API key
       const apiKey = `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
       const keyPrefix = apiKey.substring(0, 12) + '...';
@@ -600,27 +595,23 @@ router.post(
       // Hash the key for storage (in production, use proper hashing)
       const keyHash = Buffer.from(apiKey).toString('base64');
 
-      const { data: newKey, error } = await supabaseAdmin
-        .from('user_api_keys')
-        .insert({
-          user_id: req.user.id,
-          key_name: name,
-          key_hash: keyHash,
-          key_prefix: keyPrefix
-        })
-        .select('id, key_name, key_prefix, created_at')
-        .single();
-
-      if (error) {
-        res.status(500).json({ error: error.message || 'Failed to create API key' });
+      const insertRes = await query(
+        `INSERT INTO user_api_keys (user_id, key_name, key_hash, key_prefix, created_at, active)
+         VALUES ($1, $2, $3, $4, $5, TRUE)
+         RETURNING id, key_name, key_prefix, created_at`,
+        [req.user.id, name, keyHash, keyPrefix, new Date().toISOString()]
+      );
+      if (insertRes.rows.length === 0) {
+        res.status(500).json({ error: 'Failed to create API key' });
         return;
       }
 
+      const newKey = insertRes.rows[0];
       res.status(201).json({
         message: 'API key created successfully',
         apiKey: {
           ...newKey,
-          key: apiKey // Only return the full key once
+          key: apiKey
         }
       });
     } catch (error: any) {
@@ -643,17 +634,14 @@ router.delete('/api-keys/:id', authenticateToken, async (req: AuthenticatedReque
 
     const { id } = req.params;
 
-    const { error } = await supabaseAdmin
-      .from('user_api_keys')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', req.user.id);
-
-    if (error) {
-      res.status(500).json({ error: error.message || 'Failed to revoke API key' });
+    const revokeRes = await query(
+      'UPDATE user_api_keys SET active = FALSE, updated_at = $1 WHERE id = $2 AND user_id = $3',
+      [new Date().toISOString(), id, req.user.id]
+    );
+    if (revokeRes.rowCount === 0) {
+      res.status(404).json({ error: 'API key not found' });
       return;
     }
-
     res.json({ message: 'API key revoked successfully' });
   } catch (error: any) {
     console.error('API key revocation error:', error);

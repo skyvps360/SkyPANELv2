@@ -82,6 +82,7 @@ interface LinodeType {
   memory: number;
   vcpus: number;
   transfer: number;
+  region?: string;
   price: {
     hourly: number;
     monthly: number;
@@ -113,46 +114,8 @@ const VPS: React.FC = () => {
     privateIP: false
   });
   const { token } = useAuth();
-
-  // Mock data for Linode types and regions
-  const linodeTypes: LinodeType[] = [
-    {
-      id: 'g6-nanode-1',
-      label: 'Nanode 1GB',
-      disk: 25,
-      memory: 1024,
-      vcpus: 1,
-      transfer: 1000,
-      price: { hourly: 0.0075, monthly: 5 }
-    },
-    {
-      id: 'g6-standard-1',
-      label: 'Linode 2GB',
-      disk: 50,
-      memory: 2048,
-      vcpus: 1,
-      transfer: 2000,
-      price: { hourly: 0.015, monthly: 10 }
-    },
-    {
-      id: 'g6-standard-2',
-      label: 'Linode 4GB',
-      disk: 80,
-      memory: 4096,
-      vcpus: 2,
-      transfer: 4000,
-      price: { hourly: 0.03, monthly: 20 }
-    },
-    {
-      id: 'g6-standard-4',
-      label: 'Linode 8GB',
-      disk: 160,
-      memory: 8192,
-      vcpus: 4,
-      transfer: 5000,
-      price: { hourly: 0.06, monthly: 40 }
-    }
-  ];
+  const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
 
   const linodeRegions: LinodeRegion[] = [
     { id: 'us-east', label: 'Newark, NJ', country: 'US' },
@@ -164,18 +127,70 @@ const VPS: React.FC = () => {
     { id: 'ap-northeast', label: 'Tokyo, JP', country: 'JP' }
   ];
 
-  const linodeImages = [
-    'linode/ubuntu22.04',
-    'linode/ubuntu20.04',
-    'linode/debian11',
-    'linode/centos7',
-    'linode/fedora37',
-    'linode/alpine3.17'
+  const osImages = [
+    { id: 'linode/ubuntu24.04', label: 'Ubuntu 24.04 LTS' },
+    { id: 'linode/ubuntu22.04', label: 'Ubuntu 22.04 LTS' },
+    { id: 'linode/ubuntu20.04', label: 'Ubuntu 20.04 LTS' },
+    { id: 'linode/debian12', label: 'Debian 12' },
+    { id: 'linode/debian11', label: 'Debian 11' },
+    { id: 'linode/debian10', label: 'Debian 10' },
+    { id: 'linode/centos-stream9', label: 'CentOS Stream 9' },
+    { id: 'linode/centos-stream8', label: 'CentOS Stream 8' },
+    { id: 'linode/rocky9', label: 'Rocky Linux 9' },
+    { id: 'linode/rocky8', label: 'Rocky Linux 8' },
+    { id: 'linode/almalinux9', label: 'AlmaLinux 9' },
+    { id: 'linode/almalinux8', label: 'AlmaLinux 8' },
+    { id: 'linode/fedora39', label: 'Fedora 39' },
+    { id: 'linode/fedora38', label: 'Fedora 38' },
+    { id: 'linode/alpine3.19', label: 'Alpine 3.19' },
+    { id: 'linode/alpine3.18', label: 'Alpine 3.18' },
+    { id: 'linode/arch', label: 'Arch Linux' },
+    { id: 'linode/gentoo', label: 'Gentoo' },
+    { id: 'linode/opensuse-leap15.5', label: 'openSUSE Leap 15.5' },
+    { id: 'linode/slackware15.0', label: 'Slackware 15.0' }
   ];
 
   useEffect(() => {
     loadInstances();
+    loadVPSPlans();
   }, []);
+
+  const loadVPSPlans = async () => {
+    setLoadingPlans(true);
+    try {
+      const res = await fetch('/api/admin/plans', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Failed to load VPS plans');
+
+      // Map admin plans to LinodeType format
+      const mappedPlans: LinodeType[] = (payload.plans || []).map((plan: any) => {
+        const specs = plan.specifications || {};
+        const totalPrice = Number(plan.markup_price || plan.base_price || 0);
+        return {
+          id: plan.provider_plan_id || plan.id,
+          label: `${plan.name} - $${totalPrice.toFixed(2)}/mo`,
+          disk: specs.storage_gb || 0,
+          memory: specs.memory_gb ? specs.memory_gb * 1024 : 0,
+          vcpus: specs.cpu_cores || 0,
+          transfer: specs.transfer_gb || 0,
+          region: plan.region_id || '',
+          price: {
+            hourly: totalPrice / 730,
+            monthly: totalPrice
+          }
+        };
+      });
+
+      setLinodeTypes(mappedPlans);
+    } catch (error: any) {
+      console.error('Failed to load VPS plans:', error);
+      toast.error(error.message || 'Failed to load VPS plans');
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
 
   const loadInstances = async () => {
     setLoading(true);
@@ -384,7 +399,7 @@ const VPS: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">VPS Management</h1>
               <p className="mt-2 text-gray-600">
-                Manage your Linode VPS instances and monitor their performance
+                Manage your VPS instances and monitor their performance
               </p>
             </div>
             <button
@@ -652,39 +667,21 @@ const VPS: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Plan
-                      </label>
-                      <select
-                        value={createForm.type}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, type: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {linodeTypes.map(type => (
-                          <option key={type.id} value={type.id}>
-                            {type.label} - {formatCurrency(type.price.monthly)}/mo
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Region
-                      </label>
-                      <select
-                        value={createForm.region}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, region: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {linodeRegions.map(region => (
-                          <option key={region.id} value={region.id}>
-                            {region.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Plan
+                    </label>
+                    <select
+                      value={createForm.type}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {linodeTypes.map(type => (
+                        <option key={type.id} value={type.id}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -696,9 +693,9 @@ const VPS: React.FC = () => {
                       onChange={(e) => setCreateForm(prev => ({ ...prev, image: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      {linodeImages.map(image => (
-                        <option key={image} value={image}>
-                          {image}
+                      {osImages.map(image => (
+                        <option key={image.id} value={image.id}>
+                          {image.label}
                         </option>
                       ))}
                     </select>
@@ -739,11 +736,13 @@ const VPS: React.FC = () => {
                   </div>
 
                   {/* Plan Details */}
-                  {createForm.type && (
+                  {createForm.type && linodeTypes.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Plan Details</h4>
                       {(() => {
-                        const selectedType = linodeTypes.find(t => t.id === createForm.type)!;
+                        const selectedType = linodeTypes.find(t => t.id === createForm.type);
+                        if (!selectedType) return null;
+                        const selectedRegion = selectedType.region ? linodeRegions.find(r => r.id === selectedType.region) : null;
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -762,6 +761,12 @@ const VPS: React.FC = () => {
                               <span className="text-gray-600">Transfer:</span>
                               <span className="ml-2 font-medium">{selectedType.transfer} GB</span>
                             </div>
+                            {selectedRegion && (
+                              <div className="col-span-2">
+                                <span className="text-gray-600">Region:</span>
+                                <span className="ml-2 font-medium">{selectedRegion.label}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}

@@ -243,34 +243,29 @@ router.get(
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string;
 
-      let query = supabaseAdmin
-        .from('payment_intents')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
+      let sql = `SELECT id, organization_id, amount, currency, description, status, payment_provider AS provider, provider_transaction_id AS provider_payment_id, created_at, updated_at
+                 FROM payment_transactions
+                 WHERE organization_id = $1`;
+      const params: any[] = [organizationId];
       if (status) {
-        query = query.eq('status', status);
+        sql += ' AND status = $2';
+        params.push(status);
       }
+      sql += ' ORDER BY created_at DESC LIMIT $3 OFFSET $4';
+      const limitParamIndex = status ? 3 : 2;
+      const offsetParamIndex = status ? 4 : 3;
+      params[limitParamIndex - 1] = limit;
+      params[offsetParamIndex - 1] = offset;
 
-      const { data: payments, error } = await query;
-
-      if (error) {
-        console.error('Failed to get payment history:', error);
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to retrieve payment history',
-        });
-      }
+      const result = await query(sql, params);
 
       res.json({
         success: true,
-        payments: payments || [],
+        payments: result.rows || [],
         pagination: {
           limit,
           offset,
-          hasMore: (payments || []).length === limit,
+          hasMore: (result.rows || []).length === limit,
         },
       });
     } catch (error) {

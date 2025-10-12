@@ -57,11 +57,27 @@ export const authenticateToken = async (
       console.warn('organization_members table not found, skipping organization lookup');
     }
 
+    // Fallback: use organization owned by the user if no membership
+    let organizationId = orgMember?.organization_id;
+    if (!organizationId) {
+      try {
+        const ownerOrg = await query(
+          'SELECT id FROM organizations WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 1',
+          [user.id]
+        );
+        if (ownerOrg.rows[0]) {
+          organizationId = ownerOrg.rows[0].id;
+        }
+      } catch (err) {
+        console.warn('organizations lookup failed for owner fallback');
+      }
+    }
+
     req.user = {
       id: user.id,
       email: user.email,
       role: user.role,
-      organizationId: orgMember?.organization_id
+      organizationId
     };
 
     next();

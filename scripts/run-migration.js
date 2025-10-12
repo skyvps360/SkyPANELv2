@@ -5,7 +5,7 @@
  * This script runs the database migration and tests the connection
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
@@ -44,15 +44,33 @@ async function runMigration() {
     console.log('✅ Database connection successful!');
     client.release();
 
-    // Read migration file
-    const migrationPath = join(__dirname, '..', 'migrations', '001_initial_schema.sql');
-    console.log('📄 Reading migration file...');
-    const migrationSQL = readFileSync(migrationPath, 'utf8');
+    // Read and run all migrations in order
+    const migrationsDir = join(__dirname, '..', 'migrations');
+    const files = readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
 
-    // Run migration
-    console.log('🔄 Running migration...');
-    await pool.query(migrationSQL);
-    console.log('✅ Migration completed successfully!');
+    console.log('📄 Found migrations:', files.join(', '));
+    for (const file of files) {
+      const migrationPath = join(migrationsDir, file);
+      console.log(`🔄 Running migration ${file}...`);
+      const migrationSQL = readFileSync(migrationPath, 'utf8');
+      try {
+        await pool.query(migrationSQL);
+        console.log(`✅ Migration ${file} applied`);
+      } catch (err) {
+        const msg = (err?.message || '').toLowerCase();
+        if (
+          msg.includes('already exists') ||
+          msg.includes('duplicate') ||
+          msg.includes('relation') && msg.includes('already exists')
+        ) {
+          console.log(`ℹ️  Migration ${file} skipped: ${err.message}`);
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Verify tables were created
     console.log('🔍 Verifying tables...');

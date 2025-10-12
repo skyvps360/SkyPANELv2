@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus } from 'lucide-react';
+import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X } from 'lucide-react';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -31,6 +31,17 @@ interface VPSPlan {
   base_price: number;
   markup_price: number;
   specifications: any;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Provider {
+  id: string;
+  name: string;
+  type: 'linode' | 'digitalocean' | 'aws' | 'gcp';
+  api_key_encrypted?: string;
+  configuration?: any;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -85,7 +96,7 @@ const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers'>('tickets');
   const [loading, setLoading] = useState(false);
 
   // Tickets state
@@ -93,42 +104,71 @@ const Admin: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | TicketStatus>('all');
+  const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
 
   // Plans state
   const [plans, setPlans] = useState<VPSPlan[]>([]);
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
   const [editPlan, setEditPlan] = useState<Partial<VPSPlan>>({});
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
   const [pricing, setPricing] = useState<PricingConfig>({ price_per_cpu: 0, price_per_ram_gb: 0, price_per_storage_gb: 0, price_per_network_mbps: 0, currency: 'USD' });
   const [containerPlans, setContainerPlans] = useState<ContainerPlan[]>([]);
   const [newContainerPlan, setNewContainerPlan] = useState<Partial<ContainerPlan>>({ name: '', cpu_cores: 1, ram_gb: 1, storage_gb: 10, network_mbps: 0, base_price: 0, markup_price: 0, active: true });
+  const [editContainerPlanId, setEditContainerPlanId] = useState<string | null>(null);
+  const [editContainerPlan, setEditContainerPlan] = useState<Partial<ContainerPlan>>({});
+  const [deleteContainerPlanId, setDeleteContainerPlanId] = useState<string | null>(null);
   
   // Linode VPS state
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
   const [linodeRegions, setLinodeRegions] = useState<LinodeRegion[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
   const [showAddVPSPlan, setShowAddVPSPlan] = useState(false);
   const [newVPSPlan, setNewVPSPlan] = useState({
+    name: '',
     selectedType: '',
     selectedRegion: '',
     markupPrice: 0,
     active: true
   });
+  const [showAddProvider, setShowAddProvider] = useState(false);
+  const [newProvider, setNewProvider] = useState({
+    name: '',
+    type: '',
+    apiKey: '',
+    active: true
+  });
+  const [editProviderId, setEditProviderId] = useState<string | null>(null);
+  const [editProvider, setEditProvider] = useState<Partial<Provider>>({});
+  const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null);
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   useEffect(() => {
-    // initial load per tab
-    if (activeTab === 'tickets') {
-      fetchTickets();
-    } else if (activeTab === 'plans') {
-      fetchPlans();
-      fetchLinodeTypes();
-      fetchLinodeRegions();
-    } else {
-      fetchPricing();
-      fetchContainerPlans();
+    if (!token) {
+      return;
+    }
+
+    switch (activeTab) {
+      case 'tickets':
+        fetchTickets();
+        break;
+      case 'plans':
+        fetchPlans();
+        fetchProviders();
+        fetchLinodeTypes();
+        fetchLinodeRegions();
+        break;
+      case 'providers':
+        fetchProviders();
+        break;
+      case 'containers':
+      default:
+        fetchPricing();
+        fetchContainerPlans();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, token]);
 
   const fetchTickets = async () => {
     if (!token) return;
@@ -142,6 +182,18 @@ const Admin: React.FC = () => {
       toast.error(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProviders = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/providers`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load providers');
+      setProviders(data.providers || []);
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
@@ -283,6 +335,7 @@ const Admin: React.FC = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
+          name: editPlan.name,
           base_price: editPlan.base_price,
           markup_price: editPlan.markup_price,
           active: editPlan.active,
@@ -311,13 +364,21 @@ const Admin: React.FC = () => {
       return;
     }
 
+    const linodeProvider = providers.find(p => p.type === 'linode' && p.active);
+    if (!linodeProvider) {
+      toast.error('No Linode provider configured. Please add one first.');
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/admin/plans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
-          provider_id: 'linode',
-          name: `${selectedType.label} - ${newVPSPlan.selectedRegion}`,
+          provider_id: linodeProvider.id,
+          name: (newVPSPlan.name && newVPSPlan.name.trim().length > 0)
+            ? newVPSPlan.name.trim()
+            : `${selectedType.label} - ${newVPSPlan.selectedRegion}`,
           provider_plan_id: selectedType.id,
           base_price: selectedType.price.monthly,
           markup_price: newVPSPlan.markupPrice,
@@ -336,6 +397,7 @@ const Admin: React.FC = () => {
       if (!res.ok) throw new Error(data.error || 'Failed to create VPS plan');
       setPlans(prev => [data.plan, ...prev]);
       setNewVPSPlan({
+        name: '',
         selectedType: '',
         selectedRegion: '',
         markupPrice: 0,
@@ -343,6 +405,174 @@ const Admin: React.FC = () => {
       });
       setShowAddVPSPlan(false);
       toast.success('VPS plan created successfully');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const createProvider = async () => {
+    if (!newProvider.name || !newProvider.type || !newProvider.apiKey) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/providers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({
+          name: newProvider.name,
+          type: newProvider.type,
+          apiKey: newProvider.apiKey,
+          active: newProvider.active,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create provider');
+      setProviders(prev => [data.provider, ...prev]);
+      setNewProvider({
+        name: '',
+        type: '',
+        apiKey: '',
+        active: true
+      });
+      setShowAddProvider(false);
+      toast.success('Provider added successfully');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Delete ticket
+  const deleteTicket = async (ticketId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, {
+        method: 'DELETE',
+        headers: authHeader,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete ticket');
+      }
+      setTickets(tickets.filter(t => t.id !== ticketId));
+      if (selectedTicket?.id === ticketId) setSelectedTicket(null);
+      setDeleteTicketId(null);
+      toast.success('Ticket deleted');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Close ticket
+  const closeTicket = async (ticketId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({ status: 'closed' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to close ticket');
+      setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: 'closed' } : t));
+      if (selectedTicket?.id === ticketId) setSelectedTicket({ ...selectedTicket, status: 'closed' });
+      toast.success('Ticket closed');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Delete VPS plan
+  const deleteVPSPlan = async (planId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/plans/${planId}`, {
+        method: 'DELETE',
+        headers: authHeader,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete plan');
+      }
+      setPlans(plans.filter(p => p.id !== planId));
+      setDeletePlanId(null);
+      toast.success('VPS plan deleted');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Update container plan
+  const updateContainerPlan = async () => {
+    if (!editContainerPlanId) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/container/plans/${editContainerPlanId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify(editContainerPlan),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update container plan');
+      setContainerPlans(containerPlans.map(p => p.id === editContainerPlanId ? data.plan : p));
+      setEditContainerPlanId(null);
+      setEditContainerPlan({});
+      toast.success('Container plan updated');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Delete container plan
+  const deleteContainerPlan = async (planId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/container/plans/${planId}`, {
+        method: 'DELETE',
+        headers: authHeader,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete container plan');
+      }
+      setContainerPlans(containerPlans.filter(p => p.id !== planId));
+      setDeleteContainerPlanId(null);
+      toast.success('Container plan deleted');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Update provider
+  const updateProvider = async () => {
+    if (!editProviderId) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/providers/${editProviderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify(editProvider),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update provider');
+      setProviders(providers.map(p => p.id === editProviderId ? data.provider : p));
+      setEditProviderId(null);
+      setEditProvider({});
+      toast.success('Provider updated');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Delete provider
+  const deleteProvider = async (providerId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/providers/${providerId}`, {
+        method: 'DELETE',
+        headers: authHeader,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete provider');
+      }
+      setProviders(providers.filter(p => p.id !== providerId));
+      setDeleteProviderId(null);
+      toast.success('Provider deleted');
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -387,10 +617,18 @@ const Admin: React.FC = () => {
             >
               <Server className="h-4 w-4 inline mr-2" /> Container Plans
             </button>
+            <button
+              onClick={() => setActiveTab('providers')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
+                activeTab === 'providers' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Settings className="h-4 w-4 inline mr-2" /> Providers
+            </button>
           </nav>
         </div>
 
-        {activeTab === 'tickets' ? (
+        {activeTab === 'tickets' && (
           <div className="bg-white shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -469,6 +707,18 @@ const Admin: React.FC = () => {
                             >
                               <CheckCircle className="h-4 w-4 mr-1" /> Resolve
                             </button>
+                            <button
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 bg-white hover:bg-gray-50"
+                              onClick={() => closeTicket(selectedTicket.id)}
+                            >
+                              <X className="h-4 w-4 mr-1" /> Close
+                            </button>
+                            <button
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 text-red-700 bg-white hover:bg-red-50"
+                              onClick={() => setDeleteTicketId(selectedTicket.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> Delete
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -495,7 +745,7 @@ const Admin: React.FC = () => {
                               onClick={() => setSelectedTicket(null)}
                               className="ml-2 inline-flex items-center px-4 py-2 rounded-md text-sm border bg-white hover:bg-gray-50"
                             >
-                              Close
+                              Cancel
                             </button>
                           </div>
                         </div>
@@ -506,7 +756,9 @@ const Admin: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : activeTab === 'plans' ? (
+        )}
+
+        {activeTab === 'plans' && (
           <div className="bg-white shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -542,7 +794,18 @@ const Admin: React.FC = () => {
                     ) : (
                       plans.map(plan => (
                         <tr key={plan.id}>
-                          <td className="px-4 py-2 text-sm text-gray-900">{plan.name}</td>
+                          <td className="px-4 py-2">
+                            {editPlanId === plan.id ? (
+                              <input
+                                type="text"
+                                className="w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                value={(editPlan.name as string | undefined) ?? plan.name}
+                                onChange={(e) => setEditPlan(prev => ({ ...prev, name: e.target.value }))}
+                              />
+                            ) : (
+                              <span className="text-sm text-gray-900">{plan.name}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-sm text-gray-500">{plan.provider_plan_id}</td>
                           <td className="px-4 py-2">
                             {editPlanId === plan.id ? (
@@ -554,7 +817,7 @@ const Admin: React.FC = () => {
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
                               />
                             ) : (
-                              <span className="text-sm text-gray-700">${plan.base_price.toFixed(2)}</span>
+                              <span className="text-sm text-gray-700">${Number(plan.base_price).toFixed(2)}</span>
                             )}
                           </td>
                           <td className="px-4 py-2">
@@ -567,7 +830,7 @@ const Admin: React.FC = () => {
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, markup_price: parseFloat(e.target.value) }))}
                               />
                             ) : (
-                              <span className="text-sm text-gray-700">${plan.markup_price.toFixed(2)}</span>
+                              <span className="text-sm text-gray-700">${Number(plan.markup_price).toFixed(2)}</span>
                             )}
                           </td>
                           <td className="px-4 py-2">
@@ -603,12 +866,20 @@ const Admin: React.FC = () => {
                                 </button>
                               </div>
                             ) : (
-                              <button
-                                onClick={() => { setEditPlanId(plan.id); setEditPlan({ base_price: plan.base_price, markup_price: plan.markup_price, active: plan.active }); }}
-                                className="inline-flex items-center px-3 py-1 rounded-md text-sm border bg-white hover:bg-gray-50"
-                              >
-                                <Edit className="h-4 w-4 mr-1" /> Edit
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => { setEditPlanId(plan.id); setEditPlan({ name: plan.name, base_price: plan.base_price, markup_price: plan.markup_price, active: plan.active }); }}
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border bg-white hover:bg-gray-50"
+                                >
+                                  <Edit className="h-4 w-4 mr-1" /> Edit
+                                </button>
+                                <button
+                                  onClick={() => setDeletePlanId(plan.id)}
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 text-red-700 bg-white hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -625,6 +896,18 @@ const Admin: React.FC = () => {
                     <div className="mt-3">
                       <h3 className="text-lg font-medium text-gray-900 mb-4">Add New VPS Plan</h3>
                       <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={newVPSPlan.name}
+                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="e.g. US-East 4GB Standard"
+                          />
+                        </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Linode Plan Type
@@ -695,6 +978,7 @@ const Admin: React.FC = () => {
                           onClick={() => {
                             setShowAddVPSPlan(false);
                             setNewVPSPlan({
+                              name: '',
                               selectedType: '',
                               selectedRegion: '',
                               markupPrice: 0,
@@ -719,7 +1003,9 @@ const Admin: React.FC = () => {
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'containers' && (
           <div className="bg-white shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -732,7 +1018,7 @@ const Admin: React.FC = () => {
                 <h3 className="text-md font-medium mb-3">Pricing Configuration</h3>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Per CPU (USD)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Per CPU</label>
                     <input type="number" step="0.01" className="w-full rounded-md border-gray-300" value={pricing.price_per_cpu}
                       onChange={e => setPricing(p => ({ ...p, price_per_cpu: Number(e.target.value) }))} />
                   </div>
@@ -768,19 +1054,36 @@ const Admin: React.FC = () => {
                 </div>
                 <div className="border rounded-md p-4 bg-gray-50 mb-4">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                    <input className="rounded-md border-gray-300" placeholder="Name" value={newContainerPlan.name as string}
-                      onChange={e => setNewContainerPlan(p => ({ ...p, name: e.target.value }))} />
-                    <input type="number" min={1} className="rounded-md border-gray-300" placeholder="CPU" value={newContainerPlan.cpu_cores as number}
-                      onChange={e => setNewContainerPlan(p => ({ ...p, cpu_cores: Number(e.target.value) }))} />
-                    <input type="number" min={1} className="rounded-md border-gray-300" placeholder="RAM (GB)" value={newContainerPlan.ram_gb as number}
-                      onChange={e => setNewContainerPlan(p => ({ ...p, ram_gb: Number(e.target.value) }))} />
-                    <input type="number" min={1} className="rounded-md border-gray-300" placeholder="Storage (GB)" value={newContainerPlan.storage_gb as number}
-                      onChange={e => setNewContainerPlan(p => ({ ...p, storage_gb: Number(e.target.value) }))} />
-                    <input type="number" min={0} className="rounded-md border-gray-300" placeholder="Network (Mbps)" value={newContainerPlan.network_mbps as number}
-                      onChange={e => setNewContainerPlan(p => ({ ...p, network_mbps: Number(e.target.value) }))} />
-                    <button className="inline-flex items-center px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-50" onClick={createContainerPlan}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Plan
-                    </button>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                      <input className="w-full rounded-md border-gray-300" placeholder="Plan name" value={newContainerPlan.name as string}
+                        onChange={e => setNewContainerPlan(p => ({ ...p, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">CPU Cores</label>
+                      <input type="number" min={1} className="w-full rounded-md border-gray-300" placeholder="1" value={newContainerPlan.cpu_cores as number}
+                        onChange={e => setNewContainerPlan(p => ({ ...p, cpu_cores: Number(e.target.value) }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">RAM (GB)</label>
+                      <input type="number" min={1} className="w-full rounded-md border-gray-300" placeholder="1" value={newContainerPlan.ram_gb as number}
+                        onChange={e => setNewContainerPlan(p => ({ ...p, ram_gb: Number(e.target.value) }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Storage (GB)</label>
+                      <input type="number" min={1} className="w-full rounded-md border-gray-300" placeholder="10" value={newContainerPlan.storage_gb as number}
+                        onChange={e => setNewContainerPlan(p => ({ ...p, storage_gb: Number(e.target.value) }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Network (Mbps)</label>
+                      <input type="number" min={0} className="w-full rounded-md border-gray-300" placeholder="0" value={newContainerPlan.network_mbps as number}
+                        onChange={e => setNewContainerPlan(p => ({ ...p, network_mbps: Number(e.target.value) }))} />
+                    </div>
+                    <div className="flex items-end">
+                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-50" onClick={createContainerPlan}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Plan
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -793,15 +1096,15 @@ const Admin: React.FC = () => {
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RAM</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Storage</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Network</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Markup</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                        <th className="px-4 py-2"></th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {containerPlans.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-4 py-10 text-center text-gray-500">No container plans</td>
+                          <td colSpan={7} className="px-4 py-10 text-center text-gray-500">No container plans</td>
                         </tr>
                       ) : (
                         containerPlans.map(p => (
@@ -811,16 +1114,437 @@ const Admin: React.FC = () => {
                             <td className="px-4 py-2 text-sm text-gray-500">{p.ram_gb} GB</td>
                             <td className="px-4 py-2 text-sm text-gray-500">{p.storage_gb} GB</td>
                             <td className="px-4 py-2 text-sm text-gray-500">{p.network_mbps} Mbps</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">${p.base_price.toFixed(2)}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">${p.markup_price.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-sm text-gray-500">${Number(p.base_price).toFixed(2)}</td>
                             <td className="px-4 py-2 text-sm">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{p.active ? 'Active' : 'Inactive'}</span>
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => { setEditContainerPlanId(p.id); setEditContainerPlan(p); }}
+                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border bg-white hover:bg-gray-50"
+                                >
+                                  <Edit className="h-3 w-3 mr-1" /> Edit
+                                </button>
+                                <button
+                                  onClick={() => setDeleteContainerPlanId(p.id)}
+                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 text-red-700 bg-white hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" /> Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'providers' && (
+          <div className="bg-white shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Settings className="h-5 w-5 text-gray-400" />
+                <h2 className="text-lg font-medium">Service Providers</h2>
+              </div>
+              <button
+                onClick={() => setShowAddProvider(true)}
+                className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Provider
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                      <th className="px-4 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {providers.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-10 text-center text-gray-500">No providers configured</td>
+                      </tr>
+                    ) : (
+                      providers.map(provider => (
+                        <tr key={provider.id}>
+                          <td className="px-4 py-2 text-sm text-gray-900">{provider.name}</td>
+                          <td className="px-4 py-2 text-sm text-gray-500">{provider.type}</td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${provider.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              {provider.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => { setEditProviderId(provider.id); setEditProvider(provider); }}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border bg-white hover:bg-gray-50"
+                              >
+                                <Edit className="h-3 w-3 mr-1" /> Edit
+                              </button>
+                              <button
+                                onClick={() => setDeleteProviderId(provider.id)}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 text-red-700 bg-white hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Add Provider Modal */}
+              {showAddProvider && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                  <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div className="mt-3">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Add Service Provider</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={newProvider.name}
+                            onChange={(e) => setNewProvider(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="e.g. Linode"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Type
+                          </label>
+                          <select
+                            value={newProvider.type}
+                            onChange={(e) => setNewProvider(prev => ({ ...prev, type: e.target.value }))}
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          >
+                            <option value="">Select type</option>
+                            <option value="linode">Linode</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            API Key
+                          </label>
+                          <input
+                            type="password"
+                            value={newProvider.apiKey}
+                            onChange={(e) => setNewProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="Enter API key"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="providerActive"
+                            checked={newProvider.active}
+                            onChange={(e) => setNewProvider(prev => ({ ...prev, active: e.target.checked }))}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="providerActive" className="ml-2 block text-sm text-gray-900">
+                            Active
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-end gap-3 mt-6">
+                        <button
+                          onClick={() => {
+                            setShowAddProvider(false);
+                            setNewProvider({
+                              name: '',
+                              type: '',
+                              apiKey: '',
+                              active: true
+                            });
+                          }}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={createProvider}
+                          disabled={!newProvider.name || !newProvider.type || !newProvider.apiKey}
+                          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Add Provider
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Edit Container Plan Modal */}
+        {editContainerPlanId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Container Plan</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={editContainerPlan.name || ''}
+                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">CPU Cores</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editContainerPlan.cpu_cores || ''}
+                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, cpu_cores: parseInt(e.target.value) }))}
+                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">RAM (GB)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editContainerPlan.ram_gb || ''}
+                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, ram_gb: parseInt(e.target.value) }))}
+                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Storage (GB)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editContainerPlan.storage_gb || ''}
+                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, storage_gb: parseInt(e.target.value) }))}
+                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Network (Mbps)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editContainerPlan.network_mbps || ''}
+                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, network_mbps: parseInt(e.target.value) }))}
+                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editContainerPlan.base_price || ''}
+                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="Monthly price"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Active</label>
+                    <select
+                      value={editContainerPlan.active ? 'true' : 'false'}
+                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, active: e.target.value === 'true' }))}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => { setEditContainerPlanId(null); setEditContainerPlan({}); }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={updateContainerPlan}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Provider Modal */}
+        {editProviderId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Provider</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={editProvider.name || ''}
+                      onChange={(e) => setEditProvider(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Active</label>
+                    <select
+                      value={editProvider.active ? 'true' : 'false'}
+                      onChange={(e) => setEditProvider(prev => ({ ...prev, active: e.target.value === 'true' }))}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => { setEditProviderId(null); setEditProvider({}); }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={updateProvider}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Ticket Confirmation Modal */}
+        {deleteTicketId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Ticket</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setDeleteTicketId(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => deleteTicket(deleteTicketId)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete VPS Plan Confirmation Modal */}
+        {deletePlanId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Delete VPS Plan</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this VPS plan? This action cannot be undone.</p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setDeletePlanId(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => deleteVPSPlan(deletePlanId)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Container Plan Confirmation Modal */}
+        {deleteContainerPlanId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Container Plan</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this container plan? This action cannot be undone.</p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setDeleteContainerPlanId(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => deleteContainerPlan(deleteContainerPlanId)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Provider Confirmation Modal */}
+        {deleteProviderId && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Provider</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this provider? This action cannot be undone.</p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setDeleteProviderId(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => deleteProvider(deleteProviderId)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

@@ -50,11 +50,6 @@ const Navigation: React.FC = () => {
     }
   ];
 
-  // Include Admin link for system admins
-  const fullNavigationItems = user?.role === 'admin'
-    ? [...navigationItems, { name: 'Admin', href: '/admin', icon: Settings }]
-    : navigationItems;
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -82,7 +77,7 @@ const Navigation: React.FC = () => {
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {fullNavigationItems.map((item) => {
+              {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -126,6 +121,16 @@ const Navigation: React.FC = () => {
                     <div className="font-medium text-gray-900 break-all leading-tight" title={user?.email || ''}>{user?.email}</div>
                     <div className="text-xs text-gray-500">Organization Admin</div>
                   </div>
+                  {user?.role === 'admin' && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <Link
                     to="/settings"
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -180,7 +185,7 @@ const Navigation: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="sm:hidden" id="mobile-menu">
           <div className="pt-2 pb-3 space-y-1">
-            {fullNavigationItems.map((item) => {
+            {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
@@ -212,6 +217,16 @@ const Navigation: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 space-y-1">
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="flex items-center px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Settings className="h-5 w-5 mr-3" />
+                  Admin Panel
+                </Link>
+              )}
               <Link
                 to="/settings"
                 className="flex items-center px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
