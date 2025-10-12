@@ -64,7 +64,11 @@ ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that en
    ```
 
 3. **Set up environment variables**
+<<<<<<< HEAD
    Create a `.env` file in the root directory (you can copy `.env.example` with `cp .env.example .env`) and update values as needed. Key variables from `.env.example`:
+=======
+   Create a `.env` file in the root directory you can copy the .env.example with `cp .env.example .env`:
+>>>>>>> df09eb41fb17c522dd07fe9ccf35e1b77af9f13d
    ```env
    # App
    NODE_ENV=development
