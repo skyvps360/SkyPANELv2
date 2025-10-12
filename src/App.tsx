@@ -15,6 +15,7 @@ import ContainerDetail from "./pages/ContainerDetail";
 import VPSDetail from "./pages/VPSDetail";
 import AppLayout from "./components/AppLayout";
 import ActivityPage from "./pages/Activity";
+import ApiDocs from "./pages/ApiDocs";
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -175,6 +176,14 @@ function AppRoutes() {
           <AdminRoute>
             <Admin />
           </AdminRoute>
+        } 
+      />
+      <Route 
+        path="/api-docs" 
+        element={
+          <ProtectedRoute>
+            <ApiDocs />
+          </ProtectedRoute>
         } 
       />
       <Route path="*" element={<Navigate to="/" replace />} />

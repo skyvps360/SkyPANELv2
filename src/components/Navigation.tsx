@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
@@ -168,6 +169,14 @@ const Navigation: React.FC = () => {
                     <HelpCircle className="h-4 w-4 mr-2" />
                     Support
                   </Link>
+                  <Link
+                    to="/api-docs"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => setIsUserMenuOpen(false)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    API Documentation
+                  </Link>
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
@@ -281,6 +290,14 @@ const Navigation: React.FC = () => {
               >
                 <HelpCircle className="h-5 w-5 mr-3" />
                 Support
+              </Link>
+              <Link
+                to="/api-docs"
+                className="flex items-center px-4 py-2 text-base font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <FileText className="h-5 w-5 mr-3" />
+                API Documentation
               </Link>
               <button
                 onClick={() => {
