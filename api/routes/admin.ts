@@ -142,7 +142,7 @@ router.post(
 router.get('/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const result = await query(
-      'SELECT * FROM vps_plans ORDER BY created_at DESC'
+      'SELECT * FROM vps_plans WHERE active = true ORDER BY created_at DESC'
     );
 
     res.json({ plans: result.rows || [] });

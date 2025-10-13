@@ -142,25 +142,57 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate/normalize the requested Linode plan type
+    // Accept either a Linode type id (e.g. 'g6-standard-2') or an internal plan UUID
+    let linodeTypeId: string | undefined = undefined;
+    try {
+      const availableTypes = await linodeService.getLinodeTypes();
+      const set = new Set(availableTypes.map(t => t.id));
+      if (set.has(type)) {
+        linodeTypeId = type;
+      }
+    } catch (e) {
+      // If Linode types cannot be fetched, we will still attempt plan lookup below
+      console.warn('Failed to fetch Linode types for validation:', e);
+    }
+
     // Resolve region from the pre-configured VPS plan when available
     // Plans store Linode type id in provider_plan_id and region under specifications.region
     let regionToUse: string | undefined = region;
     let planIdForInstance: string | undefined = undefined;
     try {
-      const planRes = await query(
-        'SELECT id, specifications FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1',
+      // First, try lookup by provider_plan_id (expected frontend value)
+      let planRes = await query(
+        'SELECT id, provider_plan_id, specifications FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1',
         [type]
       );
+      // If not found, user may have passed internal plan UUID; try that
+      if (planRes.rows.length === 0) {
+        planRes = await query(
+          'SELECT id, provider_plan_id, specifications FROM vps_plans WHERE id = $1 LIMIT 1',
+          [type]
+        );
+      }
+
       if (planRes.rows.length > 0) {
         const planRow = planRes.rows[0];
         planIdForInstance = String(planRow.id);
         const specs = planRow.specifications || {};
+        // Prefer provider_plan_id from plan row when available
+        if (!linodeTypeId && typeof planRow.provider_plan_id === 'string' && planRow.provider_plan_id.trim().length > 0) {
+          linodeTypeId = planRow.provider_plan_id.trim();
+        }
         if (specs && typeof specs.region === 'string' && specs.region.trim().length > 0) {
           regionToUse = specs.region.trim();
         }
       }
     } catch (lookupErr) {
       console.warn('Failed to lookup plan for type:', type, lookupErr);
+    }
+
+    if (!linodeTypeId) {
+      res.status(400).json({ error: 'Invalid Linode plan type. Provide a valid Linode type id (e.g. g6-standard-2) or a configured plan UUID from /admin.' });
+      return;
     }
 
     if (!regionToUse) {
@@ -170,7 +202,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Create Linode instance
     const created = await linodeService.createLinodeInstance({
-      type,
+      type: linodeTypeId,
       region: regionToUse,
       image,
       label,
@@ -184,7 +216,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Persist instance record
     const configuration = {
-      type,
+      type: linodeTypeId,
       region: regionToUse,
       image,
       backups,

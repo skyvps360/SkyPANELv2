@@ -945,7 +945,7 @@ const Admin: React.FC = () => {
                             <option value="">Select a plan type</option>
                             {linodeTypes.map(type => (
                               <option key={type.id} value={type.id}>
-                                {type.label} - {type.vcpus} vCPUs, {type.memory}MB RAM, {type.disk}GB Storage - ${type.price.monthly}/mo
+                                {type.label} - {type.vcpus} vCPUs, {type.memory}MB RAM, {Math.round(type.disk / 1024)}GB Storage - ${type.price.monthly}/mo
                               </option>
                             ))}
                           </select>

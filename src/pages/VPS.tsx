@@ -108,7 +108,7 @@ const VPS: React.FC = () => {
   const [createForm, setCreateForm] = useState<CreateVPSForm>({
     label: '',
     type: '',
-    region: 'us-east',
+    region: '',
     image: 'linode/ubuntu22.04',
     rootPassword: '',
     sshKeys: [],
@@ -209,7 +209,7 @@ const VPS: React.FC = () => {
         const region = plan.region_id || specs.region || '';
 
         return {
-          id: plan.provider_plan_id || plan.id,
+          id: String(plan.id),
           label: `${plan.name} - $${totalPrice.toFixed(2)}/mo`,
           disk: disk,
           memory: memoryMb,
@@ -346,6 +346,16 @@ const VPS: React.FC = () => {
   const handleCreateInstance = async () => {
     if (!createForm.label || !createForm.rootPassword) {
       toast.error('Label and root password are required');
+      return;
+    }
+
+    if (!createForm.type) {
+      toast.error('Please select a plan');
+      return;
+    }
+
+    if (!createForm.region) {
+      toast.error('Region is required. Please select a plan with a configured region.');
       return;
     }
 
@@ -642,7 +652,7 @@ const VPS: React.FC = () => {
                         </div>
                         <div className="flex items-center">
                           <HardDrive className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
-                          <span>{instance.specs.disk} GB</span>
+                          <span>{Math.round(instance.specs.disk / 1024)} GB</span>
                         </div>
                       </div>
                     </td>
@@ -739,12 +749,20 @@ const VPS: React.FC = () => {
                       onChange={(e) => {
                         const newType = e.target.value;
                         const selectedType = linodeTypes.find(t => t.id === newType);
+                        
+                        // Ensure region is properly assigned from the selected plan
+                        const newRegion = selectedType?.region || '';
+                        
                         setCreateForm(prev => ({
                           ...prev,
                           type: newType,
-                          // Respect pre-configured region from the plan
-                          region: selectedType?.region || prev.region,
+                          region: newRegion,
                         }));
+                        
+                        // Show warning if plan doesn't have a region configured
+                        if (newType && !newRegion) {
+                          console.warn('Selected plan does not have a region configured:', selectedType);
+                        }
                       }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                     >
@@ -755,6 +773,35 @@ const VPS: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Region
+                    </label>
+                    <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white">
+                      {createForm.type && createForm.region ? (
+                        (() => {
+                          const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
+                          return (
+                            <div className="flex items-center">
+                              <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-2" />
+                              <span className="font-medium">
+                                {selectedRegion ? selectedRegion.label : createForm.region}
+                              </span>
+                              <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                (Auto-selected based on plan)
+                              </span>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          <span>Select a plan to see the region</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -815,7 +862,7 @@ const VPS: React.FC = () => {
                       (() => {
                         const selectedType = linodeTypes.find(t => t.id === createForm.type);
                         if (!selectedType) return null;
-  const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
+ const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -828,7 +875,7 @@ const VPS: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-gray-400">Storage:</span>
-                              <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedType.disk} GB</span>
+                              <span className="ml-2 font-medium text-gray-900 dark:text-white">{Math.round(selectedType.disk / 1024)} GB</span>
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-gray-400">Transfer:</span>
