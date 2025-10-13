@@ -84,6 +84,16 @@ If you find my work helpful, consider supporting me:
 <img width="1908" height="916" alt="image" src="https://github.com/user-attachments/assets/f7e11be1-0249-42d9-a857-6128f4bedce2" />
 <img width="1910" height="916" alt="image" src="https://github.com/user-attachments/assets/f64c5ca0-e021-45ab-94c4-f55c4f0ad9f9" />
 
+#### Updated Images
+<img width="1914" height="946" alt="image" src="https://github.com/user-attachments/assets/2a251974-5d12-422b-a5e2-50025ba2ea80" />
+<img width="1910" height="945" alt="image" src="https://github.com/user-attachments/assets/80d84596-23e8-44f6-9773-fa041fe043e6" />
+<img width="1903" height="947" alt="image" src="https://github.com/user-attachments/assets/5de28224-95fb-4160-b654-a4c5583fb514" />
+<img width="1920" height="946" alt="image" src="https://github.com/user-attachments/assets/c40e220e-2085-485d-a006-b1051ea9e745" />
+<img width="1918" height="952" alt="image" src="https://github.com/user-attachments/assets/5b369e72-0496-4002-adac-c4b0faab21c7" />
+<img width="1901" height="945" alt="image" src="https://github.com/user-attachments/assets/12389b65-0727-4ba9-9316-64e62014287d" />
+<img width="1911" height="953" alt="image" src="https://github.com/user-attachments/assets/0fdefe67-5e8f-41a5-87f2-d49bacc376c7" />
+
+
 
 ## 🏗️ Setup & Installation
 
