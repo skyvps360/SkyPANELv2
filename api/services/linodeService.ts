@@ -785,6 +785,487 @@ class LinodeService {
       throw error;
     }
   }
+
+  /**
+   * Resize a Linode instance
+   */
+  async resizeLinodeInstance(instanceId: number, type: string): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/resize`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ type }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error resizing Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rebuild a Linode instance
+   */
+  async rebuildLinodeInstance(instanceId: number, params: { image: string; root_pass: string; authorized_keys?: string[] }): Promise<LinodeInstance> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/rebuild`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error rebuilding Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Boot Linode into rescue mode
+   */
+  async rescueLinodeInstance(instanceId: number, devices?: any): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/rescue`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ devices }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error entering rescue mode:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clone a Linode instance
+   */
+  async cloneLinodeInstance(instanceId: number, params: { region?: string; type?: string; label?: string; disks?: number[]; configs?: number[] }): Promise<LinodeInstance> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/clone`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error cloning Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Migrate a Linode instance
+   */
+  async migrateLinodeInstance(instanceId: number, params?: { region?: string; placement_group?: { id: number } }): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/migrate`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params || {}),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error migrating Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mutate/upgrade a Linode instance
+   */
+  async mutateLinodeInstance(instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/mutate`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error mutating Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset root password for a Linode instance
+   */
+  async resetLinodePassword(instanceId: number, rootPass: string): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/password`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ root_pass: rootPass }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error resetting Linode password:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Linode instance statistics
+   */
+  async getLinodeStats(instanceId: number): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/stats`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Linode stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Linode instance transfer data
+   */
+  async getLinodeTransfer(instanceId: number): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/transfer`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Linode transfer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * List Linode backups
+   */
+  async getLinodeBackups(instanceId: number): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Linode backups:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enable backups for a Linode instance
+   */
+  async enableLinodeBackups(instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/enable`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error enabling Linode backups:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel backups for a Linode instance
+   */
+  async cancelLinodeBackups(instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/cancel`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error canceling Linode backups:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a snapshot backup
+   */
+  async createLinodeSnapshot(instanceId: number, label: string): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ label }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating Linode snapshot:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore a backup
+   */
+  async restoreLinodeBackup(instanceId: number, backupId: number, params?: { linode_id?: number; overwrite?: boolean }): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params || {}),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error restoring Linode backup:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * List Linode disks
+   */
+  async getLinodeDisks(instanceId: number): Promise<any[]> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/disks`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error('Error fetching Linode disks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a Linode disk
+   */
+  async createLinodeDisk(instanceId: number, params: { label: string; size: number; filesystem?: string; image?: string }): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/disks`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating Linode disk:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a Linode disk
+   */
+  async deleteLinodeDisk(instanceId: number, diskId: number): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/disks/${diskId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error deleting Linode disk:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resize a Linode disk
+   */
+  async resizeLinodeDisk(instanceId: number, diskId: number, size: number): Promise<void> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/disks/${diskId}/resize`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ size }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+    } catch (error) {
+      console.error('Error resizing Linode disk:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * List Linode configuration profiles
+   */
+  async getLinodeConfigs(instanceId: number): Promise<any[]> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/configs`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error('Error fetching Linode configs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Linode networking information
+   */
+  async getLinodeIPs(instanceId: number): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/ips`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Linode IPs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Allocate a new IPv4 address
+   */
+  async allocateLinodeIP(instanceId: number, params: { type: 'ipv4'; public: boolean }): Promise<any> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/ips`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error allocating Linode IP:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * List Linode volumes
+   */
+  async getLinodeVolumes(instanceId: number): Promise<any[]> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/volumes`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error('Error fetching Linode volumes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a Linode instance
+   */
+  async updateLinodeInstance(instanceId: number, params: Partial<{ label: string; tags: string[]; watchdog_enabled: boolean; alerts?: any }>): Promise<LinodeInstance> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating Linode instance:', error);
+      throw error;
+    }
+  }
 }
 
 export const linodeService = new LinodeService();

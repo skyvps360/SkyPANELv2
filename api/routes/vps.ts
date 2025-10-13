@@ -408,6 +408,98 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// Get single VPS instance details
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    
+    // Fetch live data from Linode
+    const detail = await linodeService.getLinodeInstance(providerId);
+    const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
+    const normalized = detail.status === 'offline' ? 'stopped' : detail.status;
+    
+    // Update status/IP if changed
+    if (row.status !== normalized || row.ip_address !== ip) {
+      await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [normalized, ip, id]);
+      row.status = normalized;
+      row.ip_address = ip;
+    }
+
+    // Attach region label
+    let regionLabel = null;
+    try {
+      const regions = await linodeService.getLinodeRegions();
+      const region = regions.find(r => r.id === detail.region);
+      regionLabel = region?.label || null;
+    } catch (e) {
+      console.warn('Failed to fetch region label:', e);
+    }
+
+    // Attach plan specs and pricing
+    let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
+    let planPricing = { hourly: 0, monthly: 0 };
+    try {
+      let planRow: any = null;
+      if (row.plan_id) {
+        const byId = await query('SELECT * FROM vps_plans WHERE id = $1 LIMIT 1', [row.plan_id]);
+        planRow = byId.rows[0] || null;
+      }
+      const conf = row.configuration || {};
+      if (!planRow && conf.type) {
+        const byProviderId = await query('SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1', [conf.type]);
+        planRow = byProviderId.rows[0] || null;
+      }
+
+      if (planRow) {
+        const specs = planRow.specifications || {};
+        const disk = (typeof specs.disk === 'number' ? specs.disk : undefined) ??
+                     (typeof specs.storage_gb === 'number' ? specs.storage_gb : undefined) ?? 0;
+        const memoryMb = (typeof specs.memory === 'number' ? specs.memory : undefined) ??
+                         (typeof specs.memory_gb === 'number' ? specs.memory_gb * 1024 : undefined) ?? 0;
+        const vcpus = (typeof specs.vcpus === 'number' ? specs.vcpus : undefined) ??
+                       (typeof specs.cpu_cores === 'number' ? specs.cpu_cores : undefined) ?? 0;
+        const transferGb = (typeof specs.transfer === 'number' ? specs.transfer : undefined) ??
+                           (typeof specs.transfer_gb === 'number' ? specs.transfer_gb : undefined) ??
+                           (typeof specs.bandwidth_gb === 'number' ? specs.bandwidth_gb : undefined) ?? 0;
+
+        const basePrice = Number(planRow.base_price || 0);
+        const markupPrice = Number(planRow.markup_price || 0);
+        const monthly = basePrice + markupPrice;
+
+        planSpecs = { vcpus, memory: memoryMb, disk, transfer: transferGb };
+        planPricing = { hourly: monthly / 730, monthly };
+      } else if (detail && detail.specs) {
+        planSpecs = {
+          vcpus: Number(detail.specs.vcpus || 0),
+          memory: Number(detail.specs.memory || 0),
+          disk: Number(detail.specs.disk || 0),
+          transfer: Number(detail.specs.transfer || 0)
+        };
+      }
+    } catch (e) {
+      console.warn('Failed to attach plan specs/pricing:', e);
+    }
+
+    res.json({ 
+      instance: {
+        ...row,
+        linode_detail: detail,
+        region_label: regionLabel,
+        plan_specs: planSpecs,
+        plan_pricing: planPricing
+      }
+    });
+  } catch (err: any) {
+    console.error('VPS detail error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch VPS instance' });
+  }
+});
+
 export default router;
 
 // Instance actions: boot
@@ -537,5 +629,621 @@ router.delete('/:id', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('VPS delete error:', err);
     res.status(500).json({ error: err.message || 'Failed to delete VPS instance' });
+  }
+});
+
+// Resize instance
+router.post('/:id/resize', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.resizeLinodeInstance(providerId, type);
+    const detail = await linodeService.getLinodeInstance(providerId);
+    await query('UPDATE vps_instances SET status = $1, updated_at = NOW() WHERE id = $2', [detail.status, id]);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.resize',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Resized VPS '${row.label}' to ${type}`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ status: detail.status });
+  } catch (err: any) {
+    console.error('VPS resize error:', err);
+    res.status(500).json({ error: err.message || 'Failed to resize VPS instance' });
+  }
+});
+
+// Rebuild instance
+router.post('/:id/rebuild', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { image, root_pass, authorized_keys } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const rebuilt = await linodeService.rebuildLinodeInstance(providerId, { image, root_pass, authorized_keys });
+    await query('UPDATE vps_instances SET status = $1, updated_at = NOW() WHERE id = $2', [rebuilt.status, id]);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.rebuild',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Rebuilt VPS '${row.label}' with image ${image}`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ instance: rebuilt });
+  } catch (err: any) {
+    console.error('VPS rebuild error:', err);
+    res.status(500).json({ error: err.message || 'Failed to rebuild VPS instance' });
+  }
+});
+
+// Rescue mode
+router.post('/:id/rescue', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { devices } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.rescueLinodeInstance(providerId, devices);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.rescue',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Booted VPS '${row.label}' into rescue mode`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS rescue error:', err);
+    res.status(500).json({ error: err.message || 'Failed to enter rescue mode' });
+  }
+});
+
+// Clone instance
+router.post('/:id/clone', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { region, type, label, disks, configs } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const cloned = await linodeService.cloneLinodeInstance(providerId, { region, type, label, disks, configs });
+    
+    // Create DB record for cloned instance
+    const configuration = row.configuration || {};
+    const ip = Array.isArray(cloned.ipv4) && cloned.ipv4.length > 0 ? cloned.ipv4[0] : null;
+    const insertRes = await query(
+      `INSERT INTO vps_instances (organization_id, plan_id, provider_instance_id, label, status, ip_address, configuration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [organizationId, row.plan_id, String(cloned.id), cloned.label, cloned.status, ip, configuration]
+    );
+    
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.clone',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Cloned VPS '${row.label}' to '${cloned.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ instance: insertRes.rows[0], linode_detail: cloned });
+  } catch (err: any) {
+    console.error('VPS clone error:', err);
+    res.status(500).json({ error: err.message || 'Failed to clone VPS instance' });
+  }
+});
+
+// Migrate instance
+router.post('/:id/migrate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { region, placement_group } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.migrateLinodeInstance(providerId, { region, placement_group });
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.migrate',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Migrated VPS '${row.label}'${region ? ` to ${region}` : ''}`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS migrate error:', err);
+    res.status(500).json({ error: err.message || 'Failed to migrate VPS instance' });
+  }
+});
+
+// Mutate/upgrade instance
+router.post('/:id/mutate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.mutateLinodeInstance(providerId);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.mutate',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Upgraded VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS mutate error:', err);
+    res.status(500).json({ error: err.message || 'Failed to upgrade VPS instance' });
+  }
+});
+
+// Reset root password
+router.post('/:id/password', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { root_pass } = req.body;
+    if (!root_pass) return res.status(400).json({ error: 'root_pass is required' });
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.resetLinodePassword(providerId, root_pass);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.password_reset',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Reset root password for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS password reset error:', err);
+    res.status(500).json({ error: err.message || 'Failed to reset password' });
+  }
+});
+
+// Get instance statistics
+router.get('/:id/stats', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const stats = await linodeService.getLinodeStats(providerId);
+    res.json({ stats });
+  } catch (err: any) {
+    console.error('VPS stats error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch stats' });
+  }
+});
+
+// Get instance transfer data
+router.get('/:id/transfer', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const transfer = await linodeService.getLinodeTransfer(providerId);
+    res.json({ transfer });
+  } catch (err: any) {
+    console.error('VPS transfer error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch transfer data' });
+  }
+});
+
+// Get instance backups
+router.get('/:id/backups', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const backups = await linodeService.getLinodeBackups(providerId);
+    res.json({ backups });
+  } catch (err: any) {
+    console.error('VPS backups error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch backups' });
+  }
+});
+
+// Enable backups
+router.post('/:id/backups/enable', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.enableLinodeBackups(providerId);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backups_enabled',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Enabled backups for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS enable backups error:', err);
+    res.status(500).json({ error: err.message || 'Failed to enable backups' });
+  }
+});
+
+// Cancel backups
+router.post('/:id/backups/cancel', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.cancelLinodeBackups(providerId);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backups_cancelled',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Cancelled backups for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS cancel backups error:', err);
+    res.status(500).json({ error: err.message || 'Failed to cancel backups' });
+  }
+});
+
+// Create snapshot
+router.post('/:id/backups/snapshot', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { label } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const snapshot = await linodeService.createLinodeSnapshot(providerId, label || 'Manual Snapshot');
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.snapshot_created',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Created snapshot for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ snapshot });
+  } catch (err: any) {
+    console.error('VPS snapshot error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create snapshot' });
+  }
+});
+
+// Restore backup
+router.post('/:id/backups/:backupId/restore', async (req: Request, res: Response) => {
+  try {
+    const { id, backupId } = req.params;
+    const { linode_id, overwrite } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.restoreLinodeBackup(providerId, Number(backupId), { linode_id, overwrite });
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backup_restored',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Restored backup ${backupId} for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS restore backup error:', err);
+    res.status(500).json({ error: err.message || 'Failed to restore backup' });
+  }
+});
+
+// Get disks
+router.get('/:id/disks', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const disks = await linodeService.getLinodeDisks(providerId);
+    res.json({ disks });
+  } catch (err: any) {
+    console.error('VPS disks error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch disks' });
+  }
+});
+
+// Create disk
+router.post('/:id/disks', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { label, size, filesystem, image } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const disk = await linodeService.createLinodeDisk(providerId, { label, size, filesystem, image });
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.disk_created',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Created disk '${label}' on VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ disk });
+  } catch (err: any) {
+    console.error('VPS create disk error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create disk' });
+  }
+});
+
+// Delete disk
+router.delete('/:id/disks/:diskId', async (req: Request, res: Response) => {
+  try {
+    const { id, diskId } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.deleteLinodeDisk(providerId, Number(diskId));
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.disk_deleted',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Deleted disk ${diskId} from VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS delete disk error:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete disk' });
+  }
+});
+
+// Resize disk
+router.post('/:id/disks/:diskId/resize', async (req: Request, res: Response) => {
+  try {
+    const { id, diskId } = req.params;
+    const { size } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    await linodeService.resizeLinodeDisk(providerId, Number(diskId), size);
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.disk_resized',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Resized disk ${diskId} on VPS '${row.label}' to ${size}MB`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS resize disk error:', err);
+    res.status(500).json({ error: err.message || 'Failed to resize disk' });
+  }
+});
+
+// Get configuration profiles
+router.get('/:id/configs', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const configs = await linodeService.getLinodeConfigs(providerId);
+    res.json({ configs });
+  } catch (err: any) {
+    console.error('VPS configs error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch configs' });
+  }
+});
+
+// Get networking information
+router.get('/:id/ips', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const ips = await linodeService.getLinodeIPs(providerId);
+    res.json({ ips });
+  } catch (err: any) {
+    console.error('VPS IPs error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch IPs' });
+  }
+});
+
+// Allocate IP address
+router.post('/:id/ips', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type, public: isPublic } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const ip = await linodeService.allocateLinodeIP(providerId, { type: type || 'ipv4', public: isPublic !== false });
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.ip_allocated',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Allocated IP address for VPS '${row.label}'`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ ip });
+  } catch (err: any) {
+    console.error('VPS allocate IP error:', err);
+    res.status(500).json({ error: err.message || 'Failed to allocate IP' });
+  }
+});
+
+// Get volumes
+router.get('/:id/volumes', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const volumes = await linodeService.getLinodeVolumes(providerId);
+    res.json({ volumes });
+  } catch (err: any) {
+    console.error('VPS volumes error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch volumes' });
+  }
+});
+
+// Update instance settings
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { label, tags, watchdog_enabled, alerts } = req.body;
+    const organizationId = (req as any).user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const row = rowRes.rows[0];
+    const providerId = Number(row.provider_instance_id);
+    const updated = await linodeService.updateLinodeInstance(providerId, { label, tags, watchdog_enabled, alerts });
+    
+    // Update our DB label if changed
+    if (label && label !== row.label) {
+      await query('UPDATE vps_instances SET label = $1, updated_at = NOW() WHERE id = $2', [label, id]);
+    }
+    
+    try {
+      const user = (req as any).user;
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.update',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Updated VPS '${row.label}' settings`,
+        status: 'success'
+      }, req as any);
+    } catch {}
+    res.json({ instance: updated });
+  } catch (err: any) {
+    console.error('VPS update error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update VPS instance' });
   }
 });
