@@ -1092,7 +1092,7 @@ const VPS: React.FC = () => {
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Deployment Configuration</h4>
                           {Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0 && (
                             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                              Allowed base images: {selectedStackScript.images.join(', ')}
+                              Allowed base images: {selectedStackScript.images.map((img: string) => img.replace(/^linode\//i, '')).join(', ')}
                             </p>
                           )}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
