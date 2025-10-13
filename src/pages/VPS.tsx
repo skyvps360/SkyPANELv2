@@ -103,6 +103,7 @@ const VPS: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createStep, setCreateStep] = useState<number>(1);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', loading: false, error: '' });
   const [selectedInstance, setSelectedInstance] = useState<VPSInstance | null>(null);
   const [createForm, setCreateForm] = useState<CreateVPSForm>({
@@ -648,6 +649,17 @@ const VPS: React.FC = () => {
     }).format(amount);
   };
 
+  // Multi-step modal helpers
+  const totalSteps = 4;
+  const canProceed = useMemo(() => {
+    if (createStep === 1) return Boolean(createForm.label && createForm.type && createForm.region);
+    if (createStep === 3) return Boolean(createForm.image);
+    return true;
+  }, [createStep, createForm.label, createForm.type, createForm.region, createForm.image]);
+
+  const handleNext = () => setCreateStep((s) => Math.min(s + 1, totalSteps));
+  const handleBack = () => setCreateStep((s) => Math.max(1, s - 1));
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -672,7 +684,7 @@ const VPS: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => { setCreateStep(1); setShowCreateModal(true); }}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -923,6 +935,16 @@ const VPS: React.FC = () => {
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Create New VPS Instance</h3>
                 <div className="space-y-4">
+                  {/* Step indicator */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Step {createStep} of {totalSteps}</div>
+                    <div className="flex items-center space-x-1">
+                      {[...Array(totalSteps)].map((_, i) => (
+                        <span key={i} className={`w-2 h-2 rounded-full ${i + 1 <= createStep ? 'bg-blue-600 dark:bg-blue-400' : 'bg-gray-300 dark:bg-gray-600'}`}></span>
+                      ))}
+                    </div>
+                  </div>
+                  {createStep === 1 && (<>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Label *
@@ -999,69 +1021,69 @@ const VPS: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  </>) }
 
                   {/* 1-Click Deployments Section (always visible) */}
+                  {createStep === 2 && (
                   <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         1-Click Deployments (Optional)
                       </label>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {/* None option card */}
                         <div
                           onClick={() => setSelectedStackScript(null)}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
                             selectedStackScript === null
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
                               : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                           }`}
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex flex-col space-y-2">
                             <div className="w-8 h-8 bg-gray-400 rounded-lg flex items-center justify-center">
                               <span className="text-white font-bold text-xs">NO</span>
                             </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 dark:text-white text-sm">None</h4>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Provision base OS without a deployment</p>
-                            </div>
-                            {selectedStackScript === null && (
-                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            )}
+                            <h4 className="font-medium text-gray-900 dark:text-white text-sm">None</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Provision base OS without a deployment</p>
                           </div>
+                          {selectedStackScript === null && (
+                            <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
                         </div>
 
+                        {/* StackScript cards */}
                         {linodeStackScripts.map((script) => (
                           <div
                             key={script.id}
                             onClick={() => setSelectedStackScript(script)}
-                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
                               selectedStackScript?.id === script.id
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
                                 : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                             }`}
                           >
-                            <div className="flex items-center space-x-3">
+                            <div className="flex flex-col space-y-2">
                               <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
                                 <span className="text-white font-bold text-xs">
-                                  {script.label.substring(0, 2).toUpperCase()}
+                                  {String(script.label || '').substring(0, 2).toUpperCase()}
                                 </span>
                               </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 dark:text-white text-sm">{script.label}</h4>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  {script.description || 'Automated setup script'}
-                                </p>
-                              </div>
-                              {selectedStackScript?.id === script.id && (
-                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              )}
+                              <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{script.label}</h4>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {script.description || 'Automated setup script'}
+                              </p>
                             </div>
+                            {selectedStackScript?.id === script.id && (
+                              <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1119,7 +1141,9 @@ const VPS: React.FC = () => {
                         </div>
                       )}
                     </div>
+                  )}
 
+                  {createStep === 3 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                       Operating System
@@ -1219,7 +1243,9 @@ const VPS: React.FC = () => {
 
                     
                   </div>
+                  )}
 
+                  {createStep === 4 && (<>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Root Password *
@@ -1297,21 +1323,43 @@ const VPS: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  </>) }
                 </div>
 
-                <div className="flex items-center justify-end space-x-3 mt-6">
+                <div className="flex items-center justify-between mt-6">
                   <button
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => { setShowCreateModal(false); setCreateStep(1); }}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={handleCreateInstance}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
-                  >
-                    Create VPS
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    {createStep > 1 && (
+                      <button
+                        onClick={handleBack}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none"
+                      >
+                        Back
+                      </button>
+                    )}
+                    {createStep < totalSteps && (
+                      <button
+                        onClick={handleNext}
+                        disabled={!canProceed}
+                        className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${canProceed ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' : 'bg-blue-300 cursor-not-allowed'}`}
+                      >
+                        Next
+                      </button>
+                    )}
+                    {createStep === totalSteps && (
+                      <button
+                        onClick={handleCreateInstance}
+                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                      >
+                        Create VPS
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
