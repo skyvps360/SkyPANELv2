@@ -2,11 +2,12 @@
  * Admin Routes for ContainerStacks
  * Manage support tickets and VPS plans
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { query, transaction } from '../lib/database.js';
+import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
 
 const router = express.Router();
@@ -636,7 +637,7 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const result = await query(
+      await query(
         'DELETE FROM container_plans WHERE id = $1',
         [id]
       );
@@ -701,6 +702,111 @@ router.get('/linode/regions', authenticateToken, requireAdmin, async (req: Reque
       error: err.message || 'Failed to fetch Linode regions',
       details: 'Make sure LINODE_API_TOKEN is configured in environment variables'
     });
+  }
+});
+
+// Get Linode StackScripts
+router.get('/linode/stackscripts', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const mine = String(req.query.mine || '').toLowerCase() === 'true';
+    const stackscripts = await linodeService.getLinodeStackScripts(mine);
+    res.json({ stackscripts });
+  } catch (err: any) {
+    console.error('Error fetching Linode StackScripts:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to fetch StackScripts',
+      details: 'Make sure LINODE_API_TOKEN is configured in environment variables'
+    });
+  }
+});
+
+// StackScript Configs: List all configs
+router.get('/stackscripts/configs', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await query('SELECT * FROM vps_stackscript_configs ORDER BY display_order ASC, label ASC');
+    res.json({ configs: result.rows || [] });
+  } catch (err: any) {
+    console.error('Error fetching StackScript configs:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch StackScript configs' });
+  }
+});
+
+// StackScript Configs: Update a config
+router.put('/stackscripts/configs/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { label, description, is_enabled, display_order, metadata } = req.body;
+    const now = new Date().toISOString();
+    
+    // Parse metadata if it's a string, otherwise use as-is (or default to empty object)
+    let metadataValue = {};
+    if (metadata !== undefined && metadata !== null) {
+      metadataValue = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    }
+    
+    const result = await query(
+      `UPDATE vps_stackscript_configs SET
+        label = COALESCE($1, label),
+        description = COALESCE($2, description),
+        is_enabled = COALESCE($3, is_enabled),
+        display_order = COALESCE($4, display_order),
+        metadata = COALESCE($5, metadata),
+        updated_at = $6
+      WHERE stackscript_id = $7 RETURNING *`,
+      [label, description, is_enabled, display_order, metadataValue, now, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Config not found' });
+    }
+    res.json({ config: result.rows[0] });
+  } catch (err: any) {
+    console.error('Error updating StackScript config:', err);
+    res.status(500).json({ error: err.message || 'Failed to update StackScript config' });
+  }
+});
+
+// StackScript Configs: Create or update a config
+router.post('/stackscripts/configs', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { stackscript_id, label, description, is_enabled, display_order, metadata } = req.body;
+    const now = new Date().toISOString();
+    
+    // Parse metadata if it's a string, otherwise use as-is (or default to empty object)
+    let metadataValue = {};
+    if (metadata !== undefined && metadata !== null) {
+      metadataValue = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    }
+    
+    const result = await query(
+      `INSERT INTO vps_stackscript_configs
+        (stackscript_id, label, description, is_enabled, display_order, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, COALESCE($4, TRUE), COALESCE($5, 0), $6, $7, $7)
+       ON CONFLICT (stackscript_id) DO UPDATE SET
+         label = EXCLUDED.label,
+         description = EXCLUDED.description,
+         is_enabled = EXCLUDED.is_enabled,
+         display_order = EXCLUDED.display_order,
+         metadata = EXCLUDED.metadata,
+         updated_at = EXCLUDED.updated_at
+       RETURNING *`,
+      [stackscript_id, label, description, is_enabled, display_order, metadataValue, now]
+    );
+    res.status(201).json({ config: result.rows[0] });
+  } catch (err: any) {
+    console.error('Error upserting StackScript config:', err);
+    res.status(500).json({ error: err.message || 'Failed to upsert StackScript config' });
+  }
+});
+
+// StackScript Configs: Delete a config
+router.delete('/stackscripts/configs/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM vps_stackscript_configs WHERE stackscript_id = $1', [id]);
+    res.status(204).send();
+  } catch (err: any) {
+    console.error('Error deleting StackScript config:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete StackScript config' });
   }
 });
 

@@ -377,16 +377,15 @@ const VPS: React.FC = () => {
   const loadLinodeStackScripts = async () => {
     setLoadingStackScripts(true);
     try {
-      // Load personal Linode StackScripts for 1-Click deployments
-      const res = await fetch('/api/vps/stackscripts?mine=true', {
+      // Load admin-configured StackScripts for 1-Click deployments
+      const res = await fetch('/api/vps/stackscripts?configured=true', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || 'Failed to load stack scripts');
 
-      const mine = Array.isArray(payload.stackscripts) ? payload.stackscripts : [];
-      // Show everything owned to avoid hiding valid scripts
-      setLinodeStackScripts(mine);
+      const scripts = Array.isArray(payload.stackscripts) ? payload.stackscripts : [];
+      setLinodeStackScripts(scripts);
     } catch (error: any) {
       console.error('Failed to load 1-Click deployments:', error);
       toast.error(error.message || 'Failed to load deployments');

@@ -2,11 +2,12 @@
  * Admin Dashboard
  * Manage support tickets and VPS plans
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from 'react';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X } from 'lucide-react';
+import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw } from 'lucide-react';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -70,6 +71,29 @@ interface PricingConfig {
   currency?: string;
 }
 
+interface LinodeStackScriptSummary {
+  id: number;
+  label: string;
+  description?: string;
+  images?: string[];
+  rev_note?: string;
+  is_public?: boolean;
+  mine?: boolean;
+  user_defined_fields?: unknown[];
+}
+
+interface StackscriptConfigRecord {
+  stackscript_id: number;
+  label: string | null;
+  description: string | null;
+  is_enabled: boolean;
+  display_order: number;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  script?: LinodeStackScriptSummary | null;
+}
+
 interface LinodeType {
   id: string;
   label: string;
@@ -96,8 +120,8 @@ const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers'>('tickets');
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts'>('tickets');
+  const [, setLoading] = useState(false);
 
   // Tickets state
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -149,6 +173,12 @@ const Admin: React.FC = () => {
   const [editProviderId, setEditProviderId] = useState<string | null>(null);
   const [editProvider, setEditProvider] = useState<Partial<Provider>>({});
   const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null);
+  const [stackscriptConfigs, setStackscriptConfigs] = useState<StackscriptConfigRecord[]>([]);
+  const [availableStackscripts, setAvailableStackscripts] = useState<LinodeStackScriptSummary[]>([]);
+  const [stackscriptDrafts, setStackscriptDrafts] = useState<Record<number, { label: string; description: string; display_order: number; is_enabled: boolean }>>({});
+  const [stackscriptSearch, setStackscriptSearch] = useState('');
+  const [savingStackscriptId, setSavingStackscriptId] = useState<number | null>(null);
+  const [loadingStackscripts, setLoadingStackscripts] = useState(false);
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
@@ -168,6 +198,31 @@ const Admin: React.FC = () => {
     return linodeRegions.filter(r => set.has(r.id));
   }, [linodeRegions, allowedRegionIds]);
 
+  const sortedStackscriptConfigs = useMemo(() => {
+    if (stackscriptConfigs.length === 0) return [] as StackscriptConfigRecord[];
+    return [...stackscriptConfigs].sort((a, b) => {
+      const orderA = typeof a.display_order === 'number' ? a.display_order : Number(a.display_order) || 0;
+      const orderB = typeof b.display_order === 'number' ? b.display_order : Number(b.display_order) || 0;
+      if (orderA !== orderB) return orderA - orderB;
+      const labelA = (a.label || a.script?.label || '').toLowerCase();
+      const labelB = (b.label || b.script?.label || '').toLowerCase();
+      return labelA.localeCompare(labelB);
+    });
+  }, [stackscriptConfigs]);
+
+  const filteredAvailableStackscripts = useMemo(() => {
+    const configuredIds = new Set(sortedStackscriptConfigs.map(cfg => cfg.stackscript_id));
+    const searchTerm = stackscriptSearch.trim().toLowerCase();
+    return availableStackscripts
+      .filter(script => !configuredIds.has(script.id))
+      .filter(script => {
+        if (!searchTerm) return true;
+        const haystack = `${script.label} ${script.description ?? ''} ${script.rev_note ?? ''}`.toLowerCase();
+        return haystack.includes(searchTerm);
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [availableStackscripts, sortedStackscriptConfigs, stackscriptSearch]);
+
   useEffect(() => {
     if (!token) {
       return;
@@ -182,6 +237,9 @@ const Admin: React.FC = () => {
         fetchProviders();
         fetchLinodeTypes();
         fetchLinodeRegions();
+        break;
+      case 'stackscripts':
+        fetchStackscriptConfigs();
         break;
       case 'providers':
         fetchProviders();
@@ -219,6 +277,147 @@ const Admin: React.FC = () => {
       setProviders(data.providers || []);
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  const fetchStackscriptConfigs = async () => {
+    if (!token) return;
+    setLoadingStackscripts(true);
+    try {
+      // Fetch configs
+      const configRes = await fetch(`${API_BASE_URL}/admin/stackscripts/configs`, { headers: authHeader });
+      const configData = await configRes.json();
+      if (!configRes.ok) throw new Error(configData.error || 'Failed to load StackScript configs');
+      
+      // Fetch available stackscripts
+      const scriptRes = await fetch(`${API_BASE_URL}/admin/linode/stackscripts?mine=true`, { headers: authHeader });
+      const scriptData = await scriptRes.json();
+      if (!scriptRes.ok) throw new Error(scriptData.error || 'Failed to load StackScripts');
+      
+      const configured: StackscriptConfigRecord[] = Array.isArray(configData.configs) ? configData.configs : [];
+      const available: LinodeStackScriptSummary[] = Array.isArray(scriptData.stackscripts) ? scriptData.stackscripts : [];
+      
+      setStackscriptConfigs(configured);
+      setAvailableStackscripts(available);
+      
+      const drafts: Record<number, { label: string; description: string; display_order: number; is_enabled: boolean }> = {};
+      configured.forEach(cfg => {
+        const script = available.find(item => item.id === cfg.stackscript_id) || null;
+        drafts[cfg.stackscript_id] = {
+          label: cfg.label ?? script?.label ?? '',
+          description: cfg.description ?? script?.description ?? script?.rev_note ?? '',
+          display_order: typeof cfg.display_order === 'number' ? cfg.display_order : Number(cfg.display_order) || 0,
+          is_enabled: cfg.is_enabled !== false,
+        };
+      });
+      setStackscriptDrafts(drafts);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load StackScripts');
+    } finally {
+      setLoadingStackscripts(false);
+    }
+  };
+
+  const fetchStackscriptsAndConfigs = async () => {
+    await fetchStackscriptConfigs();
+  };
+
+  const saveStackscriptConfig = async (stackscriptId: number, draft: { label: string; description: string; display_order: number; is_enabled: boolean }) => {
+    try {
+      setSavingStackscriptId(stackscriptId);
+      const res = await fetch(`${API_BASE_URL}/admin/stackscripts/configs`, {
+        method: 'POST',
+        headers: { ...authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stackscript_id: stackscriptId,
+          label: draft.label,
+          description: draft.description,
+          is_enabled: draft.is_enabled,
+          display_order: draft.display_order,
+          metadata: {}
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save StackScript config');
+      toast.success('StackScript configuration saved');
+      await fetchStackscriptConfigs();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save StackScript config');
+    } finally {
+      setSavingStackscriptId(null);
+    }
+  };
+
+  const handleAddStackscript = async (script: LinodeStackScriptSummary) => {
+    try {
+      setSavingStackscriptId(script.id);
+      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({
+          stackscript_id: script.id,
+          label: script.label,
+          description: script.description || script.rev_note || '',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to add StackScript');
+      toast.success('StackScript added');
+      await fetchStackscriptConfigs();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to add StackScript');
+    } finally {
+      setSavingStackscriptId(null);
+    }
+  };
+
+  const handleSaveStackscript = async (stackscriptId: number) => {
+    const draft = stackscriptDrafts[stackscriptId];
+    if (!draft) return;
+    try {
+      setSavingStackscriptId(stackscriptId);
+      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts/${stackscriptId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({
+          label: draft.label,
+          description: draft.description,
+          display_order: draft.display_order,
+          is_enabled: draft.is_enabled,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to update StackScript');
+      toast.success('StackScript updated');
+      await fetchStackscriptConfigs();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update StackScript');
+    } finally {
+      setSavingStackscriptId(null);
+    }
+  };
+
+  const handleRemoveStackscript = async (stackscriptId: number) => {
+    try {
+      setSavingStackscriptId(stackscriptId);
+      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts/${stackscriptId}`, {
+        method: 'DELETE',
+        headers: authHeader,
+      });
+      if (res.status === 404) {
+        toast.error('StackScript configuration not found');
+        return;
+      }
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to remove StackScript');
+      }
+      toast.success('StackScript removed');
+      await fetchStackscriptConfigs();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to remove StackScript');
+    } finally {
+      setSavingStackscriptId(null);
     }
   };
 
@@ -635,6 +834,14 @@ const Admin: React.FC = () => {
               <DollarSign className="h-4 w-4 inline mr-2" /> VPS Plans
             </button>
             <button
+              onClick={() => setActiveTab('stackscripts')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
+                activeTab === 'stackscripts' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <FileCode className="h-4 w-4 inline mr-2" /> StackScripts
+            </button>
+            <button
               onClick={() => setActiveTab('containers')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
                 activeTab === 'containers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
@@ -1030,6 +1237,144 @@ const Admin: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'stackscripts' && (
+          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileCode className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Manage StackScripts</h2>
+              </div>
+              <button
+                onClick={fetchStackscriptsAndConfigs}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+              >
+                <RefreshCw className="h-4 w-4 inline mr-1" /> Refresh
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Configure which Linode StackScripts appear on the VPS creation page. Only enabled scripts will be shown to users.
+              </p>
+              
+              {/* Search filter */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search StackScripts..."
+                  value={stackscriptSearch}
+                  onChange={(e) => setStackscriptSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-3">
+                {availableStackscripts
+                  .filter(s => !stackscriptSearch || s.label.toLowerCase().includes(stackscriptSearch.toLowerCase()))
+                  .map(script => {
+                    const config = stackscriptConfigs.find(c => c.stackscript_id === script.id);
+                    const draft = stackscriptDrafts[script.id] || {
+                      label: config?.label || script.label,
+                      description: config?.description || script.description || '',
+                      display_order: config?.display_order ?? 0,
+                      is_enabled: config?.is_enabled ?? false
+                    };
+                    const hasChanges = config && (
+                      draft.label !== (config.label || script.label) ||
+                      draft.description !== (config.description || '') ||
+                      draft.display_order !== config.display_order ||
+                      draft.is_enabled !== config.is_enabled
+                    );
+                    const isNew = !config;
+
+                    return (
+                      <div key={script.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                          {/* Checkbox and badge */}
+                          <div className="lg:col-span-1 flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={draft.is_enabled}
+                              onChange={(e) => {
+                                const updated = { ...draft, is_enabled: e.target.checked };
+                                setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
+                              }}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            {draft.is_enabled && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                Enabled
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Script info and inputs */}
+                          <div className="lg:col-span-9 space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Display Label</label>
+                              <input
+                                type="text"
+                                value={draft.label}
+                                onChange={(e) => {
+                                  const updated = { ...draft, label: e.target.value };
+                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
+                                }}
+                                placeholder={script.label}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={draft.description}
+                                onChange={(e) => {
+                                  const updated = { ...draft, description: e.target.value };
+                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
+                                }}
+                                placeholder={script.description || 'No description'}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              ID: {script.id} • Images: {script.images?.join(', ') || 'Any'}
+                            </div>
+                          </div>
+
+                          {/* Display order and save button */}
+                          <div className="lg:col-span-2 flex flex-col gap-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Order</label>
+                              <input
+                                type="number"
+                                value={draft.display_order}
+                                onChange={(e) => {
+                                  const updated = { ...draft, display_order: Number(e.target.value) };
+                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
+                                }}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <button
+                              onClick={() => saveStackscriptConfig(script.id, draft)}
+                              disabled={savingStackscriptId === script.id || (!hasChanges && !isNew)}
+                              className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                                hasChanges || isNew
+                                  ? 'text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+                                  : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
+                              }`}
+                            >
+                              {savingStackscriptId === script.id ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </div>
         )}

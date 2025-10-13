@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
@@ -34,9 +35,93 @@ router.get('/images', async (req: Request, res: Response) => {
 
 // Get available Linode stack scripts
 router.get('/stackscripts', async (req: Request, res: Response) => {
+  const isTruthy = (value: any) => String(value || '').toLowerCase() === 'true';
+  const configuredOnly = isTruthy((req.query as any).configured || (req.query as any).allowed || (req.query as any).allowedOnly);
+  const mineOnly = isTruthy(req.query.mine);
+
   try {
-    const mine = String(req.query.mine || '').toLowerCase() === 'true';
-    const stackscripts = await linodeService.getLinodeStackScripts(mine);
+    if (configuredOnly) {
+      let configs: any[] = [];
+      try {
+        const configRes = await query(
+          `SELECT stackscript_id, label, description, is_enabled, display_order, metadata
+             FROM vps_stackscript_configs
+            WHERE is_enabled = TRUE
+            ORDER BY display_order ASC, created_at ASC`
+        );
+        configs = configRes.rows || [];
+      } catch (configErr: any) {
+        const msg = String(configErr?.message || '').toLowerCase();
+        if (msg.includes('does not exist') || msg.includes('relation') && msg.includes('vps_stackscript_configs')) {
+          console.warn('StackScript config table missing; returning empty configured list');
+          return res.json({ stackscripts: [] });
+        }
+        throw configErr;
+      }
+
+      if (configs.length === 0) {
+        return res.json({ stackscripts: [] });
+      }
+
+      let ownedScripts: any[] = [];
+      const scriptMap = new Map<number, any>();
+      try {
+        ownedScripts = await linodeService.getLinodeStackScripts(true);
+        ownedScripts.forEach(script => scriptMap.set(script.id, script));
+      } catch (err) {
+        console.warn('Failed to fetch owned StackScripts list, will query individually:', err);
+      }
+
+      const enriched: any[] = [];
+      for (const row of configs) {
+        const stackscriptId = Number(row.stackscript_id);
+        let script = scriptMap.get(stackscriptId);
+        if (!script) {
+          try {
+            const single = await linodeService.getStackScript(stackscriptId);
+            if (single) {
+              script = single;
+              scriptMap.set(single.id, single);
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch StackScript ${stackscriptId}:`, err);
+          }
+        }
+
+        if (!script) {
+          continue;
+        }
+
+        const displayLabel = row.label || script.label || `StackScript ${stackscriptId}`;
+        const displayDescription = row.description || script.description || script.rev_note || '';
+        const metadata = (row.metadata && typeof row.metadata === 'object') ? row.metadata : {};
+
+        enriched.push({
+          ...script,
+          label: displayLabel,
+          description: displayDescription,
+          config: {
+            stackscript_id: stackscriptId,
+            label: row.label,
+            description: row.description,
+            is_enabled: row.is_enabled !== false,
+            display_order: Number(row.display_order || 0),
+            metadata,
+          }
+        });
+      }
+
+      enriched.sort((a, b) => {
+        const orderA = Number(a?.config?.display_order ?? 0);
+        const orderB = Number(b?.config?.display_order ?? 0);
+        if (orderA !== orderB) return orderA - orderB;
+        return String(a?.label || '').localeCompare(String(b?.label || ''), undefined, { sensitivity: 'base' });
+      });
+
+      return res.json({ stackscripts: enriched });
+    }
+
+    const stackscripts = await linodeService.getLinodeStackScripts(mineOnly);
     return res.json({ stackscripts });
   } catch (err: any) {
     console.error('StackScripts fetch error:', err);

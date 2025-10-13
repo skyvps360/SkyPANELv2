@@ -109,6 +109,7 @@ export interface LinodeStackScript {
   id: number;
   username: string;
   label: string;
+  description?: string;
   images: string[];
   is_public: boolean;
   created: string;
@@ -446,6 +447,7 @@ class LinodeService {
       return data.data.map((stackscript: any) => ({
         id: stackscript.id,
         label: stackscript.label,
+        description: stackscript.description,
         images: stackscript.images,
         is_public: stackscript.is_public,
         created: stackscript.created,
@@ -553,6 +555,7 @@ class LinodeService {
         id: stackscript.id,
         username: stackscript.username,
         label: stackscript.label,
+        description: stackscript.description,
         images: stackscript.images,
         is_public: stackscript.is_public,
         created: stackscript.created,
