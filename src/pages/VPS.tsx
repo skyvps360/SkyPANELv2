@@ -118,6 +118,80 @@ const VPS: React.FC = () => {
   const { token } = useAuth();
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [linodeImages, setLinodeImages] = useState<any[]>([]);
+  const [linodeStackScripts, setLinodeStackScripts] = useState<any[]>([]);
+  const [selectedStackScript, setSelectedStackScript] = useState<any | null>(null);
+  const [stackscriptData, setStackscriptData] = useState<Record<string, any>>({});
+  const [loadingStackScripts, setLoadingStackScripts] = useState<boolean>(false);
+  // OS selection redesign: tabs, grouping, and per-OS version selection
+  const [osTab, setOsTab] = useState<'templates' | 'iso'>('templates');
+  const [selectedOSGroup, setSelectedOSGroup] = useState<string | null>(null);
+  const [selectedOSVersion, setSelectedOSVersion] = useState<Record<string, string>>({});
+
+  // Group Linode images into distributions with versions for cleaner selection cards
+  const osGroups = useMemo(() => {
+    const groups: Record<string, { name: string; key: string; versions: Array<{ id: string; label: string }> }> = {};
+    const add = (key: string, name: string, id: string, label: string) => {
+      if (!groups[key]) groups[key] = { key, name, versions: [] };
+      groups[key].versions.push({ id, label });
+    };
+    (linodeImages || []).forEach((img: any) => {
+      const id: string = img.id || '';
+      const label: string = img.label || id;
+      const lower = `${id} ${label}`.toLowerCase();
+      // Exclude non-OS entries like Kubernetes/LKE from OS selection
+      if (/(^|\s)(kubernetes|lke|k8s)(\s|$)/i.test(lower)) {
+        return;
+      }
+      if (lower.includes('ubuntu')) add('ubuntu', 'Ubuntu', id, label);
+      else if (lower.includes('centos')) add('centos', 'CentOS', id, label);
+      else if (lower.includes('alma')) add('almalinux', 'AlmaLinux', id, label);
+      else if (lower.includes('rocky')) add('rockylinux', 'Rocky Linux', id, label);
+      else if (lower.includes('debian')) add('debian', 'Debian', id, label);
+      else if (lower.includes('fedora')) add('fedora', 'Fedora', id, label);
+      else if (lower.includes('alpine')) add('alpine', 'Alpine', id, label);
+      else if (lower.includes('arch')) add('arch', 'Arch Linux', id, label);
+      else if (lower.includes('opensuse')) add('opensuse', 'openSUSE', id, label);
+      else if (lower.includes('gentoo')) add('gentoo', 'Gentoo', id, label);
+      else if (lower.includes('slackware')) add('slackware', 'Slackware', id, label);
+    });
+    // Sort versions descending by numeric parts in label to prefer latest first
+    Object.values(groups).forEach(g => {
+      g.versions.sort((a, b) => b.label.localeCompare(a.label, undefined, { numeric: true }));
+    });
+    return groups;
+  }, [linodeImages]);
+
+  // Constrain visible OS versions when a WordPress StackScript specifies allowed base images
+  const effectiveOsGroups = useMemo(() => {
+    const allowed = Array.isArray(selectedStackScript?.images) ? (selectedStackScript!.images as string[]) : [];
+    if (!selectedStackScript || allowed.length === 0) return osGroups;
+    const filtered: typeof osGroups = {} as any;
+    Object.entries(osGroups).forEach(([key, group]) => {
+      const versions = group.versions.filter(v => allowed.includes(v.id));
+      if (versions.length > 0) filtered[key] = { ...group, versions };
+    });
+    return filtered;
+  }, [osGroups, selectedStackScript]);
+
+  // Sync default selection to current form image when images load
+  useEffect(() => {
+    if (!linodeImages || linodeImages.length === 0) return;
+    const current = linodeImages.find((i: any) => i.id === createForm.image);
+    const src = `${createForm.image} ${(current?.label || '')}`.toLowerCase();
+    const key = src.includes('ubuntu') ? 'ubuntu'
+      : src.includes('centos') ? 'centos'
+      : src.includes('alma') ? 'almalinux'
+      : src.includes('rocky') ? 'rockylinux'
+      : src.includes('debian') ? 'debian'
+      : src.includes('fedora') ? 'fedora'
+      : src.includes('alpine') ? 'alpine'
+      : src.includes('arch') ? 'arch' : null;
+    if (key) {
+      setSelectedOSGroup(prev => prev || key);
+      setSelectedOSVersion(prev => ({ ...prev, [key]: createForm.image }));
+    }
+  }, [linodeImages, createForm.image]);
 
   // Regions allowed by admin configuration: derive strictly from configured VPS plans
   const allowedRegions: LinodeRegion[] = useMemo(() => {
@@ -167,6 +241,59 @@ const VPS: React.FC = () => {
     }, 10000);
     return () => clearInterval(interval);
   }, [instances]);
+
+  // Load images and stack scripts when create modal opens
+  useEffect(() => {
+    if (showCreateModal) {
+      loadLinodeImages();
+      loadLinodeStackScripts();
+    }
+  }, [showCreateModal]);
+
+  // Initialize StackScript data defaults when a script is selected
+  useEffect(() => {
+    if (selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields)) {
+      const initial: Record<string, any> = {};
+      selectedStackScript.user_defined_fields.forEach((f: any) => {
+        if (f && typeof f.default !== 'undefined' && f.default !== null && String(f.default).length > 0) {
+          initial[f.name] = f.default;
+        }
+      });
+      setStackscriptData(initial);
+    } else {
+      setStackscriptData({});
+    }
+  }, [selectedStackScript]);
+
+  // Auto-select a compatible image when choosing a StackScript
+  useEffect(() => {
+    if (!selectedStackScript) return;
+    const allowed = Array.isArray(selectedStackScript.images) ? (selectedStackScript.images as string[]) : [];
+    if (allowed.length === 0) return;
+    const current = createForm.image;
+    const isAllowed = current && allowed.includes(current);
+    const pick = isAllowed ? current : allowed[0];
+    if (pick && pick !== current) {
+      setCreateForm(prev => ({ ...prev, image: pick }));
+      const src = pick.toLowerCase();
+      const key = src.includes('ubuntu') ? 'ubuntu'
+        : src.includes('centos') ? 'centos'
+        : src.includes('alma') ? 'almalinux'
+        : src.includes('rocky') ? 'rockylinux'
+        : src.includes('debian') ? 'debian'
+        : src.includes('fedora') ? 'fedora'
+        : src.includes('alpine') ? 'alpine'
+        : src.includes('arch') ? 'arch'
+        : src.includes('opensuse') ? 'opensuse'
+        : src.includes('gentoo') ? 'gentoo'
+        : src.includes('slackware') ? 'slackware'
+        : null;
+      if (key) {
+        setSelectedOSGroup(key);
+        setSelectedOSVersion(prev => ({ ...prev, [key]: pick }));
+      }
+    }
+  }, [selectedStackScript]);
 
   const loadVPSPlans = async () => {
     setLoadingPlans(true);
@@ -229,6 +356,42 @@ const VPS: React.FC = () => {
       toast.error(error.message || 'Failed to load VPS plans');
     } finally {
       setLoadingPlans(false);
+    }
+  };
+
+  const loadLinodeImages = async () => {
+    try {
+      const res = await fetch('/api/vps/images', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Failed to load images');
+      setLinodeImages(payload.images || []);
+    } catch (error: any) {
+      console.error('Failed to load Linode images:', error);
+      toast.error(error.message || 'Failed to load images');
+    }
+  };
+
+  const loadLinodeStackScripts = async () => {
+    setLoadingStackScripts(true);
+    try {
+      // Load personal Linode StackScripts for 1-Click deployments
+      const res = await fetch('/api/vps/stackscripts?mine=true', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Failed to load stack scripts');
+
+      const mine = Array.isArray(payload.stackscripts) ? payload.stackscripts : [];
+      // Show everything owned to avoid hiding valid scripts
+      setLinodeStackScripts(mine);
+    } catch (error: any) {
+      console.error('Failed to load 1-Click deployments:', error);
+      toast.error(error.message || 'Failed to load deployments');
+    }
+    finally {
+      setLoadingStackScripts(false);
     }
   };
 
@@ -359,23 +522,54 @@ const VPS: React.FC = () => {
       return;
     }
 
-    try {
+  try {
+      // Enforce image compatibility and validate fields for Marketplace/StackScript
+      if (selectedStackScript && Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0) {
+        const allowed = selectedStackScript.images as string[];
+        if (!createForm.image || !allowed.includes(createForm.image)) {
+          toast.error('Selected OS image is not compatible with the selected application. Choose an allowed image.');
+          return;
+        }
+      }
+      if (selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields)) {
+        const missing = (selectedStackScript.user_defined_fields || []).filter((f: any) => {
+          const val = stackscriptData[f.name];
+          return val === undefined || val === null || String(val).trim() === '';
+        });
+        if (missing.length > 0) {
+          const first = missing[0];
+          toast.error(`Please fill required field: ${first.label || first.name}`);
+          return;
+        }
+      }
+
+      // Build request body supporting Marketplace apps
+      const isMarketplace = Boolean((selectedStackScript as any)?.isMarketplace);
+      const body: any = {
+        label: createForm.label,
+        type: createForm.type,
+        region: createForm.region,
+        image: createForm.image,
+        rootPassword: createForm.rootPassword,
+        sshKeys: createForm.sshKeys,
+        backups: createForm.backups,
+        privateIP: createForm.privateIP,
+      };
+      if (isMarketplace) {
+        body.appSlug = (selectedStackScript as any)?.appSlug;
+        body.appData = stackscriptData;
+      } else {
+        body.stackscriptId = selectedStackScript?.id || undefined;
+        body.stackscriptData = selectedStackScript ? stackscriptData : undefined;
+      }
+
       const res = await fetch('/api/vps', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          label: createForm.label,
-          type: createForm.type,
-          region: createForm.region,
-          image: createForm.image,
-          rootPassword: createForm.rootPassword,
-          sshKeys: createForm.sshKeys,
-          backups: createForm.backups,
-          privateIP: createForm.privateIP,
-        }),
+        body: JSON.stringify(body),
       });
 
       const payload = await res.json();
@@ -397,6 +591,8 @@ const VPS: React.FC = () => {
         backups: false,
         privateIP: false
       });
+      setSelectedStackScript(null);
+      setStackscriptData({});
       toast.success('VPS instance creation initiated');
     } catch (error) {
       console.error('Failed to create VPS instance:', error);
@@ -804,21 +1000,224 @@ const VPS: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* 1-Click Deployments Section (always visible) */}
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        1-Click Deployments (Optional)
+                      </label>
+                      <div className="space-y-2">
+                        <div
+                          onClick={() => setSelectedStackScript(null)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            selectedStackScript === null
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-400 rounded-lg flex items-center justify-center">
+                              <span className="text-white font-bold text-xs">NO</span>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 dark:text-white text-sm">None</h4>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Provision base OS without a deployment</p>
+                            </div>
+                            {selectedStackScript === null && (
+                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {linodeStackScripts.map((script) => (
+                          <div
+                            key={script.id}
+                            onClick={() => setSelectedStackScript(script)}
+                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                              selectedStackScript?.id === script.id
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">
+                                  {script.label.substring(0, 2).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 dark:text-white text-sm">{script.label}</h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {script.description || 'Automated setup script'}
+                                </p>
+                              </div>
+                              {selectedStackScript?.id === script.id && (
+                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields) && selectedStackScript.user_defined_fields.length > 0 && (
+                        <div className="mt-4 p-3 border rounded-lg bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-600">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Deployment Configuration</h4>
+                          {Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0 && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              Allowed base images: {selectedStackScript.images.join(', ')}
+                            </p>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {selectedStackScript.user_defined_fields.map((f: any) => {
+                              const value = stackscriptData[f.name] ?? '';
+                              const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
+                              const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
+                              const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
+                              const options = optionsArr || parsedOptions;
+                              const nameLower = String(f.name || '').toLowerCase();
+                              const inputType: 'text' | 'password' | 'email' = options && options.length > 0
+                                ? 'text'
+                                : nameLower.includes('password') || nameLower.includes('pass')
+                                  ? 'password'
+                                  : nameLower.includes('email')
+                                    ? 'email'
+                                    : 'text';
+                              return (
+                                <div key={f.name}>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label || f.name}</label>
+                                  {options && options.length > 0 ? (
+                                    <select
+                                      value={value}
+                                      onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                                      className="w-full text-xs rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                    >
+                                      <option value="">Select</option>
+                                      {options.map((opt: string) => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type={inputType}
+                                      value={value}
+                                      onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                                      placeholder={f.example || f.default || ''}
+                                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Image
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      Operating System
                     </label>
-                    <select
-                      value={createForm.image}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, image: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
-                    >
-                      {osImages.map(image => (
-                        <option key={image.id} value={image.id}>
-                          {image.label}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Tabs: Templates | ISO */}
+                    <div className="flex items-center space-x-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setOsTab('templates')}
+                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700'}`}
+                      >
+                        Templates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOsTab('iso')}
+                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700'}`}
+                      >
+                        ISO
+                      </button>
+                    </div>
+
+                    {osTab === 'templates' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                        {(
+                          ['ubuntu','debian','centos','rockylinux','almalinux','fedora','alpine','arch','opensuse','gentoo','slackware']
+                        ).filter(k => effectiveOsGroups[k] && effectiveOsGroups[k].versions.length > 0).map(key => {
+                          const group = effectiveOsGroups[key];
+                          const selectedVersionId = selectedOSVersion[key] || group.versions[0]?.id;
+                          const isSelected = selectedOSGroup === key;
+                          const colorMap: Record<string, string> = {
+                            ubuntu: 'from-orange-500 to-red-600',
+                            debian: 'from-red-500 to-gray-600',
+                            centos: 'from-emerald-500 to-teal-600',
+                            rockylinux: 'from-green-600 to-emerald-700',
+                            almalinux: 'from-rose-500 to-pink-600',
+                            fedora: 'from-blue-600 to-indigo-700',
+                            alpine: 'from-cyan-500 to-sky-600',
+                            arch: 'from-sky-500 to-blue-700',
+                            opensuse: 'from-lime-500 to-green-600',
+                            gentoo: 'from-purple-500 to-violet-600',
+                            slackware: 'from-gray-500 to-gray-700'
+                          };
+                          const colors = colorMap[key] || 'from-blue-500 to-purple-600';
+                          return (
+                            <div
+                              key={key}
+                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}
+                              onClick={() => {
+                                setSelectedOSGroup(key);
+                                const idToUse = selectedVersionId || group.versions[0]?.id;
+                                if (idToUse) setCreateForm(prev => ({ ...prev, image: idToUse }));
+                              }}
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-3">
+                                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors} flex items-center justify-center`}>
+                                    <span className="text-white font-bold text-xs">{group.name.slice(0,2).toUpperCase()}</span>
+                                  </div>
+                                  <h3 className="font-medium text-gray-900 dark:text-white text-sm lowercase">{group.name}</h3>
+                                </div>
+                                {isSelected && (
+                                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Select Version</label>
+                                <select
+                                  value={selectedVersionId || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSelectedOSVersion(prev => ({ ...prev, [key]: val }));
+                                    setCreateForm(prev => ({ ...prev, image: val }));
+                                    setSelectedOSGroup(key);
+                                  }}
+                                  className="w-full text-xs rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                >
+                                  <option value="" disabled>SELECT VERSION</option>
+                                  {group.versions.map(v => (
+                                    <option key={v.id} value={v.id}>{v.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mb-4 p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                        ISO install support coming soon. Use Templates for now.
+                      </div>
+                    )}
+
+                    
                   </div>
 
                   <div>

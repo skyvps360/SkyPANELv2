@@ -8,6 +8,42 @@ const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
 
+// Get Linode Marketplace apps (limited to selected slugs)
+router.get('/apps', async (req: Request, res: Response) => {
+  try {
+    const slugsParam = String(req.query.slugs || '').trim();
+    const slugs = slugsParam ? slugsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const apps = await linodeService.listMarketplaceApps(slugs.length > 0 ? slugs : undefined);
+    res.json({ apps });
+  } catch (err: any) {
+    console.error('Apps fetch error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch Marketplace apps' });
+  }
+});
+
+// Get available Linode images
+router.get('/images', async (req: Request, res: Response) => {
+  try {
+    const images = await linodeService.getLinodeImages();
+    res.json({ images });
+  } catch (err: any) {
+    console.error('Images fetch error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch images' });
+  }
+});
+
+// Get available Linode stack scripts
+router.get('/stackscripts', async (req: Request, res: Response) => {
+  try {
+    const mine = String(req.query.mine || '').toLowerCase() === 'true';
+    const stackscripts = await linodeService.getLinodeStackScripts(mine);
+    return res.json({ stackscripts });
+  } catch (err: any) {
+    console.error('StackScripts fetch error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch stack scripts' });
+  }
+});
+
 // List VPS instances for the user's organization
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -135,6 +171,10 @@ router.post('/', async (req: Request, res: Response) => {
       sshKeys = [],
       backups = false,
       privateIP = false,
+      appSlug,
+      appData,
+      stackscriptId,
+      stackscriptData,
     } = req.body || {};
 
     if (!label || !type || !image || !rootPassword) {
@@ -200,19 +240,34 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Create Linode instance
-    const created = await linodeService.createLinodeInstance({
-      type: linodeTypeId,
-      region: regionToUse,
-      image,
-      label,
-      root_pass: rootPassword,
-      authorized_keys: sshKeys,
-      backups_enabled: backups,
-      private_ip: privateIP,
-      tags: ['containerstacks'],
-      group: 'containerstacks'
-    });
+    // Create Linode instance (Marketplace app takes precedence when provided)
+    const created = appSlug
+      ? await linodeService.createInstanceWithMarketplaceApp({
+          label,
+          type: linodeTypeId,
+          region: regionToUse,
+          image,
+          rootPassword,
+          sshKeys,
+          backups,
+          privateIP,
+          appSlug,
+          appData: appData || {}
+        })
+      : await linodeService.createLinodeInstance({
+          type: linodeTypeId,
+          region: regionToUse,
+          image,
+          label,
+          root_pass: rootPassword,
+          authorized_keys: sshKeys,
+          backups_enabled: backups,
+          private_ip: privateIP,
+          stackscript_id: stackscriptId,
+          stackscript_data: stackscriptData,
+          tags: ['containerstacks'],
+          group: 'containerstacks'
+        });
 
     // Persist instance record
     const configuration = {
@@ -221,6 +276,10 @@ router.post('/', async (req: Request, res: Response) => {
       image,
       backups,
       privateIP,
+      stackscriptId,
+      stackscriptData,
+      appSlug,
+      appData,
     };
 
     const ip = Array.isArray(created.ipv4) && created.ipv4.length > 0 ? created.ipv4[0] : null;

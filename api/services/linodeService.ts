@@ -85,6 +85,61 @@ export interface CreateLinodeRequest {
   private_ip?: boolean;
   tags?: string[];
   group?: string;
+  stackscript_id?: number;
+  stackscript_data?: Record<string, any>;
+}
+
+export interface LinodeImage {
+  id: string;
+  label: string;
+  description: string;
+  created: string;
+  type: string;
+  is_public: boolean;
+  vendor: string;
+  size: number;
+  deprecated: boolean;
+  expiry: string | null;
+  eol: string | null;
+  status: string;
+  capabilities: string[];
+}
+
+export interface LinodeStackScript {
+  id: number;
+  username: string;
+  label: string;
+  images: string[];
+  is_public: boolean;
+  created: string;
+  updated: string;
+  rev_note: string;
+  script: string;
+  user_defined_fields: Array<{
+    name: string;
+    label: string;
+    default: string;
+    example: string;
+    oneof: string;
+  }>;
+  deployments_active: number;
+  deployments_total: number;
+}
+
+export interface CreateStackScriptRequest {
+  label: string;
+  script: string;
+  images: string[];
+  description?: string;
+  is_public?: boolean; // default false
+  rev_note?: string;
+  user_defined_fields?: Array<{
+    name: string;
+    label: string;
+    default?: string;
+    example?: string;
+    oneof?: string;
+  }>;
 }
 
 class LinodeService {
@@ -99,11 +154,157 @@ class LinodeService {
     }
   }
 
+  /**
+   * Fetch Linode Marketplace apps. Optionally filter by slug list.
+   * Also fetches the underlying StackScript details to get user_defined_fields.
+   */
+  async listMarketplaceApps(slugs?: string[]): Promise<any[]> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const url = new URL(`${this.baseUrl}/linode/apps`);
+      // The API supports pagination; fetch first page which contains the needed slugs
+      const response = await fetch(url.toString(), { headers: this.getHeaders() });
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${txt}`);
+      }
+      const data = await response.json();
+      let apps: any[] = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      if (Array.isArray(slugs) && slugs.length > 0) {
+        const set = new Set(slugs.map(s => String(s).toLowerCase()));
+        apps = apps.filter(a => set.has(String(a?.slug || '').toLowerCase()));
+      }
+
+      // For each marketplace app, fetch the underlying StackScript to get user_defined_fields
+      const appsWithFields = await Promise.all(apps.map(async (app) => {
+        try {
+          if (app.stackscript_id) {
+            const stackscript = await this.getStackScript(app.stackscript_id);
+            return {
+              ...app,
+              user_defined_fields: stackscript?.user_defined_fields || []
+            };
+          }
+          return {
+            ...app,
+            user_defined_fields: []
+          };
+        } catch (error) {
+          console.warn(`Failed to fetch StackScript ${app.stackscript_id} for app ${app.slug}:`, error);
+          return {
+            ...app,
+            user_defined_fields: []
+          };
+        }
+      }));
+
+      return appsWithFields;
+    } catch (error) {
+      console.error('Error fetching Linode Marketplace apps:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch a single Marketplace app by slug.
+   */
+  async getMarketplaceApp(slug: string): Promise<any | null> {
+    const apps = await this.listMarketplaceApps([slug]);
+    return apps[0] || null;
+  }
+
+  /**
+   * Create instance using a Marketplace app (uses app's underlying StackScript)
+   */
+  async createInstanceWithMarketplaceApp(params: {
+    label: string;
+    type: string;
+    region: string;
+    image: string;
+    rootPassword: string;
+    sshKeys?: string[];
+    backups?: boolean;
+    privateIP?: boolean;
+    appSlug: string;
+    appData: Record<string, any>;
+  }): Promise<LinodeInstance> {
+    const {
+      label,
+      type,
+      region,
+      image,
+      rootPassword,
+      sshKeys = [],
+      backups = false,
+      privateIP = false,
+      appSlug,
+      appData
+    } = params;
+
+    const app = await this.getMarketplaceApp(appSlug);
+    if (!app) throw new Error(`Marketplace app not found: ${appSlug}`);
+
+    const allowedImages: string[] = Array.isArray(app?.images) ? app.images : [];
+    if (allowedImages.length > 0 && !allowedImages.includes(image)) {
+      throw new Error('Selected image is not compatible with the chosen Marketplace app');
+    }
+
+    const udfs: any[] = Array.isArray(app?.user_defined_fields) ? app.user_defined_fields : [];
+    const missing = udfs.filter(f => {
+      const name = f?.name;
+      if (!name) return false;
+      const required = Boolean(f?.required) || String(f?.label || '').toLowerCase().includes('(required)');
+      if (!required) return false;
+      const val = appData[name];
+      return val === undefined || val === null || String(val).trim() === '';
+    });
+    if (missing.length > 0) {
+      const first = missing[0];
+      throw new Error(`Missing required app field: ${first?.label || first?.name}`);
+    }
+
+    const createReq: CreateLinodeRequest = {
+      type,
+      region,
+      image,
+      label,
+      root_pass: rootPassword,
+      authorized_keys: sshKeys,
+      backups_enabled: backups,
+      private_ip: privateIP,
+      stackscript_id: Number(app?.stackscript_id),
+      stackscript_data: appData || {}
+    };
+
+    return this.createLinodeInstance(createReq);
+  }
+
   private getHeaders(): HeadersInit {
     return {
       'Authorization': `Bearer ${this.apiToken}`,
       'Content-Type': 'application/json',
     };
+  }
+
+  /**
+   * Get Linode profile for current token (to determine username)
+   */
+  async getLinodeProfile(): Promise<{ username: string }> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const response = await fetch(`${this.baseUrl}/profile`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Linode API error (profile): ${response.status} ${response.statusText} ${txt}`);
+      }
+      const data = await response.json();
+      return { username: String(data.username || '') };
+    } catch (error) {
+      console.error('Error fetching Linode profile:', error);
+      throw error;
+    }
   }
 
   /**
@@ -149,6 +350,221 @@ class LinodeService {
       }));
     } catch (error) {
       console.error('Error fetching Linode types:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all available Linode images
+   */
+  async getLinodeImages(): Promise<LinodeImage[]> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+      const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV !== 'production'
+      if (isDebug) {
+        console.log('Fetching Linode images')
+      }
+      const response = await fetch(`${this.baseUrl}/images`, {
+        headers: this.getHeaders(),
+      });
+      if (isDebug) {
+        console.log('Linode API response status:', response.status)
+      }
+      if (!response.ok) {
+        if (isDebug) {
+          const errorText = await response.text()
+          console.error('Linode API error response:', errorText)
+        }
+        throw new Error(`Linode API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (isDebug) {
+        console.log('Fetched Linode images:', data.data.length)
+      }
+      return data.data.map((image: any) => ({
+        id: image.id,
+        label: image.label,
+        description: image.description,
+        created: image.created,
+        type: image.type,
+        is_public: image.is_public,
+        vendor: image.vendor,
+        size: image.size,
+        deprecated: image.deprecated,
+        expiry: image.expiry,
+        eol: image.eol,
+        status: image.status,
+        capabilities: image.capabilities,
+      }));
+    } catch (error) {
+      console.error('Error fetching Linode images:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch Linode StackScripts.
+   * When mineOnly is true, use X-Filter to return only scripts owned by the account.
+   */
+  async getLinodeStackScripts(mineOnly: boolean = false): Promise<LinodeStackScript[]> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+      const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV !== 'production'
+      if (isDebug) {
+        console.log('Fetching Linode stack scripts')
+      }
+      const headers: Record<string, string> = {
+        ...(this.getHeaders() as Record<string, string>),
+      };
+      if (mineOnly) {
+        // Use Linode's filter mechanism to fetch only owned StackScripts
+        headers['X-Filter'] = JSON.stringify({ mine: true });
+      }
+      const response = await fetch(`${this.baseUrl}/linode/stackscripts`, {
+        headers,
+      });
+      if (isDebug) {
+        console.log('Linode API response status:', response.status)
+      }
+      if (!response.ok) {
+        if (isDebug) {
+          const errorText = await response.text()
+          console.error('Linode API error response:', errorText)
+        }
+        throw new Error(`Linode API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (isDebug) {
+        console.log('Fetched Linode stack scripts:', data.data.length)
+      }
+      return data.data.map((stackscript: any) => ({
+        id: stackscript.id,
+        label: stackscript.label,
+        images: stackscript.images,
+        is_public: stackscript.is_public,
+        created: stackscript.created,
+        updated: stackscript.updated,
+        rev_note: stackscript.rev_note,
+        script: stackscript.script,
+        user_defined_fields: stackscript.user_defined_fields || [],
+        deployments_active: stackscript.deployments_active,
+        deployments_total: stackscript.deployments_total,
+        // expose mine flag when available so callers can see ownership
+        mine: stackscript.mine === true,
+      }));
+    } catch (error) {
+      console.error('Error fetching Linode stack scripts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new StackScript
+   */
+  async createStackScript(req: CreateStackScriptRequest): Promise<LinodeStackScript> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const body: any = {
+        label: req.label,
+        script: req.script,
+        images: req.images,
+        is_public: req.is_public ?? false,
+        rev_note: req.rev_note ?? 'Initial version created via ContainerStacks',
+        description: req.description ?? req.label,
+        user_defined_fields: req.user_defined_fields ?? [],
+      };
+      const response = await fetch(`${this.baseUrl}/linode/stackscripts`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Linode API error (create StackScript): ${response.status} ${response.statusText} ${txt}`);
+      }
+      const data = await response.json();
+      return data as LinodeStackScript;
+    } catch (error) {
+      console.error('Error creating Linode StackScript:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing StackScript by id
+   */
+  async updateStackScript(id: number, req: Partial<CreateStackScriptRequest>): Promise<LinodeStackScript> {
+    try {
+      if (!this.apiToken) throw new Error('Linode API token not configured');
+      const body: any = { ...req };
+      const response = await fetch(`${this.baseUrl}/linode/stackscripts/${id}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Linode API error (update StackScript): ${response.status} ${response.statusText} ${txt}`);
+      }
+      const data = await response.json();
+      return data as LinodeStackScript;
+    } catch (error) {
+      console.error('Error updating Linode StackScript:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find a StackScript by label (exact match)
+   */
+  async findStackScriptByLabel(label: string): Promise<LinodeStackScript | null> {
+    const scripts = await this.getLinodeStackScripts();
+    const match = scripts.find(s => String(s.label).trim().toLowerCase() === String(label).trim().toLowerCase());
+    return match || null;
+  }
+
+  /**
+   * Fetch a single StackScript by ID
+   */
+  async getStackScript(stackscriptId: number): Promise<LinodeStackScript | null> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+      const response = await fetch(`${this.baseUrl}/linode/stackscripts/${stackscriptId}`, {
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${txt}`);
+      }
+
+      const stackscript = await response.json();
+      return {
+        id: stackscript.id,
+        username: stackscript.username,
+        label: stackscript.label,
+        images: stackscript.images,
+        is_public: stackscript.is_public,
+        created: stackscript.created,
+        updated: stackscript.updated,
+        rev_note: stackscript.rev_note,
+        script: stackscript.script,
+        user_defined_fields: stackscript.user_defined_fields || [],
+        deployments_active: stackscript.deployments_active,
+        deployments_total: stackscript.deployments_total,
+      };
+    } catch (error) {
+      console.error(`Error fetching StackScript ${stackscriptId}:`, error);
       throw error;
     }
   }
