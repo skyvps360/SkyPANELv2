@@ -500,8 +500,6 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-export default router;
-
 // Instance actions: boot
 router.post('/:id/boot', async (req: Request, res: Response) => {
   try {
@@ -1247,3 +1245,5 @@ router.put('/:id', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Failed to update VPS instance' });
   }
 });
+
+export default router;
