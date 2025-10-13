@@ -109,6 +109,10 @@ class ApiClient {
     return this.request('/vps');
   }
 
+  async getVpsInstanceDetail(id: string) {
+    return this.request(`/vps/${id}`);
+  }
+
   // Support methods
   async getSupportTickets() {
     return this.request('/support/tickets');

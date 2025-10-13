@@ -143,6 +143,64 @@ export interface CreateStackScriptRequest {
   }>;
 }
 
+export type LinodeMetricTuple = [number, number];
+
+export interface LinodeInstanceStatsResponse {
+  title?: string;
+  cpu?: LinodeMetricTuple[];
+  io?: {
+    io?: LinodeMetricTuple[];
+    swap?: LinodeMetricTuple[];
+  };
+  netv4?: {
+    in?: LinodeMetricTuple[];
+    out?: LinodeMetricTuple[];
+    private_in?: LinodeMetricTuple[];
+    private_out?: LinodeMetricTuple[];
+  };
+  netv6?: {
+    in?: LinodeMetricTuple[];
+    out?: LinodeMetricTuple[];
+    private_in?: LinodeMetricTuple[];
+    private_out?: LinodeMetricTuple[];
+  };
+}
+
+export interface LinodeInstanceTransferResponse {
+  used: number;
+  quota: number;
+  billable: number;
+}
+
+export interface LinodeBackupDisk {
+  label?: string;
+  size?: number;
+  filesystem?: string;
+}
+
+export interface LinodeBackupSummary {
+  id?: number;
+  label?: string | null;
+  type?: string;
+  status?: string;
+  created?: string;
+  updated?: string;
+  finished?: string | null;
+  available?: boolean;
+  configs?: string[];
+  disks?: LinodeBackupDisk[];
+}
+
+export interface LinodeSnapshotCollection {
+  current?: LinodeBackupSummary | null;
+  in_progress?: LinodeBackupSummary | null;
+}
+
+export interface LinodeInstanceBackupsResponse {
+  automatic?: LinodeBackupSummary[];
+  snapshot?: LinodeSnapshotCollection | null;
+}
+
 class LinodeService {
   private readonly apiToken: string;
   private readonly baseUrl = 'https://api.linode.com/v4';
@@ -690,6 +748,84 @@ class LinodeService {
       return data;
     } catch (error) {
       console.error('Error fetching Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch runtime statistics for a specific instance (last 24 hours)
+   */
+  async getLinodeInstanceStats(instanceId: number): Promise<LinodeInstanceStatsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/stats`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeInstanceStatsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode instance stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch current-month transfer usage for an instance
+   */
+  async getLinodeInstanceTransfer(instanceId: number): Promise<LinodeInstanceTransferResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/transfer`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeInstanceTransferResponse;
+    } catch (error) {
+      console.error('Error fetching Linode transfer usage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch available backups for an instance
+   */
+  async getLinodeInstanceBackups(instanceId: number): Promise<LinodeInstanceBackupsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeInstanceBackupsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode backups:', error);
       throw error;
     }
   }
