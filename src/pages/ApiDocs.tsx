@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ApiDocs() {
@@ -179,38 +179,115 @@ export default function ApiDocs() {
       base: `${apiBase}/vps`,
       description: 'Virtual Private Server management and operations',
       endpoints: [
-        { 
-          method: 'GET', 
-          path: '/', 
-          description: 'List all VPS instances for organization',
+        {
+          method: 'GET',
+          path: '/',
+          description: 'List all VPS instances for the active organization',
           auth: true,
-          response: [{ 
-            id: 'vps_123', 
-            name: 'my-server', 
-            status: 'running', 
-            ip_address: '192.168.1.100', 
-            plan: 'nanode-1gb', 
-            region: 'us-east', 
-            created_at: '2024-01-01T00:00:00Z' 
-          }]
+          response: {
+            instances: [
+              {
+                id: '2d1ffa7d-9c8a-4f29-8c6a-4fd6f05b7011',
+                provider_instance_id: '55512345',
+                label: 'production-web-1',
+                status: 'running',
+                ip_address: '203.0.113.12',
+                configuration: {
+                  type: 'g6-standard-2',
+                  region: 'us-east',
+                  image: 'ubuntu-24-04-lts'
+                },
+                plan_specs: {
+                  vcpus: 2,
+                  memory: 4096,
+                  disk: 81920,
+                  transfer: 4000
+                },
+                plan_pricing: {
+                  hourly: 0.027,
+                  monthly: 20.0
+                },
+                region_label: 'Newark, NJ'
+              }
+            ]
+          }
         },
         { 
           method: 'POST', 
           path: '/', 
-          description: 'Create new VPS instance',
+          description: 'Provision a new VPS instance',
           auth: true,
           body: { 
-            name: 'my-server', 
-            plan: 'nanode-1gb', 
-            region: 'us-east', 
-            image: 'linode/ubuntu22.04',
-            root_pass: 'secure_password123'
+            label: 'production-web-1',
+            type: 'g6-standard-2',
+            region: 'us-east',
+            image: 'ubuntu-24-04-lts',
+            rootPassword: 'secure_password123',
+            sshKeys: ['ssh-ed25519 AAAAC3Nza... user@laptop'],
+            backups: true,
+            privateIP: false
           },
           response: { 
-            id: 'vps_123', 
-            name: 'my-server', 
-            status: 'provisioning', 
-            message: 'VPS creation started' 
+            instance: {
+              id: '2d1ffa7d-9c8a-4f29-8c6a-4fd6f05b7011',
+              provider_instance_id: '55512345',
+              status: 'provisioning',
+              ip_address: null,
+              label: 'production-web-1'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/:id',
+          description: 'Retrieve enriched detail for a specific VPS instance',
+          auth: true,
+          response: {
+            instance: {
+              id: '2d1ffa7d-9c8a-4f29-8c6a-4fd6f05b7011',
+              providerInstanceId: '55512345',
+              label: 'production-web-1',
+              status: 'running',
+              ipAddress: '203.0.113.12',
+              region: 'us-east',
+              regionLabel: 'Newark, NJ',
+              plan: {
+                id: 'plan_standard_2vcpu',
+                name: 'Standard 2 vCPU',
+                providerPlanId: 'g6-standard-2',
+                specs: { vcpus: 2, memory: 4096, disk: 81920, transfer: 4000 },
+                pricing: { hourly: 0.027, monthly: 20.0, currency: 'USD' }
+              },
+              metrics: {
+                timeframe: { start: 1728702000000, end: 1728788400000 },
+                cpu: { summary: { average: 18.3, peak: 72.5, last: 21.9 } },
+                network: {
+                  inbound: { summary: { average: 1200000, peak: 8200000, last: 1500000 } },
+                  outbound: { summary: { average: 950000, peak: 6500000, last: 1100000 } }
+                },
+                io: {
+                  read: { summary: { average: 12.4, peak: 44.8, last: 18.1 } },
+                  swap: { summary: { average: 0, peak: 0, last: 0 } }
+                }
+              },
+              transfer: {
+                usedGb: 125.4,
+                quotaGb: 4000,
+                billableGb: 0,
+                utilizationPercent: 3.1
+              },
+              backups: {
+                enabled: true,
+                available: true,
+                schedule: { day: 'Sunday', window: 'W2' },
+                lastSuccessful: '2024-10-10T04:12:22Z',
+                automatic: [
+                  { id: 9876501, label: 'Automatic Backup', created: '2024-10-10T04:12:22Z', status: 'successful', totalSizeMb: 15360 }
+                ],
+                snapshot: null,
+                snapshotInProgress: null
+              }
+            }
           }
         },
         { 
@@ -240,6 +317,62 @@ export default function ApiDocs() {
           description: 'Delete VPS instance permanently',
           auth: true,
           response: { success: true, message: 'VPS deletion initiated' }
+        },
+        {
+          method: 'GET',
+          path: '/apps',
+          description: 'List marketplace application blueprints (StackScript wrappers)',
+          auth: true,
+          response: {
+            apps: [
+              {
+                slug: 'wordpress-marketplace-app',
+                label: 'Managed WordPress',
+                stackscript_id: 123456,
+                user_defined_fields: [
+                  { name: 'db_password', label: 'Database Password', default: null }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          method: 'GET',
+          path: '/images',
+          description: 'List available base images for VPS creation',
+          auth: true,
+          response: {
+            images: [
+              {
+                id: 'ubuntu-24-04-lts',
+                label: 'Ubuntu 24.04 LTS',
+                description: 'Latest Ubuntu LTS release',
+                is_public: true
+              }
+            ]
+          }
+        },
+        {
+          method: 'GET',
+          path: '/stackscripts',
+          description: 'List available deployment scripts. Supports `configured=true` to return whitelisted scripts.',
+          auth: true,
+          response: {
+            stackscripts: [
+              {
+                id: 78901,
+                label: 'ContainerStacks WordPress',
+                description: 'Deploys WordPress with optimal defaults',
+                images: ['ubuntu-24-04-lts'],
+                config: {
+                  stackscript_id: 78901,
+                  label: 'Managed WordPress',
+                  is_enabled: true,
+                  display_order: 1
+                }
+              }
+            ]
+          }
         },
       ],
     },
