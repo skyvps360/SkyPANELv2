@@ -576,7 +576,7 @@ const VPSDetail: React.FC = () => {
   const usageUsedGb = (accountUsedGb ?? undefined) ?? transferUsedGb;
   const transferUsagePercent = usageQuotaGb > 0 ? Math.min(100, Math.max(0, (usageUsedGb / usageQuotaGb) * 100)) : 0;
   const usageRemainingGb = usageQuotaGb > 0 ? Math.max(usageQuotaGb - usageUsedGb, 0) : null;
-  const instanceRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
+  const transferRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
   const transferUsageTitle = accountTransferInfo ? 'Account transfer pool' : 'Active billing cycle';
   const transferUsageDescription = accountTransferInfo
     ? 'Track global bandwidth consumption across your account pool.'
@@ -1253,9 +1253,6 @@ const VPSDetail: React.FC = () => {
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                           <p className="text-sm text-gray-500 dark:text-gray-400">Plan</p>
                           <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
-                          {detail?.plan.providerPlanId && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Provider type: {detail.plan.providerPlanId}</p>
-                          )}
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                           <p className="text-sm text-gray-500 dark:text-gray-400">Pricing</p>
@@ -1558,7 +1555,7 @@ const VPSDetail: React.FC = () => {
                               </div>
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
                                 <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{instanceRemainingGb !== null ? `${instanceRemainingGb.toFixed(2)} GB` : '—'}</dd>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
                               </div>
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
                                 <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Account remaining' : 'Available quota'}</dt>

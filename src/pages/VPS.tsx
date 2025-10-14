@@ -35,7 +35,7 @@ import { useAuth } from '../contexts/AuthContext';
 interface VPSInstance {
   id: string;
   label: string;
-  status: 'running' | 'stopped' | 'provisioning' | 'rebooting' | 'error';
+  status: 'running' | 'stopped' | 'provisioning' | 'rebooting' | 'error' | 'restoring' | 'backing_up';
   type: string;
   region: string;
   regionLabel?: string;
@@ -911,13 +911,15 @@ const VPS: React.FC = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
-                        <button
-                          onClick={() => handleInstanceAction(instance.id, 'delete')}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {instance.status === 'restoring' || instance.status === 'backing_up' ? null : (
+                          <button
+                            onClick={() => handleInstanceAction(instance.id, 'delete')}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
