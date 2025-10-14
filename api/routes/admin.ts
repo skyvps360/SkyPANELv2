@@ -139,6 +139,55 @@ router.post(
   }
 );
 
+// List replies for a ticket (admin)
+router.get(
+  '/tickets/:id/replies',
+  authenticateToken,
+  requireAdmin,
+  [param('id').isUUID().withMessage('Invalid ticket id')],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id } = req.params;
+      const ticketCheck = await query('SELECT id FROM support_tickets WHERE id = $1', [id]);
+      if (ticketCheck.rows.length === 0) {
+        res.status(404).json({ error: 'Ticket not found' });
+        return;
+      }
+
+      const repliesRes = await query(
+        `SELECT r.id, r.ticket_id, r.message, r.is_staff_reply, r.created_at,
+                u.name as sender_name, u.email as sender_email
+           FROM support_ticket_replies r
+           JOIN users u ON u.id = r.user_id
+          WHERE r.ticket_id = $1
+          ORDER BY r.created_at ASC`,
+        [id]
+      );
+      const replies = (repliesRes.rows || []).map((r: any) => ({
+        id: r.id,
+        ticket_id: r.ticket_id,
+        message: r.message,
+        created_at: r.created_at,
+        sender_type: r.is_staff_reply ? 'admin' : 'user',
+        sender_name: r.sender_name || r.sender_email || 'Unknown',
+      }));
+      res.json({ replies });
+    } catch (err: any) {
+      if (isMissingTableError(err)) {
+        return res.status(400).json({ error: 'support_ticket_replies table not found. Apply migrations before listing replies.' });
+      }
+      console.error('Admin list replies error:', err);
+      res.status(500).json({ error: err.message || 'Failed to fetch replies' });
+    }
+  }
+);
+
 // List VPS plans
 router.get('/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {

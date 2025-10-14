@@ -22,6 +22,16 @@ interface SupportTicket {
   category: string;
   created_at: string;
   updated_at: string;
+  messages: TicketMessage[];
+}
+
+interface TicketMessage {
+  id: string;
+  ticket_id: string;
+  sender_type: 'user' | 'admin';
+  sender_name: string;
+  message: string;
+  created_at: string;
 }
 
 interface VPSPlan {
@@ -260,11 +270,44 @@ const Admin: React.FC = () => {
       const res = await fetch(`${API_BASE_URL}/admin/tickets`, { headers: authHeader });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load tickets');
-      setTickets(data.tickets);
+      const mapped: SupportTicket[] = (data.tickets || []).map((t: any) => ({
+        id: t.id,
+        organization_id: t.organization_id,
+        created_by: t.created_by,
+        subject: t.subject,
+        message: t.message,
+        status: t.status,
+        priority: t.priority,
+        category: t.category,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        messages: [],
+      }));
+      setTickets(mapped);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openTicket = async (ticket: SupportTicket) => {
+    setSelectedTicket({ ...ticket, messages: [] });
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticket.id}/replies`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load replies');
+      const msgs: TicketMessage[] = (data.replies || []).map((m: any) => ({
+        id: m.id,
+        ticket_id: m.ticket_id,
+        sender_type: m.sender_type,
+        sender_name: m.sender_name,
+        message: m.message,
+        created_at: m.created_at,
+      }));
+      setSelectedTicket(prev => (prev ? { ...prev, messages: msgs } : prev));
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load replies');
     }
   };
 
@@ -449,6 +492,15 @@ const Admin: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to reply');
+      const reply: TicketMessage = {
+        id: data.reply.id,
+        ticket_id: data.reply.ticket_id,
+        sender_type: data.reply.sender_type,
+        sender_name: data.reply.sender_name,
+        message: data.reply.message,
+        created_at: data.reply.created_at,
+      };
+      setSelectedTicket(prev => (prev ? { ...prev, messages: [...prev.messages, reply] } : prev));
       setReplyMessage('');
       toast.success('Reply sent');
     } catch (e: any) {
@@ -892,7 +944,7 @@ const Admin: React.FC = () => {
                         <li key={t.id}>
                           <button
                             className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            onClick={() => setSelectedTicket(t)}
+                            onClick={() => openTicket(t)}
                           >
                             <div className="flex items-center justify-between">
                               <div>
@@ -956,6 +1008,26 @@ const Admin: React.FC = () => {
                       </div>
                       <div className="px-4 py-3 space-y-3">
                         <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedTicket.message}</div>
+                        {/* Replies thread */}
+                        <div className="max-h-96 overflow-y-auto">
+                          <div className="space-y-3">
+                            {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
+                              selectedTicket.messages.map((m) => (
+                                <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
+                                    <div className="text-xs opacity-80 mb-1">
+                                      <span className="font-medium mr-2">{m.sender_name}</span>
+                                      <span>{new Date(m.created_at).toLocaleString()}</span>
+                                    </div>
+                                    <div className="text-sm whitespace-pre-wrap">{m.message}</div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-sm text-gray-500 dark:text-gray-400">No replies yet</div>
+                            )}
+                          </div>
+                        </div>
                         <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reply</label>
                           <textarea

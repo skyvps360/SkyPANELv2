@@ -178,12 +178,51 @@ const Support: React.FC = () => {
 
     setLoading(true);
     try {
-      toast.info('Replying to tickets will be available soon');
+      const res = await fetch(`/api/support/tickets/${selectedTicket.id}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: newMessage.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send reply');
+      const reply: TicketMessage = {
+        id: data.reply.id,
+        ticket_id: data.reply.ticket_id,
+        sender_type: data.reply.sender_type,
+        sender_name: data.reply.sender_name,
+        message: data.reply.message,
+        created_at: data.reply.created_at,
+      };
+      setSelectedTicket(prev => prev ? { ...prev, messages: [...prev.messages, reply] } : prev);
+      setNewMessage('');
+      toast.success('Reply sent');
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openTicket = async (ticket: SupportTicket) => {
+    setSelectedTicket({ ...ticket, messages: [] });
+    try {
+      const res = await fetch(`/api/support/tickets/${ticket.id}/replies`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load messages');
+      const msgs: TicketMessage[] = (data.replies || []).map((m: any) => ({
+        id: m.id,
+        ticket_id: m.ticket_id,
+        sender_type: m.sender_type,
+        sender_name: m.sender_name,
+        message: m.message,
+        created_at: m.created_at,
+      }));
+      setSelectedTicket(prev => prev ? { ...prev, messages: msgs } : prev);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load messages');
     }
   };
 
@@ -275,7 +314,7 @@ const Support: React.FC = () => {
                   filteredTickets.map((ticket) => (
                     <li key={ticket.id}>
                       <button
-                        onClick={() => setSelectedTicket(ticket)}
+                        onClick={() => openTicket(ticket)}
                         className="w-full px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 text-left"
                       >
                         <div className="flex items-center justify-between">
