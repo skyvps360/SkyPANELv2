@@ -858,116 +858,181 @@ const VPS: React.FC = () => {
           <div className="p-6">
             <div className="grid gap-6">
               {filteredInstances.map((instance) => (
-                <div key={instance.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        <Server className="h-10 w-10 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{instance.label}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {instance.ipv4[0]} • {(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}
-                        </p>
-                        <div className="mt-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-                            {instance.status}
-                          </span>
+                <div key={instance.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                  {/* Header Section */}
+                  <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <Server className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white truncate">{instance.label}</h3>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(instance.status)}`}>
+                              <div className={`w-2 h-2 rounded-full mr-2 ${
+                                instance.status === 'running' ? 'bg-green-400' :
+                                instance.status === 'stopped' ? 'bg-red-400' :
+                                instance.status === 'provisioning' ? 'bg-yellow-400' :
+                                'bg-gray-400'
+                              }`}></div>
+                              {instance.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center space-x-1">
+                              <Network className="h-4 w-4" />
+                              <span className="font-mono">{instance.ipv4[0]}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="h-4 w-4" />
+                              <span>{(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {instance.status === 'running' ? (
-                        <>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-2 ml-4">
+                        {instance.status === 'running' ? (
+                          <>
+                            <button
+                              onClick={() => handleInstanceAction(instance.id, 'shutdown')}
+                              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                              title="Shutdown"
+                            >
+                              <PowerOff className="h-4 w-4 mr-1" />
+                              Shutdown
+                            </button>
+                            <button
+                              onClick={() => handleInstanceAction(instance.id, 'reboot')}
+                              className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                              title="Reboot"
+                            >
+                              <RefreshCw className="h-4 w-4 mr-1" />
+                              Reboot
+                            </button>
+                          </>
+                        ) : instance.status === 'stopped' ? (
                           <button
-                            onClick={() => handleInstanceAction(instance.id, 'shutdown')}
-                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                            title="Shutdown"
+                            onClick={() => handleInstanceAction(instance.id, 'boot')}
+                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                            title="Boot"
                           >
-                            <Square className="h-4 w-4" />
+                            <Power className="h-4 w-4 mr-1" />
+                            Start
                           </button>
+                        ) : null}
+                        
+                        <Link
+                          to={`/vps/${instance.id}`}
+                          className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Details
+                        </Link>
+                        
+                        {instance.status !== 'restoring' && instance.status !== 'backing_up' && (
                           <button
-                            onClick={() => handleInstanceAction(instance.id, 'reboot')}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                            title="Reboot"
+                            onClick={() => handleInstanceAction(instance.id, 'delete')}
+                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                            title="Delete"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
                           </button>
-                        </>
-                      ) : instance.status === 'stopped' ? (
-                        <button
-                          onClick={() => handleInstanceAction(instance.id, 'boot')}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-2 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20"
-                          title="Boot"
-                        >
-                          <Play className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                      <Link
-                        to={`/vps/${instance.id}`}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                      {instance.status === 'restoring' || instance.status === 'backing_up' ? null : (
-                        <button
-                          onClick={() => handleInstanceAction(instance.id, 'delete')}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Specifications */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Specifications</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <Cpu className="h-4 w-4 mr-2" />
-                          <span>{instance.specs.vcpus} vCPU</span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <MemoryStick className="h-4 w-4 mr-2" />
-                          <span>{formatBytes(instance.specs.memory)}</span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <HardDrive className="h-4 w-4 mr-2" />
-                          <span>{Math.round(instance.specs.disk / 1024)} GB</span>
+                  {/* Content Section */}
+                  <div className="px-8 py-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Specifications */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Specifications</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                <Cpu className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">CPU</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{instance.specs.vcpus} vCPU</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                <MemoryStick className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Memory</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatBytes(instance.specs.memory)}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                <HardDrive className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Storage</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{Math.round(instance.specs.disk / 1024)} GB</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Pricing */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Pricing</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          <span>{formatCurrency(instance.pricing.monthly)}/month</span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <Clock className="h-4 w-4 mr-2" />
-                          <span>{formatCurrency(instance.pricing.hourly)}/hour</span>
+                      {/* Pricing */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Pricing</h4>
+                        <div className="space-y-3">
+                          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                  <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly</span>
+                              </div>
+                              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatCurrency(instance.pricing.monthly)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-gray-100 dark:bg-gray-900/30 rounded-lg">
+                                <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Hourly</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(instance.pricing.hourly)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Network */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Network</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <Network className="h-4 w-4 mr-2" />
-                          <span>{Math.round(instance.specs.transfer / 1024)} GB Transfer</span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          <span>{(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}</span>
+                      {/* Network & Location */}
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Network & Location</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                                <Network className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Transfer</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{Math.round(instance.specs.transfer / 1024)} GB</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                                <MapPin className="h-4 w-4 text-red-600 dark:text-red-400" />
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Region</span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

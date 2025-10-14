@@ -933,7 +933,7 @@ class LinodeService {
   async enableLinodeBackups(instanceId: number): Promise<void> {
     try {
       if (!this.apiToken) {
-        throw new Error('Linode API token not configured');
+        throw new Error('API token not configured');
       }
 
       const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/enable`, {
@@ -943,10 +943,38 @@ class LinodeService {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+        
+        // Parse the response to check for specific error conditions
+        let errorMessage = `API error: ${response.status} ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(text);
+          if (errorData.errors && Array.isArray(errorData.errors)) {
+            const errorReasons = errorData.errors.map((err: any) => err.reason || '').join(' ');
+            
+            // Check for the 24-hour waiting period error and replace with generic message
+            if (errorReasons.includes('Please wait 24 hours before reactivating backups')) {
+              throw new Error('Please wait 24 hours before reactivating backups for this VPS instance');
+            }
+            
+            // Remove any Linode branding from other error messages
+            const sanitizedReasons = errorReasons.replace(/\bLinode\b/gi, 'VPS instance');
+            if (sanitizedReasons.trim()) {
+              errorMessage = sanitizedReasons;
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the JSON, fall back to sanitizing the raw text
+          const sanitizedText = text.replace(/\bLinode\b/gi, 'VPS instance');
+          if (sanitizedText.trim()) {
+            errorMessage += ` ${sanitizedText}`;
+          }
+        }
+        
+        throw new Error(errorMessage.trim());
       }
     } catch (error) {
-      console.error('Error enabling Linode backups:', error);
+      console.error('Error enabling backups:', error);
       throw error;
     }
   }
@@ -954,7 +982,7 @@ class LinodeService {
   async cancelLinodeBackups(instanceId: number): Promise<void> {
     try {
       if (!this.apiToken) {
-        throw new Error('Linode API token not configured');
+        throw new Error('API token not configured');
       }
 
       const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/cancel`, {
@@ -964,10 +992,33 @@ class LinodeService {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+        
+        // Parse the response to check for specific error conditions
+        let errorMessage = `API error: ${response.status} ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(text);
+          if (errorData.errors && Array.isArray(errorData.errors)) {
+            const errorReasons = errorData.errors.map((err: any) => err.reason || '').join(' ');
+            
+            // Remove any Linode branding from error messages
+            const sanitizedReasons = errorReasons.replace(/\bLinode\b/gi, 'VPS instance');
+            if (sanitizedReasons.trim()) {
+              errorMessage = sanitizedReasons;
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the JSON, fall back to sanitizing the raw text
+          const sanitizedText = text.replace(/\bLinode\b/gi, 'VPS instance');
+          if (sanitizedText.trim()) {
+            errorMessage += ` ${sanitizedText}`;
+          }
+        }
+        
+        throw new Error(errorMessage.trim());
       }
     } catch (error) {
-      console.error('Error disabling Linode backups:', error);
+      console.error('Error disabling backups:', error);
       throw error;
     }
   }
