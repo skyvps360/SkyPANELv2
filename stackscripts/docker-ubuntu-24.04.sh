@@ -1,61 +1,115 @@
 #!/bin/bash
 
-# ContainerStacks: Docker on Ubuntu 24.04 LTS
+# Docker Installation on Ubuntu 24.04 LTS
 #
-# <UDF name="sudo_user" label="Limited sudo user (no caps/special chars)" default="dockeruser" />
-# <UDF name="ssh_key" label="SSH public key for sudo user (optional)" default="" />
+# <UDF name="sudo_user" label="Limited sudo user for Docker" example="dockeruser" default="dockeruser" />
 
 set -euo pipefail
-LOG_FILE="/root/stackscript.log"
+LOG_FILE="/root/docker-stackscript.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-echo "[+] Starting Docker StackScript (Ubuntu 24.04)"
+echo "[+] Starting Docker Installation StackScript (Ubuntu 24.04)"
 
+# Use UDF variables
 SUDO_USER=${SUDO_USER:-dockeruser}
-SSH_KEY=${SSH_KEY:-}
 
 export DEBIAN_FRONTEND=noninteractive
+
+echo "[+] Updating system packages"
 apt-get update -y
 apt-get upgrade -y
 
-echo "[+] Installing base packages"
-apt-get install -y ca-certificates curl gnupg lsb-release ufw
+echo "[+] Installing prerequisites"
+apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    apt-transport-https \
+    software-properties-common
+
+echo "[+] Adding Docker's official GPG key"
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
 
 echo "[+] Setting up Docker repository"
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \\n+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
+echo "[+] Installing Docker Engine"
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-systemctl enable docker
+echo "[+] Starting and enabling Docker service"
 systemctl start docker
+systemctl enable docker
 
-echo "[+] Creating limited sudo user: $SUDO_USER"
+echo "[+] Verifying Docker installation"
+docker --version
+docker compose version
+
+echo "[+] Configuring Docker daemon"
+mkdir -p /etc/docker
+cat > /etc/docker/daemon.json <<EOF
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+EOF
+
+systemctl restart docker
+
+echo "[+] Creating sudo user: $SUDO_USER"
 if ! id "$SUDO_USER" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$SUDO_USER"
   usermod -aG sudo "$SUDO_USER"
-fi
-usermod -aG docker "$SUDO_USER"
-
-if [ -n "$SSH_KEY" ]; then
-  echo "[+] Installing SSH key for $SUDO_USER"
-  HOME_DIR=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-  mkdir -p "$HOME_DIR/.ssh"
-  echo "$SSH_KEY" >> "$HOME_DIR/.ssh/authorized_keys"
-  chmod 700 "$HOME_DIR/.ssh"
-  chmod 600 "$HOME_DIR/.ssh/authorized_keys"
-  chown -R "$SUDO_USER":"$SUDO_USER" "$HOME_DIR/.ssh"
+  usermod -aG docker "$SUDO_USER"
+  echo "$SUDO_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$SUDO_USER
+  chmod 0440 /etc/sudoers.d/$SUDO_USER
+  echo "[+] User $SUDO_USER created and added to docker group"
+else
+  usermod -aG docker "$SUDO_USER"
+  echo "[+] User $SUDO_USER added to docker group"
 fi
 
-echo "[+] Configuring basic firewall (UFW)"
-ufw allow OpenSSH || true
-ufw allow 80/tcp || true
-ufw allow 443/tcp || true
-yes | ufw enable || true
+echo "[+] Creating helpful Docker aliases"
+cat >> /home/$SUDO_USER/.bashrc <<'EOF'
 
-echo "[+] Docker installation completed"
+# Docker aliases
+alias dps='docker ps'
+alias dpsa='docker ps -a'
+alias di='docker images'
+alias dex='docker exec -it'
+alias dl='docker logs'
+alias dlf='docker logs -f'
+alias dstop='docker stop $(docker ps -q)'
+alias drm='docker rm $(docker ps -aq)'
+alias drmi='docker rmi $(docker images -q)'
+alias dprune='docker system prune -af'
+
+# Docker Compose aliases
+alias dc='docker compose'
+alias dcup='docker compose up -d'
+alias dcdown='docker compose down'
+alias dclogs='docker compose logs -f'
+alias dcps='docker compose ps'
+
+EOF
+
+chown $SUDO_USER:$SUDO_USER /home/$SUDO_USER/.bashrc
+
+echo "[+] Docker installation completed successfully!"
+echo "==========================================="
+echo "Docker Version: $(docker --version)"
+echo "Docker Compose Version: $(docker compose version)"
+echo ""
+echo "User created: $SUDO_USER (added to docker group)"
+echo ""
+echo "Installation log: $LOG_FILE"
+echo "==========================================="

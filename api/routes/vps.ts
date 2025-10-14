@@ -7,6 +7,7 @@ import type {
   LinodeInstance,
   LinodeInstanceBackupsResponse,
   LinodeInstanceStatsResponse,
+  LinodeInstanceStatsSeries,
   LinodeBackupSummary,
   LinodeMetricTuple
 } from '../services/linodeService.js';
@@ -816,13 +817,18 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const stats: LinodeInstanceStatsResponse = await linodeService.getLinodeInstanceStats(providerInstanceId);
-        const cpuSeries = normalizeSeries(stats?.cpu);
-        const ipv4InSeries = normalizeSeries(stats?.netv4?.in);
-        const ipv4OutSeries = normalizeSeries(stats?.netv4?.out);
-        const ipv4PrivateInSeries = normalizeSeries(stats?.netv4?.private_in);
-        const ipv4PrivateOutSeries = normalizeSeries(stats?.netv4?.private_out);
-        const ioSeries = normalizeSeries(stats?.io?.io);
-        const swapSeries = normalizeSeries(stats?.io?.swap);
+        const statsPayload = (stats?.data && typeof stats.data === 'object') ? stats.data : stats;
+        const metricsSource: LinodeInstanceStatsSeries =
+          statsPayload && typeof statsPayload === 'object'
+            ? (statsPayload as LinodeInstanceStatsSeries)
+            : {};
+        const cpuSeries = normalizeSeries(metricsSource?.cpu);
+        const ipv4InSeries = normalizeSeries(metricsSource?.netv4?.in);
+        const ipv4OutSeries = normalizeSeries(metricsSource?.netv4?.out);
+        const ipv4PrivateInSeries = normalizeSeries(metricsSource?.netv4?.private_in);
+        const ipv4PrivateOutSeries = normalizeSeries(metricsSource?.netv4?.private_out);
+        const ioSeries = normalizeSeries(metricsSource?.io?.io);
+        const swapSeries = normalizeSeries(metricsSource?.io?.swap);
 
         metrics = {
           timeframe: deriveTimeframe([
@@ -1026,7 +1032,11 @@ router.get('/:id', async (req: Request, res: Response) => {
           ...(Array.isArray(networking.ipv4.reserved) ? networking.ipv4.reserved : []),
         ]
       : [];
-    const rdnsEditable = allIPv4Collections.some((entry: any) => entry && typeof entry === 'object' && entry.rdnsEditable === true);
+    const rdnsEnabledOnIpv4 = allIPv4Collections.some((entry: any) => entry && typeof entry === 'object' && entry.rdnsEditable === true);
+    const slaacAddress = networking?.ipv6 && typeof networking.ipv6 === 'object'
+      ? (networking.ipv6 as { slaac?: { address?: string | null } | null }).slaac?.address
+      : null;
+    const rdnsEditable = rdnsEnabledOnIpv4 || (typeof slaacAddress === 'string' && slaacAddress.trim().length > 0);
 
     res.json({
       instance: {

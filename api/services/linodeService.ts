@@ -146,8 +146,7 @@ export interface CreateStackScriptRequest {
 
 export type LinodeMetricTuple = [number, number];
 
-export interface LinodeInstanceStatsResponse {
-  title?: string;
+export interface LinodeInstanceStatsSeries {
   cpu?: LinodeMetricTuple[];
   io?: {
     io?: LinodeMetricTuple[];
@@ -165,6 +164,11 @@ export interface LinodeInstanceStatsResponse {
     private_in?: LinodeMetricTuple[];
     private_out?: LinodeMetricTuple[];
   };
+}
+
+export interface LinodeInstanceStatsResponse extends LinodeInstanceStatsSeries {
+  title?: string;
+  data?: LinodeInstanceStatsSeries | null;
 }
 
 export interface LinodeInstanceTransferResponse {
@@ -1103,10 +1107,8 @@ class LinodeService {
       const filter = {
         '+order': 'desc',
         '+order_by': 'created',
-        entity: {
-          type: 'linode',
-          id: instanceId,
-        },
+        'entity.type': 'linode',
+        'entity.id': instanceId,
       };
 
       const headers = {

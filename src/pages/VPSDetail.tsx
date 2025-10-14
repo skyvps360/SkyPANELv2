@@ -110,6 +110,11 @@ interface IPv6Assignment {
   gateway: string | null;
 }
 
+interface RdnsSource {
+  address: string;
+  rdns: string | null;
+}
+
 interface IPv6Range {
   range: string | null;
   prefix: number | null;
@@ -401,20 +406,44 @@ const VPSDetail: React.FC = () => {
   ], []);
 
   const backupPricing = useMemo<BackupPricing | null>(() => {
+    const planMonthlyRaw = detail?.plan?.pricing?.monthly;
+    const planHourlyRaw = detail?.plan?.pricing?.hourly;
+
+    const planMonthly = Number.isFinite(Number(planMonthlyRaw)) ? Number(planMonthlyRaw) : Number.NaN;
+    const planHourly = Number.isFinite(Number(planHourlyRaw)) ? Number(planHourlyRaw) : Number.NaN;
+
+    let monthlyBase = planMonthly;
+    let hourlyBase = planHourly;
+
+    if (!Number.isFinite(monthlyBase) && Number.isFinite(hourlyBase) && hourlyBase > 0) {
+      monthlyBase = hourlyBase * 730;
+    }
+
+    if (!Number.isFinite(hourlyBase) && Number.isFinite(monthlyBase) && monthlyBase > 0) {
+      hourlyBase = monthlyBase / 730;
+    }
+
+    if (Number.isFinite(monthlyBase) && monthlyBase > 0 && Number.isFinite(hourlyBase) && hourlyBase > 0) {
+      const monthlyRate = monthlyBase * 0.4;
+      const hourlyRate = hourlyBase * 0.4;
+      return {
+        monthly: monthlyRate,
+        hourly: hourlyRate,
+        currency: detail?.plan?.pricing?.currency ?? detail?.backupPricing?.currency ?? 'USD',
+      };
+    }
+
     if (detail?.backupPricing) {
       return detail.backupPricing;
     }
-    const baseMonthly = detail?.plan?.pricing?.monthly ?? 0;
-    if (!Number.isFinite(baseMonthly) || baseMonthly <= 0) {
-      return null;
-    }
-    const estimatedMonthly = Number(baseMonthly) * 0.3;
-    return {
-      monthly: estimatedMonthly,
-      hourly: estimatedMonthly / 730,
-      currency: detail?.plan?.pricing?.currency ?? 'USD',
-    };
-  }, [detail?.backupPricing, detail?.plan?.pricing?.currency, detail?.plan?.pricing?.monthly]);
+
+    return null;
+  }, [
+    detail?.backupPricing,
+    detail?.plan?.pricing?.currency,
+    detail?.plan?.pricing?.hourly,
+    detail?.plan?.pricing?.monthly,
+  ]);
 
   const formatEventAction = (value: string | null | undefined): string => {
     if (!value) return '—';
@@ -471,34 +500,57 @@ const VPSDetail: React.FC = () => {
   const eventFeed = useMemo(() => detail?.activity ?? [], [detail?.activity]);
   const transferInfo = detail?.transfer ?? null;
   const rdnsEditable = detail?.rdnsEditable ?? true;
-  const allIPv4Addresses = useMemo(() => {
-    const buckets = detail?.networking?.ipv4;
-    if (!buckets) {
-      return [] as IPv4Address[];
+  const rdnsSources = useMemo<RdnsSource[]>(() => {
+    const sources: RdnsSource[] = [];
+    const ipv4Buckets = detail?.networking?.ipv4;
+    if (ipv4Buckets) {
+      (ipv4Buckets.public ?? []).forEach(addr => {
+        if (addr?.address) {
+          sources.push({ address: addr.address, rdns: addr.rdns ?? null });
+        }
+      });
+      (ipv4Buckets.reserved ?? []).forEach(addr => {
+        if (addr?.address) {
+          sources.push({ address: addr.address, rdns: addr.rdns ?? null });
+        }
+      });
+      (ipv4Buckets.shared ?? []).forEach(addr => {
+        if (addr?.address) {
+          sources.push({ address: addr.address, rdns: addr.rdns ?? null });
+        }
+      });
     }
-    return [
-      ...(buckets.public ?? []),
-      ...(buckets.private ?? []),
-    ];
-  }, [detail?.networking?.ipv4]);
+    const slaacAddress = detail?.networking?.ipv6?.slaac?.address;
+    if (slaacAddress) {
+      sources.push({ address: slaacAddress, rdns: detail?.networking?.ipv6?.slaac?.rdns ?? null });
+    }
+    return sources;
+  }, [detail?.networking?.ipv4, detail?.networking?.ipv6?.slaac?.address, detail?.networking?.ipv6?.slaac?.rdns]);
+
+  const slaacAddress = ipv6Info?.slaac?.address ?? null;
+  const slaacEditorState = slaacAddress ? rdnsEditor[slaacAddress] : undefined;
+  const slaacEditing = slaacEditorState?.editing ?? false;
+  const slaacSaving = slaacEditorState?.saving ?? false;
+  const slaacCurrentValue = slaacEditorState?.value ?? ipv6Info?.slaac?.rdns ?? '';
+  const canEditSlaacRdns = Boolean(slaacAddress && rdnsEditable);
 
   useEffect(() => {
     setRdnsEditor(prev => {
-      if (allIPv4Addresses.length === 0) {
-        return {};
+      if (rdnsSources.length === 0) {
+        return Object.keys(prev).length === 0 ? prev : {};
       }
       const next: Record<string, { value: string; editing: boolean; saving: boolean }> = {};
-      allIPv4Addresses.forEach(addr => {
-        const previous = prev[addr.address];
-        next[addr.address] = {
-          value: previous?.editing ? previous.value : addr.rdns ?? '',
+      rdnsSources.forEach(source => {
+        const previous = prev[source.address];
+        next[source.address] = {
+          value: previous?.editing ? previous.value : source.rdns ?? '',
           editing: previous?.editing ?? false,
           saving: false,
         };
       });
       return next;
     });
-  }, [allIPv4Addresses]);
+  }, [rdnsSources]);
 
   const availableFirewallOptions = useMemo(() => {
     const attachedIds = new Set(firewallSummaries.map(firewall => firewall.id));
@@ -518,6 +570,14 @@ const VPSDetail: React.FC = () => {
     }
     return detail?.networking?.ipv6?.slaac?.address || null;
   }, [detail?.networking?.ipv6?.slaac?.address, detail?.provider?.ipv6]);
+
+  const findRdnsSourceValue = useCallback(
+    (address: string) => {
+      const match = rdnsSources.find(item => item.address === address);
+      return match?.rdns ?? '';
+    },
+    [rdnsSources]
+  );
 
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) return;
@@ -692,7 +752,7 @@ const VPSDetail: React.FC = () => {
     setRdnsEditor(prev => {
       const next = { ...prev };
       const existing = next[address];
-      const sourceValue = allIPv4Addresses.find(item => item.address === address)?.rdns ?? '';
+      const sourceValue = findRdnsSourceValue(address);
       next[address] = {
         value: existing?.value ?? sourceValue,
         editing: true,
@@ -700,12 +760,12 @@ const VPSDetail: React.FC = () => {
       };
       return next;
     });
-  }, [allIPv4Addresses]);
+  }, [findRdnsSourceValue]);
 
   const cancelEditRdns = useCallback((address: string) => {
     setRdnsEditor(prev => {
       const next = { ...prev };
-      const sourceValue = allIPv4Addresses.find(item => item.address === address)?.rdns ?? '';
+      const sourceValue = findRdnsSourceValue(address);
       next[address] = {
         value: sourceValue,
         editing: false,
@@ -713,7 +773,7 @@ const VPSDetail: React.FC = () => {
       };
       return next;
     });
-  }, [allIPv4Addresses]);
+  }, [findRdnsSourceValue]);
 
   const updateRdnsValue = useCallback((address: string, value: string) => {
     setRdnsEditor(prev => {
@@ -972,105 +1032,101 @@ const VPSDetail: React.FC = () => {
                         {actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}
                       </button>
                     </div>
-                  </div>
-                </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Plan & Resources</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Reserved capacity and current pricing for this server.</p>
-                  </div>
-                  <div className="px-6 py-5">
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>vCPUs</span>
-                          <Cpu className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{detail?.plan.specs.vcpus ?? 0}</p>
+                    <div className="mt-10 space-y-6">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Plan & Resources</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Reserved capacity, pricing, and recent utilisation.</p>
                       </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>Memory</span>
-                          <Activity className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>Storage</span>
-                          <HardDrive className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>Transfer</span>
-                          <Network className="h-4 w-4 text-orange-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
-                      </div>
-                    </div>
 
-                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Plan</p>
-                        <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
-                        {detail?.plan.providerPlanId && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Provider type: {detail.plan.providerPlanId}</p>
-                        )}
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                            <span>vCPUs</span>
+                            <Cpu className="h-4 w-4 text-blue-500" />
+                          </div>
+                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{detail?.plan.specs.vcpus ?? 0}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                            <span>Memory</span>
+                            <Activity className="h-4 w-4 text-purple-500" />
+                          </div>
+                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                            <span>Storage</span>
+                            <HardDrive className="h-4 w-4 text-emerald-500" />
+                          </div>
+                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                            <span>Transfer</span>
+                            <Network className="h-4 w-4 text-orange-500" />
+                          </div>
+                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
+                        </div>
                       </div>
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Pricing</p>
-                        <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">/ month</span></p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(detail?.plan.pricing.hourly ?? 0)} hourly billable</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Performance Snapshot</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Aggregated metrics from the last 24 hours.</p>
-                  </div>
-                  <div className="px-6 py-5 space-y-5">
-                    {timeframeLabel && (
-                      <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Observation window: {timeframeLabel}</p>
-                    )}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Plan</p>
+                          <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
+                          {detail?.plan.providerPlanId && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Provider type: {detail.plan.providerPlanId}</p>
+                          )}
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Pricing</p>
+                          <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">/ month</span></p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(detail?.plan.pricing.hourly ?? 0)} hourly billable</p>
+                        </div>
+                      </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>CPU Utilization</span>
-                          <Cpu className="h-4 w-4 text-blue-500" />
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Performance snapshot (last 24h)</p>
+                          {timeframeLabel && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Observation window: {timeframeLabel}</p>
+                          )}
                         </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>Inbound Traffic</span>
-                          <Network className="h-4 w-4 text-emerald-500" />
+
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                              <span>CPU Utilization</span>
+                              <Cpu className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
+                          </div>
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                              <span>Inbound Traffic</span>
+                              <Network className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
+                          </div>
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                              <span>Outbound Traffic</span>
+                              <Network className="h-4 w-4 text-orange-500" />
+                            </div>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
+                          </div>
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                              <span>I/O Activity</span>
+                              <Activity className="h-4 w-4 text-purple-500" />
+                            </div>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'} · Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'}</p>
+                          </div>
                         </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>Outbound Traffic</span>
-                          <Network className="h-4 w-4 text-orange-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                          <span>I/O Activity</span>
-                          <Activity className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'} · Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'}</p>
                       </div>
                     </div>
                   </div>
@@ -1141,7 +1197,7 @@ const VPSDetail: React.FC = () => {
                     <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
                       <p className="font-semibold">Plan add-on pricing</p>
                       <p className="mt-1 text-xs">
-                        Enabling backups adds {formatCurrency(backupPricing.monthly)} / month ({formatCurrency(backupPricing.hourly)} hourly) — 30% of your selected plan.
+                        Enabling backups adds {formatCurrency(backupPricing.monthly)} / month ({formatCurrency(backupPricing.hourly)} hourly) — 40% of your selected plan.
                       </p>
                     </div>
                   )}
@@ -1240,6 +1296,9 @@ const VPSDetail: React.FC = () => {
                                 const editing = editorState?.editing ?? false;
                                 const saving = editorState?.saving ?? false;
                                 const currentValue = editorState?.value ?? addr.rdns ?? '';
+                                const isPrivate = !addr.public;
+                                const showRdnsInfo = !isPrivate;
+                                const canEditAddress = showRdnsInfo && rdnsEditable && addr.rdnsEditable;
                                 return (
                                   <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
                                     <div className="flex items-center justify-between gap-2">
@@ -1255,8 +1314,10 @@ const VPSDetail: React.FC = () => {
                                     {addr.gateway && (
                                       <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
                                     )}
-                                    <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
-                                    {rdnsEditable && addr.rdnsEditable && (
+                                    {showRdnsInfo && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
+                                    )}
+                                    {canEditAddress && (
                                       <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                                         {editing ? (
                                           <>
@@ -1320,6 +1381,50 @@ const VPSDetail: React.FC = () => {
                               <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
                               {ipv6Info.slaac.gateway && (
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.slaac.gateway}</p>
+                              )}
+                              {slaacAddress && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">rDNS: {slaacCurrentValue || 'Not set'}</p>
+                              )}
+                              {canEditSlaacRdns && slaacAddress && (
+                                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                  {slaacEditing ? (
+                                    <>
+                                      <input
+                                        value={slaacCurrentValue}
+                                        onChange={event => updateRdnsValue(slaacAddress, event.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                        placeholder="reverse.example.com"
+                                        disabled={slaacSaving}
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => saveRdns(slaacAddress)}
+                                          disabled={slaacSaving}
+                                          className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${slaacSaving ? 'opacity-75' : ''}`}
+                                        >
+                                          {slaacSaving ? 'Saving…' : 'Save'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => cancelEditRdns(slaacAddress)}
+                                          disabled={slaacSaving}
+                                          className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => beginEditRdns(slaacAddress)}
+                                      className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                    >
+                                      Edit rDNS
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
@@ -1610,8 +1715,8 @@ const VPSDetail: React.FC = () => {
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">CPU timeline</h3>
                           {cpuSeries.length > 0 ? (
-                            <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-xs text-gray-600 dark:text-gray-300">
-                              {cpuSeries.slice(-10).reverse().map(point => (
+                            <ul className="mt-3 max-h-96 space-y-2 overflow-y-auto text-xs text-gray-600 dark:text-gray-300">
+                              {cpuSeries.slice(-20).reverse().map(point => (
                                 <li key={`cpu-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
                                   <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
                                   <span className="font-semibold text-gray-900 dark:text-white">{formatPercent(point.value)}</span>
