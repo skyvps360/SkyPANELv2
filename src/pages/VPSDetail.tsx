@@ -582,7 +582,7 @@ const VPSDetail: React.FC = () => {
     ? `${detail?.label ?? 'Server'} transfer pool`
     : 'Active billing cycle';
   const transferUsageDescription = accountTransferInfo
-  ? "Bandwidth figures pulled directly from Linode for this server's shared pool."
+    ? "Bandwidth figures pulled directly from the upstream provider for this server's shared pool."
     : 'Track bandwidth consumption against the quota reported by your provider.';
   const usageLabel = accountTransferInfo ? 'Account usage' : 'Usage';
   const effectiveBillableGb = accountBillableGb ?? transferBillableGb;
