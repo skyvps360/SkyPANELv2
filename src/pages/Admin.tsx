@@ -495,8 +495,8 @@ const Admin: React.FC = () => {
       const reply: TicketMessage = {
         id: data.reply.id,
         ticket_id: data.reply.ticket_id,
-        sender_type: data.reply.sender_type,
-        sender_name: data.reply.sender_name,
+        sender_type: 'admin',
+        sender_name: 'Staff Member',
         message: data.reply.message,
         created_at: data.reply.created_at,
       };

@@ -128,7 +128,17 @@ router.post(
         [new Date().toISOString(), id]
       );
 
-      res.status(201).json({ reply: replyResult.rows[0] });
+      const replyRow = replyResult.rows[0];
+      res.status(201).json({
+        reply: {
+          id: replyRow.id,
+          ticket_id: replyRow.ticket_id,
+          message: replyRow.message,
+          created_at: replyRow.created_at,
+          sender_type: 'admin',
+          sender_name: 'Staff Member',
+        }
+      });
     } catch (err: any) {
       if (isMissingTableError(err)) {
         return res.status(400).json({ error: 'support_ticket_replies table not found. Apply migrations before replying.' });
@@ -175,7 +185,7 @@ router.get(
         message: r.message,
         created_at: r.created_at,
         sender_type: r.is_staff_reply ? 'admin' : 'user',
-        sender_name: r.sender_name || r.sender_email || 'Unknown',
+        sender_name: r.is_staff_reply ? 'Staff Member' : (r.sender_name || r.sender_email || 'Unknown'),
       }));
       res.json({ replies });
     } catch (err: any) {

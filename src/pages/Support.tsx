@@ -385,9 +385,9 @@ const Support: React.FC = () => {
             <div className="px-6 py-4 max-h-96 overflow-y-auto">
               <div className="space-y-4">
                 {selectedTicket.messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={message.id} className={`flex ${message.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender_type === 'user' 
+                      message.sender_type === 'admin' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                     }`}>

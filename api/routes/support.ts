@@ -108,7 +108,7 @@ router.get(
         message: r.message,
         created_at: r.created_at,
         sender_type: r.is_staff_reply ? 'admin' : 'user',
-        sender_name: r.sender_name || r.sender_email || 'Unknown',
+        sender_name: r.is_staff_reply ? 'Staff Member' : (r.sender_name || r.sender_email || 'Unknown'),
       }));
 
       res.json({ replies });

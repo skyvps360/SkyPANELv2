@@ -1314,11 +1314,44 @@ const VPSDetail: React.FC = () => {
               <>
                 <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                   <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-                      <LayoutDashboard className="h-5 w-5 text-blue-500" />
-                      Instance Overview
-                    </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Metadata and quick actions for this server.</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                          <LayoutDashboard className="h-5 w-5 text-blue-500" />
+                          Instance Overview
+                        </h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Metadata and quick actions for this server.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          disabled={!allowStart || actionLoading === 'boot'}
+                          onClick={() => performAction('boot')}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 ${allowStart ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
+                        >
+                          <Power className="h-4 w-4" />
+                          {actionLoading === 'boot' ? 'Starting…' : 'Power On'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!allowStop || actionLoading === 'shutdown'}
+                          onClick={() => performAction('shutdown')}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 ${allowStop ? 'bg-red-600 hover:bg-red-500' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
+                        >
+                          <PowerOff className="h-4 w-4" />
+                          {actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!allowReboot || actionLoading === 'reboot'}
+                          onClick={() => performAction('reboot')}
+                          className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
+                        >
+                          <RotateCcw className={`h-4 w-4 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
+                          {actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div className="px-6 py-5">
                     <div className="space-y-6">
@@ -1395,35 +1428,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </dl>
 
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        disabled={!allowStart || actionLoading === 'boot'}
-                        onClick={() => performAction('boot')}
-                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 ${allowStart ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
-                      >
-                        <Power className="h-4 w-4" />
-                        {actionLoading === 'boot' ? 'Starting…' : 'Power On'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!allowStop || actionLoading === 'shutdown'}
-                        onClick={() => performAction('shutdown')}
-                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 ${allowStop ? 'bg-red-600 hover:bg-red-500' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
-                      >
-                        <PowerOff className="h-4 w-4" />
-                        {actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!allowReboot || actionLoading === 'reboot'}
-                        onClick={() => performAction('reboot')}
-                        className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
-                      >
-                        <RotateCcw className={`h-4 w-4 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
-                        {actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}
-                      </button>
-                    </div>
+                    
                   </div>
                 </section>
 
