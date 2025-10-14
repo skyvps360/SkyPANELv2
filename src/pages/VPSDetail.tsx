@@ -1898,8 +1898,9 @@ const VPSDetail: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                    </div>
-                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+
+                      <div className="my-6 border-t border-gray-200 dark:border-gray-800" />
+
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv6 assignments</h3>
