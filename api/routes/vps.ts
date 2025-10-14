@@ -1873,6 +1873,80 @@ router.post('/:id/networking/rdns', async (req: Request, res: Response) => {
   }
 });
 
+// Update hostname
+router.put('/:id/hostname', async (req: Request, res: Response) => {
+  try {
+    const { hostname } = (req.body || {}) as { hostname?: string };
+    
+    // Validate hostname format
+    if (typeof hostname !== 'string' || hostname.trim().length === 0) {
+      return res.status(400).json({ error: 'Hostname is required' });
+    }
+    
+    const normalizedHostname = hostname.trim();
+    
+    // Validate hostname format (3-64 characters, alphanumeric with hyphens, underscores, periods)
+    if (normalizedHostname.length < 3 || normalizedHostname.length > 64) {
+      return res.status(400).json({ error: 'Hostname must be between 3 and 64 characters' });
+    }
+    
+    const hostnamePattern = /^[a-zA-Z0-9._-]+$/;
+    if (!hostnamePattern.test(normalizedHostname)) {
+      return res.status(400).json({ error: 'Hostname can only contain letters, numbers, hyphens, underscores, and periods' });
+    }
+
+    const { id } = req.params;
+    const user = (req as any).user;
+    const organizationId = user.organizationId;
+    
+    // Check if instance exists and belongs to organization
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Instance not found' });
+    }
+
+    const row = rowRes.rows[0];
+    const providerInstanceId = Number(row.provider_instance_id);
+    if (!Number.isFinite(providerInstanceId)) {
+      return res.status(400).json({ error: 'Instance is missing provider reference' });
+    }
+
+    // Update hostname via Linode API
+    const updatedInstance = await linodeService.updateLinodeInstance(providerInstanceId, { label: normalizedHostname });
+
+    // Update local database
+    await query(
+      'UPDATE vps_instances SET label = $1, updated_at = NOW() WHERE id = $2',
+      [normalizedHostname, id]
+    );
+
+    // Log hostname update activity
+    try {
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.hostname.update',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Updated hostname for VPS '${row.label}' to '${normalizedHostname}'`,
+        status: 'success',
+        metadata: { oldHostname: row.label, newHostname: normalizedHostname },
+      }, req as any);
+    } catch (logErr) {
+      console.warn('Failed to log vps.hostname.update activity:', logErr);
+    }
+
+    res.json({ 
+      success: true, 
+      hostname: normalizedHostname,
+      message: 'Hostname updated successfully'
+    });
+  } catch (err: any) {
+    console.error('VPS hostname update error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update hostname' });
+  }
+});
+
 // Delete instance
 router.delete('/:id', async (req: Request, res: Response) => {
   try {

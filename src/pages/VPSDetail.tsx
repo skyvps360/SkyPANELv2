@@ -24,7 +24,10 @@ import {
   SatelliteDish,
   Cloud,
   Sparkles,
-  Copy
+  Copy,
+  Edit2,
+  Check,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -461,6 +464,12 @@ const VPSDetail: React.FC = () => {
   const [selectedFirewallId, setSelectedFirewallId] = useState<number | ''>('');
   const [firewallAction, setFirewallAction] = useState<'attach' | `detach-${number}` | null>(null);
   const [rdnsEditor, setRdnsEditor] = useState<Record<string, { value: string; editing: boolean; saving: boolean }>>({});
+  
+  // Hostname editing state
+  const [hostnameEditing, setHostnameEditing] = useState<boolean>(false);
+  const [hostnameValue, setHostnameValue] = useState<string>('');
+  const [hostnameSaving, setHostnameSaving] = useState<boolean>(false);
+  const [hostnameError, setHostnameError] = useState<string>('');
 
   const tabDefinitions = useMemo<TabDefinition[]>(() => [
     { id: 'overview', label: 'Overview', icon: Server },
@@ -1036,6 +1045,79 @@ const VPSDetail: React.FC = () => {
     }));
   }, [detail, loadData, rdnsEditor, token]);
 
+  // Hostname editing functions
+  const validateHostname = useCallback((hostname: string): string => {
+    if (!hostname.trim()) {
+      return 'Hostname is required';
+    }
+    if (hostname.length < 3) {
+      return 'Hostname must be at least 3 characters';
+    }
+    if (hostname.length > 64) {
+      return 'Hostname must be no more than 64 characters';
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(hostname)) {
+      return 'Hostname can only contain letters, numbers, hyphens, underscores, and periods';
+    }
+    if (hostname.startsWith('-') || hostname.endsWith('-')) {
+      return 'Hostname cannot start or end with a hyphen';
+    }
+    return '';
+  }, []);
+
+  const startEditingHostname = useCallback(() => {
+    setHostnameValue(detail?.label || '');
+    setHostnameEditing(true);
+    setHostnameError('');
+  }, [detail?.label]);
+
+  const cancelEditingHostname = useCallback(() => {
+    setHostnameEditing(false);
+    setHostnameValue('');
+    setHostnameError('');
+  }, []);
+
+  const saveHostname = useCallback(async () => {
+    if (!detail || !hostnameValue.trim()) return;
+    
+    const validationError = validateHostname(hostnameValue.trim());
+    if (validationError) {
+      setHostnameError(validationError);
+      return;
+    }
+
+    setHostnameSaving(true);
+    setHostnameError('');
+
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/hostname`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ hostname: hostnameValue.trim() }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to update hostname');
+      }
+
+      toast.success('Hostname updated successfully');
+      setHostnameEditing(false);
+      setHostnameValue('');
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('Hostname update failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to update hostname';
+      setHostnameError(message);
+      toast.error(message);
+    } finally {
+      setHostnameSaving(false);
+    }
+  }, [detail, hostnameValue, validateHostname, token, loadData]);
+
   const cpuSummary = detail?.metrics?.cpu?.summary;
   const inboundSummary = detail?.metrics?.network?.inbound?.summary;
   const outboundSummary = detail?.metrics?.network?.outbound?.summary;
@@ -1116,10 +1198,63 @@ const VPSDetail: React.FC = () => {
               <span className="text-gray-400 dark:text-gray-500">/</span>
               <span className="text-gray-600 dark:text-gray-300">{detail?.id}</span>
             </div>
-            <h1 className="mt-2 flex items-center gap-3 text-3xl font-semibold text-gray-900 dark:text-white">
+            <div className="mt-2 flex items-center gap-3">
               <Server className="h-8 w-8 text-blue-500" />
-              {detail?.label || 'Cloud Instance'}
-            </h1>
+              {hostnameEditing ? (
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={hostnameValue}
+                      onChange={(e) => setHostnameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          saveHostname();
+                        } else if (e.key === 'Escape') {
+                          cancelEditingHostname();
+                        }
+                      }}
+                      className="text-3xl font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
+                      placeholder="Enter hostname"
+                      autoFocus
+                      disabled={hostnameSaving}
+                    />
+                    <button
+                      type="button"
+                      onClick={saveHostname}
+                      disabled={hostnameSaving || !hostnameValue.trim()}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {hostnameSaving ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditingHostname}
+                      disabled={hostnameSaving}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-600 text-white hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {hostnameError && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{hostnameError}</p>
+                  )}
+                </div>
+              ) : (
+                <h1 
+                  className="text-3xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2"
+                  onClick={startEditingHostname}
+                  title="Click to edit hostname"
+                >
+                  {detail?.label || 'Cloud Instance'}
+                  <Edit2 className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+                </h1>
+              )}
+            </div>
             {detail?.status && (
               <div className="mt-3 inline-flex items-center gap-2">
                 <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${statusStyles[detail.status] || statusStyles.unknown}`}>

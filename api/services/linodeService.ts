@@ -802,6 +802,34 @@ class LinodeService {
   }
 
   /**
+   * Update a Linode instance (e.g., label/hostname)
+   */
+  async updateLinodeInstance(instanceId: number, updateData: { label?: string; [key: string]: any }): Promise<LinodeInstance> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating Linode instance:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch runtime statistics for a specific instance (last 24 hours)
    */
   async getLinodeInstanceStats(instanceId: number): Promise<LinodeInstanceStatsResponse> {
