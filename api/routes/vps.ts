@@ -951,34 +951,19 @@ router.get('/:id', async (req: Request, res: Response) => {
   if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const transferData = await linodeService.getLinodeInstanceTransfer(providerInstanceId);
-        let accountTransfer: { quota?: number; used?: number; billable?: number } | null = null;
-        try {
-          accountTransfer = await linodeService.getAccountTransfer();
-        } catch (accountErr) {
-          console.warn('Failed to fetch account transfer usage:', accountErr);
-        }
 
         const transferSource = (transferData ?? {}) as Record<string, unknown>;
         const usedBytes = extractTransferUsedBytes(transferSource.used);
         const usedGb = bytesToGigabytes(usedBytes);
-        const quotaGb = safeNumber(transferSource.quota);
         const billableGb = safeNumber(transferSource.billable);
+        
+        // Use the plan's transfer allocation as the quota instead of the API's quota field
+        // The API's quota field appears to return account-level pooled transfer data
+        const quotaGb = planMeta.specs.transfer > 0 ? planMeta.specs.transfer : safeNumber(transferSource.quota);
         const utilizationPercent = quotaGb > 0 ? Math.min(100, Math.max(0, (usedGb / quotaGb) * 100)) : 0;
 
-        let account: AccountTransferPayload | null = null;
-        if (accountTransfer) {
-          const accountQuotaGb = safeNumber(accountTransfer.quota);
-          const accountUsedGb = safeNumber(accountTransfer.used);
-          const accountBillableGb = safeNumber(accountTransfer.billable);
-          account = {
-            quotaGb: accountQuotaGb,
-            usedGb: accountUsedGb,
-            billableGb: accountBillableGb,
-            remainingGb: Math.max(accountQuotaGb - accountUsedGb, 0),
-          };
-        }
-
-        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account, usedBytes };
+        // Only use instance-specific transfer data, no account-level data
+        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account: null, usedBytes };
       } catch (err) {
         console.warn('Failed to fetch transfer usage:', err);
       }
