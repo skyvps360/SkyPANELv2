@@ -855,130 +855,126 @@ const VPS: React.FC = () => {
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">VPS Instances ({filteredInstances.length})</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Instance
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Specs
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Resources
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Cost
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredInstances.map((instance) => (
-                  <tr key={instance.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <Server className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{instance.label}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {instance.ipv4[0]} • {(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}
-                          </div>
+          <div className="p-6">
+            <div className="grid gap-6">
+              {filteredInstances.map((instance) => (
+                <div key={instance.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <Server className="h-10 w-10 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{instance.label}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {instance.ipv4[0]} • {(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}
+                        </p>
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
+                            {instance.status}
+                          </span>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-                        {instance.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      <div className="space-y-1">
-                        <div className="flex items-center">
-                          <Cpu className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {instance.status === 'running' ? (
+                        <>
+                          <button
+                            onClick={() => handleInstanceAction(instance.id, 'shutdown')}
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+                            title="Shutdown"
+                          >
+                            <Square className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleInstanceAction(instance.id, 'reboot')}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            title="Reboot"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : instance.status === 'stopped' ? (
+                        <button
+                          onClick={() => handleInstanceAction(instance.id, 'boot')}
+                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-2 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20"
+                          title="Boot"
+                        >
+                          <Play className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                      <Link
+                        to={`/vps/${instance.id}`}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                      {instance.status === 'restoring' || instance.status === 'backing_up' ? null : (
+                        <button
+                          onClick={() => handleInstanceAction(instance.id, 'delete')}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Specifications */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Specifications</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <Cpu className="h-4 w-4 mr-2" />
                           <span>{instance.specs.vcpus} vCPU</span>
                         </div>
-                        <div className="flex items-center">
-                          <MemoryStick className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <MemoryStick className="h-4 w-4 mr-2" />
                           <span>{formatBytes(instance.specs.memory)}</span>
                         </div>
-                        <div className="flex items-center">
-                          <HardDrive className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <HardDrive className="h-4 w-4 mr-2" />
                           <span>{Math.round(instance.specs.disk / 1024)} GB</span>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      <div className="space-y-1">
-                        <div>CPU: {instance.stats.cpu}%</div>
-                        <div>Memory: {instance.stats.memory}%</div>
-                        <div>Disk: {instance.stats.disk}%</div>
+                    </div>
+
+                    {/* Pricing */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Pricing</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          <span>{formatCurrency(instance.pricing.monthly)}/month</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <Clock className="h-4 w-4 mr-2" />
+                          <span>{formatCurrency(instance.pricing.hourly)}/hour</span>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      <div className="space-y-1">
-                        <div>{formatCurrency(instance.pricing.monthly)}/mo</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(instance.pricing.hourly)}/hr</div>
+                    </div>
+
+                    {/* Network */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Network</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <Network className="h-4 w-4 mr-2" />
+                          <span>{Math.round(instance.specs.transfer / 1024)} GB Transfer</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          <span>{(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}</span>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        {instance.status === 'running' ? (
-                          <>
-                            <button
-                              onClick={() => handleInstanceAction(instance.id, 'shutdown')}
-                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                              title="Shutdown"
-                            >
-                              <Square className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleInstanceAction(instance.id, 'reboot')}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                              title="Reboot"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : instance.status === 'stopped' ? (
-                          <button
-                            onClick={() => handleInstanceAction(instance.id, 'boot')}
-                            className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                            title="Boot"
-                          >
-                            <Play className="h-4 w-4" />
-                          </button>
-                        ) : null}
-                        <Link
-                          to={`/vps/${instance.id}`}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                        {instance.status === 'restoring' || instance.status === 'backing_up' ? null : (
-                          <button
-                            onClick={() => handleInstanceAction(instance.id, 'delete')}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

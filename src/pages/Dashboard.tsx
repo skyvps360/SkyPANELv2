@@ -38,6 +38,24 @@ interface ContainerStats {
   uptime: string;
 }
 
+interface MetricSummary {
+  average: number;
+  peak: number;
+  last: number;
+}
+
+interface VpsMetrics {
+  cpu?: MetricSummary | null;
+  network?: {
+    inbound?: MetricSummary | null;
+    outbound?: MetricSummary | null;
+  };
+  io?: {
+    read?: MetricSummary | null;
+    swap?: MetricSummary | null;
+  };
+}
+
 interface VPSStats {
   id: string;
   name: string;
@@ -48,6 +66,7 @@ interface VPSStats {
   memory: number | null; // null indicates no memory data available
   storage: number;
   ip: string;
+  metrics?: VpsMetrics;
 }
 
 interface BillingStats {
@@ -115,6 +134,7 @@ const Dashboard: React.FC = () => {
         (vpsData.instances || []).map(async (i: any) => {
           let cpu = 0;
           let memory = null; // Use null to indicate no memory data available
+          let metrics: VpsMetrics | undefined = undefined;
           
           try {
             // Fetch detailed VPS data including metrics
@@ -131,6 +151,19 @@ const Dashboard: React.FC = () => {
               // Memory metrics are not available in the API
               // Set to null to indicate unavailable data
               memory = null;
+
+              // Capture metric summaries for consistent display
+              const cpuSummary: MetricSummary | null = detailData.metrics?.cpu?.summary ?? null;
+              const inboundSummary: MetricSummary | null = detailData.metrics?.network?.inbound?.summary ?? null;
+              const outboundSummary: MetricSummary | null = detailData.metrics?.network?.outbound?.summary ?? null;
+              const ioSummary: MetricSummary | null = detailData.metrics?.io?.read?.summary ?? null;
+              const swapSummary: MetricSummary | null = detailData.metrics?.io?.swap?.summary ?? null;
+
+              metrics = {
+                cpu: cpuSummary,
+                network: { inbound: inboundSummary, outbound: outboundSummary },
+                io: { read: ioSummary, swap: swapSummary },
+              };
             }
           } catch (error) {
             console.warn(`Failed to fetch metrics for VPS ${i.id}:`, error);
@@ -147,6 +180,7 @@ const Dashboard: React.FC = () => {
             memory: memory, // null indicates no data available
             storage: 0,
             ip: i.ip_address || '',
+            metrics,
           };
         })
       );
@@ -192,6 +226,18 @@ const Dashboard: React.FC = () => {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const formatPercent = (value: number): string => `${Math.max(0, Number(value) || 0).toFixed(1)}%`;
+  const formatNetworkRate = (value: number): string => {
+    if (!Number.isFinite(Number(value)) || Number(value) <= 0) return '0 Mbps';
+    const mbps = Number(value) / 1_000_000;
+    return `${mbps.toFixed(mbps >= 10 ? 1 : 2)} Mbps`;
+  };
+  const formatBlocks = (value: number): string => {
+    if (!Number.isFinite(Number(value)) || Number(value) <= 0) return '0 blk/s';
+    const num = Number(value);
+    return `${num.toFixed(num >= 10 ? 1 : 2)} blk/s`;
   };
 
   const getStatusColor = (status: string): string => {
@@ -344,27 +390,25 @@ const Dashboard: React.FC = () => {
                 {vpsInstances.slice(0, 3).map((vps) => (
                   <div 
                     key={vps.id} 
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                    className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
                     onClick={() => handleVpsClick(vps.id)}
                   >
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Server className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{vps.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{vps.plan} • {vps.location}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">CPU: {vps.cpu}%</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {vps.memory !== null ? `${vps.memory}%` : 'N/A'}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Server className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{vps.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{vps.plan} • {vps.location}</p>
+                        </div>
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(vps.status)}`}>
                         {vps.status}
                       </span>
                     </div>
+
+
                   </div>
                 ))}
               </div>
