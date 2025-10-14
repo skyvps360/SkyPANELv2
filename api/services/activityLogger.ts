@@ -19,6 +19,56 @@ const getIp = (req?: Request): string | undefined => {
   return (req.socket as any)?.remoteAddress || undefined;
 };
 
+let ensurePromise: Promise<void> | null = null;
+
+export const ensureActivityLogsTable = async (): Promise<void> => {
+  if (ensurePromise) return ensurePromise;
+
+  ensurePromise = (async () => {
+    try {
+      await query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+    } catch (err: any) {
+      // Non-critical: some providers restrict extension creation; continue if that happens.
+      if (err?.code !== '42501') {
+        console.warn('Activity logs extension check failed:', err);
+      }
+    }
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        organization_id UUID,
+        event_type VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(100) NOT NULL,
+        entity_id VARCHAR(255),
+        message TEXT,
+        status VARCHAR(50) DEFAULT 'info' CHECK (status IN ('success', 'warning', 'error', 'info')),
+        ip_address VARCHAR(64),
+        user_agent TEXT,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    const indexStatements = [
+      'CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_activity_logs_org_id ON activity_logs(organization_id)',
+      'CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at)',
+      'CREATE INDEX IF NOT EXISTS idx_activity_logs_event_type ON activity_logs(event_type)'
+    ];
+
+    for (const stmt of indexStatements) {
+      await query(stmt);
+    }
+  })().catch(err => {
+    ensurePromise = null;
+    throw err;
+  });
+
+  return ensurePromise;
+};
+
 export async function logActivity(payload: ActivityPayload, req?: Request): Promise<void> {
   try {
     const {
@@ -34,6 +84,8 @@ export async function logActivity(payload: ActivityPayload, req?: Request): Prom
 
     const ip = getIp(req);
     const ua = req?.headers['user-agent'] || undefined;
+
+    await ensureActivityLogsTable();
 
     await query(
       `INSERT INTO activity_logs (user_id, organization_id, event_type, entity_type, entity_id, message, status, ip_address, user_agent, metadata)

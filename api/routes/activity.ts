@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
+import { ensureActivityLogsTable } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -13,6 +14,8 @@ router.get('/recent', async (req: Request, res: Response) => {
     const user = (req as any).user;
     const limit = Math.min(Number(req.query.limit) || 10, 100);
     const organizationId = user.organizationId || null;
+
+    await ensureActivityLogsTable();
 
     const result = await query(
       `SELECT id, user_id, organization_id, event_type, entity_type, entity_id, message, status, metadata, created_at
@@ -58,6 +61,8 @@ router.get('/', requireOrganization, async (req: Request, res: Response) => {
     const lim = Math.min(Number(limit) || 50, 200);
     const off = Math.max(Number(offset) || 0, 0);
 
+  await ensureActivityLogsTable();
+
     const sql = `SELECT id, user_id, organization_id, event_type, entity_type, entity_id, message, status, metadata, created_at
                  FROM activity_logs
                  WHERE ${clauses.join(' AND ')}
@@ -90,6 +95,7 @@ router.get('/summary', requireOrganization, async (req: Request, res: Response) 
                  WHERE ${clauses.join(' AND ')}
                  GROUP BY entity_type, status
                  ORDER BY type, status`;
+    await ensureActivityLogsTable();
     const result = await query(sql, params);
     res.json({ summary: result.rows || [] });
   } catch (err: any) {
@@ -114,6 +120,7 @@ router.get('/export', requireOrganization, async (req: Request, res: Response) =
                  FROM activity_logs
                  WHERE ${clauses.join(' AND ')}
                  ORDER BY created_at DESC`;
+  await ensureActivityLogsTable();
     const result = await query(sql, params);
 
     const header = 'created_at,user_id,event_type,entity_type,entity_id,status,message\n';
