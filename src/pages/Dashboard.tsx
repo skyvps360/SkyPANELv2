@@ -45,7 +45,7 @@ interface VPSStats {
   plan: string;
   location: string;
   cpu: number;
-  memory: number;
+  memory: number | null; // null indicates no memory data available
   storage: number;
   ip: string;
 }
@@ -110,18 +110,48 @@ const Dashboard: React.FC = () => {
       }));
       setContainers(containersMapped);
 
-      const vpsMapped: VPSStats[] = (vpsData.instances || []).map((i: any) => ({
-        id: i.id,
-        name: i.label || 'instance',
-        status: (i.status as any) || 'provisioning',
-        plan: i.configuration?.type || '',
-        location: i.configuration?.region || '',
-        cpu: 0,
-        memory: 0,
-        storage: 0,
-        ip: i.ip_address || '',
-      }));
-      setVpsInstances(vpsMapped);
+      // Fetch detailed metrics for each VPS instance
+      const vpsWithMetrics = await Promise.all(
+        (vpsData.instances || []).map(async (i: any) => {
+          let cpu = 0;
+          let memory = null; // Use null to indicate no memory data available
+          
+          try {
+            // Fetch detailed VPS data including metrics
+            const detailRes = await fetch(`/api/vps/${i.id}`, { 
+              headers: { Authorization: `Bearer ${token}` } 
+            });
+            
+            if (detailRes.ok) {
+              const detailData = await detailRes.json();
+              
+              // Extract CPU usage from metrics (API returns 0-100 percentage)
+              cpu = detailData.metrics?.cpu?.summary?.last || 0;
+              
+              // Memory metrics are not available in the API
+              // Set to null to indicate unavailable data
+              memory = null;
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch metrics for VPS ${i.id}:`, error);
+            // Keep default values
+          }
+          
+          return {
+            id: i.id,
+            name: i.label || 'instance',
+            status: (i.status as any) || 'provisioning',
+            plan: i.configuration?.type || '',
+            location: i.configuration?.region || '',
+            cpu: Math.round(cpu * 100) / 100, // Round to 2 decimal places
+            memory: memory, // null indicates no data available
+            storage: 0,
+            ip: i.ip_address || '',
+          };
+        })
+      );
+      
+      setVpsInstances(vpsWithMetrics);
 
       const lastPaymentItem = (paymentsData.payments || [])[0];
       setBilling({
@@ -329,7 +359,7 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <p className="text-xs text-gray-500 dark:text-gray-400">CPU: {vps.cpu}%</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {vps.memory}%</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {vps.memory !== null ? `${vps.memory}%` : 'N/A'}</p>
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(vps.status)}`}>
                         {vps.status}
