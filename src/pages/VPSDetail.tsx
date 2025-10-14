@@ -23,7 +23,8 @@ import {
   Gauge,
   SatelliteDish,
   Cloud,
-  Sparkles
+  Sparkles,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,6 +74,7 @@ interface TransferInfo {
   billableGb: number;
   utilizationPercent: number;
   account: AccountTransferInfo | null;
+  usedBytes?: number;
 }
 
 interface BackupSummary {
@@ -570,16 +572,17 @@ const VPSDetail: React.FC = () => {
   const accountTransferInfo = transferInfo?.account ?? null;
   const accountQuotaGb = accountTransferInfo?.quotaGb ?? null;
   const accountUsedGb = accountTransferInfo?.usedGb ?? null;
-  const accountRemainingGb = accountTransferInfo?.remainingGb ?? null;
   const accountBillableGb = accountTransferInfo?.billableGb ?? null;
   const usageQuotaGb = (accountQuotaGb ?? undefined) ?? transferQuotaGb;
   const usageUsedGb = (accountUsedGb ?? undefined) ?? transferUsedGb;
   const transferUsagePercent = usageQuotaGb > 0 ? Math.min(100, Math.max(0, (usageUsedGb / usageQuotaGb) * 100)) : 0;
   const usageRemainingGb = usageQuotaGb > 0 ? Math.max(usageQuotaGb - usageUsedGb, 0) : null;
   const transferRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
-  const transferUsageTitle = accountTransferInfo ? 'Account transfer pool' : 'Active billing cycle';
+  const transferUsageTitle = accountTransferInfo
+    ? `${detail?.label ?? 'Server'} transfer pool`
+    : 'Active billing cycle';
   const transferUsageDescription = accountTransferInfo
-    ? 'Track global bandwidth consumption across your account pool.'
+  ? "Bandwidth figures pulled directly from Linode for this server's shared pool."
     : 'Track bandwidth consumption against the quota reported by your provider.';
   const usageLabel = accountTransferInfo ? 'Account usage' : 'Usage';
   const effectiveBillableGb = accountBillableGb ?? transferBillableGb;
@@ -660,6 +663,23 @@ const VPSDetail: React.FC = () => {
     return detail?.networking?.ipv6?.slaac?.address || null;
   }, [detail?.networking?.ipv6?.slaac?.address, detail?.provider?.ipv6]);
 
+  const primaryIpv4Rdns = useMemo(() => {
+    const ipv4Buckets = detail?.networking?.ipv4;
+    if (!ipv4Buckets) {
+      return null;
+    }
+    const orderedBuckets = [ipv4Buckets.public ?? [], ipv4Buckets.reserved ?? [], ipv4Buckets.shared ?? [], ipv4Buckets.private ?? []];
+    for (const bucket of orderedBuckets) {
+      for (const record of bucket) {
+        const candidate = record?.rdns;
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+          return candidate.trim();
+        }
+      }
+    }
+    return null;
+  }, [detail?.networking?.ipv4]);
+
   const findRdnsSourceValue = useCallback(
     (address: string) => {
       const match = rdnsSources.find(item => item.address === address);
@@ -708,6 +728,22 @@ const VPSDetail: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleCopy = useCallback(async (value: string, label?: string) => {
+    if (!value) {
+      return;
+    }
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard || !navigator.clipboard.writeText) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label ?? 'Value'} copied to clipboard`);
+    } catch (err) {
+      console.error('Failed to copy value to clipboard:', err);
+      toast.error('Unable to copy to clipboard');
+    }
+  }, []);
 
   useEffect(() => {
     const currentDay = detail?.backups?.schedule?.day;
@@ -1557,20 +1593,20 @@ const VPSDetail: React.FC = () => {
                                 <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
                                 <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
                               </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Account remaining' : 'Available quota'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                  {accountRemainingGb !== null
-                                    ? `${accountRemainingGb.toFixed(2)} GB`
-                                    : usageRemainingGb !== null
-                                    ? `${usageRemainingGb.toFixed(2)} GB`
-                                    : '—'}
-                                </dd>
-                              </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Billable (pool)' : 'Billable'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
-                              </div>
+                              {!accountTransferInfo && (
+                                <>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Available quota</dt>
+                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                      {usageRemainingGb !== null ? `${usageRemainingGb.toFixed(2)} GB` : '—'}
+                                    </dd>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
+                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
+                                  </div>
+                                </>
+                              )}
                             </dl>
                             {transferUsagePercent >= 90 && (
                               <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
@@ -1661,7 +1697,19 @@ const VPSDetail: React.FC = () => {
                                         <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
                                       )}
                                       {showRdnsInfo && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+                                          <span className="truncate">rDNS: {currentValue || 'Not set'}</span>
+                                          {currentValue ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCopy(currentValue, `rDNS for ${addr.address}`)}
+                                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                              aria-label={`Copy rDNS for ${addr.address}`}
+                                            >
+                                              <Copy className="h-3.5 w-3.5" />
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       )}
                                       {canEditAddress && (
                                         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -1739,7 +1787,19 @@ const VPSDetail: React.FC = () => {
                                   <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.slaac.gateway}</p>
                                 )}
                                 {slaacAddress && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">rDNS: {slaacCurrentValue || 'Not set'}</p>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="truncate">rDNS: {slaacCurrentValue || 'Not set'}</span>
+                                    {slaacCurrentValue ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopy(slaacCurrentValue, 'SLAAC rDNS')}
+                                        className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                        aria-label="Copy SLAAC rDNS"
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </button>
+                                    ) : null}
+                                  </div>
                                 )}
                                 {canEditSlaacRdns && slaacAddress && (
                                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -2195,6 +2255,27 @@ const VPSDetail: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span>rDNS edits</span>
                   <span className="font-medium">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>IPv4 rDNS</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="max-w-[200px] truncate font-medium"
+                      title={primaryIpv4Rdns ?? 'Not set'}
+                    >
+                      {primaryIpv4Rdns ?? 'Not set'}
+                    </span>
+                    {primaryIpv4Rdns ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(primaryIpv4Rdns, 'IPv4 rDNS')}
+                        className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                        aria-label="Copy IPv4 rDNS"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 {detail?.provider?.ipv4?.length || providerIpv6Address ? (
                   <div>

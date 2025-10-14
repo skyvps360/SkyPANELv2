@@ -72,6 +72,7 @@ interface TransferPayload {
   billableGb: number;
   utilizationPercent: number;
   account: AccountTransferPayload | null;
+  usedBytes: number;
 }
 
 interface BackupsPayload {
@@ -174,7 +175,45 @@ const deriveTimeframe = (collections: MetricPoint[][]): { start: number | null; 
   };
 };
 
-const bytesToGigabytes = (value: number): number => value / (1024 ** 3);
+const bytesToGigabytes = (value: number): number => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return value / 1_000_000_000;
+};
+
+const safeNumber = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return 0;
+};
+
+const extractTransferUsedBytes = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const directCandidate = source.total ?? source.bytes ?? source.amount ?? source.used;
+    if (typeof directCandidate === 'number' && Number.isFinite(directCandidate)) {
+      return directCandidate;
+    }
+    const inboundCandidate = source.in ?? source.ingress ?? source.inbound;
+    const outboundCandidate = source.out ?? source.egress ?? source.outbound;
+    let total = 0;
+    if (typeof inboundCandidate === 'number' && Number.isFinite(inboundCandidate)) {
+      total += inboundCandidate;
+    }
+    if (typeof outboundCandidate === 'number' && Number.isFinite(outboundCandidate)) {
+      total += outboundCandidate;
+    }
+    if (total > 0) {
+      return total;
+    }
+  }
+  return 0;
+};
 
 const mapBackupSummary = (backup: LinodeBackupSummary | null | undefined): BackupSummaryPayload | null => {
   if (!backup || typeof backup !== 'object') {
@@ -919,16 +958,18 @@ router.get('/:id', async (req: Request, res: Response) => {
           console.warn('Failed to fetch account transfer usage:', accountErr);
         }
 
-        const usedGb = bytesToGigabytes(Number(transferData?.used ?? 0));
-        const quotaGb = Number(transferData?.quota ?? 0);
-        const billableGb = Number(transferData?.billable ?? 0);
+        const transferSource = (transferData ?? {}) as Record<string, unknown>;
+        const usedBytes = extractTransferUsedBytes(transferSource.used);
+        const usedGb = bytesToGigabytes(usedBytes);
+        const quotaGb = safeNumber(transferSource.quota);
+        const billableGb = safeNumber(transferSource.billable);
         const utilizationPercent = quotaGb > 0 ? Math.min(100, Math.max(0, (usedGb / quotaGb) * 100)) : 0;
 
         let account: AccountTransferPayload | null = null;
         if (accountTransfer) {
-          const accountQuotaGb = Number(accountTransfer.quota ?? 0);
-          const accountUsedGb = Number(accountTransfer.used ?? 0);
-          const accountBillableGb = Number(accountTransfer.billable ?? 0);
+          const accountQuotaGb = safeNumber(accountTransfer.quota);
+          const accountUsedGb = safeNumber(accountTransfer.used);
+          const accountBillableGb = safeNumber(accountTransfer.billable);
           account = {
             quotaGb: accountQuotaGb,
             usedGb: accountUsedGb,
@@ -937,7 +978,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           };
         }
 
-        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account };
+        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account, usedBytes };
       } catch (err) {
         console.warn('Failed to fetch transfer usage:', err);
       }

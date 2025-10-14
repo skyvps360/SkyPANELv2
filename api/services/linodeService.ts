@@ -171,8 +171,23 @@ export interface LinodeInstanceStatsResponse extends LinodeInstanceStatsSeries {
   data?: LinodeInstanceStatsSeries | null;
 }
 
+export type LinodeTransferUsage =
+  | number
+  | {
+      total?: number;
+      in?: number;
+      out?: number;
+      ingress?: number;
+      egress?: number;
+      inbound?: number;
+      outbound?: number;
+      bytes?: number;
+      amount?: number;
+      used?: number;
+    };
+
 export interface LinodeInstanceTransferResponse {
-  used: number;
+  used: LinodeTransferUsage;
   quota: number;
   billable: number;
 }
