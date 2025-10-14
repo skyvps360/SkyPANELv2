@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Globe2,
   Shield,
-  Cog
+  BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -98,6 +98,7 @@ interface IPv4Address {
   subnetMask: string | null;
   prefix: number | null;
   region: string | null;
+  rdnsEditable: boolean;
 }
 
 interface IPv6Assignment {
@@ -157,6 +158,21 @@ interface FirewallSummary {
     inbound: FirewallRule[];
     outbound: FirewallRule[];
   } | null;
+  attachment: FirewallAttachment | null;
+}
+
+interface FirewallAttachment {
+  id: number;
+  entityId: number | null;
+  entityLabel: string | null;
+  type: string | null;
+}
+
+interface FirewallOption {
+  id: number;
+  label: string | null;
+  status: string | null;
+  tags: string[];
 }
 
 interface ProviderConfigSummary {
@@ -185,7 +201,7 @@ interface InstanceEventSummary {
   entityLabel: string | null;
 }
 
-type TabId = 'overview' | 'backups' | 'networking' | 'activity' | 'firewall' | 'configurations';
+type TabId = 'overview' | 'backups' | 'networking' | 'activity' | 'firewall' | 'metrics';
 
 interface TabDefinition {
   id: TabId;
@@ -251,9 +267,11 @@ interface VpsInstanceDetail {
   backups: BackupsInfo | null;
   networking: NetworkingInfo | null;
   firewalls: FirewallSummary[];
+  firewallOptions: FirewallOption[];
   providerConfigs: ProviderConfigSummary[];
   activity: InstanceEventSummary[];
   backupPricing: BackupPricing | null;
+  rdnsEditable: boolean;
 }
 
 interface VpsDetailResponse {
@@ -338,6 +356,19 @@ const formatSizeFromMb = (sizeMb: number): string => {
   return `${sizeMb.toFixed(0)} MB`;
 };
 
+const classifyProviderIpv4 = (address: string): 'public' | 'private' | 'unknown' => {
+  const segments = address.split('.').map(part => Number(part));
+  if (segments.length !== 4 || segments.some(part => Number.isNaN(part) || part < 0 || part > 255)) {
+    return 'unknown';
+  }
+  const [octet1, octet2] = segments;
+  if (octet1 === 10) return 'private';
+  if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) return 'private';
+  if (octet1 === 192 && octet2 === 168) return 'private';
+  if (octet1 === 100 && octet2 >= 64 && octet2 <= 127) return 'private';
+  return 'public';
+};
+
 const statusActionLabel: Record<'boot' | 'shutdown' | 'reboot', string> = {
   boot: 'Power On',
   shutdown: 'Power Off',
@@ -354,6 +385,11 @@ const VPSDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<'boot' | 'shutdown' | 'reboot' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [backupAction, setBackupAction] = useState<'enable' | 'disable' | 'snapshot' | null>(null);
+  const [snapshotLabel, setSnapshotLabel] = useState<string>('');
+  const [selectedFirewallId, setSelectedFirewallId] = useState<number | ''>('');
+  const [firewallAction, setFirewallAction] = useState<'attach' | `detach-${number}` | null>(null);
+  const [rdnsEditor, setRdnsEditor] = useState<Record<string, { value: string; editing: boolean; saving: boolean }>>({});
 
   const tabDefinitions = useMemo<TabDefinition[]>(() => [
     { id: 'overview', label: 'Overview', icon: Server },
@@ -361,7 +397,7 @@ const VPSDetail: React.FC = () => {
     { id: 'networking', label: 'Networking', icon: Globe2 },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'firewall', label: 'Firewalls', icon: Shield },
-    { id: 'configurations', label: 'Configurations', icon: Cog },
+    { id: 'metrics', label: 'Metrics', icon: BarChart3 },
   ], []);
 
   const backupPricing = useMemo<BackupPricing | null>(() => {
@@ -372,7 +408,7 @@ const VPSDetail: React.FC = () => {
     if (!Number.isFinite(baseMonthly) || baseMonthly <= 0) {
       return null;
     }
-    const estimatedMonthly = Number(baseMonthly) * 0.2;
+    const estimatedMonthly = Number(baseMonthly) * 0.3;
     return {
       monthly: estimatedMonthly,
       hourly: estimatedMonthly / 730,
@@ -426,15 +462,62 @@ const VPSDetail: React.FC = () => {
     return [
       { label: 'Public IPv4', accent: 'text-emerald-500', addresses: ipv4?.public ?? [] },
       { label: 'Private IPv4', accent: 'text-purple-500', addresses: ipv4?.private ?? [] },
-      { label: 'Shared IPv4', accent: 'text-blue-500', addresses: ipv4?.shared ?? [] },
-      { label: 'Reserved IPv4', accent: 'text-amber-500', addresses: ipv4?.reserved ?? [] },
     ];
   }, [detail?.networking?.ipv4]);
 
   const ipv6Info = detail?.networking?.ipv6 ?? null;
-  const firewallSummaries = detail?.firewalls ?? [];
-  const eventFeed = detail?.activity ?? [];
-  const providerConfigs = detail?.providerConfigs ?? [];
+  const firewallSummaries = useMemo(() => detail?.firewalls ?? [], [detail?.firewalls]);
+  const firewallOptions = useMemo(() => detail?.firewallOptions ?? [], [detail?.firewallOptions]);
+  const eventFeed = useMemo(() => detail?.activity ?? [], [detail?.activity]);
+  const transferInfo = detail?.transfer ?? null;
+  const rdnsEditable = detail?.rdnsEditable ?? true;
+  const allIPv4Addresses = useMemo(() => {
+    const buckets = detail?.networking?.ipv4;
+    if (!buckets) {
+      return [] as IPv4Address[];
+    }
+    return [
+      ...(buckets.public ?? []),
+      ...(buckets.private ?? []),
+    ];
+  }, [detail?.networking?.ipv4]);
+
+  useEffect(() => {
+    setRdnsEditor(prev => {
+      if (allIPv4Addresses.length === 0) {
+        return {};
+      }
+      const next: Record<string, { value: string; editing: boolean; saving: boolean }> = {};
+      allIPv4Addresses.forEach(addr => {
+        const previous = prev[addr.address];
+        next[addr.address] = {
+          value: previous?.editing ? previous.value : addr.rdns ?? '',
+          editing: previous?.editing ?? false,
+          saving: false,
+        };
+      });
+      return next;
+    });
+  }, [allIPv4Addresses]);
+
+  const availableFirewallOptions = useMemo(() => {
+    const attachedIds = new Set(firewallSummaries.map(firewall => firewall.id));
+    return firewallOptions.filter(option => !attachedIds.has(option.id));
+  }, [firewallOptions, firewallSummaries]);
+
+  const providerImageLabel = useMemo(() => {
+    const raw = detail?.image || detail?.provider?.image;
+    if (!raw) return '—';
+    const segments = raw.split('/');
+    return segments[segments.length - 1] || raw;
+  }, [detail?.image, detail?.provider?.image]);
+
+  const providerIpv6Address = useMemo(() => {
+    if (detail?.provider?.ipv6) {
+      return detail.provider.ipv6;
+    }
+    return detail?.networking?.ipv6?.slaac?.address || null;
+  }, [detail?.networking?.ipv6?.slaac?.address, detail?.provider?.ipv6]);
 
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) return;
@@ -503,12 +586,199 @@ const VPSDetail: React.FC = () => {
   const allowStart = detail?.status === 'stopped';
   const allowStop = detail?.status === 'running';
   const allowReboot = detail?.status === 'running' || detail?.status === 'rebooting';
+  const backupsEnabled = detail?.backups?.enabled ?? false;
+  const backupToggleBusy = backupAction === 'enable' || backupAction === 'disable';
+  const snapshotBusy = backupAction === 'snapshot';
+
+  const handleBackupAction = useCallback(async (action: 'enable' | 'disable' | 'snapshot') => {
+    if (!detail) return;
+    setBackupAction(action);
+    try {
+      const endpoint = action === 'snapshot' ? 'snapshot' : action;
+      const body = action === 'snapshot'
+        ? JSON.stringify({ label: snapshotLabel.trim().length > 0 ? snapshotLabel.trim() : undefined })
+        : undefined;
+      const response = await fetch(`/api/vps/${detail.id}/backups/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Backup operation failed');
+      }
+      if (action === 'snapshot') {
+        toast.success('Snapshot requested');
+        setSnapshotLabel('');
+      } else if (action === 'enable') {
+        toast.success('Backups enabled');
+      } else {
+        toast.success('Backups disabled');
+      }
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('Backup operation failed:', err);
+      const message = err instanceof Error ? err.message : 'Backup operation failed';
+      toast.error(message);
+    } finally {
+      setBackupAction(null);
+    }
+  }, [detail, loadData, snapshotLabel, token]);
+
+  const handleAttachFirewall = useCallback(async () => {
+    if (!detail || selectedFirewallId === '' || firewallAction === 'attach') return;
+    setFirewallAction('attach');
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/firewalls/attach`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ firewallId: selectedFirewallId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to attach firewall');
+      }
+      toast.success('Firewall attached to instance');
+      setSelectedFirewallId('');
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('Attach firewall failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to attach firewall';
+      toast.error(message);
+    } finally {
+      setFirewallAction(null);
+    }
+  }, [detail, firewallAction, loadData, selectedFirewallId, token]);
+
+  const handleDetachFirewall = useCallback(async (firewallId: number, deviceId: number | null) => {
+    if (!detail || !Number.isInteger(firewallId) || firewallId <= 0 || !Number.isInteger(deviceId) || (deviceId ?? 0) <= 0) {
+      toast.error('Firewall attachment reference missing');
+      return;
+    }
+    const actionId = `detach-${firewallId}` as const;
+    if (firewallAction === actionId) return;
+    setFirewallAction(actionId);
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/firewalls/detach`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ firewallId, deviceId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to detach firewall');
+      }
+      toast.success('Firewall detached from instance');
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('Detach firewall failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to detach firewall';
+      toast.error(message);
+    } finally {
+      setFirewallAction(null);
+    }
+  }, [detail, firewallAction, loadData, token]);
+
+  const beginEditRdns = useCallback((address: string) => {
+    setRdnsEditor(prev => {
+      const next = { ...prev };
+      const existing = next[address];
+      const sourceValue = allIPv4Addresses.find(item => item.address === address)?.rdns ?? '';
+      next[address] = {
+        value: existing?.value ?? sourceValue,
+        editing: true,
+        saving: false,
+      };
+      return next;
+    });
+  }, [allIPv4Addresses]);
+
+  const cancelEditRdns = useCallback((address: string) => {
+    setRdnsEditor(prev => {
+      const next = { ...prev };
+      const sourceValue = allIPv4Addresses.find(item => item.address === address)?.rdns ?? '';
+      next[address] = {
+        value: sourceValue,
+        editing: false,
+        saving: false,
+      };
+      return next;
+    });
+  }, [allIPv4Addresses]);
+
+  const updateRdnsValue = useCallback((address: string, value: string) => {
+    setRdnsEditor(prev => {
+      const existing = prev[address] ?? { value: '', editing: true, saving: false };
+      return {
+        ...prev,
+        [address]: {
+          ...existing,
+          value,
+        },
+      };
+    });
+  }, []);
+
+  const saveRdns = useCallback(async (address: string) => {
+    if (!detail) return;
+    const editorState = rdnsEditor[address];
+    if (!editorState) return;
+    setRdnsEditor(prev => ({
+      ...prev,
+      [address]: { ...prev[address], saving: true },
+    }));
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/networking/rdns`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address, rdns: editorState.value.trim().length > 0 ? editorState.value.trim() : null }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to update reverse DNS');
+      }
+      toast.success('Reverse DNS updated');
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('rDNS update failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to update reverse DNS';
+      toast.error(message);
+      setRdnsEditor(prev => ({
+        ...prev,
+        [address]: { ...prev[address], saving: false },
+      }));
+      return;
+    }
+    setRdnsEditor(prev => ({
+      ...prev,
+      [address]: { ...prev[address], saving: false, editing: false },
+    }));
+  }, [detail, loadData, rdnsEditor, token]);
 
   const cpuSummary = detail?.metrics?.cpu?.summary;
   const inboundSummary = detail?.metrics?.network?.inbound?.summary;
   const outboundSummary = detail?.metrics?.network?.outbound?.summary;
   const ioSummary = detail?.metrics?.io?.read?.summary;
   const swapSummary = detail?.metrics?.io?.swap?.summary;
+  const cpuSeries = detail?.metrics?.cpu?.series ?? [];
+  const inboundSeries = detail?.metrics?.network?.inbound?.series ?? [];
+  const outboundSeries = detail?.metrics?.network?.outbound?.series ?? [];
+  const privateInSeries = detail?.metrics?.network?.privateIn?.series ?? [];
+  const privateOutSeries = detail?.metrics?.network?.privateOut?.series ?? [];
+  const ioSeries = detail?.metrics?.io?.read?.series ?? [];
+  const swapSeries = detail?.metrics?.io?.swap?.series ?? [];
 
   const timeframeLabel = useMemo(() => {
     if (!detail?.metrics?.timeframe?.start || !detail.metrics.timeframe.end) return null;
@@ -806,32 +1076,6 @@ const VPSDetail: React.FC = () => {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Network Transfer</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Current billing cycle utilisation.</p>
-                  </div>
-                  <div className="px-6 py-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{detail?.transfer ? `${detail.transfer.usedGb.toFixed(2)} GB used of ${detail.transfer.quotaGb.toFixed(0)} GB` : 'Usage data unavailable'}</p>
-                      {detail?.transfer && (
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Billable {detail.transfer.billableGb.toFixed(2)} GB</span>
-                      )}
-                    </div>
-                    <div className="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-800">
-                      <div
-                        className="h-3 rounded-full bg-blue-500 transition-all"
-                        style={{ width: `${Math.min(100, Math.max(0, detail?.transfer?.utilizationPercent ?? 0))}%` }}
-                      />
-                    </div>
-                    {detail?.transfer && detail.transfer.utilizationPercent >= 90 && (
-                      <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100/70 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
-                        <AlertTriangle className="h-4 w-4" />
-                        You are nearing the included transfer quota for this billing cycle.
-                      </div>
-                    )}
-                  </div>
-                </section>
               </>
             )}
 
@@ -847,18 +1091,57 @@ const VPSDetail: React.FC = () => {
                       <ShieldCheck className={`h-4 w-4 ${detail?.backups?.enabled ? 'text-green-500' : 'text-gray-400'}`} />
                       <span className="font-medium text-gray-800 dark:text-gray-200">{detail?.backups?.enabled ? 'Backups Enabled' : 'Backups Disabled'}</span>
                     </div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">
                       {detail?.backups?.schedule
                         ? `Schedule: ${detail.backups.schedule.day ?? 'Any day'} · Window ${detail.backups.schedule.window ?? 'Automatic'}`
                         : 'No schedule data available'}
                     </div>
                   </div>
 
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleBackupAction(backupsEnabled ? 'disable' : 'enable')}
+                          disabled={backupToggleBusy}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${backupsEnabled ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-900/30' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        >
+                          {backupToggleBusy ? 'Applying…' : backupsEnabled ? 'Disable backups' : 'Enable backups'}
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Snapshot label</label>
+                        <input
+                          type="text"
+                          value={snapshotLabel}
+                          onChange={event => setSnapshotLabel(event.target.value)}
+                          placeholder="Optional description"
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-400"
+                          disabled={snapshotBusy}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleBackupAction('snapshot')}
+                          disabled={snapshotBusy || !backupsEnabled}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${snapshotBusy || !backupsEnabled ? 'bg-blue-600/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        >
+                          {snapshotBusy ? 'Requesting…' : 'Capture snapshot'}
+                        </button>
+                      </div>
+                    </div>
+                    {!backupsEnabled && (
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
+                        Manual snapshots require backups to be enabled. Toggle backups on to request a new snapshot.
+                      </p>
+                    )}
+                  </div>
+
                   {backupPricing && (
                     <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
                       <p className="font-semibold">Plan add-on pricing</p>
                       <p className="mt-1 text-xs">
-                        Enabling backups adds {formatCurrency(backupPricing.monthly)} / month ({formatCurrency(backupPricing.hourly)} hourly) — 20% of your selected plan.
+                        Enabling backups adds {formatCurrency(backupPricing.monthly)} / month ({formatCurrency(backupPricing.hourly)} hourly) — 30% of your selected plan.
                       </p>
                     </div>
                   )}
@@ -916,38 +1199,110 @@ const VPSDetail: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Current IPv4/IPv6 assignments and routing details.</p>
                 </div>
                 <div className="px-6 py-5 space-y-6">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Transfer utilisation</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">Measured for the active billing cycle.</p>
+                      </div>
+                      {transferInfo && (
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{transferInfo.usedGb.toFixed(2)} GB used of {transferInfo.quotaGb.toFixed(0)} GB</span>
+                      )}
+                    </div>
+                    <div className="mt-4 h-3 w-full rounded-full bg-gray-200 dark:bg-gray-800">
+                      <div
+                        className="h-3 rounded-full bg-blue-500 transition-all"
+                        style={{ width: `${Math.min(100, Math.max(0, transferInfo?.utilizationPercent ?? 0))}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between text-xs text-gray-500 dark:text-gray-300">
+                      <span>{transferInfo ? `Billable ${transferInfo.billableGb.toFixed(2)} GB` : 'Usage data unavailable'}</span>
+                      {transferInfo && transferInfo.utilizationPercent >= 90 && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100/70 px-2.5 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Approaching quota
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv4 addresses</h3>
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Public, private, shared, and reserved allocations.</p>
+                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public and private allocations reported by the provider.</p>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                       {ipv4Categories.map(category => (
                         <div key={category.label} className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{category.label}</p>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{category.label}</p>
                           {category.addresses.length > 0 ? (
                             <ul className="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                              {category.addresses.map(addr => (
-                                <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="font-semibold text-gray-900 dark:text-white">{addr.address}</span>
-                                    {addr.prefix !== null && (
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">/{addr.prefix}</span>
+                              {category.addresses.map(addr => {
+                                const editorState = rdnsEditor[addr.address];
+                                const editing = editorState?.editing ?? false;
+                                const saving = editorState?.saving ?? false;
+                                const currentValue = editorState?.value ?? addr.rdns ?? '';
+                                return (
+                                  <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-semibold text-gray-900 dark:text-white">{addr.address}</span>
+                                      {addr.prefix !== null && (
+                                        <span className="text-xs text-gray-500 dark:text-gray-300">/{addr.prefix}</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-300">
+                                      {formatStatusLabel(addr.type)} · {addr.public ? 'Public' : 'Private'}
+                                      {addr.region ? ` · ${addr.region}` : ''}
+                                    </p>
+                                    {addr.gateway && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
                                     )}
-                                  </div>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {formatStatusLabel(addr.type)} · {addr.public ? 'Public' : 'Private'}
-                                    {addr.region ? ` · ${addr.region}` : ''}
-                                  </p>
-                                  {addr.gateway && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {addr.gateway}</p>
-                                  )}
-                                  {addr.rdns && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">rDNS: {addr.rdns}</p>
-                                  )}
-                                </li>
-                              ))}
+                                    <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
+                                    {rdnsEditable && addr.rdnsEditable && (
+                                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                        {editing ? (
+                                          <>
+                                            <input
+                                              value={currentValue}
+                                              onChange={event => updateRdnsValue(addr.address, event.target.value)}
+                                              className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                              placeholder="reverse.example.com"
+                                              disabled={saving}
+                                            />
+                                            <div className="flex gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => saveRdns(addr.address)}
+                                                disabled={saving}
+                                                className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${saving ? 'opacity-75' : ''}`}
+                                              >
+                                                {saving ? 'Saving…' : 'Save'}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => cancelEditRdns(addr.address)}
+                                                disabled={saving}
+                                                className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                              >
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => beginEditRdns(addr.address)}
+                                            className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                          >
+                                            Edit rDNS
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No addresses assigned.</p>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">No addresses assigned.</p>
                           )}
                         </div>
                       ))}
@@ -1077,10 +1432,47 @@ const VPSDetail: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Firewalls attached to this instance and their rule summaries.</p>
                 </div>
                 <div className="px-6 py-5 space-y-4">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Attach existing firewall</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">Assign a firewall from your catalogue to this server.</p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <select
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          value={selectedFirewallId === '' ? '' : String(selectedFirewallId)}
+                          onChange={event => {
+                            const value = event.target.value;
+                            setSelectedFirewallId(value === '' ? '' : Number(value));
+                          }}
+                          disabled={firewallAction === 'attach' || availableFirewallOptions.length === 0}
+                        >
+                          <option value="">— Select firewall —</option>
+                          {availableFirewallOptions.map(option => (
+                            <option key={option.id} value={option.id}>{option.label || `Firewall ${option.id}`}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleAttachFirewall}
+                          disabled={firewallAction === 'attach' || selectedFirewallId === ''}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${firewallAction === 'attach' || selectedFirewallId === '' ? 'bg-blue-600/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        >
+                          {firewallAction === 'attach' ? 'Attaching…' : 'Attach firewall'}
+                        </button>
+                      </div>
+                    </div>
+                    {availableFirewallOptions.length === 0 && (
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">No unattached firewalls were returned by the provider.</p>
+                    )}
+                  </div>
+
                   {firewallSummaries.length > 0 ? (
                     firewallSummaries.map(firewall => {
                       const inbound = firewall.rules?.inbound ?? [];
                       const outbound = firewall.rules?.outbound ?? [];
+                      const detachBusy = firewallAction === `detach-${firewall.id}`;
                       return (
                         <div key={firewall.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1110,6 +1502,16 @@ const VPSDetail: React.FC = () => {
                                 </span>
                               )}
                               {firewall.updated && <span>Updated {formatRelativeTime(firewall.updated)}</span>}
+                              {firewall.attachment?.id ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDetachFirewall(firewall.id, firewall.attachment?.id ?? null)}
+                                  disabled={detachBusy}
+                                  className={`mt-2 inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 ${detachBusy ? 'opacity-70' : ''}`}
+                                >
+                                  {detachBusy ? 'Detaching…' : 'Detach firewall'}
+                                </button>
+                              ) : null}
                             </div>
                           </div>
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1166,99 +1568,130 @@ const VPSDetail: React.FC = () => {
               </section>
             )}
 
-            {activeTab === 'configurations' && (
+            {activeTab === 'metrics' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configurations</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Provider configuration profiles along with our stored configuration payload.</p>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detailed Metrics</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Last reported utilisation from the infrastructure provider.</p>
                 </div>
                 <div className="px-6 py-5 space-y-6">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Provider profiles</h3>
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Mirrors Linode configuration profiles attached to this instance.</p>
-                    {providerConfigs.length > 0 ? (
-                      <div className="mt-4 space-y-4">
-                        {providerConfigs.map(config => {
-                          const interfaces = Array.isArray(config.interfaces) ? config.interfaces : [];
-                          return (
-                            <div key={config.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                  <p className="text-base font-semibold text-gray-900 dark:text-white">{config.label || `Config ${config.id}`}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Kernel: {config.kernel || 'default'} · Root device: {config.rootDevice || '—'}
-                                  </p>
-                                  {config.runLevel && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Run level: {config.runLevel}</p>
-                                  )}
-                                  {config.virtMode && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Virtualization: {config.virtMode}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-col items-start gap-1 text-xs text-gray-500 dark:text-gray-400 sm:items-end">
-                                  {config.created && <span>Created {formatRelativeTime(config.created)}</span>}
-                                  {config.updated && <span>Updated {formatRelativeTime(config.updated)}</span>}
-                                  {config.memoryLimit && config.memoryLimit > 0 && <span>Memory limit: {config.memoryLimit} MB</span>}
-                                </div>
-                              </div>
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <div>
-                                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Interfaces ({interfaces.length})</p>
-                                  {interfaces.length > 0 ? (
-                                    <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                                      {interfaces.slice(0, 6).map((iface, index) => {
-                                        const data = (iface ?? {}) as Record<string, unknown>;
-                                        const purpose = typeof data['purpose'] === 'string' ? String(data['purpose']) : null;
-                                        const ipamAddress = typeof data['ipam_address'] === 'string' ? String(data['ipam_address']) : null;
-                                        const ipv4Block = data['ipv4'] as { address?: unknown } | undefined;
-                                        const ipv4Addresses = Array.isArray(ipv4Block?.address) ? (ipv4Block?.address as unknown[]).filter((value): value is string => typeof value === 'string') : [];
-                                        return (
-                                          <li key={`iface-${config.id}-${index}`} className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-                                            <span className="font-semibold text-gray-800 dark:text-white">Interface {index + 1}</span>
-                                            {purpose && <p>Purpose: {formatStatusLabel(purpose)}</p>}
-                                            {ipamAddress && <p>IPAM: {ipamAddress}</p>}
-                                            {ipv4Addresses.length > 0 && <p>IPv4: {ipv4Addresses.join(', ')}</p>}
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  ) : (
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No interfaces defined.</p>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Helpers</p>
-                                  {config.helpers ? (
-                                    <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                                      {Object.entries(config.helpers).map(([key, value]) => (
-                                        <li key={`${config.id}-helper-${key}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-                                          <span className="font-medium text-gray-800 dark:text-white">{formatStatusLabel(key)}</span>
-                                          <span>{value ? 'Enabled' : 'Disabled'}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No helpers configuration reported.</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                  {detail?.metrics ? (
+                    <>
+                      {timeframeLabel && (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
+                          Observation window: {timeframeLabel}
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">CPU</p>
+                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Network (inbound)</p>
+                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Network (outbound)</p>
+                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Disk I/O</p>
+                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'} · Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'}</p>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
-                        No provider configurations available for this instance.
+
+                      <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">CPU timeline</h3>
+                          {cpuSeries.length > 0 ? (
+                            <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-xs text-gray-600 dark:text-gray-300">
+                              {cpuSeries.slice(-10).reverse().map(point => (
+                                <li key={`cpu-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
+                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-gray-900 dark:text-white">{formatPercent(point.value)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No CPU samples recorded.</p>
+                          )}
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Network throughput</h3>
+                          {inboundSeries.length + outboundSeries.length > 0 ? (
+                            <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                              {inboundSeries.slice(-6).reverse().map(point => (
+                                <li key={`in-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/40">
+                                  <span>Inbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-200">{formatNetworkRate(point.value)}</span>
+                                </li>
+                              ))}
+                              {outboundSeries.slice(-6).reverse().map(point => (
+                                <li key={`out-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-orange-50 px-3 py-2 dark:bg-orange-900/40">
+                                  <span>Outbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-orange-600 dark:text-orange-200">{formatNetworkRate(point.value)}</span>
+                                </li>
+                              ))}
+                              {privateInSeries.slice(-4).reverse().map(point => (
+                                <li key={`pin-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-purple-50 px-3 py-2 dark:bg-purple-900/40">
+                                  <span>Private inbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-purple-600 dark:text-purple-200">{formatNetworkRate(point.value)}</span>
+                                </li>
+                              ))}
+                              {privateOutSeries.slice(-4).reverse().map(point => (
+                                <li key={`pout-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 dark:bg-sky-900/40">
+                                  <span>Private outbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-sky-600 dark:text-sky-200">{formatNetworkRate(point.value)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No network samples recorded.</p>
+                          )}
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Disk reads</h3>
+                          {ioSeries.length > 0 ? (
+                            <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                              {ioSeries.slice(-8).reverse().map(point => (
+                                <li key={`io-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 dark:bg-indigo-900/40">
+                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-indigo-600 dark:text-indigo-200">{formatBlocks(point.value)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No disk samples recorded.</p>
+                          )}
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Swap activity</h3>
+                          {swapSeries.length > 0 ? (
+                            <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                              {swapSeries.slice(-8).reverse().map(point => (
+                                <li key={`swap-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-rose-50 px-3 py-2 dark:bg-rose-900/40">
+                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
+                                  <span className="font-semibold text-rose-600 dark:text-rose-200">{formatBlocks(point.value)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No swap samples recorded.</p>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Control plane configuration</h3>
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">JSON payload stored in ContainerStacks.</p>
-                    <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap break-all rounded-xl bg-gray-900/90 px-3 py-3 text-xs text-gray-100">
-                      {JSON.stringify(detail?.configuration, null, 2)}
-                    </pre>
-                  </div>
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+                      Metrics have not been reported for this instance yet.
+                    </div>
+                  )}
                 </div>
               </section>
             )}
@@ -1270,10 +1703,13 @@ const VPSDetail: React.FC = () => {
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Provider Telemetry</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
               </div>
-              <div className="px-6 py-5 space-y-4 text-sm text-gray-700 dark:text-gray-200">
+                <div className="px-6 py-5 space-y-4 text-sm text-gray-700 dark:text-gray-200">
+                  <p className="text-xs text-gray-500 dark:text-gray-300">
+                    The following IP details are reported directly by the cloud provider and may include public and private reachability.
+                  </p>
                 <div className="flex items-center justify-between">
                   <span>Image</span>
-                  <span className="font-medium">{detail?.image || detail?.provider?.image || '—'}</span>
+                  <span className="font-medium">{providerImageLabel}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Provider status</span>
@@ -1283,10 +1719,10 @@ const VPSDetail: React.FC = () => {
                   <span>Region code</span>
                   <span className="font-medium">{detail?.provider?.region || detail?.region || '—'}</span>
                 </div>
-                {detail?.provider?.ipv6 && (
+                {providerIpv6Address && (
                   <div className="flex items-center justify-between">
                     <span>IPv6 SLAAC</span>
-                    <span className="font-medium break-all">{detail.provider.ipv6}</span>
+                    <span className="font-medium break-all">{providerIpv6Address}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
@@ -1297,13 +1733,28 @@ const VPSDetail: React.FC = () => {
                   <span>Last update</span>
                   <span className="font-medium">{formatDateTime(detail?.provider?.updated || null)}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span>rDNS edits</span>
+                  <span className="font-medium">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
+                </div>
                 {detail?.provider?.ipv4?.length ? (
                   <div>
-                    <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Provider IPv4 list</span>
-                    <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                      {detail.provider.ipv4.map(ip => (
-                        <li key={ip} className="rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">{ip}</li>
-                      ))}
+                    <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IPv4 addresses</span>
+                    <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-200">
+                      {detail.provider.ipv4.map(ip => {
+                        const classification = classifyProviderIpv4(ip);
+                        const descriptor = classification === 'private'
+                          ? 'private network'
+                          : classification === 'public'
+                            ? 'public network'
+                            : 'unclassified';
+                        return (
+                          <li key={ip} className="rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                            <span className="font-semibold text-gray-700 dark:text-gray-100">{ip}</span>
+                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">({descriptor}, provider assigned)</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : null}

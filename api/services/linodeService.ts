@@ -848,6 +848,73 @@ class LinodeService {
     }
   }
 
+  async enableLinodeBackups(instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/enable`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error('Error enabling Linode backups:', error);
+      throw error;
+    }
+  }
+
+  async cancelLinodeBackups(instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/cancel`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error('Error disabling Linode backups:', error);
+      throw error;
+    }
+  }
+
+  async createLinodeBackup(instanceId: number, label?: string): Promise<Record<string, unknown>> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(label ? { label } : {}),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json().catch(() => ({}));
+      return data as Record<string, unknown>;
+    } catch (error) {
+      console.error('Error creating Linode backup snapshot:', error);
+      throw error;
+    }
+  }
+
   async getLinodeInstanceIPs(instanceId: number): Promise<LinodeIPsResponse> {
     try {
       if (!this.apiToken) {
@@ -894,6 +961,42 @@ class LinodeService {
     }
   }
 
+  async listFirewalls(): Promise<Record<string, unknown>[]> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const pageSize = 100;
+      let page = 1;
+      let totalPages = 1;
+      const results: Record<string, unknown>[] = [];
+
+      while (page <= totalPages) {
+        const response = await fetch(`${this.baseUrl}/networking/firewalls?page=${page}&page_size=${pageSize}`, {
+          headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+          const text = await response.text().catch(() => '');
+          throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+        }
+
+        const payload = await response.json();
+        const data = Array.isArray(payload?.data) ? payload.data : [];
+        results.push(...(data as Record<string, unknown>[]));
+        const pages = Number(payload?.pages ?? 1);
+        totalPages = Number.isFinite(pages) && pages > 0 ? pages : 1;
+        page += 1;
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error listing firewalls:', error);
+      throw error;
+    }
+  }
+
   async getLinodeInstanceConfigs(instanceId: number): Promise<LinodeInstanceConfigsResponse> {
     try {
       if (!this.apiToken) {
@@ -913,6 +1016,73 @@ class LinodeService {
       return data as LinodeInstanceConfigsResponse;
     } catch (error) {
       console.error('Error fetching Linode configuration profiles:', error);
+      throw error;
+    }
+  }
+
+  async getFirewallDevices(firewallId: number): Promise<Record<string, unknown>[]> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/networking/firewalls/${firewallId}/devices`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const payload = await response.json();
+      const devices = Array.isArray(payload?.data) ? payload.data : [];
+      return devices as Record<string, unknown>[];
+    } catch (error) {
+      console.error(`Error fetching devices for firewall ${firewallId}:`, error);
+      throw error;
+    }
+  }
+
+  async attachFirewallToLinode(firewallId: number, instanceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/networking/firewalls/${firewallId}/devices`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ type: 'linode', id: instanceId }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error(`Error attaching firewall ${firewallId} to Linode ${instanceId}:`, error);
+      throw error;
+    }
+  }
+
+  async detachFirewallFromLinode(firewallId: number, deviceId: number): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/networking/firewalls/${firewallId}/devices/${deviceId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error(`Error detaching firewall ${firewallId} device ${deviceId}:`, error);
       throw error;
     }
   }
@@ -957,6 +1127,31 @@ class LinodeService {
       return data as LinodeEventsResponse;
     } catch (error) {
       console.error('Error fetching Linode events:', error);
+      throw error;
+    }
+  }
+
+  async updateIPAddressReverseDNS(address: string, rdns: string | null): Promise<Record<string, unknown>> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/networking/ips/${encodeURIComponent(address)}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ rdns }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      return payload as Record<string, unknown>;
+    } catch (error) {
+      console.error(`Error updating rDNS for ${address}:`, error);
       throw error;
     }
   }
