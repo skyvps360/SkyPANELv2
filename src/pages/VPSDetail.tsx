@@ -1548,106 +1548,106 @@ const VPSDetail: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Current IPv4/IPv6 assignments and routing details.</p>
                 </div>
                 <div className="px-6 py-5 space-y-8">
-                  <div className="grid gap-6 xl:grid-cols-12">
-                    <div className="xl:col-span-5">
-                      <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                              <Gauge className="h-5 w-5 text-blue-500" />
+                  <div className="grid gap-6">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                      <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                                <Gauge className="h-5 w-5 text-blue-500" />
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
+                                <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsageTitle}</h3>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
-                              <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsageTitle}</h3>
+                            {hasTransferData && (
+                              <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                {transferUsagePercent.toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-300">{transferUsageDescription}</p>
+                          <div>
+                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                              <span>{usageLabel}</span>
+                              <span>
+                                {hasTransferData ? `${usageUsedGb.toFixed(2)} GB of ${usageQuotaGb.toFixed(0)} GB` : 'Unavailable'}
+                              </span>
+                            </div>
+                            <div className="mt-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-800">
+                              <div
+                                className="h-2 rounded-full bg-blue-500 transition-all"
+                                style={{ width: `${transferUsagePercent}%` }}
+                              />
                             </div>
                           </div>
-                          {hasTransferData && (
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
-                              {transferUsagePercent.toFixed(0)}%
-                            </span>
+                          {hasTransferData ? (
+                            <>
+                              <dl className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                  <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
+                                  <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsedGb.toFixed(2)} GB</dd>
+                                </div>
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                  <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
+                                  <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
+                                </div>
+                                {!accountTransferInfo && (
+                                  <>
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Available quota</dt>
+                                      <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                        {usageRemainingGb !== null ? `${usageRemainingGb.toFixed(2)} GB` : '—'}
+                                      </dd>
+                                    </div>
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
+                                      <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
+                                    </div>
+                                  </>
+                                )}
+                              </dl>
+                              {transferUsagePercent >= 90 && (
+                                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  Approaching quota
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Usage data unavailable.</p>
                           )}
                         </div>
-                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">{transferUsageDescription}</p>
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>{usageLabel}</span>
-                            <span>
-                              {hasTransferData ? `${usageUsedGb.toFixed(2)} GB of ${usageQuotaGb.toFixed(0)} GB` : 'Unavailable'}
-                            </span>
-                          </div>
-                          <div className="mt-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-800">
-                            <div
-                              className="h-2 rounded-full bg-blue-500 transition-all"
-                              style={{ width: `${transferUsagePercent}%` }}
-                            />
-                          </div>
-                        </div>
-                        {hasTransferData ? (
-                          <>
-                            <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsedGb.toFixed(2)} GB</dd>
-                              </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
-                              </div>
-                              {!accountTransferInfo && (
-                                <>
-                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Available quota</dt>
-                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                      {usageRemainingGb !== null ? `${usageRemainingGb.toFixed(2)} GB` : '—'}
-                                    </dd>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
-                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
-                                  </div>
-                                </>
-                              )}
-                            </dl>
-                            {transferUsagePercent >= 90 && (
-                              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
-                                <AlertTriangle className="h-4 w-4" />
-                                Approaching quota
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">Usage data unavailable.</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="xl:col-span-7">
-                      <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                          <Network className="h-4 w-4 text-blue-500" />
-                          Connectivity overview
-                        </h3>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
-                          Quick reference for address availability and DNS controls.
-                        </p>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public IPv4</p>
-                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{publicIpv4Count}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
-                          </div>
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Private IPv4</p>
-                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{privateIpv4Count}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Internal networking</p>
-                          </div>
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">IPv6 SLAAC</p>
-                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                              {hasSlaacIpv6 ? 'Available' : 'Not provisioned'}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {hasSlaacIpv6 ? 'rDNS adjustable in-place' : 'Automatic configuration pending'}
-                            </p>
+                        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm dark:border-gray-800/60 dark:bg-gray-900">
+                          <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                            <Network className="h-4 w-4 text-blue-500" />
+                            Connectivity overview
+                          </h3>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+                            Quick reference for address availability and DNS controls.
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public IPv4</p>
+                              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{publicIpv4Count}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
+                            </div>
+                            <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Private IPv4</p>
+                              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{privateIpv4Count}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Internal networking</p>
+                            </div>
+                            <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">IPv6 SLAAC</p>
+                              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                                {hasSlaacIpv6 ? 'Available' : 'Not provisioned'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {hasSlaacIpv6 ? 'rDNS adjustable in-place' : 'Automatic configuration pending'}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2277,6 +2277,29 @@ const VPSDetail: React.FC = () => {
                     ) : null}
                   </div>
                 </div>
+                {slaacAddress ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span>IPv6 rDNS</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="max-w-[200px] truncate font-medium"
+                        title={slaacCurrentValue || 'Not set'}
+                      >
+                        {slaacCurrentValue || 'Not set'}
+                      </span>
+                      {slaacCurrentValue ? (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(slaacCurrentValue, 'IPv6 rDNS')}
+                          className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                          aria-label="Copy IPv6 rDNS"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 {detail?.provider?.ipv4?.length || providerIpv6Address ? (
                   <div>
                     <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IP addresses</span>
@@ -2289,16 +2312,36 @@ const VPSDetail: React.FC = () => {
                             ? 'public network'
                             : 'unclassified';
                         return (
-                          <li key={ip} className="rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
-                            <span className="font-semibold text-gray-700 dark:text-gray-100">{ip}</span>
-                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">({descriptor}, provider assigned)</span>
+                          <li key={ip} className="flex items-center justify-between gap-3 rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-gray-700 dark:text-gray-100" title={ip}>{ip}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-300">({descriptor}, provider assigned)</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(ip, 'Provider IPv4')}
+                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                              aria-label={`Copy provider IPv4 ${ip}`}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
                           </li>
                         );
                       })}
                       {providerIpv6Address && (
-                        <li className="rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
-                          <span className="font-semibold text-gray-700 dark:text-gray-100 break-all">{providerIpv6Address}</span>
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">(ipv6 slaac, provider assigned)</span>
+                        <li className="flex items-center justify-between gap-3 rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                          <div className="min-w-0">
+                            <p className="break-all font-semibold text-gray-700 dark:text-gray-100" title={providerIpv6Address}>{providerIpv6Address}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-300">(ipv6 slaac, provider assigned)</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(providerIpv6Address, 'Provider IPv6')}
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                            aria-label="Copy provider IPv6"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
                         </li>
                       )}
                     </ul>
