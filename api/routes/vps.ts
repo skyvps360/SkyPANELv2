@@ -59,11 +59,19 @@ interface MetricSeriesPayload {
   unit: 'percent' | 'bitsPerSecond' | 'blocksPerSecond';
 }
 
+interface AccountTransferPayload {
+  quotaGb: number;
+  usedGb: number;
+  billableGb: number;
+  remainingGb: number;
+}
+
 interface TransferPayload {
   usedGb: number;
   quotaGb: number;
   billableGb: number;
   utilizationPercent: number;
+  account: AccountTransferPayload | null;
 }
 
 interface BackupsPayload {
@@ -904,11 +912,32 @@ router.get('/:id', async (req: Request, res: Response) => {
   if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const transferData = await linodeService.getLinodeInstanceTransfer(providerInstanceId);
+        let accountTransfer: { quota?: number; used?: number; billable?: number } | null = null;
+        try {
+          accountTransfer = await linodeService.getAccountTransfer();
+        } catch (accountErr) {
+          console.warn('Failed to fetch account transfer usage:', accountErr);
+        }
+
         const usedGb = bytesToGigabytes(Number(transferData?.used ?? 0));
         const quotaGb = Number(transferData?.quota ?? 0);
         const billableGb = Number(transferData?.billable ?? 0);
         const utilizationPercent = quotaGb > 0 ? Math.min(100, Math.max(0, (usedGb / quotaGb) * 100)) : 0;
-        transfer = { usedGb, quotaGb, billableGb, utilizationPercent };
+
+        let account: AccountTransferPayload | null = null;
+        if (accountTransfer) {
+          const accountQuotaGb = Number(accountTransfer.quota ?? 0);
+          const accountUsedGb = Number(accountTransfer.used ?? 0);
+          const accountBillableGb = Number(accountTransfer.billable ?? 0);
+          account = {
+            quotaGb: accountQuotaGb,
+            usedGb: accountUsedGb,
+            billableGb: accountBillableGb,
+            remainingGb: Math.max(accountQuotaGb - accountUsedGb, 0),
+          };
+        }
+
+        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account };
       } catch (err) {
         console.warn('Failed to fetch transfer usage:', err);
       }
@@ -1285,9 +1314,6 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Failed to create VPS instance' });
   }
 });
-
-export default router;
-
 // Instance actions: boot
 router.post('/:id/boot', async (req: Request, res: Response) => {
   try {
@@ -1327,99 +1353,6 @@ router.post('/:id/boot', async (req: Request, res: Response) => {
 router.post('/:id/shutdown', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
-router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
-    const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
-    }
-
-    const row = rowRes.rows[0];
-    const providerInstanceId = Number(row.provider_instance_id);
-    if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
-    }
-
-    const { day: rawDay, window: rawWindow } = req.body ?? {};
-
-    let dayValue: string | null | undefined = undefined;
-    if (rawDay !== undefined) {
-      if (rawDay === null) {
-        dayValue = null;
-      } else if (typeof rawDay === 'string') {
-        const trimmed = rawDay.trim();
-        if (trimmed === '') {
-          dayValue = null;
-        } else if (BACKUP_DAY_OPTIONS.has(trimmed)) {
-          dayValue = trimmed;
-        } else {
-          return res.status(400).json({ error: 'Invalid backup day selected' });
-        }
-      } else {
-        return res.status(400).json({ error: 'Invalid backup day payload' });
-      }
-    }
-
-    let windowValue: string | null | undefined = undefined;
-    if (rawWindow !== undefined) {
-      if (rawWindow === null) {
-        windowValue = null;
-      } else if (typeof rawWindow === 'string') {
-        const trimmed = rawWindow.trim().toUpperCase();
-        if (trimmed === '') {
-          windowValue = null;
-        } else if (BACKUP_WINDOW_OPTIONS.has(trimmed)) {
-          windowValue = trimmed;
-        } else {
-          return res.status(400).json({ error: 'Invalid backup window selected' });
-        }
-      } else {
-        return res.status(400).json({ error: 'Invalid backup window payload' });
-      }
-    }
-
-    const scheduleUpdate: { day?: string | null; window?: string | null } = {};
-    if (dayValue !== undefined) {
-      scheduleUpdate.day = dayValue;
-    }
-    if (windowValue !== undefined) {
-      scheduleUpdate.window = windowValue;
-    }
-
-    if (Object.keys(scheduleUpdate).length === 0) {
-      return res.status(400).json({ error: 'No schedule changes supplied' });
-    }
-
-    await linodeService.updateLinodeBackupSchedule(providerInstanceId, scheduleUpdate);
-
-    try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.schedule',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Updated backup schedule for VPS '${row.label}'`,
-        metadata: {
-          day: dayValue ?? 'auto',
-          window: windowValue ?? 'auto',
-        },
-        status: 'success',
-      }, req as any);
-    } catch (logErr) {
-      console.warn('Failed to log vps.backups.schedule activity:', logErr);
-    }
-
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error('VPS update backup schedule error:', err);
-    res.status(500).json({ error: err.message || 'Failed to update backup schedule' });
-  }
-});
     const organizationId = (req as any).user.organizationId;
     const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
     if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
@@ -1564,6 +1497,99 @@ router.post('/:id/backups/disable', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+    const organizationId = user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Instance not found' });
+    }
+
+    const row = rowRes.rows[0];
+    const providerInstanceId = Number(row.provider_instance_id);
+    if (!Number.isFinite(providerInstanceId)) {
+      return res.status(400).json({ error: 'Instance is missing provider reference' });
+    }
+
+    const { day: rawDay, window: rawWindow } = req.body ?? {};
+
+    let dayValue: string | null | undefined = undefined;
+    if (rawDay !== undefined) {
+      if (rawDay === null) {
+        dayValue = null;
+      } else if (typeof rawDay === 'string') {
+        const trimmed = rawDay.trim();
+        if (trimmed === '') {
+          dayValue = null;
+        } else if (BACKUP_DAY_OPTIONS.has(trimmed)) {
+          dayValue = trimmed;
+        } else {
+          return res.status(400).json({ error: 'Invalid backup day selected' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Invalid backup day payload' });
+      }
+    }
+
+    let windowValue: string | null | undefined = undefined;
+    if (rawWindow !== undefined) {
+      if (rawWindow === null) {
+        windowValue = null;
+      } else if (typeof rawWindow === 'string') {
+        const trimmed = rawWindow.trim().toUpperCase();
+        if (trimmed === '') {
+          windowValue = null;
+        } else if (BACKUP_WINDOW_OPTIONS.has(trimmed)) {
+          windowValue = trimmed;
+        } else {
+          return res.status(400).json({ error: 'Invalid backup window selected' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Invalid backup window payload' });
+      }
+    }
+
+    const scheduleUpdate: { day?: string | null; window?: string | null } = {};
+    if (dayValue !== undefined) {
+      scheduleUpdate.day = dayValue;
+    }
+    if (windowValue !== undefined) {
+      scheduleUpdate.window = windowValue;
+    }
+
+    if (Object.keys(scheduleUpdate).length === 0) {
+      return res.status(400).json({ error: 'No schedule changes supplied' });
+    }
+
+    await linodeService.updateLinodeBackupSchedule(providerInstanceId, scheduleUpdate);
+
+    try {
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backups.schedule',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Updated backup schedule for VPS '${row.label}'`,
+        metadata: {
+          day: dayValue ?? 'auto',
+          window: windowValue ?? 'auto',
+        },
+        status: 'success',
+      }, req as any);
+    } catch (logErr) {
+      console.warn('Failed to log vps.backups.schedule activity:', logErr);
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS update backup schedule error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update backup schedule' });
+  }
+});
+
 router.post('/:id/backups/snapshot', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -1602,6 +1628,58 @@ router.post('/:id/backups/snapshot', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('VPS snapshot error:', err);
     res.status(500).json({ error: err.message || 'Failed to trigger snapshot' });
+  }
+});
+
+router.post('/:id/backups/:backupId/restore', async (req: Request, res: Response) => {
+  try {
+    const { id, backupId } = req.params;
+    const user = (req as any).user;
+    const organizationId = user.organizationId;
+    const parsedBackupId = Number(backupId);
+    if (!Number.isInteger(parsedBackupId) || parsedBackupId <= 0) {
+      return res.status(400).json({ error: 'A valid backupId is required' });
+    }
+
+    const { overwrite } = (req.body || {}) as { overwrite?: boolean };
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Instance not found' });
+    }
+
+    const row = rowRes.rows[0];
+    const providerInstanceId = Number(row.provider_instance_id);
+    if (!Number.isFinite(providerInstanceId)) {
+      return res.status(400).json({ error: 'Instance is missing provider reference' });
+    }
+
+    await linodeService.restoreLinodeBackup(providerInstanceId, parsedBackupId, {
+      overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
+      targetInstanceId: providerInstanceId,
+    });
+
+    try {
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backups.restore',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Initiated restore from backup ${parsedBackupId} for VPS '${row.label}'`,
+        status: 'success',
+        metadata: {
+          backupId: parsedBackupId,
+          overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
+        },
+      }, req as any);
+    } catch (logErr) {
+      console.warn('Failed to log vps.backups.restore activity:', logErr);
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS restore backup error:', err);
+    res.status(500).json({ error: err.message || 'Failed to restore from backup' });
   }
 });
 
@@ -1801,3 +1879,5 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Failed to delete VPS instance' });
   }
 });
+
+export default router;

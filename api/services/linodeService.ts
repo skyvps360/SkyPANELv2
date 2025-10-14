@@ -177,6 +177,18 @@ export interface LinodeInstanceTransferResponse {
   billable: number;
 }
 
+export interface AccountTransferResponse {
+  used: number;
+  quota: number;
+  billable: number;
+  region_transfers?: Array<{
+    id?: string;
+    used?: number;
+    quota?: number;
+    billable?: number;
+  }>;
+}
+
 export interface LinodeBackupDisk {
   label?: string;
   size?: number;
@@ -826,6 +838,29 @@ class LinodeService {
     }
   }
 
+  async getAccountTransfer(): Promise<AccountTransferResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/account/transfer`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as AccountTransferResponse;
+    } catch (error) {
+      console.error('Error fetching Linode account transfer usage:', error);
+      throw error;
+    }
+  }
+
   /**
    * Fetch available backups for an instance
    */
@@ -955,6 +990,41 @@ class LinodeService {
       return data as Record<string, unknown>;
     } catch (error) {
       console.error('Error creating Linode backup snapshot:', error);
+      throw error;
+    }
+  }
+
+  async restoreLinodeBackup(
+    instanceId: number,
+    backupId: number,
+    options: { overwrite?: boolean; targetInstanceId?: number } = {}
+  ): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const targetInstanceId = options.targetInstanceId ?? instanceId;
+      const payload: Record<string, unknown> = {
+        linode_id: targetInstanceId,
+      };
+
+      if (options.overwrite !== undefined) {
+        payload.overwrite = Boolean(options.overwrite);
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error('Error restoring Linode backup:', error);
       throw error;
     }
   }

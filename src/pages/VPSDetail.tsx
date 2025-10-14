@@ -16,7 +16,14 @@ import {
   AlertTriangle,
   Globe2,
   Shield,
-  BarChart3
+  BarChart3,
+  LayoutDashboard,
+  Layers,
+  CalendarClock,
+  Gauge,
+  SatelliteDish,
+  Cloud,
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,11 +60,19 @@ interface MetricGroup {
   };
 }
 
+interface AccountTransferInfo {
+  quotaGb: number;
+  usedGb: number;
+  billableGb: number;
+  remainingGb: number;
+}
+
 interface TransferInfo {
   usedGb: number;
   quotaGb: number;
   billableGb: number;
   utilizationPercent: number;
+  account: AccountTransferInfo | null;
 }
 
 interface BackupSummary {
@@ -439,6 +454,7 @@ const VPSDetail: React.FC = () => {
   const [scheduleDay, setScheduleDay] = useState<string>('');
   const [scheduleWindow, setScheduleWindow] = useState<string>('');
   const [scheduleBusy, setScheduleBusy] = useState<boolean>(false);
+  const [restoreBusyId, setRestoreBusyId] = useState<number | null>(null);
   const [snapshotLabel, setSnapshotLabel] = useState<string>('');
   const [selectedFirewallId, setSelectedFirewallId] = useState<number | ''>('');
   const [firewallAction, setFirewallAction] = useState<'attach' | `detach-${number}` | null>(null);
@@ -551,9 +567,23 @@ const VPSDetail: React.FC = () => {
   const transferQuotaGb = transferInfo?.quotaGb ?? 0;
   const transferUsedGb = transferInfo?.usedGb ?? 0;
   const transferBillableGb = transferInfo?.billableGb ?? 0;
-  const transferUsagePercent = Math.min(100, Math.max(0, transferInfo?.utilizationPercent ?? 0));
-  const transferRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
-  const transferOverageGb = transferInfo ? Math.max(transferUsedGb - transferQuotaGb, 0) : null;
+  const accountTransferInfo = transferInfo?.account ?? null;
+  const accountQuotaGb = accountTransferInfo?.quotaGb ?? null;
+  const accountUsedGb = accountTransferInfo?.usedGb ?? null;
+  const accountRemainingGb = accountTransferInfo?.remainingGb ?? null;
+  const accountBillableGb = accountTransferInfo?.billableGb ?? null;
+  const usageQuotaGb = (accountQuotaGb ?? undefined) ?? transferQuotaGb;
+  const usageUsedGb = (accountUsedGb ?? undefined) ?? transferUsedGb;
+  const transferUsagePercent = usageQuotaGb > 0 ? Math.min(100, Math.max(0, (usageUsedGb / usageQuotaGb) * 100)) : 0;
+  const usageRemainingGb = usageQuotaGb > 0 ? Math.max(usageQuotaGb - usageUsedGb, 0) : null;
+  const instanceRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
+  const transferUsageTitle = accountTransferInfo ? 'Account transfer pool' : 'Active billing cycle';
+  const transferUsageDescription = accountTransferInfo
+    ? 'Track global bandwidth consumption across your account pool.'
+    : 'Track bandwidth consumption against the quota reported by your provider.';
+  const usageLabel = accountTransferInfo ? 'Account usage' : 'Usage';
+  const effectiveBillableGb = accountBillableGb ?? transferBillableGb;
+  const hasTransferData = Boolean(transferInfo);
   const totalIpv4Count = ipv4Categories.reduce((total, category) => total + category.addresses.length, 0);
   const publicIpv4Count = detail?.networking?.ipv4?.public?.length ?? 0;
   const privateIpv4Count = detail?.networking?.ipv4?.private?.length ?? 0;
@@ -720,6 +750,8 @@ const VPSDetail: React.FC = () => {
   const normalizedOriginalDay = !originalScheduleDay || originalScheduleDay === 'Scheduling' ? '' : originalScheduleDay;
   const normalizedOriginalWindow = !originalScheduleWindow || originalScheduleWindow === 'Scheduling' ? '' : originalScheduleWindow;
   const scheduleDirty = scheduleDay !== normalizedOriginalDay || scheduleWindow !== normalizedOriginalWindow;
+  const snapshotId = typeof detail?.backups?.snapshot?.id === 'number' ? detail.backups.snapshot.id : null;
+  const snapshotRestoreBusy = snapshotId !== null && restoreBusyId === snapshotId;
 
   const handleBackupAction = useCallback(async (action: 'enable' | 'disable' | 'snapshot') => {
     if (!detail) return;
@@ -793,6 +825,41 @@ const VPSDetail: React.FC = () => {
     setScheduleDay(normalizedOriginalDay);
     setScheduleWindow(normalizedOriginalWindow);
   }, [normalizedOriginalDay, normalizedOriginalWindow]);
+
+  const handleBackupRestore = useCallback(async (backupId: number) => {
+    if (!detail?.id || !Number.isFinite(backupId)) {
+      return;
+    }
+
+    const confirmation = window.confirm('Restoring this backup will overwrite all disks on this VPS. Continue?');
+    if (!confirmation) {
+      return;
+    }
+
+    setRestoreBusyId(backupId);
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ overwrite: true }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to restore backup');
+      }
+      toast.success('Backup restore initiated');
+      await loadData({ silent: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to restore backup';
+      console.error('Backup restore failed:', err);
+      toast.error(message);
+    } finally {
+      setRestoreBusyId(null);
+    }
+  }, [detail?.id, loadData, token]);
 
   const handleAttachFirewall = useCallback(async () => {
     if (!detail || selectedFirewallId === '' || firewallAction === 'attach') return;
@@ -1076,7 +1143,10 @@ const VPSDetail: React.FC = () => {
               <>
                 <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                   <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Instance Overview</h2>
+                    <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                      <LayoutDashboard className="h-5 w-5 text-blue-500" />
+                      Instance Overview
+                    </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Metadata and quick actions for this server.</p>
                   </div>
                   <div className="px-6 py-5">
@@ -1141,7 +1211,10 @@ const VPSDetail: React.FC = () => {
 
                     <div className="mt-10 space-y-6">
                       <div>
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Plan & Resources</h3>
+                        <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+                          <Layers className="h-4 w-4 text-blue-500" />
+                          Plan & Resources
+                        </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Reserved capacity, pricing, and recent utilisation.</p>
                       </div>
 
@@ -1191,49 +1264,6 @@ const VPSDetail: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Performance snapshot (last 24h)</p>
-                          {timeframeLabel && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Observation window: {timeframeLabel}</p>
-                          )}
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                              <span>CPU Utilization</span>
-                              <Cpu className="h-4 w-4 text-blue-500" />
-                            </div>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
-                          </div>
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                              <span>Inbound Traffic</span>
-                              <Network className="h-4 w-4 text-emerald-500" />
-                            </div>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
-                          </div>
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                              <span>Outbound Traffic</span>
-                              <Network className="h-4 w-4 text-orange-500" />
-                            </div>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
-                          </div>
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                              <span>I/O Activity</span>
-                              <Activity className="h-4 w-4 text-purple-500" />
-                            </div>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'} · Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'}</p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </section>
@@ -1244,7 +1274,10 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'backups' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Backup Protection</h2>
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <ShieldCheck className="h-5 w-5 text-blue-500" />
+                    Backup Protection
+                  </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Automatic snapshots captured by the underlying platform.</p>
                 </div>
                 <div className="px-6 py-5 space-y-5">
@@ -1302,7 +1335,10 @@ const VPSDetail: React.FC = () => {
                   <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Automated backup schedule</h3>
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                          <CalendarClock className="h-4 w-4 text-blue-500" />
+                          Automated backup schedule
+                        </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-300">
                           Choose the preferred weekly snapshot day and two-hour window. Leave either field on auto to let the provider pick.
                         </p>
@@ -1384,23 +1420,48 @@ const VPSDetail: React.FC = () => {
 
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Automatic backups</h3>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                        <Cloud className="h-4 w-4 text-blue-500" />
+                        Automatic backups
+                      </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Most recent restore points (up to 5 shown).</p>
                     </div>
                     {detail?.backups?.automatic && detail.backups.automatic.length > 0 ? (
                       <div className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-                        {detail.backups.automatic.slice(0, 5).map((backup) => (
-                          <div key={backup.id ?? backup.created ?? Math.random()} className="flex flex-col gap-2 bg-white px-4 py-3 text-sm dark:bg-gray-900/60 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{backup.label || `Backup ${backup.id ?? ''}`}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{backup.created ? `${formatDateTime(backup.created)} (${formatRelativeTime(backup.created)})` : 'Pending'}</p>
+                        {detail.backups.automatic.slice(0, 5).map(backup => {
+                          const backupId = typeof backup.id === 'number' ? backup.id : null;
+                          const restoreAvailable = Boolean(backup.available && backupId !== null);
+                          const automaticRestoreBusy = backupId !== null && restoreBusyId === backupId;
+                          const restoreDisabled = !restoreAvailable || restoreBusyId !== null;
+                          const itemKey = backupId ?? backup.created ?? backup.label ?? Math.random().toString(36);
+                          return (
+                            <div key={itemKey} className="flex flex-col gap-2 bg-white px-4 py-3 text-sm dark:bg-gray-900/60 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">{backup.label || `Backup ${backupId ?? ''}`}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{backup.created ? `${formatDateTime(backup.created)} (${formatRelativeTime(backup.created)})` : 'Pending'}</p>
+                              </div>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                                <div className="flex items-center gap-4">
+                                  <span className={`text-xs font-semibold uppercase tracking-wide ${backup.available ? 'text-green-500' : 'text-amber-500'}`}>{backup.status || 'pending'}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatSizeFromMb(backup.totalSizeMb)}</span>
+                                </div>
+                                {restoreAvailable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (backupId !== null) handleBackupRestore(backupId);
+                                    }}
+                                    disabled={restoreDisabled}
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200 ${restoreDisabled ? 'bg-blue-500/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                                  >
+                                    <RotateCcw className={`h-4 w-4 ${automaticRestoreBusy ? 'animate-spin' : ''}`} />
+                                    {automaticRestoreBusy ? 'Restoring…' : 'Restore'}
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className={`text-xs font-semibold uppercase tracking-wide ${backup.available ? 'text-green-500' : 'text-amber-500'}`}>{backup.status || 'pending'}</span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">{formatSizeFromMb(backup.totalSizeMb)}</span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
@@ -1410,11 +1471,32 @@ const VPSDetail: React.FC = () => {
 
                     {detail?.backups?.snapshot || detail?.backups?.snapshotInProgress ? (
                       <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/60 dark:bg-blue-900/30 dark:text-blue-200">
-                        <p className="font-semibold">Manual snapshots</p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-2 font-semibold">
+                            <Sparkles className="h-4 w-4 text-blue-500" />
+                            <span>Manual snapshots</span>
+                          </div>
+                          {snapshotId !== null && (
+                            <button
+                              type="button"
+                              onClick={() => handleBackupRestore(snapshotId)}
+                              disabled={restoreBusyId !== null}
+                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200 ${restoreBusyId !== null ? 'bg-blue-500/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                            >
+                              <RotateCcw className={`h-4 w-4 ${snapshotRestoreBusy ? 'animate-spin' : ''}`} />
+                              {snapshotRestoreBusy ? 'Restoring…' : 'Restore snapshot'}
+                            </button>
+                          )}
+                        </div>
                         {detail?.backups?.snapshot ? (
-                          <p className="text-xs">Current snapshot from {detail.backups.snapshot.created ? formatDateTime(detail.backups.snapshot.created) : 'unknown time'}.</p>
+                          <p className="mt-2 flex items-center gap-2 text-xs">
+                            <span>
+                              Captured {detail.backups.snapshot.created ? formatDateTime(detail.backups.snapshot.created) : 'at an unknown time'}
+                              {detail.backups.snapshot.label ? ` · ${detail.backups.snapshot.label}` : ''}.
+                            </span>
+                          </p>
                         ) : (
-                          <p className="text-xs">A snapshot is currently running.</p>
+                          <p className="mt-2 text-xs">A snapshot is currently running.</p>
                         )}
                       </div>
                     ) : null}
@@ -1426,7 +1508,10 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'networking' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Networking</h2>
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <Globe2 className="h-5 w-5 text-blue-500" />
+                    Networking
+                  </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Current IPv4/IPv6 assignments and routing details.</p>
                 </div>
                 <div className="px-6 py-5 space-y-8">
@@ -1434,24 +1519,27 @@ const VPSDetail: React.FC = () => {
                     <div className="xl:col-span-5">
                       <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
-                            <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">Active billing cycle</h3>
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                              <Gauge className="h-5 w-5 text-blue-500" />
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
+                              <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsageTitle}</h3>
+                            </div>
                           </div>
-                          {transferInfo && (
+                          {hasTransferData && (
                             <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
                               {transferUsagePercent.toFixed(0)}%
                             </span>
                           )}
                         </div>
-                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
-                          Track bandwidth consumption against the quota reported by your provider.
-                        </p>
+                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">{transferUsageDescription}</p>
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>Usage</span>
+                            <span>{usageLabel}</span>
                             <span>
-                              {transferInfo ? `${transferUsedGb.toFixed(2)} GB of ${transferQuotaGb.toFixed(0)} GB` : 'Unavailable'}
+                              {hasTransferData ? `${usageUsedGb.toFixed(2)} GB of ${usageQuotaGb.toFixed(0)} GB` : 'Unavailable'}
                             </span>
                           </div>
                           <div className="mt-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-800">
@@ -1461,32 +1549,30 @@ const VPSDetail: React.FC = () => {
                             />
                           </div>
                         </div>
-                        {transferInfo ? (
+                        {hasTransferData ? (
                           <>
                             <dl className="mt-5 grid gap-3 sm:grid-cols-2">
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Used</dt>
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsedGb.toFixed(2)} GB</dd>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{instanceRemainingGb !== null ? `${instanceRemainingGb.toFixed(2)} GB` : '—'}</dd>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Account remaining' : 'Available quota'}</dt>
                                 <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                  {transferUsedGb.toFixed(2)} GB
+                                  {accountRemainingGb !== null
+                                    ? `${accountRemainingGb.toFixed(2)} GB`
+                                    : usageRemainingGb !== null
+                                    ? `${usageRemainingGb.toFixed(2)} GB`
+                                    : '—'}
                                 </dd>
                               </div>
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Remaining</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                  {transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}
-                                </dd>
-                              </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                  {transferBillableGb.toFixed(2)} GB
-                                </dd>
-                              </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Overage</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                  {transferOverageGb !== null ? `${transferOverageGb.toFixed(2)} GB` : '—'}
-                                </dd>
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Billable (pool)' : 'Billable'}</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
                               </div>
                             </dl>
                             {transferUsagePercent >= 90 && (
@@ -1503,7 +1589,10 @@ const VPSDetail: React.FC = () => {
                     </div>
                     <div className="xl:col-span-7">
                       <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Connectivity overview</h3>
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                          <Network className="h-4 w-4 text-blue-500" />
+                          Connectivity overview
+                        </h3>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
                           Quick reference for address availability and DNS controls.
                         </p>
@@ -2076,7 +2165,10 @@ const VPSDetail: React.FC = () => {
           <aside className="space-y-6">
             <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Provider Telemetry</h2>
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                  <SatelliteDish className="h-5 w-5 text-blue-500" />
+                  Provider Telemetry
+                </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
               </div>
                 <div className="px-6 py-5 space-y-4 text-sm text-gray-700 dark:text-gray-200">
