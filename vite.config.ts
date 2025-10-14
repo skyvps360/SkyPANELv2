@@ -12,6 +12,8 @@ export default defineConfig({
     }),
     tsconfigPaths(),
   ],
+  // Expose custom env prefix so frontend can read COMPANY-NAME
+  envPrefix: ['VITE_', 'COMPANY-'],
   server: {
     proxy: {
       '/api/': {

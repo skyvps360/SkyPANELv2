@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Container, Server, Shield, Zap, ArrowRight } from 'lucide-react';
+import { BRAND_NAME } from '../lib/brand';
 
 export default function Home() {
   const features = [
@@ -33,7 +34,7 @@ export default function Home() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <Container className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">ContainerStacks</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">{BRAND_NAME}</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -123,7 +124,7 @@ export default function Home() {
               Ready to get started?
             </h2>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of developers who trust ContainerStacks for their infrastructure needs.
+              {`Join thousands of developers who trust ${BRAND_NAME} for their infrastructure needs.`}
             </p>
             <Link
               to="/register"
@@ -142,10 +143,10 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Container className="h-6 w-6 text-blue-400" />
-              <span className="ml-2 text-lg font-bold text-white">ContainerStacks</span>
+              <span className="ml-2 text-lg font-bold text-white">{BRAND_NAME}</span>
             </div>
             <p className="text-gray-400 text-sm">
-              © 2025 ContainerStacks. All rights reserved.
+              {`© 2025 ${BRAND_NAME}. All rights reserved.`}
             </p>
           </div>
         </div>

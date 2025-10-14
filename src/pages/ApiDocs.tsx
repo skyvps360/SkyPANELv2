@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { BRAND_NAME } from '../lib/brand';
 
 export default function ApiDocs() {
   const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
@@ -420,7 +421,7 @@ export default function ApiDocs() {
             stackscripts: [
               {
                 id: 78901,
-                label: 'ContainerStacks WordPress',
+                label: `${BRAND_NAME} WordPress`,
                 description: 'Deploys WordPress with optimal defaults',
                 images: ['ubuntu-24-04-lts'],
                 config: {

@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 import { toast } from 'sonner';
+import { BRAND_NAME } from '../lib/brand';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
@@ -78,7 +79,7 @@ const Navigation: React.FC = () => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/dashboard" className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                ContainerStacks
+                {BRAND_NAME}
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

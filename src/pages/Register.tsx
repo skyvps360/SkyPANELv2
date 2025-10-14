@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { BRAND_NAME } from '../lib/brand';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -51,7 +52,7 @@ export default function Register() {
         lastName: formData.lastName,
         organizationName: formData.organizationName || undefined
       });
-      toast.success('Registration successful! Welcome to ContainerStacks!');
+      toast.success(`Registration successful! Welcome to ${BRAND_NAME}!`);
       navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
@@ -72,7 +73,7 @@ export default function Register() {
               Create your account
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Join ContainerStacks and start managing your containers
+              {`Join ${BRAND_NAME} and start managing your containers`}
             </p>
           </div>
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { BRAND_NAME } from '../lib/brand';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -39,7 +40,7 @@ export default function Login() {
               Welcome back
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Sign in to your ContainerStacks account
+              {`Sign in to your ${BRAND_NAME} account`}
             </p>
           </div>
 
