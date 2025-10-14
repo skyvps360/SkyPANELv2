@@ -78,6 +78,37 @@ export default function ApiDocs() {
           body: { name: 'My New API Key' },
           response: { id: 2, name: 'My New API Key', key: 'ak_1234567890abcdef', created_at: '2024-01-01T00:00:00Z' }
         },
+        { 
+          method: 'DELETE', 
+          path: '/api-keys/:id', 
+          description: 'Delete an API key',
+          auth: true,
+          response: { success: true, message: 'API key deleted successfully' }
+        },
+        { 
+          method: 'PUT', 
+          path: '/organization', 
+          description: 'Update organization details',
+          auth: true,
+          body: { name: 'My Company', website: 'https://mycompany.com', address: '123 Main St', taxId: 'TAX123' },
+          response: { success: true, message: 'Organization updated successfully', organization: { id: 1, name: 'My Company', website: 'https://mycompany.com' } }
+        },
+        { 
+          method: 'PUT', 
+          path: '/password', 
+          description: 'Update user password',
+          auth: true,
+          body: { currentPassword: 'oldpassword123', newPassword: 'newpassword123' },
+          response: { success: true, message: 'Password updated successfully' }
+        },
+        { 
+          method: 'PUT', 
+          path: '/preferences', 
+          description: 'Update user preferences',
+          auth: true,
+          body: { theme: 'dark', notifications: true, language: 'en' },
+          response: { success: true, message: 'Preferences updated successfully' }
+        },
       ],
     },
     {
@@ -114,6 +145,34 @@ export default function ApiDocs() {
           description: 'Get user invoices',
           auth: true,
           response: [{ id: 1, number: 'INV-001', amount: 10.00, status: 'paid', date: '2024-01-01T00:00:00Z' }]
+        },
+        { 
+          method: 'GET', 
+          path: '/wallet/balance', 
+          description: 'Get wallet balance for the organization',
+          auth: true,
+          response: { balance: 150.75, currency: 'USD', last_updated: '2024-01-01T00:00:00Z' }
+        },
+        { 
+          method: 'POST', 
+          path: '/wallet/deduct', 
+          description: 'Deduct funds from wallet for VPS creation',
+          auth: true,
+          body: { amount: 20.00, description: 'VPS instance creation', vpsId: 'vps_123' },
+          response: { success: true, transaction_id: 'txn_456', remaining_balance: 130.75 }
+        },
+        { 
+          method: 'GET', 
+          path: '/wallet/transactions', 
+          description: 'Get wallet transaction history',
+          auth: true,
+          response: { 
+            transactions: [
+              { id: 'txn_123', type: 'credit', amount: 50.00, description: 'Wallet top-up', date: '2024-01-01T00:00:00Z' },
+              { id: 'txn_124', type: 'debit', amount: 20.00, description: 'VPS instance creation', date: '2024-01-01T01:00:00Z' }
+            ],
+            pagination: { page: 1, limit: 20, total: 45 }
+          }
         },
       ],
     },
@@ -374,6 +433,76 @@ export default function ApiDocs() {
             ]
           }
         },
+        { 
+          method: 'POST', 
+          path: '/:id/backups/enable', 
+          description: 'Enable automatic backups for VPS instance',
+          auth: true,
+          response: { success: true, message: 'Backups enabled successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/backups/disable', 
+          description: 'Disable automatic backups for VPS instance',
+          auth: true,
+          response: { success: true, message: 'Backups disabled successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/backups/schedule', 
+          description: 'Update backup schedule for VPS instance',
+          auth: true,
+          body: { day: 'Sunday', window: 'W2' },
+          response: { success: true, message: 'Backup schedule updated successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/backups/snapshot', 
+          description: 'Create manual backup snapshot',
+          auth: true,
+          body: { label: 'Manual backup before update' },
+          response: { success: true, message: 'Snapshot creation initiated', backup_id: 'backup_123' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/backups/:backupId/restore', 
+          description: 'Restore VPS from backup',
+          auth: true,
+          body: { overwrite: true },
+          response: { success: true, message: 'Restore initiated successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/firewalls/attach', 
+          description: 'Attach firewall to VPS instance',
+          auth: true,
+          body: { firewall_id: 'fw_123' },
+          response: { success: true, message: 'Firewall attached successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/firewalls/detach', 
+          description: 'Detach firewall from VPS instance',
+          auth: true,
+          body: { firewall_id: 'fw_123' },
+          response: { success: true, message: 'Firewall detached successfully' }
+        },
+        { 
+          method: 'POST', 
+          path: '/:id/networking/rdns', 
+          description: 'Update reverse DNS for VPS instance',
+          auth: true,
+          body: { ip_address: '203.0.113.12', rdns: 'server.example.com' },
+          response: { success: true, message: 'Reverse DNS updated successfully' }
+        },
+        { 
+          method: 'PUT', 
+          path: '/:id/hostname', 
+          description: 'Update VPS hostname',
+          auth: true,
+          body: { hostname: 'new-server-name' },
+          response: { success: true, message: 'Hostname updated successfully' }
+        },
       ],
     },
     {
@@ -410,6 +539,35 @@ export default function ApiDocs() {
             subject: 'Container deployment issue', 
             status: 'open',
             message: 'Support ticket created successfully'
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/tickets/:id/replies', 
+          description: 'Get all replies for a specific support ticket',
+          auth: true,
+          response: [{ 
+            id: 'reply_123', 
+            ticket_id: 'ticket_123',
+            message: 'Thank you for contacting support. We are looking into your issue.',
+            author: 'support@containerstacks.com',
+            author_type: 'staff',
+            created_at: '2024-01-01T13:00:00Z'
+          }]
+        },
+        { 
+          method: 'POST', 
+          path: '/tickets/:id/replies', 
+          description: 'Add a reply to a support ticket',
+          auth: true,
+          body: { 
+            message: 'I tried the suggested solution but the issue persists...'
+          },
+          response: { 
+            id: 'reply_124', 
+            ticket_id: 'ticket_123',
+            message: 'Reply added successfully',
+            created_at: '2024-01-01T14:00:00Z'
           }
         },
       ],
@@ -696,6 +854,65 @@ export default function ApiDocs() {
             country: 'us',
             status: 'ok'
           }]
+        },
+        { 
+          method: 'GET', 
+          path: '/linode/stackscripts', 
+          description: 'Fetch available StackScripts from Linode API',
+          auth: true,
+          response: [{ 
+            id: 123456, 
+            label: 'WordPress Setup', 
+            description: 'Automated WordPress installation',
+            images: ['linode/ubuntu20.04'],
+            deployments_total: 1500,
+            is_public: true
+          }]
+        },
+        { 
+          method: 'GET', 
+          path: '/stackscripts/configs', 
+          description: 'Get StackScript configurations',
+          auth: true,
+          response: [{ 
+            id: 'config_123', 
+            stackscript_id: 123456,
+            label: 'WordPress Pro',
+            is_enabled: true,
+            display_order: 1,
+            created_at: '2024-01-01T00:00:00Z'
+          }]
+        },
+        { 
+          method: 'POST', 
+          path: '/stackscripts/configs', 
+          description: 'Create StackScript configuration',
+          auth: true,
+          body: { 
+            stackscript_id: 123456,
+            label: 'Custom WordPress',
+            is_enabled: true,
+            display_order: 2
+          },
+          response: { id: 'config_124', message: 'StackScript configuration created successfully' }
+        },
+        { 
+          method: 'PUT', 
+          path: '/stackscripts/configs/:id', 
+          description: 'Update StackScript configuration',
+          auth: true,
+          body: { 
+            label: 'Updated WordPress Config',
+            is_enabled: false
+          },
+          response: { success: true, message: 'StackScript configuration updated successfully' }
+        },
+        { 
+          method: 'DELETE', 
+          path: '/stackscripts/configs/:id', 
+          description: 'Delete StackScript configuration',
+          auth: true,
+          response: { success: true, message: 'StackScript configuration deleted successfully' }
         },
       ],
     },
