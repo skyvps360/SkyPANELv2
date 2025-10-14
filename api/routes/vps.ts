@@ -166,6 +166,159 @@ const mapBackupSummary = (backup: LinodeBackupSummary | null | undefined): Backu
   };
 };
 
+const toStringOrNull = (value: any): string | null => {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return null;
+};
+
+const toNumberOrNull = (value: any): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return null;
+};
+
+const mapIPv4Address = (entry: any): any | null => {
+  if (!entry || typeof entry !== 'object') return null;
+  const address = toStringOrNull(entry.address);
+  if (!address) return null;
+  return {
+    address,
+    type: toStringOrNull(entry.type),
+    public: Boolean(entry.public),
+    rdns: toStringOrNull(entry.rdns),
+    gateway: toStringOrNull(entry.gateway),
+    subnetMask: toStringOrNull(entry.subnet_mask),
+    prefix: toNumberOrNull(entry.prefix),
+    region: toStringOrNull(entry.region),
+  };
+};
+
+const mapIPv6Assignment = (entry: any): any | null => {
+  if (!entry || typeof entry !== 'object') return null;
+  const address = toStringOrNull(entry.address);
+  if (!address) return null;
+  return {
+    address,
+    prefix: toNumberOrNull(entry.prefix),
+    rdns: toStringOrNull(entry.rdns),
+    region: toStringOrNull(entry.region),
+    type: toStringOrNull(entry.type),
+    gateway: toStringOrNull(entry.gateway),
+  };
+};
+
+const mapIPv6Range = (entry: any): any | null => {
+  if (!entry || typeof entry !== 'object') return null;
+  const range = toStringOrNull(entry.range);
+  const prefix = toNumberOrNull(entry.prefix);
+  if (!range && prefix === null) {
+    return null;
+  }
+  return {
+    range,
+    prefix,
+    region: toStringOrNull(entry.region),
+    routeTarget: toStringOrNull(entry.route_target),
+    type: toStringOrNull(entry.type),
+  };
+};
+
+const mapIPv6RangeCollection = (value: any): any[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map(mapIPv6Range)
+    .filter((item: any): item is Record<string, unknown> => Boolean(item));
+};
+
+const pickIPv4Array = (source: any, key: string): any[] => {
+  if (source && Array.isArray(source[key])) {
+    return source[key];
+  }
+  return [];
+};
+
+const pickIPv6Pool = (source: any): any[] => {
+  if (!source) {
+    return [];
+  }
+  if (Array.isArray(source.pools)) {
+    return source.pools;
+  }
+  if (Array.isArray(source.pool)) {
+    return source.pool;
+  }
+  return [];
+};
+
+const mapFirewallSummary = (entry: any): any | null => {
+  const id = toNumberOrNull(entry?.id);
+  if (id === null) {
+    return null;
+  }
+  const tags = Array.isArray(entry?.tags)
+    ? entry.tags.map((tag: any) => toStringOrNull(tag)).filter((tag): tag is string => Boolean(tag))
+    : [];
+
+  return {
+    id,
+    label: toStringOrNull(entry?.label),
+    status: toStringOrNull(entry?.status),
+    tags,
+    created: toStringOrNull(entry?.created),
+    updated: toStringOrNull(entry?.updated),
+    pendingChanges: Boolean(entry?.has_pending_changes),
+    rules: entry?.rules && typeof entry.rules === 'object'
+      ? {
+          inbound: Array.isArray(entry.rules.inbound) ? entry.rules.inbound : [],
+          outbound: Array.isArray(entry.rules.outbound) ? entry.rules.outbound : [],
+        }
+      : null,
+  };
+};
+
+const mapConfigProfile = (entry: any): any | null => {
+  const id = toNumberOrNull(entry?.id);
+  if (id === null) {
+    return null;
+  }
+  return {
+    id,
+    label: toStringOrNull(entry?.label),
+    kernel: toStringOrNull(entry?.kernel),
+    rootDevice: toStringOrNull(entry?.root_device),
+    runLevel: toStringOrNull(entry?.run_level),
+    comments: toStringOrNull(entry?.comments),
+    virtMode: toStringOrNull(entry?.virt_mode),
+    memoryLimit: toNumberOrNull(entry?.memory_limit),
+    interfaces: Array.isArray(entry?.interfaces) ? entry.interfaces : [],
+    helpers: entry?.helpers && typeof entry.helpers === 'object' ? entry.helpers : null,
+    created: toStringOrNull(entry?.created),
+    updated: toStringOrNull(entry?.updated),
+  };
+};
+
+const mapEventSummary = (entry: any): any | null => {
+  const id = toNumberOrNull(entry?.id);
+  if (id === null) {
+    return null;
+  }
+  return {
+    id,
+    action: toStringOrNull(entry?.action) ?? 'unknown',
+    status: toStringOrNull(entry?.status),
+    message: toStringOrNull(entry?.message),
+    created: toStringOrNull(entry?.created),
+    username: toStringOrNull(entry?.username),
+    percentComplete: toNumberOrNull(entry?.percent_complete),
+    entityLabel: toStringOrNull(entry?.entity?.label),
+  };
+};
+
 let regionLabelCache: Map<string, string> | null = null;
 
 const ensureRegionLabelCache = async (): Promise<Map<string, string>> => {
@@ -672,8 +825,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     }
 
-    let transfer: TransferPayload | null = null;
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+  let transfer: TransferPayload | null = null;
+  let networking: any = null;
+  let firewalls: any[] = [];
+  let providerConfigs: any[] = [];
+  let instanceEvents: any[] = [];
+
+  if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const transferData = await linodeService.getLinodeInstanceTransfer(providerInstanceId);
         const usedGb = bytesToGigabytes(Number(transferData?.used ?? 0));
@@ -686,8 +844,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     }
 
-    let backups: BackupsPayload | null = null;
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+  let backups: BackupsPayload | null = null;
+  if (providerDetail && Number.isFinite(providerInstanceId)) {
       const providerBackups = providerDetail.backups ?? null;
       let backupCollection: LinodeInstanceBackupsResponse | null = null;
       try {
@@ -720,6 +878,69 @@ router.get('/:id', async (req: Request, res: Response) => {
         snapshotInProgress,
       };
     }
+
+    if (providerDetail && Number.isFinite(providerInstanceId)) {
+      try {
+        const ipData = await linodeService.getLinodeInstanceIPs(providerInstanceId);
+        const ipv4Data = (ipData as any)?.ipv4 || {};
+        const ipv6Data = (ipData as any)?.ipv6 || null;
+        networking = {
+          ipv4: {
+            public: pickIPv4Array(ipv4Data, 'public').map(mapIPv4Address).filter(Boolean),
+            private: pickIPv4Array(ipv4Data, 'private').map(mapIPv4Address).filter(Boolean),
+            shared: pickIPv4Array(ipv4Data, 'shared').map(mapIPv4Address).filter(Boolean),
+            reserved: pickIPv4Array(ipv4Data, 'reserved').map(mapIPv4Address).filter(Boolean),
+          },
+          ipv6: ipv6Data
+            ? {
+                slaac: mapIPv6Assignment(ipv6Data.slaac),
+                linkLocal: mapIPv6Assignment(ipv6Data.link_local),
+                global: mapIPv6RangeCollection(ipv6Data.global),
+                ranges: mapIPv6RangeCollection(ipv6Data.ranges),
+                pools: mapIPv6RangeCollection(pickIPv6Pool(ipv6Data)),
+              }
+            : null,
+        };
+      } catch (err) {
+        console.warn('Failed to fetch instance networking:', err);
+      }
+
+      try {
+        const firewallData = await linodeService.getLinodeInstanceFirewalls(providerInstanceId);
+        firewalls = Array.isArray((firewallData as any)?.data)
+          ? (firewallData as any).data.map(mapFirewallSummary).filter(Boolean)
+          : [];
+      } catch (err) {
+        console.warn('Failed to fetch instance firewalls:', err);
+      }
+
+      try {
+        const configData = await linodeService.getLinodeInstanceConfigs(providerInstanceId);
+        providerConfigs = Array.isArray((configData as any)?.data)
+          ? (configData as any).data.map(mapConfigProfile).filter(Boolean)
+          : [];
+      } catch (err) {
+        console.warn('Failed to fetch instance configurations:', err);
+      }
+
+      try {
+        const eventsData = await linodeService.getLinodeInstanceEvents(providerInstanceId, { pageSize: 50 });
+        instanceEvents = Array.isArray((eventsData as any)?.data)
+          ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
+          : [];
+      } catch (err) {
+        console.warn('Failed to fetch instance events:', err);
+      }
+    }
+
+    const backupMonthlyCost = planMeta.pricing.monthly > 0 ? planMeta.pricing.monthly * 0.2 : 0;
+    const backupPricing = backupMonthlyCost > 0
+      ? {
+          monthly: Math.round(backupMonthlyCost * 100) / 100,
+          hourly: Math.round((backupMonthlyCost / 730) * 100000) / 100000,
+          currency: 'USD' as const,
+        }
+      : null;
 
     res.json({
       instance: {
@@ -762,6 +983,11 @@ router.get('/:id', async (req: Request, res: Response) => {
         metrics,
         transfer,
         backups,
+        networking,
+        firewalls,
+        providerConfigs,
+        activity: instanceEvents,
+        backupPricing,
       },
     });
   } catch (err: any) {
@@ -926,7 +1152,9 @@ router.post('/', async (req: Request, res: Response) => {
         status: 'success',
         metadata: { label, type, region: regionToUse, image }
       }, req as any);
-    } catch {}
+    } catch (logErr) {
+      console.warn('Failed to log vps.create activity:', logErr);
+    }
 
     res.status(201).json({ instance });
   } catch (err: any) {
@@ -962,7 +1190,9 @@ router.post('/:id/boot', async (req: Request, res: Response) => {
         message: `Booted VPS '${row.label}'`,
         status: 'success'
       }, req as any);
-    } catch {}
+    } catch (logErr) {
+      console.warn('Failed to log vps.boot activity:', logErr);
+    }
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS boot error:', err);
@@ -995,7 +1225,9 @@ router.post('/:id/shutdown', async (req: Request, res: Response) => {
         message: `Shutdown VPS '${row.label}'`,
         status: 'success'
       }, req as any);
-    } catch {}
+    } catch (logErr) {
+      console.warn('Failed to log vps.shutdown activity:', logErr);
+    }
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS shutdown error:', err);
@@ -1028,7 +1260,9 @@ router.post('/:id/reboot', async (req: Request, res: Response) => {
         message: `Rebooted VPS '${row.label}'`,
         status: 'success'
       }, req as any);
-    } catch {}
+    } catch (logErr) {
+      console.warn('Failed to log vps.reboot activity:', logErr);
+    }
     res.json({ status: detail.status });
   } catch (err: any) {
     console.error('VPS reboot error:', err);
@@ -1059,7 +1293,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
         message: `Deleted VPS '${row.label}'`,
         status: 'success'
       }, req as any);
-    } catch {}
+    } catch (logErr) {
+      console.warn('Failed to log vps.delete activity:', logErr);
+    }
     res.json({ deleted: true });
   } catch (err: any) {
     console.error('VPS delete error:', err);

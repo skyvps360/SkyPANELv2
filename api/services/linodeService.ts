@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Linode API Service for ContainerStacks
  * Handles integration with Linode API for VPS management
@@ -199,6 +200,23 @@ export interface LinodeSnapshotCollection {
 export interface LinodeInstanceBackupsResponse {
   automatic?: LinodeBackupSummary[];
   snapshot?: LinodeSnapshotCollection | null;
+}
+
+export interface LinodeIPsResponse {
+  ipv4?: Record<string, any[]>;
+  ipv6?: Record<string, any>;
+}
+
+export interface LinodeFirewallsResponse {
+  data?: any[];
+}
+
+export interface LinodeInstanceConfigsResponse {
+  data?: any[];
+}
+
+export interface LinodeEventsResponse {
+  data?: any[];
 }
 
 class LinodeService {
@@ -826,6 +844,119 @@ class LinodeService {
       return data as LinodeInstanceBackupsResponse;
     } catch (error) {
       console.error('Error fetching Linode backups:', error);
+      throw error;
+    }
+  }
+
+  async getLinodeInstanceIPs(instanceId: number): Promise<LinodeIPsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/ips`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeIPsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode IP assignments:', error);
+      throw error;
+    }
+  }
+
+  async getLinodeInstanceFirewalls(instanceId: number): Promise<LinodeFirewallsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/firewalls`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeFirewallsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode firewalls:', error);
+      throw error;
+    }
+  }
+
+  async getLinodeInstanceConfigs(instanceId: number): Promise<LinodeInstanceConfigsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}/configs`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeInstanceConfigsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode configuration profiles:', error);
+      throw error;
+    }
+  }
+
+  async getLinodeInstanceEvents(instanceId: number, params: { page?: number; pageSize?: number } = {}): Promise<LinodeEventsResponse> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const page = params.page && params.page > 0 ? params.page : 1;
+      const pageSize = params.pageSize && params.pageSize >= 25 ? Math.min(params.pageSize, 100) : 25;
+
+      const search = new URLSearchParams();
+      search.set('page', String(page));
+      search.set('page_size', String(pageSize));
+
+      const filter = {
+        '+order': 'desc',
+        '+order_by': 'created',
+        entity: {
+          type: 'linode',
+          id: instanceId,
+        },
+      };
+
+      const headers = {
+        ...this.getHeaders(),
+        'X-Filter': JSON.stringify(filter),
+      };
+
+      const response = await fetch(`${this.baseUrl}/account/events?${search.toString()}`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+
+      const data = await response.json();
+      return data as LinodeEventsResponse;
+    } catch (error) {
+      console.error('Error fetching Linode events:', error);
       throw error;
     }
   }
