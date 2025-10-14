@@ -152,6 +152,61 @@ router.get('/wallet/balance', requireOrganization, async (req: Request, res: Res
 });
 
 /**
+ * Deduct funds from wallet for VPS creation
+ */
+router.post(
+  '/wallet/deduct',
+  [
+    body('amount')
+      .isFloat({ min: 0.01 })
+      .withMessage('Amount must be a positive number'),
+    body('description')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('Description is required and must be less than 255 characters'),
+  ],
+  requireOrganization,
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
+      const { amount, description } = req.body;
+      const organizationId = (req as any).user.organizationId;
+
+      const success = await PayPalService.deductFundsFromWallet(
+        organizationId,
+        amount,
+        description
+      );
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Funds deducted successfully',
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: 'Failed to deduct funds. Insufficient balance or wallet not found.',
+        });
+      }
+    } catch (error) {
+      console.error('Deduct funds error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
  * Get wallet transactions for the organization
  */
 router.get(

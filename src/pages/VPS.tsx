@@ -31,6 +31,7 @@ import {
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
+import { paymentService } from '../services/paymentService';
 
 interface VPSInstance {
   id: string;
@@ -522,6 +523,31 @@ const VPS: React.FC = () => {
       return;
     }
 
+    // Calculate total cost including backups
+    const selectedType = linodeTypes.find(t => t.id === createForm.type);
+    if (!selectedType) {
+      toast.error('Selected plan not found');
+      return;
+    }
+
+    let totalHourlyCost = selectedType.price.hourly;
+    if (createForm.backups) {
+      totalHourlyCost += selectedType.price.hourly * 0.4; // 40% additional for backups
+    }
+
+    // Check wallet balance
+    try {
+      const walletBalance = await paymentService.getWalletBalance();
+      if (!walletBalance || walletBalance.balance < totalHourlyCost) {
+        toast.error(`Insufficient wallet balance. Required: $${totalHourlyCost.toFixed(4)}/hour, Available: $${walletBalance?.balance.toFixed(2) || '0.00'}`);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check wallet balance:', error);
+      toast.error('Failed to verify wallet balance. Please try again.');
+      return;
+    }
+
   try {
       // Enforce image compatibility and validate fields for Marketplace/StackScript
       if (selectedStackScript && Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0) {
@@ -577,6 +603,34 @@ const VPS: React.FC = () => {
         throw new Error(payload.error || 'Failed to create VPS');
       }
 
+      // Deduct hourly cost from wallet
+      try {
+        const deductionDescription = `VPS Creation - ${createForm.label} (${selectedType.label})${createForm.backups ? ' with backups' : ''}`;
+        
+        const deductResponse = await fetch('/api/payments/wallet/deduct', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            amount: totalHourlyCost,
+            description: deductionDescription,
+          }),
+        });
+
+        if (!deductResponse.ok) {
+          const deductError = await deductResponse.json();
+          console.error('Failed to deduct from wallet:', deductError);
+          toast.warning('VPS created but failed to deduct from wallet. Please check your billing.');
+        } else {
+          toast.success(`VPS creation initiated. $${totalHourlyCost.toFixed(4)} deducted from wallet.`);
+        }
+      } catch (deductError) {
+        console.error('Wallet deduction error:', deductError);
+        toast.warning('VPS created but failed to deduct from wallet. Please check your billing.');
+      }
+
       // Refresh list from server to reflect new instance
       await loadInstances();
 
@@ -593,7 +647,6 @@ const VPS: React.FC = () => {
       });
       setSelectedStackScript(null);
       setStackscriptData({});
-      toast.success('VPS instance creation initiated');
     } catch (error) {
       console.error('Failed to create VPS instance:', error);
       toast.error('Failed to create VPS instance');
@@ -1268,7 +1321,7 @@ const VPS: React.FC = () => {
                         onChange={(e) => setCreateForm(prev => ({ ...prev, backups: e.target.checked }))}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
                       />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Enable Backups (+20%)</span>
+                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Enable Backups (+40%)</span>
                     </label>
                     <label className="flex items-center">
                       <input

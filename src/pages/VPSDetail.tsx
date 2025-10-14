@@ -1187,14 +1187,6 @@ const VPSDetail: React.FC = () => {
                   </div>
                   <div className="px-6 py-5">
                     <div className="space-y-6">
-                      <div>
-                        <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-                          <Layers className="h-4 w-4 text-blue-500" />
-                          Plan & Resources
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Reserved capacity, pricing.</p>
-                      </div>
-
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
@@ -1722,7 +1714,7 @@ const VPSDetail: React.FC = () => {
                                               <input
                                                 value={currentValue}
                                                 onChange={event => updateRdnsValue(addr.address, event.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                                className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-400"
                                                 placeholder="reverse.example.com"
                                                 disabled={saving}
                                               />
@@ -1812,7 +1804,7 @@ const VPSDetail: React.FC = () => {
                                         <input
                                           value={slaacCurrentValue}
                                           onChange={event => updateRdnsValue(slaacAddress, event.target.value)}
-                                          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-400"
                                           placeholder="reverse.example.com"
                                           disabled={slaacSaving}
                                         />
@@ -2139,11 +2131,11 @@ const VPSDetail: React.FC = () => {
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">CPU timeline</h3>
                           {cpuSeries.length > 0 ? (
-                            <ul className="mt-3 max-h-96 space-y-2 overflow-y-auto text-xs text-gray-600 dark:text-gray-300">
+                            <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                               {cpuSeries.slice(-20).reverse().map(point => (
-                                <li key={`cpu-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900">
+                                <li key={`cpu-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-cyan-50 px-3 py-2 dark:bg-cyan-900/40">
                                   <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-gray-900 dark:text-white">{formatPercent(point.value)}</span>
+                                  <span className="font-semibold text-cyan-600 dark:text-cyan-200">{formatPercent(point.value)}</span>
                                 </li>
                               ))}
                             </ul>

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 // Layout provides Navigation and Sidebar globally
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 // Mock data interfaces
@@ -74,6 +74,7 @@ const Dashboard: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { token } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadDashboardData();
@@ -208,6 +209,10 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleVpsClick = (vpsId: string) => {
+    navigate(`/vps/${vpsId}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -307,7 +312,11 @@ const Dashboard: React.FC = () => {
             <div className="p-6">
               <div className="space-y-4">
                 {vpsInstances.slice(0, 3).map((vps) => (
-                  <div key={vps.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div 
+                    key={vps.id} 
+                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                    onClick={() => handleVpsClick(vps.id)}
+                  >
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <Server className="h-8 w-8 text-gray-400 dark:text-gray-500" />
