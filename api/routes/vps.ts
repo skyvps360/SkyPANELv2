@@ -17,6 +17,31 @@ const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
 
+const BACKUP_DAY_OPTIONS = new Set([
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+]);
+
+const BACKUP_WINDOW_OPTIONS = new Set([
+  'W0',
+  'W2',
+  'W4',
+  'W6',
+  'W8',
+  'W10',
+  'W12',
+  'W14',
+  'W16',
+  'W18',
+  'W20',
+  'W22',
+]);
+
 interface MetricPoint {
   timestamp: number;
   value: number;
@@ -1302,6 +1327,99 @@ router.post('/:id/boot', async (req: Request, res: Response) => {
 router.post('/:id/shutdown', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+    const organizationId = user.organizationId;
+    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    if (rowRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Instance not found' });
+    }
+
+    const row = rowRes.rows[0];
+    const providerInstanceId = Number(row.provider_instance_id);
+    if (!Number.isFinite(providerInstanceId)) {
+      return res.status(400).json({ error: 'Instance is missing provider reference' });
+    }
+
+    const { day: rawDay, window: rawWindow } = req.body ?? {};
+
+    let dayValue: string | null | undefined = undefined;
+    if (rawDay !== undefined) {
+      if (rawDay === null) {
+        dayValue = null;
+      } else if (typeof rawDay === 'string') {
+        const trimmed = rawDay.trim();
+        if (trimmed === '') {
+          dayValue = null;
+        } else if (BACKUP_DAY_OPTIONS.has(trimmed)) {
+          dayValue = trimmed;
+        } else {
+          return res.status(400).json({ error: 'Invalid backup day selected' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Invalid backup day payload' });
+      }
+    }
+
+    let windowValue: string | null | undefined = undefined;
+    if (rawWindow !== undefined) {
+      if (rawWindow === null) {
+        windowValue = null;
+      } else if (typeof rawWindow === 'string') {
+        const trimmed = rawWindow.trim().toUpperCase();
+        if (trimmed === '') {
+          windowValue = null;
+        } else if (BACKUP_WINDOW_OPTIONS.has(trimmed)) {
+          windowValue = trimmed;
+        } else {
+          return res.status(400).json({ error: 'Invalid backup window selected' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Invalid backup window payload' });
+      }
+    }
+
+    const scheduleUpdate: { day?: string | null; window?: string | null } = {};
+    if (dayValue !== undefined) {
+      scheduleUpdate.day = dayValue;
+    }
+    if (windowValue !== undefined) {
+      scheduleUpdate.window = windowValue;
+    }
+
+    if (Object.keys(scheduleUpdate).length === 0) {
+      return res.status(400).json({ error: 'No schedule changes supplied' });
+    }
+
+    await linodeService.updateLinodeBackupSchedule(providerInstanceId, scheduleUpdate);
+
+    try {
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId,
+        eventType: 'vps.backups.schedule',
+        entityType: 'vps',
+        entityId: String(id),
+        message: `Updated backup schedule for VPS '${row.label}'`,
+        metadata: {
+          day: dayValue ?? 'auto',
+          window: windowValue ?? 'auto',
+        },
+        status: 'success',
+      }, req as any);
+    } catch (logErr) {
+      console.warn('Failed to log vps.backups.schedule activity:', logErr);
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('VPS update backup schedule error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update backup schedule' });
+  }
+});
     const organizationId = (req as any).user.organizationId;
     const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
     if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });

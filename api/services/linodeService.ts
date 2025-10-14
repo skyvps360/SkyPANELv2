@@ -894,6 +894,46 @@ class LinodeService {
     }
   }
 
+  async updateLinodeBackupSchedule(
+    instanceId: number,
+    schedule: { day?: string | null; window?: string | null }
+  ): Promise<void> {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const scheduleFields: Record<string, unknown> = {};
+
+      if (schedule.day !== undefined) {
+        scheduleFields.day = schedule.day ?? null;
+      }
+      if (schedule.window !== undefined) {
+        scheduleFields.window = schedule.window ?? null;
+      }
+
+      if (Object.keys(scheduleFields).length === 0) {
+        return;
+      }
+
+      const payload = { backups: { schedule: scheduleFields } };
+
+      const response = await fetch(`${this.baseUrl}/linode/instances/${instanceId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+      }
+    } catch (error) {
+      console.error('Error updating Linode backup schedule:', error);
+      throw error;
+    }
+  }
+
   async createLinodeBackup(instanceId: number, label?: string): Promise<Record<string, unknown>> {
     try {
       if (!this.apiToken) {

@@ -380,6 +380,51 @@ const statusActionLabel: Record<'boot' | 'shutdown' | 'reboot', string> = {
   reboot: 'Reboot',
 };
 
+const BACKUP_DAY_CHOICES: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Auto (provider selected)' },
+  { value: 'Sunday', label: 'Sunday' },
+  { value: 'Monday', label: 'Monday' },
+  { value: 'Tuesday', label: 'Tuesday' },
+  { value: 'Wednesday', label: 'Wednesday' },
+  { value: 'Thursday', label: 'Thursday' },
+  { value: 'Friday', label: 'Friday' },
+  { value: 'Saturday', label: 'Saturday' },
+];
+
+const describeBackupWindow = (value: string): string => {
+  if (!value.startsWith('W')) {
+    return value;
+  }
+  const startHour = Number(value.slice(1));
+  if (!Number.isFinite(startHour)) {
+    return value;
+  }
+  const endHour = (startHour + 2) % 24;
+  const startLabel = `${String(startHour).padStart(2, '0')}:00`;
+  const endLabel = `${String(endHour).padStart(2, '0')}:00`;
+  return `${startLabel} - ${endLabel} UTC`;
+};
+
+const BACKUP_WINDOW_CHOICES: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Auto (provider selected)' },
+  'W0',
+  'W2',
+  'W4',
+  'W6',
+  'W8',
+  'W10',
+  'W12',
+  'W14',
+  'W16',
+  'W18',
+  'W20',
+  'W22',
+].map(option =>
+  typeof option === 'string'
+    ? { value: option, label: describeBackupWindow(option) }
+    : option
+);
+
 const VPSDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
@@ -391,6 +436,9 @@ const VPSDetail: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<'boot' | 'shutdown' | 'reboot' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [backupAction, setBackupAction] = useState<'enable' | 'disable' | 'snapshot' | null>(null);
+  const [scheduleDay, setScheduleDay] = useState<string>('');
+  const [scheduleWindow, setScheduleWindow] = useState<string>('');
+  const [scheduleBusy, setScheduleBusy] = useState<boolean>(false);
   const [snapshotLabel, setSnapshotLabel] = useState<string>('');
   const [selectedFirewallId, setSelectedFirewallId] = useState<number | ''>('');
   const [firewallAction, setFirewallAction] = useState<'attach' | `detach-${number}` | null>(null);
@@ -447,10 +495,11 @@ const VPSDetail: React.FC = () => {
 
   const formatEventAction = (value: string | null | undefined): string => {
     if (!value) return '—';
-    return value
+    const formatted = value
       .split('_')
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
+    return formatted.replace(/\bLinode\b/g, 'VPS');
   };
 
   const formatStatusLabel = (value: string | null | undefined): string => {
@@ -499,6 +548,16 @@ const VPSDetail: React.FC = () => {
   const firewallOptions = useMemo(() => detail?.firewallOptions ?? [], [detail?.firewallOptions]);
   const eventFeed = useMemo(() => detail?.activity ?? [], [detail?.activity]);
   const transferInfo = detail?.transfer ?? null;
+  const transferQuotaGb = transferInfo?.quotaGb ?? 0;
+  const transferUsedGb = transferInfo?.usedGb ?? 0;
+  const transferBillableGb = transferInfo?.billableGb ?? 0;
+  const transferUsagePercent = Math.min(100, Math.max(0, transferInfo?.utilizationPercent ?? 0));
+  const transferRemainingGb = transferInfo ? Math.max(transferQuotaGb - transferUsedGb, 0) : null;
+  const transferOverageGb = transferInfo ? Math.max(transferUsedGb - transferQuotaGb, 0) : null;
+  const totalIpv4Count = ipv4Categories.reduce((total, category) => total + category.addresses.length, 0);
+  const publicIpv4Count = detail?.networking?.ipv4?.public?.length ?? 0;
+  const privateIpv4Count = detail?.networking?.ipv4?.private?.length ?? 0;
+  const hasSlaacIpv6 = Boolean(ipv6Info?.slaac?.address);
   const rdnsEditable = detail?.rdnsEditable ?? true;
   const rdnsSources = useMemo<RdnsSource[]>(() => {
     const sources: RdnsSource[] = [];
@@ -620,6 +679,13 @@ const VPSDetail: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const currentDay = detail?.backups?.schedule?.day;
+    const currentWindow = detail?.backups?.schedule?.window;
+    setScheduleDay(!currentDay || currentDay === 'Scheduling' ? '' : currentDay);
+    setScheduleWindow(!currentWindow || currentWindow === 'Scheduling' ? '' : currentWindow);
+  }, [detail?.backups?.schedule?.day, detail?.backups?.schedule?.window]);
+
   const performAction = useCallback(async (action: 'boot' | 'shutdown' | 'reboot') => {
     if (!detail) return;
     setActionLoading(action);
@@ -649,6 +715,11 @@ const VPSDetail: React.FC = () => {
   const backupsEnabled = detail?.backups?.enabled ?? false;
   const backupToggleBusy = backupAction === 'enable' || backupAction === 'disable';
   const snapshotBusy = backupAction === 'snapshot';
+  const originalScheduleDay = detail?.backups?.schedule?.day;
+  const originalScheduleWindow = detail?.backups?.schedule?.window;
+  const normalizedOriginalDay = !originalScheduleDay || originalScheduleDay === 'Scheduling' ? '' : originalScheduleDay;
+  const normalizedOriginalWindow = !originalScheduleWindow || originalScheduleWindow === 'Scheduling' ? '' : originalScheduleWindow;
+  const scheduleDirty = scheduleDay !== normalizedOriginalDay || scheduleWindow !== normalizedOriginalWindow;
 
   const handleBackupAction = useCallback(async (action: 'enable' | 'disable' | 'snapshot') => {
     if (!detail) return;
@@ -687,6 +758,41 @@ const VPSDetail: React.FC = () => {
       setBackupAction(null);
     }
   }, [detail, loadData, snapshotLabel, token]);
+
+  const handleBackupScheduleSave = useCallback(async () => {
+    if (!detail) return;
+    setScheduleBusy(true);
+    try {
+      const response = await fetch(`/api/vps/${detail.id}/backups/schedule`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          day: scheduleDay === '' ? null : scheduleDay,
+          window: scheduleWindow === '' ? null : scheduleWindow,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || 'Failed to update backup schedule');
+      }
+      toast.success('Backup schedule updated');
+      await loadData({ silent: true });
+    } catch (err) {
+      console.error('Failed to update backup schedule:', err);
+      const message = err instanceof Error ? err.message : 'Failed to update backup schedule';
+      toast.error(message);
+    } finally {
+      setScheduleBusy(false);
+    }
+  }, [detail, loadData, scheduleDay, scheduleWindow, token]);
+
+  const handleBackupScheduleReset = useCallback(() => {
+    setScheduleDay(normalizedOriginalDay);
+    setScheduleWindow(normalizedOriginalWindow);
+  }, [normalizedOriginalDay, normalizedOriginalWindow]);
 
   const handleAttachFirewall = useCallback(async () => {
     if (!detail || selectedFirewallId === '' || firewallAction === 'attach') return;
@@ -1193,6 +1299,75 @@ const VPSDetail: React.FC = () => {
                     )}
                   </div>
 
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Automated backup schedule</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                          Choose the preferred weekly snapshot day and two-hour window. Leave either field on auto to let the provider pick.
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                          Current provider selection: {normalizedOriginalDay ? normalizedOriginalDay : 'Auto'} · {normalizedOriginalWindow ? describeBackupWindow(normalizedOriginalWindow) : 'Auto'}
+                        </p>
+                      </div>
+                      <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Preferred day</label>
+                          <select
+                            value={scheduleDay}
+                            onChange={event => setScheduleDay(event.target.value)}
+                            disabled={!backupsEnabled || scheduleBusy}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 disabled:dark:bg-gray-800"
+                          >
+                            {BACKUP_DAY_CHOICES.map(option => (
+                              <option key={option.value || 'auto'} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Backup window</label>
+                          <select
+                            value={scheduleWindow}
+                            onChange={event => setScheduleWindow(event.target.value)}
+                            disabled={!backupsEnabled || scheduleBusy}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 disabled:dark:bg-gray-800"
+                          >
+                            {BACKUP_WINDOW_CHOICES.map(option => (
+                              <option key={option.value || 'auto'} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleBackupScheduleSave}
+                        disabled={!backupsEnabled || scheduleBusy || !scheduleDirty}
+                        className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-blue-400 ${!backupsEnabled || scheduleBusy || !scheduleDirty ? 'bg-blue-600/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'}`}
+                      >
+                        {scheduleBusy ? 'Saving…' : 'Save schedule'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBackupScheduleReset}
+                        disabled={!scheduleDirty || scheduleBusy}
+                        className={`inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 ${!scheduleDirty || scheduleBusy ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    {!backupsEnabled && (
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
+                        Enable backups to configure the automated schedule.
+                      </p>
+                    )}
+                  </div>
+
                   {backupPricing && (
                     <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
                       <p className="font-semibold">Plan add-on pricing</p>
@@ -1254,237 +1429,333 @@ const VPSDetail: React.FC = () => {
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Networking</h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Current IPv4/IPv6 assignments and routing details.</p>
                 </div>
-                <div className="px-6 py-5 space-y-6">
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Transfer utilisation</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-300">Measured for the active billing cycle.</p>
+                <div className="px-6 py-5 space-y-8">
+                  <div className="grid gap-6 xl:grid-cols-12">
+                    <div className="xl:col-span-5">
+                      <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
+                            <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">Active billing cycle</h3>
+                          </div>
+                          {transferInfo && (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                              {transferUsagePercent.toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
+                          Track bandwidth consumption against the quota reported by your provider.
+                        </p>
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span>Usage</span>
+                            <span>
+                              {transferInfo ? `${transferUsedGb.toFixed(2)} GB of ${transferQuotaGb.toFixed(0)} GB` : 'Unavailable'}
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-800">
+                            <div
+                              className="h-2 rounded-full bg-blue-500 transition-all"
+                              style={{ width: `${transferUsagePercent}%` }}
+                            />
+                          </div>
+                        </div>
+                        {transferInfo ? (
+                          <>
+                            <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Used</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                  {transferUsedGb.toFixed(2)} GB
+                                </dd>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Remaining</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                  {transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}
+                                </dd>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                  {transferBillableGb.toFixed(2)} GB
+                                </dd>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Overage</dt>
+                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                  {transferOverageGb !== null ? `${transferOverageGb.toFixed(2)} GB` : '—'}
+                                </dd>
+                              </div>
+                            </dl>
+                            {transferUsagePercent >= 90 && (
+                              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
+                                <AlertTriangle className="h-4 w-4" />
+                                Approaching quota
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">Usage data unavailable.</p>
+                        )}
                       </div>
-                      {transferInfo && (
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{transferInfo.usedGb.toFixed(2)} GB used of {transferInfo.quotaGb.toFixed(0)} GB</span>
-                      )}
                     </div>
-                    <div className="mt-4 h-3 w-full rounded-full bg-gray-200 dark:bg-gray-800">
-                      <div
-                        className="h-3 rounded-full bg-blue-500 transition-all"
-                        style={{ width: `${Math.min(100, Math.max(0, transferInfo?.utilizationPercent ?? 0))}%` }}
-                      />
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between text-xs text-gray-500 dark:text-gray-300">
-                      <span>{transferInfo ? `Billable ${transferInfo.billableGb.toFixed(2)} GB` : 'Usage data unavailable'}</span>
-                      {transferInfo && transferInfo.utilizationPercent >= 90 && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100/70 px-2.5 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          Approaching quota
-                        </span>
-                      )}
+                    <div className="xl:col-span-7">
+                      <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Connectivity overview</h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+                          Quick reference for address availability and DNS controls.
+                        </p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public IPv4</p>
+                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{publicIpv4Count}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
+                          </div>
+                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Private IPv4</p>
+                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{privateIpv4Count}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Internal networking</p>
+                          </div>
+                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">IPv6 SLAAC</p>
+                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                              {hasSlaacIpv6 ? 'Available' : 'Not provisioned'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {hasSlaacIpv6 ? 'rDNS adjustable in-place' : 'Automatic configuration pending'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv4 addresses</h3>
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public and private allocations reported by the provider.</p>
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      {ipv4Categories.map(category => (
-                        <div key={category.label} className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{category.label}</p>
-                          {category.addresses.length > 0 ? (
-                            <ul className="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                              {category.addresses.map(addr => {
-                                const editorState = rdnsEditor[addr.address];
-                                const editing = editorState?.editing ?? false;
-                                const saving = editorState?.saving ?? false;
-                                const currentValue = editorState?.value ?? addr.rdns ?? '';
-                                const isPrivate = !addr.public;
-                                const showRdnsInfo = !isPrivate;
-                                const canEditAddress = showRdnsInfo && rdnsEditable && addr.rdnsEditable;
-                                return (
-                                  <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="font-semibold text-gray-900 dark:text-white">{addr.address}</span>
-                                      {addr.prefix !== null && (
-                                        <span className="text-xs text-gray-500 dark:text-gray-300">/{addr.prefix}</span>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-300">
-                                      {formatStatusLabel(addr.type)} · {addr.public ? 'Public' : 'Private'}
-                                      {addr.region ? ` · ${addr.region}` : ''}
-                                    </p>
-                                    {addr.gateway && (
-                                      <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
-                                    )}
-                                    {showRdnsInfo && (
-                                      <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
-                                    )}
-                                    {canEditAddress && (
-                                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                                        {editing ? (
-                                          <>
-                                            <input
-                                              value={currentValue}
-                                              onChange={event => updateRdnsValue(addr.address, event.target.value)}
-                                              className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
-                                              placeholder="reverse.example.com"
-                                              disabled={saving}
-                                            />
-                                            <div className="flex gap-2">
-                                              <button
-                                                type="button"
-                                                onClick={() => saveRdns(addr.address)}
-                                                disabled={saving}
-                                                className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${saving ? 'opacity-75' : ''}`}
-                                              >
-                                                {saving ? 'Saving…' : 'Save'}
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => cancelEditRdns(addr.address)}
-                                                disabled={saving}
-                                                className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                                              >
-                                                Cancel
-                                              </button>
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => beginEditRdns(addr.address)}
-                                            className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
-                                          >
-                                            Edit rDNS
-                                          </button>
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                      <div className="flex flex-wrap items-baseline justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv4 assignments</h3>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public and private allocations</p>
+                        </div>
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800/60 dark:text-gray-300">
+                          {totalIpv4Count} {totalIpv4Count === 1 ? 'address' : 'addresses'}
+                        </span>
+                      </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        {ipv4Categories.map(category => (
+                          <div key={category.label} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{category.label}</p>
+                              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{category.addresses.length}</span>
+                            </div>
+                            {category.addresses.length > 0 ? (
+                              <ul className="space-y-3 text-sm text-gray-700 dark:text-gray-200">
+                                {category.addresses.map(addr => {
+                                  const editorState = rdnsEditor[addr.address];
+                                  const editing = editorState?.editing ?? false;
+                                  const saving = editorState?.saving ?? false;
+                                  const currentValue = editorState?.value ?? addr.rdns ?? '';
+                                  const isPrivate = !addr.public;
+                                  const showRdnsInfo = !isPrivate;
+                                  const canEditAddress = showRdnsInfo && rdnsEditable && addr.rdnsEditable;
+                                  return (
+                                    <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold text-gray-900 dark:text-white">{addr.address}</span>
+                                        {addr.prefix !== null && (
+                                          <span className="text-xs text-gray-500 dark:text-gray-300">/{addr.prefix}</span>
                                         )}
                                       </div>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">No addresses assigned.</p>
-                          )}
-                        </div>
-                      ))}
+                                      <p className="text-xs text-gray-500 dark:text-gray-300">
+                                        {formatStatusLabel(addr.type)} · {addr.public ? 'Public' : 'Private'}
+                                        {addr.region ? ` · ${addr.region}` : ''}
+                                      </p>
+                                      {addr.gateway && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
+                                      )}
+                                      {showRdnsInfo && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-300 truncate">rDNS: {currentValue || 'Not set'}</p>
+                                      )}
+                                      {canEditAddress && (
+                                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                          {editing ? (
+                                            <>
+                                              <input
+                                                value={currentValue}
+                                                onChange={event => updateRdnsValue(addr.address, event.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                                placeholder="reverse.example.com"
+                                                disabled={saving}
+                                              />
+                                              <div className="flex gap-2">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => saveRdns(addr.address)}
+                                                  disabled={saving}
+                                                  className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${saving ? 'opacity-75' : ''}`}
+                                                >
+                                                  {saving ? 'Saving…' : 'Save'}
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => cancelEditRdns(addr.address)}
+                                                  disabled={saving}
+                                                  className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() => beginEditRdns(addr.address)}
+                                              className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                            >
+                                              Edit rDNS
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-gray-500 dark:text-gray-300">No addresses assigned.</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv6 assignments</h3>
-                    {ipv6Info ? (
-                      <div className="mt-4 space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {ipv6Info.slaac && (
-                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">SLAAC</p>
-                              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{ipv6Info.slaac.address}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
-                              {ipv6Info.slaac.gateway && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.slaac.gateway}</p>
-                              )}
-                              {slaacAddress && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">rDNS: {slaacCurrentValue || 'Not set'}</p>
-                              )}
-                              {canEditSlaacRdns && slaacAddress && (
-                                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                                  {slaacEditing ? (
-                                    <>
-                                      <input
-                                        value={slaacCurrentValue}
-                                        onChange={event => updateRdnsValue(slaacAddress, event.target.value)}
-                                        className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
-                                        placeholder="reverse.example.com"
-                                        disabled={slaacSaving}
-                                      />
-                                      <div className="flex gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => saveRdns(slaacAddress)}
-                                          disabled={slaacSaving}
-                                          className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${slaacSaving ? 'opacity-75' : ''}`}
-                                        >
-                                          {slaacSaving ? 'Saving…' : 'Save'}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => cancelEditRdns(slaacAddress)}
-                                          disabled={slaacSaving}
-                                          className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => beginEditRdns(slaacAddress)}
-                                      className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
-                                    >
-                                      Edit rDNS
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {ipv6Info.linkLocal && (
-                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Link-local</p>
-                              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{ipv6Info.linkLocal.address}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.linkLocal.prefix ?? '—'}</p>
-                              {ipv6Info.linkLocal.gateway && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.linkLocal.gateway}</p>
-                              )}
-                            </div>
-                          )}
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                      <div className="flex flex-wrap items-baseline justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv6 assignments</h3>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider supplied ranges</p>
                         </div>
-                        {(ipv6Info.global ?? []).length > 0 && (
-                          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global prefixes</p>
-                            <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                              {(ipv6Info.global ?? []).map((range, index) => (
-                                <li key={`global-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-                                  <span className="font-semibold text-gray-800 dark:text-white">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
-                                  <span>{range.region ?? 'Region unknown'}</span>
-                                  {range.routeTarget && <span>Route: {range.routeTarget}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(ipv6Info.ranges ?? []).length > 0 && (
-                          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Ranged allocations</p>
-                            <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                              {(ipv6Info.ranges ?? []).map((range, index) => (
-                                <li key={`range-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-                                  <span className="font-semibold text-gray-800 dark:text-white">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
-                                  <span>{range.region ?? 'Region unknown'}</span>
-                                  {range.routeTarget && <span>Route: {range.routeTarget}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(ipv6Info.pools ?? []).length > 0 && (
-                          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Pool assignments</p>
-                            <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                              {(ipv6Info.pools ?? []).map((pool, index) => (
-                                <li key={`pool-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
-                                  <span className="font-semibold text-gray-800 dark:text-white">{pool.range ?? '—'}/{pool.prefix ?? '—'}</span>
-                                  <span>{pool.region ?? 'Region unknown'}</span>
-                                  {pool.routeTarget && <span>Route: {pool.routeTarget}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                        {hasSlaacIpv6 && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
+                            SLAAC active
+                          </span>
                         )}
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No IPv6 assignments reported by the provider.</p>
-                    )}
+                      {ipv6Info ? (
+                        <div className="mt-4 space-y-5">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {ipv6Info.slaac && (
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">SLAAC</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{ipv6Info.slaac.address}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
+                                {ipv6Info.slaac.gateway && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.slaac.gateway}</p>
+                                )}
+                                {slaacAddress && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">rDNS: {slaacCurrentValue || 'Not set'}</p>
+                                )}
+                                {canEditSlaacRdns && slaacAddress && (
+                                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                    {slaacEditing ? (
+                                      <>
+                                        <input
+                                          value={slaacCurrentValue}
+                                          onChange={event => updateRdnsValue(slaacAddress, event.target.value)}
+                                          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900"
+                                          placeholder="reverse.example.com"
+                                          disabled={slaacSaving}
+                                        />
+                                        <div className="flex gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => saveRdns(slaacAddress)}
+                                            disabled={slaacSaving}
+                                            className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${slaacSaving ? 'opacity-75' : ''}`}
+                                          >
+                                            {slaacSaving ? 'Saving…' : 'Save'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => cancelEditRdns(slaacAddress)}
+                                            disabled={slaacSaving}
+                                            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => beginEditRdns(slaacAddress)}
+                                        className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                                      >
+                                        Edit rDNS
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {ipv6Info.linkLocal && (
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Link-local</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{ipv6Info.linkLocal.address}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.linkLocal.prefix ?? '—'}</p>
+                                {ipv6Info.linkLocal.gateway && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.linkLocal.gateway}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {(ipv6Info.global ?? []).length > 0 && (
+                            <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global prefixes</p>
+                              <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                                {(ipv6Info.global ?? []).map((range, index) => (
+                                  <li key={`global-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
+                                    <span className="font-semibold text-gray-800 dark:text-white">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
+                                    <span>{range.region ?? 'Region unknown'}</span>
+                                    {range.routeTarget && <span>Route: {range.routeTarget}</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(ipv6Info.ranges ?? []).length > 0 && (
+                            <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Ranged allocations</p>
+                              <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                                {(ipv6Info.ranges ?? []).map((range, index) => (
+                                  <li key={`range-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
+                                    <span className="font-semibold text-gray-800 dark:text-white">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
+                                    <span>{range.region ?? 'Region unknown'}</span>
+                                    {range.routeTarget && <span>Route: {range.routeTarget}</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(ipv6Info.pools ?? []).length > 0 && (
+                            <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
+                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Pool assignments</p>
+                              <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                                {(ipv6Info.pools ?? []).map((pool, index) => (
+                                  <li key={`pool-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
+                                    <span className="font-semibold text-gray-800 dark:text-white">{pool.range ?? '—'}/{pool.prefix ?? '—'}</span>
+                                    <span>{pool.region ?? 'Region unknown'}</span>
+                                    {pool.routeTarget && <span>Route: {pool.routeTarget}</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No IPv6 assignments reported by the provider.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -1494,7 +1765,7 @@ const VPSDetail: React.FC = () => {
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Provider Activity Feed</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Recent Linode events for this instance.</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Recent VPS events for this instance.</p>
                 </div>
                 <div className="px-6 py-5">
                   {eventFeed.length > 0 ? (
@@ -1824,12 +2095,6 @@ const VPSDetail: React.FC = () => {
                   <span>Region code</span>
                   <span className="font-medium">{detail?.provider?.region || detail?.region || '—'}</span>
                 </div>
-                {providerIpv6Address && (
-                  <div className="flex items-center justify-between">
-                    <span>IPv6 SLAAC</span>
-                    <span className="font-medium break-all">{providerIpv6Address}</span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between">
                   <span>Created</span>
                   <span className="font-medium">{formatDateTime(detail?.provider?.created || null)}</span>
@@ -1842,11 +2107,11 @@ const VPSDetail: React.FC = () => {
                   <span>rDNS edits</span>
                   <span className="font-medium">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
                 </div>
-                {detail?.provider?.ipv4?.length ? (
+                {detail?.provider?.ipv4?.length || providerIpv6Address ? (
                   <div>
-                    <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IPv4 addresses</span>
+                    <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IP addresses</span>
                     <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-200">
-                      {detail.provider.ipv4.map(ip => {
+                      {(detail.provider?.ipv4 ?? []).map(ip => {
                         const classification = classifyProviderIpv4(ip);
                         const descriptor = classification === 'private'
                           ? 'private network'
@@ -1860,6 +2125,12 @@ const VPSDetail: React.FC = () => {
                           </li>
                         );
                       })}
+                      {providerIpv6Address && (
+                        <li className="rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                          <span className="font-semibold text-gray-700 dark:text-gray-100 break-all">{providerIpv6Address}</span>
+                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">(ipv6 slaac, provider assigned)</span>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 ) : null}
