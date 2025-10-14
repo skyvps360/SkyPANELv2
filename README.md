@@ -146,6 +146,20 @@ If you find my work helpful, consider supporting me:
    BACKUP_RETENTION_DAYS=30
    ```
 
+   #### White-label Branding
+   - Set `COMPANY-NAME` in `.env` to customize the brand name displayed across the UI (navigation, home page hero/footer, login/register copy, and labels in API docs).
+   - Alternatively, you can use `VITE_COMPANY_NAME` if you prefer the standard Vite prefix.
+   - Example:
+
+     ```env
+     COMPANY-NAME=SkyVPS360
+     # or
+     VITE_COMPANY_NAME=SkyVPS360
+     ```
+
+   - After changing the brand variable, restart the dev server so the UI picks up the new value.
+   - See `.env.example` for a reference configuration that includes `COMPANY-NAME`.
+
 5. **Set up the database**
    - Run migrations from `migrations/` or use the provided scripts in `scripts/`
    - Ensure Row Level Security policies are applied as per the architecture docs
@@ -218,6 +232,7 @@ If you find my work helpful, consider supporting me:
 - Region dropdown empty: verify `LINODE_API_TOKEN`, provider configuration, and network connectivity
 - Port conflicts: use `npm run kill-ports` before `npm run dev`
 - Missing table errors: ensure migrations are applied and review server logs
+- Branding not updating: ensure `COMPANY-NAME` (or `VITE_COMPANY_NAME`) is set in `.env` and restart the dev server (`npm run dev`).
 
 ## 🤝 Contributing
 
