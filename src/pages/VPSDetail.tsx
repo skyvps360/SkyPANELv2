@@ -18,7 +18,6 @@ import {
   Shield,
   BarChart3,
   LayoutDashboard,
-  Layers,
   CalendarClock,
   Gauge,
   SatelliteDish,
@@ -1327,8 +1326,8 @@ const VPSDetail: React.FC = () => {
           </div>
         </div>
 
-    <div className="flex flex-col gap-4 sm:gap-6">
-          <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-6 lg:gap-8">
+          <div className="flex-1 space-y-4 sm:space-y-6">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0">
                 <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 sm:mb-6">Instance Feature Views</p>
@@ -2438,7 +2437,8 @@ const VPSDetail: React.FC = () => {
             )}
           </div>
 
-          <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+          <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
                 <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
@@ -2573,6 +2573,7 @@ const VPSDetail: React.FC = () => {
                 ) : null}
               </div>
             </section>
+          </aside>
         </div>
       </div>
     </div>
