@@ -1250,7 +1250,7 @@ const VPSDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-full sm:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+      <div className="max-w-full xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
         <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
@@ -1335,7 +1335,39 @@ const VPSDetail: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end gap-2 sm:gap-3">
+            {/* Power Control Buttons */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+              <button
+                type="button"
+                disabled={!allowStart || actionLoading === 'boot'}
+                onClick={() => performAction('boot')}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[40px] touch-manipulation ${allowStart ? 'bg-green-600 hover:bg-green-500 active:bg-green-700' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
+              >
+                <Power className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{actionLoading === 'boot' ? 'Starting…' : 'Power On'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={!allowStop || actionLoading === 'shutdown'}
+                onClick={() => performAction('shutdown')}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 min-h-[40px] touch-manipulation ${allowStop ? 'bg-red-600 hover:bg-red-500 active:bg-red-700' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
+              >
+                <PowerOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={!allowReboot || actionLoading === 'reboot'}
+                onClick={() => performAction('reboot')}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:active:bg-gray-700 min-h-[40px] touch-manipulation ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
+              >
+                <RotateCcw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}</span>
+              </button>
+            </div>
+            
+            {/* Refresh Button */}
             <button
               type="button"
               onClick={() => loadData({ silent: true })}
@@ -1348,49 +1380,67 @@ const VPSDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-6 lg:gap-8">
-          <div className="flex-1 min-w-0 space-y-4 sm:space-y-6">
+        {/* Three-column layout: Tabs Sidebar | Main Content | Provider Telemetry */}
+        <div className="flex flex-col xl:flex-row xl:items-start gap-4 sm:gap-6 xl:gap-8">
+          {/* Left Sidebar - Instance Feature Views Tabs */}
+          <aside className="w-full xl:w-72 flex-shrink-0">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-              <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0">
-                <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 sm:mb-6">Instance Feature Views</p>
-              </div>
-              
-              {/* Tab Navigation - Mobile Optimized */}
-              <div className="w-full">
-                {/* Tab List Container with proper mobile scrolling */}
-                <div className="w-full overflow-x-auto border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex space-x-1 sm:space-x-2 min-w-max pb-px px-4 sm:px-6 pr-6 sm:pr-8">
-                      {tabDefinitions.map(tab => {
-                        const isActive = activeTab === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 whitespace-nowrap rounded-t-lg border-b-2 min-h-[44px] touch-manipulation last:mr-3 sm:last:mr-4 ${
-                              isActive
-                                ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
-                                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                            }`}
-                          >
-                            <tab.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors duration-200 flex-shrink-0 ${
-                              isActive 
-                                ? 'text-blue-600 dark:text-blue-400' 
-                                : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-500 dark:group-hover:text-gray-300'
-                            }`} />
-                            <span className="font-medium text-xs sm:text-sm">{tab.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+              <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6">
+                <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-6 sm:mb-8">Instance Feature Views</p>
+                
+                {/* Tab Navigation - Responsive: Dropdown on mobile, Vertical on desktop */}
+                
+                {/* Mobile Dropdown (below xl breakpoint) */}
+                <div className="xl:hidden">
+                  <select
+                    value={activeTab}
+                    onChange={(e) => setActiveTab(e.target.value)}
+                    className="w-full px-4 py-3.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-gray-900 dark:text-gray-100"
+                  >
+                    {tabDefinitions.map(tab => (
+                      <option key={tab.id} value={tab.id}>
+                        {tab.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                {/* Desktop Vertical Layout (xl and above) */}
+                <div className="hidden xl:block space-y-3">
+                  {tabDefinitions.map(tab => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`w-full flex items-center gap-4 px-4 py-3.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 rounded-lg ${
+                          isActive
+                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                            : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                        }`}
+                      >
+                        <tab.icon className={`h-4 w-4 transition-colors duration-200 flex-shrink-0 ${
+                          isActive 
+                            ? 'text-blue-600 dark:text-blue-400' 
+                            : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-500 dark:group-hover:text-gray-300'
+                        }`} />
+                        <span className="font-medium text-left">{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+          </aside>
+
+          {/* Center Column - Main Content */}
+          <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
 
             {activeTab === 'overview' && (
               <>
                 <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
+                  <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 dark:border-gray-800">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
@@ -1399,40 +1449,12 @@ const VPSDetail: React.FC = () => {
                         </h2>
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Metadata and quick actions for this server.</p>
                       </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
-                        <button
-                          type="button"
-                          disabled={!allowStart || actionLoading === 'boot'}
-                          onClick={() => performAction('boot')}
-                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[48px] touch-manipulation ${allowStart ? 'bg-green-600 hover:bg-green-500 active:bg-green-700' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
-                        >
-                          <Power className="h-4 w-4 flex-shrink-0" />
-                          <span>{actionLoading === 'boot' ? 'Starting…' : 'Power On'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!allowStop || actionLoading === 'shutdown'}
-                          onClick={() => performAction('shutdown')}
-                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 min-h-[48px] touch-manipulation ${allowStop ? 'bg-red-600 hover:bg-red-500 active:bg-red-700' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
-                        >
-                          <PowerOff className="h-4 w-4 flex-shrink-0" />
-                          <span>{actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!allowReboot || actionLoading === 'reboot'}
-                          onClick={() => performAction('reboot')}
-                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:active:bg-gray-700 min-h-[48px] touch-manipulation ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
-                        >
-                          <RotateCcw className={`h-4 w-4 flex-shrink-0 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
-                          <span>{actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}</span>
-                        </button>
-                      </div>
+
                     </div>
                   </div>
-                  <div className="px-4 sm:px-6 py-4 sm:py-6">
-                    <div className="space-y-4 sm:space-y-6">
-                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="px-6 sm:px-8 py-6 sm:py-8">
+                    <div className="space-y-6 sm:space-y-8">
+                        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
                           <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             <span>vCPUs</span>
@@ -1463,7 +1485,7 @@ const VPSDetail: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
                           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Plan</p>
                           <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
@@ -1476,7 +1498,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </div>
 
-                    <dl className="mt-4 sm:mt-6 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                    <dl className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Instance ID</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.id}</dd>
@@ -2471,20 +2493,21 @@ const VPSDetail: React.FC = () => {
             )}
           </div>
 
-          <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+          {/* Right Column - Provider Telemetry */}
+          <aside className="w-full xl:w-80 2xl:w-96 flex-shrink-0">
             <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-              <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
+              <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 dark:border-gray-800">
                 <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                   Provider Telemetry
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
               </div>
-              <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
+              <div className="px-6 sm:px-8 py-6 sm:py-8 space-y-6 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
                 <p className="text-xs text-gray-500 dark:text-gray-300">
                   The following IP details are reported directly by the cloud provider and may include public and private reachability.
                 </p>
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-4 sm:space-y-5">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-gray-500 dark:text-gray-300">Image</span>
                     <span className="font-medium text-gray-900 dark:text-white break-words sm:text-right">{providerImageLabel}</span>
