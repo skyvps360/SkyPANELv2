@@ -167,14 +167,29 @@ const VPS: React.FC = () => {
   // Constrain visible OS versions when a WordPress StackScript specifies allowed base images
   const effectiveOsGroups = useMemo(() => {
     const allowed = Array.isArray(selectedStackScript?.images) ? (selectedStackScript!.images as string[]) : [];
-    if (!selectedStackScript || allowed.length === 0) return osGroups;
+    if (!selectedStackScript) return osGroups;
+    const knownIds = new Set((linodeImages || []).map((i: any) => i.id));
+    const allowedKnown = allowed.filter((id: string) => knownIds.has(id));
+    // If the StackScript allows any/all (no specific known image IDs), show all OS groups
+    if (allowed.length === 0 || allowedKnown.length === 0) return osGroups;
+    const allowedSet = new Set(allowedKnown);
     const filtered: typeof osGroups = {} as any;
     Object.entries(osGroups).forEach(([key, group]) => {
-      const versions = group.versions.filter(v => allowed.includes(v.id));
+      const versions = group.versions.filter(v => allowedSet.has(v.id));
       if (versions.length > 0) filtered[key] = { ...group, versions };
     });
     return filtered;
-  }, [osGroups, selectedStackScript]);
+  }, [osGroups, selectedStackScript, linodeImages]);
+
+  // Display helper for StackScript allowed images (falls back to Any Linux distribution)
+  const allowedImagesDisplay = useMemo(() => {
+    if (!selectedStackScript) return '';
+    const allowed = Array.isArray(selectedStackScript.images) ? (selectedStackScript.images as string[]) : [];
+    const byId = new Map((linodeImages || []).map((img: any) => [img.id, img.label || img.id]));
+    const knownLabels = allowed.filter(id => byId.has(id)).map(id => String(byId.get(id)).replace(/^linode\//i, ''));
+    if (allowed.length === 0 || knownLabels.length === 0) return 'Any Linux distribution';
+    return knownLabels.join(', ');
+  }, [selectedStackScript, linodeImages]);
 
   // Sync default selection to current form image when images load
   useEffect(() => {
@@ -271,10 +286,13 @@ const VPS: React.FC = () => {
   useEffect(() => {
     if (!selectedStackScript) return;
     const allowed = Array.isArray(selectedStackScript.images) ? (selectedStackScript.images as string[]) : [];
-    if (allowed.length === 0) return;
+    const knownIds = new Set((linodeImages || []).map((i: any) => i.id));
+    const allowedKnown = allowed.filter(id => knownIds.has(id));
+    // If unrestricted (any/all), don't force-change the current image
+    if (allowed.length === 0 || allowedKnown.length === 0) return;
     const current = createForm.image;
-    const isAllowed = current && allowed.includes(current);
-    const pick = isAllowed ? current : allowed[0];
+    const isAllowed = current && allowedKnown.includes(current);
+    const pick = isAllowed ? current : allowedKnown[0];
     if (pick && pick !== current) {
       setCreateForm(prev => ({ ...prev, image: pick }));
       const src = pick.toLowerCase();
@@ -295,7 +313,7 @@ const VPS: React.FC = () => {
         setSelectedOSVersion(prev => ({ ...prev, [key]: pick }));
       }
     }
-  }, [selectedStackScript]);
+  }, [selectedStackScript, linodeImages]);
 
   const loadVPSPlans = async () => {
     setLoadingPlans(true);
@@ -387,6 +405,17 @@ const VPS: React.FC = () => {
 
       const scripts = Array.isArray(payload.stackscripts) ? payload.stackscripts : [];
       setLinodeStackScripts(scripts);
+      
+      // Auto-select ssh-key script as default (but display as "None")
+      const sshKeyScript = scripts.find(script => 
+        script.label === 'ssh-key' || 
+        script.id === 'ssh-key' ||
+        (script.label && script.label.toLowerCase().includes('ssh'))
+      );
+      
+      if (sshKeyScript) {
+        setSelectedStackScript(sshKeyScript);
+      }
     } catch (error: any) {
       console.error('Failed to load 1-Click deployments:', error);
       toast.error(error.message || 'Failed to load deployments');
@@ -550,11 +579,16 @@ const VPS: React.FC = () => {
 
   try {
       // Enforce image compatibility and validate fields for Marketplace/StackScript
-      if (selectedStackScript && Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0) {
+      if (selectedStackScript && Array.isArray(selectedStackScript.images)) {
         const allowed = selectedStackScript.images as string[];
-        if (!createForm.image || !allowed.includes(createForm.image)) {
-          toast.error('Selected OS image is not compatible with the selected application. Choose an allowed image.');
-          return;
+        const knownIds = new Set((linodeImages || []).map((i: any) => i.id));
+        const allowedKnown = allowed.filter(id => knownIds.has(id));
+        // If the script is unrestricted (any/all), skip strict enforcement
+        if (allowedKnown.length > 0) {
+          if (!createForm.image || !allowedKnown.includes(createForm.image)) {
+            toast.error('Selected OS image is not compatible with the selected application. Choose an allowed image.');
+            return;
+          }
         }
       }
       if (selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields)) {
@@ -600,35 +634,24 @@ const VPS: React.FC = () => {
 
       const payload = await res.json();
       if (!res.ok) {
-        throw new Error(payload.error || 'Failed to create VPS');
+        // Handle specific error codes with better user feedback
+        if (payload.code === 'INSUFFICIENT_BALANCE') {
+          toast.error(`Insufficient wallet balance. You need $${payload.required?.toFixed(4) || 'unknown'} but only have $${payload.available?.toFixed(2) || 'unknown'}. Please add funds to your wallet.`);
+        } else if (payload.code === 'WALLET_NOT_FOUND') {
+          toast.error('No wallet found for your organization. Please contact support.');
+        } else if (payload.code === 'WALLET_CHECK_FAILED') {
+          toast.error('Failed to verify wallet balance. Please try again.');
+        } else {
+          toast.error(payload.error || 'Failed to create VPS');
+        }
+        return;
       }
 
-      // Deduct hourly cost from wallet
-      try {
-        const deductionDescription = `VPS Creation - ${createForm.label} (${selectedType.label})${createForm.backups ? ' with backups' : ''}`;
-        
-        const deductResponse = await fetch('/api/payments/wallet/deduct', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: totalHourlyCost,
-            description: deductionDescription,
-          }),
-        });
-
-        if (!deductResponse.ok) {
-          const deductError = await deductResponse.json();
-          console.error('Failed to deduct from wallet:', deductError);
-          toast.warning('VPS created but failed to deduct from wallet. Please check your billing.');
-        } else {
-          toast.success(`VPS creation initiated. $${totalHourlyCost.toFixed(4)} deducted from wallet.`);
-        }
-      } catch (deductError) {
-        console.error('Wallet deduction error:', deductError);
-        toast.warning('VPS created but failed to deduct from wallet. Please check your billing.');
+      // VPS creation successful - show appropriate message based on billing status
+      if (payload.billing?.success) {
+        toast.success(`VPS "${createForm.label}" created successfully! ${payload.billing.message}`);
+      } else {
+        toast.warning(`VPS "${createForm.label}" created successfully, but ${payload.billing?.message || 'initial billing failed'}. You will be billed hourly as normal.`);
       }
 
       // Refresh list from server to reflect new instance
@@ -1027,11 +1050,7 @@ const VPS: React.FC = () => {
                           type: newType,
                           region: newRegion,
                         }));
-                        
-                        // Show warning if plan doesn't have a region configured
-                        if (newType && !newRegion) {
-                          console.warn('Selected plan does not have a region configured:', selectedType);
-                        }
+                        // Gracefully handle plans without a preset region without logging
                       }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                     >
@@ -1083,9 +1102,22 @@ const VPS: React.FC = () => {
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {/* None option card */}
                         <div
-                          onClick={() => setSelectedStackScript(null)}
+                          onClick={() => {
+                            // Find ssh-key script and select it (but display as "None")
+                            const sshKeyScript = linodeStackScripts.find(script => 
+                              script.label === 'ssh-key' || 
+                              script.id === 'ssh-key' ||
+                              (script.label && script.label.toLowerCase().includes('ssh'))
+                            );
+                            setSelectedStackScript(sshKeyScript || null);
+                          }}
                           className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                            selectedStackScript === null
+                            selectedStackScript === null || 
+                            (selectedStackScript && (
+                              selectedStackScript.label === 'ssh-key' || 
+                              selectedStackScript.id === 'ssh-key' ||
+                              (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
+                            ))
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
                               : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                           }`}
@@ -1097,7 +1129,12 @@ const VPS: React.FC = () => {
                             <h4 className="font-medium text-gray-900 dark:text-white text-sm">None</h4>
                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Provision base OS without a deployment</p>
                           </div>
-                          {selectedStackScript === null && (
+                          {(selectedStackScript === null || 
+                            (selectedStackScript && (
+                              selectedStackScript.label === 'ssh-key' || 
+                              selectedStackScript.id === 'ssh-key' ||
+                              (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
+                            ))) && (
                             <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
                               <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1107,46 +1144,53 @@ const VPS: React.FC = () => {
                         </div>
 
                         {/* StackScript cards */}
-                        {linodeStackScripts.map((script) => (
-                          <div
-                            key={script.id}
-                            onClick={() => setSelectedStackScript(script)}
-                            className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                              selectedStackScript?.id === script.id
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                            }`}
-                          >
-                            <div className="flex flex-col space-y-2">
-                              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold text-xs">
-                                  {String(script.label || '').substring(0, 2).toUpperCase()}
-                                </span>
+                        {linodeStackScripts.map((script) => {
+                          // Don't show ssh-key script as a separate option since it's the default "None"
+                          const isSshKeyScript = script.label === 'ssh-key' || 
+                                                script.id === 'ssh-key' ||
+                                                (script.label && script.label.toLowerCase().includes('ssh'));
+                          
+                          if (isSshKeyScript) return null;
+                          
+                          return (
+                            <div
+                              key={script.id}
+                              onClick={() => setSelectedStackScript(script)}
+                              className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
+                                selectedStackScript?.id === script.id
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                              }`}
+                            >
+                              <div className="flex flex-col space-y-2">
+                                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                  <span className="text-white font-bold text-xs">
+                                    {String(script.label || '').substring(0, 2).toUpperCase()}
+                                  </span>
+                                </div>
+                                <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{script.label}</h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {script.description || 'Automated setup script'}
+                                </p>
                               </div>
-                              <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{script.label}</h4>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {script.description || 'Automated setup script'}
-                              </p>
+                              {selectedStackScript?.id === script.id && (
+                                <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
-                            {selectedStackScript?.id === script.id && (
-                              <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields) && selectedStackScript.user_defined_fields.length > 0 && (
                         <div className="mt-4 p-3 border rounded-lg bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-600">
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Deployment Configuration</h4>
-                          {Array.isArray(selectedStackScript.images) && selectedStackScript.images.length > 0 && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                              Allowed base images: {selectedStackScript.images.map((img: string) => img.replace(/^linode\//i, '')).join(', ')}
-                            </p>
-                          )}
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            Allowed base images: {allowedImagesDisplay}
+                          </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {selectedStackScript.user_defined_fields.map((f: any) => {
                               const value = stackscriptData[f.name] ?? '';
@@ -1374,7 +1418,8 @@ const VPS: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  </>) }
+                  </>
+                )}
                 </div>
 
                 <div className="flex items-center justify-between mt-6">

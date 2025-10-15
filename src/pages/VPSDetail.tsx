@@ -27,8 +27,10 @@ import {
   Copy,
   Edit2,
   Check,
-  X
+  X,
+  Terminal as TerminalIcon
 } from 'lucide-react';
+import SSHTerminal from '../components/VPS/SSHTerminal';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -226,7 +228,7 @@ interface InstanceEventSummary {
   entityLabel: string | null;
 }
 
-type TabId = 'overview' | 'backups' | 'networking' | 'activity' | 'firewall' | 'metrics';
+type TabId = 'overview' | 'backups' | 'networking' | 'activity' | 'firewall' | 'metrics' | 'ssh';
 
 interface TabDefinition {
   id: TabId;
@@ -478,6 +480,7 @@ const VPSDetail: React.FC = () => {
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'firewall', label: 'Firewalls', icon: Shield },
     { id: 'metrics', label: 'Metrics', icon: BarChart3 },
+    { id: 'ssh', label: 'SSH', icon: TerminalIcon },
   ], []);
 
   const backupPricing = useMemo<BackupPricing | null>(() => {
@@ -2352,6 +2355,27 @@ const VPSDetail: React.FC = () => {
                   ) : (
                     <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
                       Metrics have not been reported for this instance yet.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'ssh' && (
+              <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <TerminalIcon className="h-5 w-5 text-blue-500" />
+                    SSH Console
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Single sign-on web shell into this VPS instance.</p>
+                </div>
+                <div className="px-6 py-5">
+                  {detail?.id ? (
+                    <SSHTerminal instanceId={detail.id} />
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+                      Instance ID unavailable. Please refresh and try again.
                     </div>
                   )}
                 </div>

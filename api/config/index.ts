@@ -15,6 +15,7 @@ export interface Config {
   PAYPAL_MODE: string;
   SMTP2GO_API_KEY?: string;
   LINODE_API_TOKEN?: string;
+  SSH_CRED_SECRET?: string;
 }
 
 // Use getter functions to read env vars at runtime, not at import time
@@ -32,6 +33,7 @@ function getConfig(): Config {
     PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox',
     SMTP2GO_API_KEY: process.env.SMTP2GO_API_KEY,
     LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
+    SSH_CRED_SECRET: process.env.SSH_CRED_SECRET,
   };
 
   // Debug logging

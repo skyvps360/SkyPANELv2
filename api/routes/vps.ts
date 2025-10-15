@@ -12,6 +12,8 @@ import type {
   LinodeMetricTuple
 } from '../services/linodeService.js';
 import { logActivity } from '../services/activityLogger.js';
+import { encryptSecret } from '../lib/crypto.js';
+import { BillingService } from '../services/billingService.js';
 
 const router = express.Router();
 
@@ -1256,6 +1258,58 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    // Calculate hourly rate for pre-billing validation
+    let hourlyRate = 0.027; // Default fallback rate
+    try {
+      if (planIdForInstance) {
+        const planResult = await query(
+          'SELECT base_price, markup_price FROM vps_plans WHERE id = $1',
+          [planIdForInstance]
+        );
+        if (planResult.rows.length > 0) {
+          const plan = planResult.rows[0];
+          const monthlyPrice = parseFloat(plan.base_price) + parseFloat(plan.markup_price);
+          hourlyRate = monthlyPrice / 730; // Convert monthly to hourly (730 hours per month average)
+        }
+      }
+    } catch (planErr) {
+      console.warn('Failed to calculate hourly rate from plan:', planErr);
+    }
+
+    // Check wallet balance before creating VPS
+    try {
+      const walletResult = await query(
+        'SELECT balance FROM wallets WHERE organization_id = $1',
+        [organizationId]
+      );
+
+      if (walletResult.rows.length === 0) {
+        res.status(400).json({ 
+          error: 'No wallet found for your organization. Please contact support.',
+          code: 'WALLET_NOT_FOUND'
+        });
+        return;
+      }
+
+      const currentBalance = parseFloat(walletResult.rows[0].balance);
+      if (currentBalance < hourlyRate) {
+        res.status(400).json({ 
+          error: `Insufficient wallet balance. Required: $${hourlyRate.toFixed(4)}, Available: $${currentBalance.toFixed(2)}. Please add funds to your wallet.`,
+          code: 'INSUFFICIENT_BALANCE',
+          required: hourlyRate,
+          available: currentBalance
+        });
+        return;
+      }
+    } catch (walletErr) {
+      console.error('Error checking wallet balance:', walletErr);
+      res.status(500).json({ 
+        error: 'Failed to verify wallet balance. Please try again.',
+        code: 'WALLET_CHECK_FAILED'
+      });
+      return;
+    }
+
     // Create Linode instance (Marketplace app takes precedence when provided)
     const created = appSlug
       ? await linodeService.createInstanceWithMarketplaceApp({
@@ -1296,6 +1350,11 @@ router.post('/', async (req: Request, res: Response) => {
       stackscriptData,
       appSlug,
       appData,
+      auth: {
+        method: 'password',
+        user: 'root',
+        password_enc: encryptSecret(String(rootPassword)),
+      },
     };
 
     const ip = Array.isArray(created.ipv4) && created.ipv4.length > 0 ? created.ipv4[0] : null;
@@ -1317,6 +1376,27 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
     const instance = insertRes.rows[0];
+
+    // Process initial billing for VPS creation
+    let billingSuccess = false;
+    try {
+      billingSuccess = await BillingService.billVPSCreation(
+        String(instance.id),
+        organizationId,
+        hourlyRate,
+        label
+      );
+      
+      if (!billingSuccess) {
+        console.warn(`VPS created but billing failed for ${label} (${instance.id})`);
+        // Note: We don't fail the VPS creation if billing fails, but we log it
+        // The hourly billing service will pick this up later
+      }
+    } catch (billingErr) {
+      console.error('Error processing VPS creation billing:', billingErr);
+      // Continue with VPS creation even if billing fails
+    }
+    
     // Log instance creation
     try {
       const user = (req as any).user;
@@ -1328,13 +1408,22 @@ router.post('/', async (req: Request, res: Response) => {
         entityId: String(instance.id),
         message: `Created VPS '${label}' (${instance.provider_instance_id})`,
         status: 'success',
-        metadata: { label, type, region: regionToUse, image }
+        metadata: { label, type, region: regionToUse, image, hourlyRate }
       }, req as any);
     } catch (logErr) {
       console.warn('Failed to log vps.create activity:', logErr);
     }
 
-    res.status(201).json({ instance });
+    res.status(201).json({ 
+      instance,
+      billing: {
+        success: billingSuccess,
+        hourlyRate: hourlyRate,
+        message: billingSuccess 
+          ? `Initial billing of $${hourlyRate.toFixed(4)}/hour processed successfully`
+          : 'Initial billing failed - will be retried by hourly billing service'
+      }
+    });
   } catch (err: any) {
     console.error('VPS create error:', err);
     res.status(500).json({ error: err.message || 'Failed to create VPS instance' });
