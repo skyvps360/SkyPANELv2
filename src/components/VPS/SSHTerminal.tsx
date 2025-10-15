@@ -506,7 +506,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
         <div className="flex flex-wrap gap-4">
           <span>💡 Tips:</span>
           <span>• Select text and click Copy to copy</span>
-          <span>• Use Ctrl+F or Search button to find text</span>
+          <span>• Use Search button to find text</span>
           <span>• Download saves your session log</span>
           <span>• Try different themes for better visibility</span>
         </div>
