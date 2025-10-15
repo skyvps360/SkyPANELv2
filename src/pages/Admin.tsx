@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw } from 'lucide-react';
+import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe } from 'lucide-react';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -130,7 +130,7 @@ const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking'>('tickets');
   const [, setLoading] = useState(false);
 
   // Tickets state
@@ -189,6 +189,12 @@ const Admin: React.FC = () => {
   const [stackscriptSearch, setStackscriptSearch] = useState('');
   const [savingStackscriptId, setSavingStackscriptId] = useState<number | null>(null);
   const [loadingStackscripts, setLoadingStackscripts] = useState(false);
+
+  // Networking rDNS state
+  const [networkingTab, setNetworkingTab] = useState<'rdns'>('rdns');
+  const [rdnsBaseDomain, setRdnsBaseDomain] = useState<string>('');
+  const [rdnsLoading, setRdnsLoading] = useState<boolean>(false);
+  const [rdnsSaving, setRdnsSaving] = useState<boolean>(false);
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
@@ -253,6 +259,9 @@ const Admin: React.FC = () => {
         break;
       case 'providers':
         fetchProviders();
+        break;
+      case 'networking':
+        fetchNetworkingRdns();
         break;
       case 'containers':
       default:
@@ -320,6 +329,49 @@ const Admin: React.FC = () => {
       setProviders(data.providers || []);
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  // Networking: rDNS config
+  const fetchNetworkingRdns = async () => {
+    if (!token) return;
+    setRdnsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/networking/rdns`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load rDNS configuration');
+      const base = (data.config?.rdns_base_domain ?? 'ip.rev.skyvps360.xyz') as string;
+      setRdnsBaseDomain(base);
+      if (data.warning) {
+        toast.message(data.warning);
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRdnsLoading(false);
+    }
+  };
+
+  const saveNetworkingRdns = async () => {
+    if (!rdnsBaseDomain || !rdnsBaseDomain.trim()) {
+      toast.error('Please enter a base domain');
+      return;
+    }
+    setRdnsSaving(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/networking/rdns`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({ rdns_base_domain: rdnsBaseDomain.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save rDNS configuration');
+      setRdnsBaseDomain(data.config?.rdns_base_domain ?? rdnsBaseDomain.trim());
+      toast.success('rDNS configuration updated');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRdnsSaving(false);
     }
   };
 
@@ -900,6 +952,14 @@ const Admin: React.FC = () => {
               }`}
             >
               <Server className="h-4 w-4 inline mr-2" /> Container Plans
+            </button>
+            <button
+              onClick={() => setActiveTab('networking')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
+                activeTab === 'networking' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <Globe className="h-4 w-4 inline mr-2" /> Networking
             </button>
             <button
               onClick={() => setActiveTab('providers')}
@@ -1587,6 +1647,71 @@ const Admin: React.FC = () => {
                   </table>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'networking' && (
+          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Globe className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Networking</h2>
+              </div>
+            </div>
+            <div className="px-6 py-4">
+              {/* Subtabs */}
+              <div className="mb-4 border-b border-gray-200 dark:border-gray-700">
+                <nav className="-mb-px flex space-x-4" aria-label="Networking Tabs">
+                  <button
+                    onClick={() => setNetworkingTab('rdns')}
+                    className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${
+                      networkingTab === 'rdns' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    rDNS
+                  </button>
+                </nav>
+              </div>
+
+              {networkingTab === 'rdns' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">Reverse DNS Template</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      Define the base domain used when setting custom rDNS for VPS instances.
+                      If unset, the system uses <span className="font-mono">ip.rev.skyvps360.xyz</span>.
+                      During provisioning we automatically prepend <span className="font-mono">0-0-0-0.</span> and later
+                      set the final rDNS to the hyphenated IPv4, e.g. <span className="font-mono">a-b-c-d.base</span>.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">rDNS base domain</label>
+                        <input
+                          type="text"
+                          value={rdnsBaseDomain}
+                          onChange={(e) => setRdnsBaseDomain(e.target.value)}
+                          placeholder="ip.rev.skyvps360.xyz"
+                          className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                          disabled={rdnsLoading}
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Example final rDNS: <span className="font-mono">123-45-67-89.{rdnsBaseDomain || 'ip.rev.skyvps360.xyz'}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <button
+                        onClick={saveNetworkingRdns}
+                        disabled={rdnsSaving || rdnsLoading}
+                        className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                      >
+                        {rdnsSaving ? 'Saving...' : 'Save rDNS Template'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

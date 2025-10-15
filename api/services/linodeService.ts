@@ -1482,7 +1482,7 @@ class LinodeService {
    * This will set the rDNS to use skyvps360.xyz domain instead of linodeusercontent.com
    * This method is designed to run in the background without blocking VPS creation
    */
-  async setupCustomRDNSAsync(instanceId: number, label: string = `instance-${instanceId}`): Promise<void> {
+  async setupCustomRDNSAsync(instanceId: number, label: string = `instance-${instanceId}`, baseDomain: string = 'ip.rev.skyvps360.xyz'): Promise<void> {
     const logPrefix = `[rDNS-${instanceId}]`;
     
     try {
@@ -1522,9 +1522,11 @@ class LinodeService {
       // Get the primary public IPv4 address (first in the array)
       const primaryIPv4 = instance.ipv4[0];
 
-      // Create the custom rDNS hostname: a-b-c-d.ip.rev.skyvps360.xyz (hyphenated, not reversed)
+      // Create the custom rDNS hostname: a-b-c-d.<baseDomain> (hyphenated, not reversed)
       const hyphenatedIP = primaryIPv4.replace(/\./g, '-');
-      const customRDNS = `${hyphenatedIP}.ip.rev.skyvps360.xyz`;
+      // Normalize base domain, strip leading/trailing dots
+      const normalizedBase = String(baseDomain || '').trim().replace(/^\.+|\.+$/g, '');
+      const customRDNS = `${hyphenatedIP}.${normalizedBase}`;
 
       console.log(`${logPrefix} Setting up custom rDNS for ${primaryIPv4}: ${customRDNS}`);
 

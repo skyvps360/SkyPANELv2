@@ -1379,11 +1379,31 @@ router.post('/', async (req: Request, res: Response) => {
     const instance = insertRes.rows[0];
 
     // Schedule custom rDNS setup as a background task (non-blocking)
-    // This will run after the VPS is fully provisioned and running
-    setImmediate(() => {
-      linodeService.setupCustomRDNSAsync(created.id, label).catch(rdnsErr => {
+    // This will run after the VPS has an IPv4 assigned
+    setImmediate(async () => {
+      try {
+        // Fetch configured base domain from admin networking config
+        let baseDomain = 'ip.rev.skyvps360.xyz';
+        try {
+          const cfgRes = await query('SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1');
+          const row = cfgRes.rows?.[0];
+          if (row && typeof row.rdns_base_domain === 'string' && row.rdns_base_domain.trim().length > 0) {
+            baseDomain = String(row.rdns_base_domain).trim();
+          }
+        } catch (cfgErr: any) {
+          // If the table is missing or any error occurs, fallback to default without failing provisioning
+          const msg = (cfgErr?.message || '').toLowerCase();
+          if (msg.includes('relation') && msg.includes('does not exist')) {
+            console.warn('networking_config table not found; using default rDNS base domain');
+          } else {
+            console.warn('Failed to read networking rDNS config; using default base domain:', cfgErr);
+          }
+        }
+
+        await linodeService.setupCustomRDNSAsync(created.id, label, baseDomain);
+      } catch (rdnsErr) {
         console.warn(`Background rDNS setup failed for VPS ${label} (${created.id}):`, rdnsErr);
-      });
+      }
     });
 
     // Process initial billing for VPS creation
