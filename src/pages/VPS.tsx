@@ -961,7 +961,7 @@ const VPS: React.FC = () => {
                           </div>
                           
                           {/* Specs Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
                             <div>
                               <div className="text-gray-500 dark:text-gray-400">CPU</div>
                               <div className="font-medium text-gray-900 dark:text-white">{instance.specs.vcpus} vCPU</div>
@@ -978,61 +978,68 @@ const VPS: React.FC = () => {
                               <div className="text-gray-500 dark:text-gray-400">Transfer</div>
                               <div className="font-medium text-gray-900 dark:text-white">{Math.round(instance.specs.transfer / 1024)} GB</div>
                             </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">Hourly</div>
+                              <div className="font-medium text-gray-900 dark:text-white">{formatCurrency(instance.pricing.hourly)}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">Monthly</div>
+                              <div className="font-medium text-gray-900 dark:text-white">{formatCurrency(instance.pricing.monthly)}</div>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Right Section - Pricing and Actions */}
-                        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                          {/* Pricing */}
-                          <div className="text-center lg:text-right">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">Monthly</div>
-                            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(instance.pricing.monthly)}</div>
-                          </div>
-
+                        {/* Right Section - Actions */}
+                        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
                           {/* Actions */}
-                          <div className="flex flex-wrap gap-2 lg:flex-nowrap">
+                          <div className="flex flex-wrap gap-2 lg:flex-nowrap lg:justify-end">
                             {instance.status === 'running' ? (
                               <>
                                 <button
                                   onClick={() => handleInstanceAction(instance.id, 'shutdown')}
-                                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors min-w-[80px] justify-center"
                                   title="Shutdown"
                                 >
-                                  Stop
+                                  <PowerOff className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Stop</span>
                                 </button>
                                 <button
                                   onClick={() => handleInstanceAction(instance.id, 'reboot')}
-                                  className="px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors min-w-[80px] justify-center"
                                   title="Reboot"
                                 >
-                                  Reboot
+                                  <RefreshCw className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Reboot</span>
                                 </button>
                               </>
                             ) : instance.status === 'stopped' ? (
                               <button
                                 onClick={() => handleInstanceAction(instance.id, 'boot')}
-                                className="px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors min-w-[80px] justify-center"
                                 title="Boot"
                               >
-                                Start
+                                <Power className="h-4 w-4" />
+                                <span className="hidden sm:inline">Start</span>
                               </button>
                             ) : null}
                             
                             <Link
                               to={`/vps/${instance.id}`}
-                              className="px-4 py-2 text-sm font-medium text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors min-w-[80px] justify-center"
                               title="View Details"
                             >
-                              Details
+                              <Eye className="h-4 w-4" />
+                              <span className="hidden sm:inline">Details</span>
                             </Link>
                             
                             {instance.status !== 'restoring' && instance.status !== 'backing_up' && (
                               <button
                                 onClick={() => handleInstanceAction(instance.id, 'delete')}
-                                className="px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors min-w-[80px] justify-center"
                                 title="Delete"
                               >
-                                Delete
+                                <Trash2 className="h-4 w-4" />
+                                <span className="hidden sm:inline">Delete</span>
                               </button>
                             )}
                           </div>
