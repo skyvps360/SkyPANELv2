@@ -471,6 +471,7 @@ const VPSDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<'boot' | 'shutdown' | 'reboot' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [sshModalOpen, setSshModalOpen] = useState<boolean>(false);
   const [backupAction, setBackupAction] = useState<'enable' | 'disable' | 'snapshot' | null>(null);
   const [scheduleDay, setScheduleDay] = useState<string>('');
   const [scheduleWindow, setScheduleWindow] = useState<string>('');
@@ -489,6 +490,27 @@ const VPSDetail: React.FC = () => {
 
   // rDNS base domain configuration
   const [rdnsBaseDomain, setRdnsBaseDomain] = useState<string>('ip.rev.skyvps360.xyz');
+
+  useEffect(() => {
+    if (activeTab !== 'ssh' && sshModalOpen) {
+      setSshModalOpen(false);
+    }
+  }, [activeTab, sshModalOpen]);
+
+  useEffect(() => {
+    if (!sshModalOpen) {
+      return undefined;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSshModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sshModalOpen]);
 
   const tabDefinitions = useMemo<TabDefinition[]>(() => [
     { id: 'overview', label: 'Overview', icon: Server },
@@ -1327,7 +1349,7 @@ const VPSDetail: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-6 lg:gap-8">
-          <div className="flex-1 space-y-4 sm:space-y-6">
+          <div className="flex-1 min-w-0 space-y-4 sm:space-y-6">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0">
                 <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 sm:mb-6">Instance Feature Views</p>
@@ -2424,10 +2446,22 @@ const VPSDetail: React.FC = () => {
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Single sign-on web shell into this VPS instance.</p>
                 </div>
-                <div className="px-6 py-5">
-                  {detail?.id ? (
-                    <SSHTerminal instanceId={detail.id} />
-                  ) : (
+                <div className="px-6 py-5 space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Launch the embedded SSH console in a dedicated window so you can keep managing other instance details while the session runs.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSshModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-blue-500 dark:hover:bg-blue-400"
+                    >
+                      <TerminalIcon className="h-4 w-4" />
+                      Open SSH Console
+                    </button>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Sessions auto-authenticate using your current account token.</span>
+                  </div>
+                  {!detail?.id && (
                     <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
                       Instance ID unavailable. Please refresh and try again.
                     </div>
@@ -2576,6 +2610,43 @@ const VPSDetail: React.FC = () => {
           </aside>
         </div>
       </div>
+        {sshModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setSshModalOpen(false)}
+          >
+            <div
+              className="relative w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                  <TerminalIcon className="h-5 w-5 text-blue-500" />
+                  SSH Console
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSshModalOpen(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-gray-300 dark:hover:bg-gray-800"
+                  aria-label="Close SSH console"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="px-6 py-5">
+                {detail?.id ? (
+                  <SSHTerminal instanceId={detail.id} />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+                    Instance ID unavailable. Please refresh and try again.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };
