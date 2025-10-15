@@ -1492,52 +1492,39 @@ class LinodeService {
 
       console.log(`${logPrefix} Starting background rDNS setup for VPS ${label}`);
 
-      // Wait for VPS to be in running state before attempting rDNS setup
+      // Wait until the instance has an IPv4 assigned (state doesn't need to be running)
       const maxStatusAttempts = 20; // up to ~10 minutes
       const statusIntervalMs = 30000; // 30 seconds
       let instance: LinodeInstance | null = null;
-      
       for (let attempt = 1; attempt <= maxStatusAttempts; attempt++) {
         try {
           instance = await this.getLinodeInstance(instanceId);
-          console.log(`${logPrefix} VPS status check ${attempt}/${maxStatusAttempts}: ${instance.status}`);
-          
-          if (instance.status === 'running') {
-            console.log(`${logPrefix} VPS is running, proceeding with rDNS setup`);
+          const hasIPv4 = Array.isArray(instance.ipv4) && instance.ipv4.length > 0;
+          console.log(`${logPrefix} VPS check ${attempt}/${maxStatusAttempts}: status=${instance.status}, hasIPv4=${hasIPv4}`);
+          if (hasIPv4) {
             break;
           }
-          
-          if (instance.status === 'offline' || instance.status === 'stopped') {
-            console.warn(`${logPrefix} VPS is ${instance.status}, skipping rDNS setup`);
-            return;
-          }
-          
-          // Wait before next status check
           await new Promise(res => setTimeout(res, statusIntervalMs));
         } catch (statusErr) {
-          console.warn(`${logPrefix} Failed to check VPS status (attempt ${attempt}):`, statusErr);
+          console.warn(`${logPrefix} Failed to fetch VPS detail (attempt ${attempt}):`, statusErr);
           if (attempt === maxStatusAttempts) {
-            throw new Error('VPS status check failed after maximum attempts');
+            throw new Error('VPS detail fetch failed after maximum attempts');
           }
           await new Promise(res => setTimeout(res, statusIntervalMs));
         }
       }
 
-      if (!instance || instance.status !== 'running') {
-        throw new Error(`VPS not in running state after ${maxStatusAttempts} attempts`);
-      }
-      
-      if (!instance.ipv4 || instance.ipv4.length === 0) {
-        console.warn(`${logPrefix} No IPv4 addresses found, skipping rDNS setup`);
+      if (!instance || !Array.isArray(instance.ipv4) || instance.ipv4.length === 0) {
+        console.warn(`${logPrefix} No IPv4 assigned after maximum attempts, skipping rDNS setup`);
         return;
       }
 
       // Get the primary public IPv4 address (first in the array)
       const primaryIPv4 = instance.ipv4[0];
-      
-      // Create the custom rDNS hostname: 0.0.0.0.ip.rev.skyvps360.xyz
-      const reversedIP = primaryIPv4.split('.').reverse().join('.');
-      const customRDNS = `${reversedIP}.ip.rev.skyvps360.xyz`;
+
+      // Create the custom rDNS hostname: a-b-c-d.ip.rev.skyvps360.xyz (hyphenated, not reversed)
+      const hyphenatedIP = primaryIPv4.replace(/\./g, '-');
+      const customRDNS = `${hyphenatedIP}.ip.rev.skyvps360.xyz`;
 
       console.log(`${logPrefix} Setting up custom rDNS for ${primaryIPv4}: ${customRDNS}`);
 
