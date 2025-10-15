@@ -1229,21 +1229,22 @@ const VPSDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="max-w-full sm:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+        <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-3 text-sm text-blue-600 dark:text-blue-400">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
               <Link to="/vps" className="inline-flex items-center gap-1 hover:underline">
-                <ArrowLeft className="h-4 w-4" />
-                Back to VPS
+                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Back to VPS</span>
+                <span className="xs:hidden">Back</span>
               </Link>
               <span className="text-gray-400 dark:text-gray-500">/</span>
-              <span className="text-gray-600 dark:text-gray-300">{detail?.id}</span>
+              <span className="text-gray-600 dark:text-gray-300 truncate">{detail?.id}</span>
             </div>
-            <div className="mt-2 flex items-center gap-3">
-              <Server className="h-8 w-8 text-blue-500" />
+            <div className="mt-2 flex items-start gap-2 sm:gap-3">
+              <Server className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0 mt-1" />
               {hostnameEditing ? (
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -1256,7 +1257,7 @@ const VPSDetail: React.FC = () => {
                           cancelEditingHostname();
                         }
                       }}
-                      className="text-3xl font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
+                      className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
                       placeholder="Enter hostname"
                       autoFocus
                       disabled={hostnameSaving}
@@ -1265,7 +1266,7 @@ const VPSDetail: React.FC = () => {
                       type="button"
                       onClick={saveHostname}
                       disabled={hostnameSaving || !hostnameValue.trim()}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       {hostnameSaving ? (
                         <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1277,7 +1278,7 @@ const VPSDetail: React.FC = () => {
                       type="button"
                       onClick={cancelEditingHostname}
                       disabled={hostnameSaving}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-600 text-white hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-600 text-white hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1287,54 +1288,57 @@ const VPSDetail: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <h1 
-                  className="text-3xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2"
-                  onClick={startEditingHostname}
-                  title="Click to edit hostname"
-                >
-                  {detail?.label || 'Cloud Instance'}
-                  <Edit2 className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
-                </h1>
+                <div className="flex-1 min-w-0">
+                  <h1 
+                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2 break-words"
+                    onClick={startEditingHostname}
+                    title="Click to edit hostname"
+                  >
+                    <span className="break-words">{detail?.label || 'Cloud Instance'}</span>
+                    <Edit2 className="h-4 w-4 sm:h-5 sm:w-5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 flex-shrink-0" />
+                  </h1>
+                </div>
               )}
             </div>
             {detail?.status && (
-              <div className="mt-3 inline-flex items-center gap-2">
-                <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${statusStyles[detail.status] || statusStyles.unknown}`}>
+              <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:text-sm font-medium w-fit ${statusStyles[detail.status] || statusStyles.unknown}`}>
                   <span className="inline-block h-2 w-2 rounded-full bg-current"></span>
                   {detail.status.toUpperCase()}
                 </span>
                 {detail?.updatedAt && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     Updated {formatRelativeTime(detail.updatedAt)}
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={() => loadData({ silent: true })}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 min-h-[40px] touch-manipulation"
               disabled={refreshing}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-blue-500' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-3">
-          <div className="xl:col-span-2 space-y-6">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-              <div className="px-4 pt-4 pb-0">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Instance Feature Views</p>
-                
-                {/* Tab Navigation - Improved for better visibility */}
-                <div className="w-full -mx-4 px-4">
-                  {/* Tab List Container with proper scrolling */}
-                  <div className="w-full overflow-x-auto scrollbar-hide border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex space-x-1 min-w-max pb-px pr-4">
+              <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0">
+                <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 sm:mb-6">Instance Feature Views</p>
+              </div>
+              
+              {/* Tab Navigation - Mobile Optimized */}
+              <div className="w-full">
+                {/* Tab List Container with proper mobile scrolling */}
+                <div className="w-full overflow-x-auto scrollbar-hide border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex space-x-1 sm:space-x-2 min-w-max pb-px px-4 sm:px-6 pr-6 sm:pr-8">
                       {tabDefinitions.map(tab => {
                         const isActive = activeTab === tab.id;
                         return (
@@ -1342,142 +1346,141 @@ const VPSDetail: React.FC = () => {
                             key={tab.id}
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex-shrink-0 inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 whitespace-nowrap rounded-t-lg border-b-2 ${
+                            className={`flex-shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 whitespace-nowrap rounded-t-lg border-b-2 min-h-[44px] touch-manipulation last:mr-3 sm:last:mr-4 ${
                               isActive
                                 ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
                                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}
                           >
-                            <tab.icon className={`h-4 w-4 transition-colors duration-200 ${
+                            <tab.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors duration-200 flex-shrink-0 ${
                               isActive 
                                 ? 'text-blue-600 dark:text-blue-400' 
                                 : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-500 dark:group-hover:text-gray-300'
                             }`} />
-                            <span className="font-medium">{tab.label}</span>
+                            <span className="font-medium text-xs sm:text-sm">{tab.label}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
 
             {activeTab === 'overview' && (
               <>
                 <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-                          <LayoutDashboard className="h-5 w-5 text-blue-500" />
-                          Instance Overview
+                  <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                          <LayoutDashboard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
+                          <span>Instance Overview</span>
                         </h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Metadata and quick actions for this server.</p>
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Metadata and quick actions for this server.</p>
                       </div>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
                         <button
                           type="button"
                           disabled={!allowStart || actionLoading === 'boot'}
                           onClick={() => performAction('boot')}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 ${allowStart ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[48px] touch-manipulation ${allowStart ? 'bg-green-600 hover:bg-green-500 active:bg-green-700' : 'bg-green-600/50 cursor-not-allowed'} ${actionLoading === 'boot' ? 'opacity-75' : ''}`}
                         >
-                          <Power className="h-4 w-4" />
-                          {actionLoading === 'boot' ? 'Starting…' : 'Power On'}
+                          <Power className="h-4 w-4 flex-shrink-0" />
+                          <span>{actionLoading === 'boot' ? 'Starting…' : 'Power On'}</span>
                         </button>
                         <button
                           type="button"
                           disabled={!allowStop || actionLoading === 'shutdown'}
                           onClick={() => performAction('shutdown')}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 ${allowStop ? 'bg-red-600 hover:bg-red-500' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-400 min-h-[48px] touch-manipulation ${allowStop ? 'bg-red-600 hover:bg-red-500 active:bg-red-700' : 'bg-red-600/50 cursor-not-allowed'} ${actionLoading === 'shutdown' ? 'opacity-75' : ''}`}
                         >
-                          <PowerOff className="h-4 w-4" />
-                          {actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}
+                          <PowerOff className="h-4 w-4 flex-shrink-0" />
+                          <span>{actionLoading === 'shutdown' ? 'Stopping…' : 'Power Off'}</span>
                         </button>
                         <button
                           type="button"
                           disabled={!allowReboot || actionLoading === 'reboot'}
                           onClick={() => performAction('reboot')}
-                          className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:active:bg-gray-700 min-h-[48px] touch-manipulation ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
                         >
-                          <RotateCcw className={`h-4 w-4 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
-                          {actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}
+                          <RotateCcw className={`h-4 w-4 flex-shrink-0 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
+                          <span>{actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}</span>
                         </button>
                       </div>
                     </div>
                   </div>
-                  <div className="px-6 py-5">
-                    <div className="space-y-6">
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                  <div className="px-4 sm:px-6 py-4 sm:py-6">
+                    <div className="space-y-4 sm:space-y-6">
+                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             <span>vCPUs</span>
-                            <Cpu className="h-4 w-4 text-blue-500" />
+                            <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
                           </div>
-                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{detail?.plan.specs.vcpus ?? 0}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{detail?.plan.specs.vcpus ?? 0}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             <span>Memory</span>
-                            <Activity className="h-4 w-4 text-purple-500" />
+                            <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
                           </div>
-                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             <span>Storage</span>
-                            <HardDrive className="h-4 w-4 text-emerald-500" />
+                            <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
                           </div>
-                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             <span>Transfer</span>
-                            <Network className="h-4 w-4 text-orange-500" />
+                            <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
                           </div>
-                          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
                         </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Plan</p>
-                          <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
+                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                        <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Plan</p>
+                          <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Pricing</p>
-                          <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">/ month</span></p>
+                        <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Pricing</p>
+                          <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-xs sm:text-sm font-normal text-gray-500 dark:text-gray-400">/ month</span></p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(detail?.plan.pricing.hourly ?? 0)} hourly billable</p>
                         </div>
                       </div>
                     </div>
 
-                    <dl className="mt-10 grid gap-4 sm:grid-cols-2">
+                    <dl className="mt-4 sm:mt-6 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Instance ID</dt>
-                        <dd className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.id}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.id}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Provider Reference</dt>
-                        <dd className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">{detail?.providerInstanceId}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.providerInstanceId}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Public IPv4</dt>
-                        <dd className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">{detail?.ipAddress || 'Not yet assigned'}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200">{detail?.ipAddress || 'Not yet assigned'}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Region</dt>
-                        <dd className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200">
                           {detail?.regionLabel || detail?.region || 'Unknown'}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Created</dt>
-                        <dd className="mt-1 text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.createdAt || null)}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.createdAt || null)}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Last Updated</dt>
-                        <dd className="mt-1 text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.updatedAt || null)}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.updatedAt || null)}</dd>
                       </div>
                     </dl>
 
@@ -1490,8 +1493,8 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'backups' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
+                  <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                     <ShieldCheck className="h-5 w-5 text-blue-500" />
                     Backup Protection
                   </h2>
@@ -2435,16 +2438,16 @@ const VPSDetail: React.FC = () => {
             )}
           </div>
 
-          <aside className="space-y-6">
+          <aside className="space-y-4 sm:space-y-6">
             <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-              <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-                  <SatelliteDish className="h-5 w-5 text-blue-500" />
+              <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
+                <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                  <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                   Provider Telemetry
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
               </div>
-                <div className="px-6 py-5 space-y-4 text-sm text-gray-700 dark:text-gray-200">
+                <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
                   <p className="text-xs text-gray-500 dark:text-gray-300">
                     The following IP details are reported directly by the cloud provider and may include public and private reachability.
                   </p>
