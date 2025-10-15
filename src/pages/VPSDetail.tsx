@@ -397,7 +397,7 @@ const classifyProviderIpv4 = (address: string): 'public' | 'private' | 'unknown'
 };
 
 // Helper function to determine if rDNS should be displayed for white-labeling
-const shouldDisplayRdns = (rdns: string | null): boolean => {
+const shouldDisplayRdns = (rdns: string | null, baseDomain: string): boolean => {
   if (!rdns || rdns.trim().length === 0) {
     return false;
   }
@@ -407,8 +407,8 @@ const shouldDisplayRdns = (rdns: string | null): boolean => {
     return false;
   }
   
-  // Only show custom rDNS that contains our branded domain
-  return rdns.includes('.ip.rev.skyvps360.xyz');
+  // Only show custom rDNS that contains our configured branded domain
+  return rdns.includes(`.${baseDomain}`);
 };
 
 const statusActionLabel: Record<'boot' | 'shutdown' | 'reboot', string> = {
@@ -487,6 +487,9 @@ const VPSDetail: React.FC = () => {
   const [hostnameValue, setHostnameValue] = useState<string>('');
   const [hostnameSaving, setHostnameSaving] = useState<boolean>(false);
   const [hostnameError, setHostnameError] = useState<string>('');
+
+  // rDNS base domain configuration
+  const [rdnsBaseDomain, setRdnsBaseDomain] = useState<string>('ip.rev.skyvps360.xyz');
 
   const tabDefinitions = useMemo<TabDefinition[]>(() => [
     { id: 'overview', label: 'Overview', icon: Server },
@@ -752,9 +755,30 @@ const VPSDetail: React.FC = () => {
     }
   }, [id, token]);
 
+  const loadNetworkingConfig = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch('/api/admin/networking/rdns', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json();
+      if (response.ok && payload.config?.rdns_base_domain) {
+        setRdnsBaseDomain(payload.config.rdns_base_domain);
+      }
+      // If the request fails or no config is found, keep the default value
+    } catch (err) {
+      console.warn('Failed to load networking configuration, using default rDNS base domain:', err);
+      // Keep the default value on error
+    }
+  }, [token]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    loadNetworkingConfig();
+  }, [loadNetworkingConfig]);
 
   const handleCopy = useCallback(async (value: string, label?: string) => {
     if (!value) {
@@ -1853,9 +1877,9 @@ const VPSDetail: React.FC = () => {
                                       {showRdnsInfo && (
                                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
                                           <span className="truncate">
-                                            rDNS: {shouldDisplayRdns(currentValue) ? currentValue : 'Setting up...'}
+                                            rDNS: {shouldDisplayRdns(currentValue, rdnsBaseDomain) ? currentValue : 'Setting up...'}
                                           </span>
-                                          {shouldDisplayRdns(currentValue) ? (
+                                          {shouldDisplayRdns(currentValue, rdnsBaseDomain) ? (
                                             <button
                                               type="button"
                                               onClick={() => handleCopy(currentValue, `rDNS for ${addr.address}`)}
@@ -2440,7 +2464,7 @@ const VPSDetail: React.FC = () => {
                 <div className="flex items-center justify-between gap-3">
                   <span>IPv4 rDNS</span>
                   <div className="flex items-center gap-2">
-                    {shouldDisplayRdns(primaryIpv4Rdns) ? (
+                    {shouldDisplayRdns(primaryIpv4Rdns, rdnsBaseDomain) ? (
                       <>
                         <span
                           className="max-w-[200px] truncate font-medium"

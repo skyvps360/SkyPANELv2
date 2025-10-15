@@ -54,6 +54,18 @@ BEGIN
 END $$;
 
 -- Optional: backfill base_price from legacy price_monthly if present and base_price is NULL
-UPDATE vps_plans
-SET base_price = price_monthly
-WHERE base_price IS NULL AND price_monthly IS NOT NULL;
+DO $$
+BEGIN
+  -- Only run backfill if legacy column exists
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'vps_plans'
+      AND column_name = 'price_monthly'
+  ) THEN
+    UPDATE vps_plans
+    SET base_price = price_monthly
+    WHERE base_price IS NULL AND price_monthly IS NOT NULL;
+  END IF;
+END $$;
