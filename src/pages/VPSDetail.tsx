@@ -472,6 +472,7 @@ const VPSDetail: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<'boot' | 'shutdown' | 'reboot' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [sshModalOpen, setSshModalOpen] = useState<boolean>(false);
+  const [sshFullScreen, setSshFullScreen] = useState<boolean>(false);
   const [backupAction, setBackupAction] = useState<'enable' | 'disable' | 'snapshot' | null>(null);
   const [scheduleDay, setScheduleDay] = useState<string>('');
   const [scheduleWindow, setScheduleWindow] = useState<string>('');
@@ -2641,26 +2642,49 @@ const VPSDetail: React.FC = () => {
             onClick={() => setSshModalOpen(false)}
           >
             <div
-              className="relative w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+              className={`relative w-full rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 transition-all duration-300 ${
+                sshFullScreen 
+                  ? 'h-full max-w-none' 
+                  : 'max-w-6xl max-h-[90vh]'
+              }`}
               onClick={event => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
                   <TerminalIcon className="h-5 w-5 text-blue-500" />
                   SSH Console
+                  {sshFullScreen && <span className="text-sm font-normal text-gray-500">(Full Screen)</span>}
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => setSshModalOpen(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-gray-300 dark:hover:bg-gray-800"
-                  aria-label="Close SSH console"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSshFullScreen(!sshFullScreen)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-gray-300 dark:hover:bg-gray-800"
+                    aria-label={sshFullScreen ? "Exit full screen" : "Enter full screen"}
+                  >
+                    {sshFullScreen ? (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 15v4.5M15 15h4.5M15 15l5.25 5.25" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15m-5.25 5.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSshModalOpen(false)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-gray-300 dark:hover:bg-gray-800"
+                    aria-label="Close SSH console"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              <div className="px-6 py-5">
+              <div className={`${sshFullScreen ? 'p-6 h-[calc(100%-80px)]' : 'px-6 py-5'}`}>
                 {detail?.id ? (
-                  <SSHTerminal instanceId={detail.id} />
+                  <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
                 ) : (
                   <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
                     Instance ID unavailable. Please refresh and try again.
