@@ -5,6 +5,7 @@
  */
 
 import { config } from '../config/index.js';
+import { promises as dns } from 'dns';
 
 export interface LinodeType {
   id: string;
@@ -1351,7 +1352,20 @@ class LinodeService {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${text}`.trim());
+        // Try to parse Linode's error structure for a clearer message
+        try {
+          const data = JSON.parse(text);
+          if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+            const reason = data.errors.map((e: any) => e?.reason || '').join(' ').trim();
+            const sanitized = reason.replace(/\bLinode\b/gi, 'VPS provider');
+            if (sanitized) {
+              throw new Error(sanitized);
+            }
+          }
+        } catch {
+          // fall through to generic error below
+        }
+        throw new Error(`Linode API error: ${response.status} ${response.statusText}`);
       }
 
       const payload = await response.json().catch(() => ({}));
@@ -1451,6 +1465,91 @@ class LinodeService {
     } catch (error) {
       console.error('Error deleting Linode instance:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Set up custom rDNS for a newly created VPS instance (DEPRECATED - use setupCustomRDNSAsync)
+   * This will set the rDNS to use skyvps360.xyz domain instead of linodeusercontent.com
+   */
+  async setupCustomRDNS(instanceId: number): Promise<void> {
+    console.warn('setupCustomRDNS is deprecated, use setupCustomRDNSAsync instead');
+    return this.setupCustomRDNSAsync(instanceId, `instance-${instanceId}`);
+  }
+
+  /**
+   * Set up custom rDNS for a newly created VPS instance (Async Background Version)
+   * This will set the rDNS to use skyvps360.xyz domain instead of linodeusercontent.com
+   * This method is designed to run in the background without blocking VPS creation
+   */
+  async setupCustomRDNSAsync(instanceId: number, label: string = `instance-${instanceId}`): Promise<void> {
+    const logPrefix = `[rDNS-${instanceId}]`;
+    
+    try {
+      if (!this.apiToken) {
+        throw new Error('Linode API token not configured');
+      }
+
+      console.log(`${logPrefix} Starting background rDNS setup for VPS ${label}`);
+
+      // Wait for VPS to be in running state before attempting rDNS setup
+      const maxStatusAttempts = 20; // up to ~10 minutes
+      const statusIntervalMs = 30000; // 30 seconds
+      let instance: LinodeInstance | null = null;
+      
+      for (let attempt = 1; attempt <= maxStatusAttempts; attempt++) {
+        try {
+          instance = await this.getLinodeInstance(instanceId);
+          console.log(`${logPrefix} VPS status check ${attempt}/${maxStatusAttempts}: ${instance.status}`);
+          
+          if (instance.status === 'running') {
+            console.log(`${logPrefix} VPS is running, proceeding with rDNS setup`);
+            break;
+          }
+          
+          if (instance.status === 'offline' || instance.status === 'stopped') {
+            console.warn(`${logPrefix} VPS is ${instance.status}, skipping rDNS setup`);
+            return;
+          }
+          
+          // Wait before next status check
+          await new Promise(res => setTimeout(res, statusIntervalMs));
+        } catch (statusErr) {
+          console.warn(`${logPrefix} Failed to check VPS status (attempt ${attempt}):`, statusErr);
+          if (attempt === maxStatusAttempts) {
+            throw new Error('VPS status check failed after maximum attempts');
+          }
+          await new Promise(res => setTimeout(res, statusIntervalMs));
+        }
+      }
+
+      if (!instance || instance.status !== 'running') {
+        throw new Error(`VPS not in running state after ${maxStatusAttempts} attempts`);
+      }
+      
+      if (!instance.ipv4 || instance.ipv4.length === 0) {
+        console.warn(`${logPrefix} No IPv4 addresses found, skipping rDNS setup`);
+        return;
+      }
+
+      // Get the primary public IPv4 address (first in the array)
+      const primaryIPv4 = instance.ipv4[0];
+      
+      // Create the custom rDNS hostname: 0.0.0.0.ip.rev.skyvps360.xyz
+      const reversedIP = primaryIPv4.split('.').reverse().join('.');
+      const customRDNS = `${reversedIP}.ip.rev.skyvps360.xyz`;
+
+      console.log(`${logPrefix} Setting up custom rDNS for ${primaryIPv4}: ${customRDNS}`);
+
+      // Directly update the rDNS (same approach as manual editing)
+      // No forward DNS check needed - Linode API handles this internally
+      await this.updateIPAddressReverseDNS(primaryIPv4, customRDNS);
+
+      console.log(`${logPrefix} Successfully set custom rDNS for VPS ${label} (${primaryIPv4}) to ${customRDNS}`);
+    } catch (error) {
+      console.error(`${logPrefix} Error setting up custom rDNS for VPS ${label}:`, error);
+      // Don't throw the error - we don't want rDNS setup failure to affect anything else
+      // The VPS is still functional without custom rDNS
     }
   }
 }

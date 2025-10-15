@@ -396,6 +396,21 @@ const classifyProviderIpv4 = (address: string): 'public' | 'private' | 'unknown'
   return 'public';
 };
 
+// Helper function to determine if rDNS should be displayed for white-labeling
+const shouldDisplayRdns = (rdns: string | null): boolean => {
+  if (!rdns || rdns.trim().length === 0) {
+    return false;
+  }
+  
+  // Hide default Linode rDNS domains to maintain white-labeling
+  if (rdns.includes('.ip.linodeusercontent.com')) {
+    return false;
+  }
+  
+  // Only show custom rDNS that contains our branded domain
+  return rdns.includes('.ip.rev.skyvps360.xyz');
+};
+
 const statusActionLabel: Record<'boot' | 'shutdown' | 'reboot', string> = {
   boot: 'Power On',
   shutdown: 'Power Off',
@@ -1837,8 +1852,10 @@ const VPSDetail: React.FC = () => {
                                       )}
                                       {showRdnsInfo && (
                                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
-                                          <span className="truncate">rDNS: {currentValue || 'Not set'}</span>
-                                          {currentValue ? (
+                                          <span className="truncate">
+                                            rDNS: {shouldDisplayRdns(currentValue) ? currentValue : 'Setting up...'}
+                                          </span>
+                                          {shouldDisplayRdns(currentValue) ? (
                                             <button
                                               type="button"
                                               onClick={() => handleCopy(currentValue, `rDNS for ${addr.address}`)}
@@ -2423,22 +2440,28 @@ const VPSDetail: React.FC = () => {
                 <div className="flex items-center justify-between gap-3">
                   <span>IPv4 rDNS</span>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="max-w-[200px] truncate font-medium"
-                      title={primaryIpv4Rdns ?? 'Not set'}
-                    >
-                      {primaryIpv4Rdns ?? 'Not set'}
-                    </span>
-                    {primaryIpv4Rdns ? (
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(primaryIpv4Rdns, 'IPv4 rDNS')}
-                        className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
-                        aria-label="Copy IPv4 rDNS"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
+                    {shouldDisplayRdns(primaryIpv4Rdns) ? (
+                      <>
+                        <span
+                          className="max-w-[200px] truncate font-medium"
+                          title={primaryIpv4Rdns ?? 'Not set'}
+                        >
+                          {primaryIpv4Rdns}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(primaryIpv4Rdns!, 'IPv4 rDNS')}
+                          className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                          aria-label="Copy IPv4 rDNS"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400 italic">
+                        Setting up...
+                      </span>
+                    )}
                   </div>
                 </div>
                 {slaacAddress ? (

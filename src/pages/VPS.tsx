@@ -26,7 +26,8 @@ import {
   DollarSign,
   Clock,
   Power,
-  PowerOff
+  PowerOff,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
@@ -105,7 +106,7 @@ const VPS: React.FC = () => {
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState<number>(1);
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', loading: false, error: '' });
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; password: string; confirmCheckbox: boolean; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
   const [selectedInstance, setSelectedInstance] = useState<VPSInstance | null>(null);
   const [createForm, setCreateForm] = useState<CreateVPSForm>({
     label: '',
@@ -489,7 +490,7 @@ const VPS: React.FC = () => {
     try {
       if (action === 'delete') {
         const inst = instances.find(i => i.id === instanceId);
-        setDeleteModal({ open: true, id: instanceId, label: inst?.label || '', input: '', loading: false, error: '' });
+        setDeleteModal({ open: true, id: instanceId, label: inst?.label || '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
         return;
       }
       let url = `/api/vps/${instanceId}`;
@@ -514,20 +515,46 @@ const VPS: React.FC = () => {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      toast.error('Failed to copy to clipboard');
+    }
+  };
+
   const confirmDeleteInstance = async () => {
     try {
       if (deleteModal.input.trim() !== deleteModal.label.trim()) {
         setDeleteModal(m => ({ ...m, error: 'Name does not match. Type the exact server name.' }));
         return;
       }
+      
+      if (!deleteModal.password.trim()) {
+        setDeleteModal(m => ({ ...m, error: 'Please enter your account password.' }));
+        return;
+      }
+      
+      if (!deleteModal.confirmCheckbox) {
+        setDeleteModal(m => ({ ...m, error: 'Please confirm deletion by checking the checkbox.' }));
+        return;
+      }
+      
       setDeleteModal(m => ({ ...m, loading: true, error: '' }));
+      
       const res = await fetch(`/api/vps/${deleteModal.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ password: deleteModal.password })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to delete instance');
-      setDeleteModal({ open: false, id: '', label: '', input: '', loading: false, error: '' });
+      setDeleteModal({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
       await loadInstances();
       toast.success('Instance deleted');
     } catch (err: any) {
@@ -1468,7 +1495,16 @@ const VPS: React.FC = () => {
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Confirm Delete</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">To confirm deletion, type the server name exactly:</p>
-                <p className="mt-2 text-sm font-mono px-2 py-1 inline-block bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded">{deleteModal.label}</p>
+                <div className="mt-2 flex items-center space-x-2">
+                  <p className="text-sm font-mono px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded">{deleteModal.label}</p>
+                  <button
+                    onClick={() => copyToClipboard(deleteModal.label)}
+                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                    title="Copy server name"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Server name</label>
                   <input
@@ -1478,13 +1514,38 @@ const VPS: React.FC = () => {
                     placeholder="Type the server name to confirm"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Password</label>
+                  <input
+                    type="password"
+                    value={deleteModal.password}
+                    onChange={(e) => setDeleteModal(m => ({ ...m, password: e.target.value, error: '' }))}
+                    placeholder="Enter your account password"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+                
+                <div className="mt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={deleteModal.confirmCheckbox}
+                      onChange={(e) => setDeleteModal(m => ({ ...m, confirmCheckbox: e.target.checked, error: '' }))}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 dark:border-gray-600 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                      I understand that this action cannot be undone and will permanently delete the VPS and all its data.
+                    </span>
+                  </label>
                   {deleteModal.error && (
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteModal.error}</p>
                   )}
                 </div>
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
-                    onClick={() => setDeleteModal({ open: false, id: '', label: '', input: '', loading: false, error: '' })}
+                    onClick={() => setDeleteModal({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' })}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400 dark:focus:ring-offset-gray-800"
                     disabled={deleteModal.loading}
                   >
@@ -1492,8 +1553,8 @@ const VPS: React.FC = () => {
                   </button>
                   <button
                     onClick={confirmDeleteInstance}
-                    disabled={deleteModal.loading || deleteModal.input.trim() !== deleteModal.label.trim()}
-                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${deleteModal.input.trim() === deleteModal.label.trim() ? 'bg-red-600 hover:bg-red-700' : 'bg-red-400 cursor-not-allowed'}`}
+                    disabled={deleteModal.loading || deleteModal.input.trim() !== deleteModal.label.trim() || !deleteModal.password.trim() || !deleteModal.confirmCheckbox}
+                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${deleteModal.input.trim() === deleteModal.label.trim() && deleteModal.password.trim() && deleteModal.confirmCheckbox ? 'bg-red-600 hover:bg-red-700' : 'bg-red-400 cursor-not-allowed'}`}
                   >
                     {deleteModal.loading ? 'Deleting...' : 'Delete Server'}
                   </button>

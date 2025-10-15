@@ -14,6 +14,7 @@ import type {
 import { logActivity } from '../services/activityLogger.js';
 import { encryptSecret } from '../lib/crypto.js';
 import { BillingService } from '../services/billingService.js';
+import { AuthService } from '../services/authService.js';
 
 const router = express.Router();
 
@@ -1377,6 +1378,14 @@ router.post('/', async (req: Request, res: Response) => {
     );
     const instance = insertRes.rows[0];
 
+    // Schedule custom rDNS setup as a background task (non-blocking)
+    // This will run after the VPS is fully provisioned and running
+    setImmediate(() => {
+      linodeService.setupCustomRDNSAsync(created.id, label).catch(rdnsErr => {
+        console.warn(`Background rDNS setup failed for VPS ${label} (${created.id}):`, rdnsErr);
+      });
+    });
+
     // Process initial billing for VPS creation
     let billingSuccess = false;
     try {
@@ -2040,7 +2049,21 @@ router.put('/:id/hostname', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const organizationId = (req as any).user.organizationId;
+    const { password } = req.body;
+    const user = (req as any).user;
+    const organizationId = user.organizationId;
+    
+    // Verify password before allowing deletion
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required for VPS deletion' });
+    }
+    
+    try {
+      await AuthService.login({ email: user.email, password });
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid password' });
+    }
+    
     const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
     if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
     const row = rowRes.rows[0];
@@ -2049,7 +2072,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await query('DELETE FROM vps_instances WHERE id = $1', [id]);
     // Log delete action
     try {
-      const user = (req as any).user;
       await logActivity({
         userId: user.id,
         organizationId: user.organizationId,

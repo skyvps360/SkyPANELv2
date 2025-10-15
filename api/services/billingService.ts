@@ -39,6 +39,30 @@ export interface BillingResult {
 
 export class BillingService {
   /**
+   * Ensure the vps_instances.last_billed_at column exists.
+   * Creates it if missing to avoid errors during billing.
+   */
+  private static async ensureLastBilledColumnExists(): Promise<boolean> {
+    try {
+      const check = await query(
+        `SELECT EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_name = 'vps_instances' AND column_name = 'last_billed_at'
+         ) AS exists`
+      );
+      const exists = Boolean(check.rows[0]?.exists);
+      if (!exists) {
+        await query(`ALTER TABLE vps_instances ADD COLUMN IF NOT EXISTS last_billed_at TIMESTAMP WITH TIME ZONE`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_vps_instances_last_billed_at ON vps_instances(last_billed_at)`);
+        console.log('✅ Added missing column vps_instances.last_billed_at');
+      }
+      return true;
+    } catch (err) {
+      console.warn('⚠️ Could not verify or create last_billed_at column:', err);
+      return false;
+    }
+  }
+  /**
    * Run hourly billing for all active VPS instances
    */
   static async runHourlyBilling(): Promise<BillingResult> {
@@ -53,6 +77,12 @@ export class BillingService {
     };
 
     try {
+      // Ensure schema prerequisites
+      const hasColumn = await this.ensureLastBilledColumnExists();
+      if (!hasColumn) {
+        console.warn('Skipping hourly billing because last_billed_at column is missing.');
+        return result;
+      }
       // Get all active VPS instances that need billing
       const activeInstances = await this.getActiveVPSInstances();
       console.log(`📊 Found ${activeInstances.length} active VPS instances to process`);
@@ -110,7 +140,7 @@ export class BillingService {
           -- Try to get hourly rate from VPS plan
           (SELECT (base_price + markup_price) / 730 
            FROM vps_plans 
-           WHERE id = vi.plan_id OR provider_plan_id = vi.plan_id
+           WHERE id::text = vi.plan_id OR provider_plan_id = vi.plan_id
            LIMIT 1),
           -- Fallback to a default rate if plan not found
           0.027
@@ -360,11 +390,14 @@ export class BillingService {
       );
 
       if (success) {
-        // Update last_billed_at to current time
-        await query(
-          'UPDATE vps_instances SET last_billed_at = NOW() WHERE id = $1',
-          [vpsInstanceId]
-        );
+        // Update last_billed_at to current time, if column exists
+        try {
+          await this.ensureLastBilledColumnExists();
+          await query('UPDATE vps_instances SET last_billed_at = NOW() WHERE id = $1', [vpsInstanceId]);
+        } catch (updateErr) {
+          // Do not fail initial billing if timestamp update fails
+          console.warn(`Initial billing succeeded but timestamp update failed for VPS ${label}:`, updateErr);
+        }
 
         console.log(`✅ Successfully charged initial hour for VPS ${label}`);
         return true;
@@ -384,10 +417,12 @@ export class BillingService {
   static async stopVPSBilling(vpsInstanceId: string): Promise<void> {
     try {
       // Update the VPS instance to mark it as no longer billable
-      await query(
-        'UPDATE vps_instances SET last_billed_at = NOW() WHERE id = $1',
-        [vpsInstanceId]
-      );
+      try {
+        await this.ensureLastBilledColumnExists();
+        await query('UPDATE vps_instances SET last_billed_at = NOW() WHERE id = $1', [vpsInstanceId]);
+      } catch (err) {
+        console.warn('Failed to update last_billed_at when stopping billing:', err);
+      }
       
       console.log(`🛑 Stopped billing for VPS instance ${vpsInstanceId}`);
     } catch (error) {
