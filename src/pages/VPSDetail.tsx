@@ -1327,8 +1327,8 @@ const VPSDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0">
                 <p className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 sm:mb-6">Instance Feature Views</p>
@@ -1337,7 +1337,7 @@ const VPSDetail: React.FC = () => {
               {/* Tab Navigation - Mobile Optimized */}
               <div className="w-full">
                 {/* Tab List Container with proper mobile scrolling */}
-                <div className="w-full overflow-x-auto scrollbar-hide border-b border-gray-200 dark:border-gray-700">
+                <div className="w-full overflow-x-auto border-b border-gray-200 dark:border-gray-700">
                   <div className="flex space-x-1 sm:space-x-2 min-w-max pb-px px-4 sm:px-6 pr-6 sm:pr-8">
                       {tabDefinitions.map(tab => {
                         const isActive = activeTab === tab.id;
@@ -2438,8 +2438,7 @@ const VPSDetail: React.FC = () => {
             )}
           </div>
 
-          <aside className="space-y-4 sm:space-y-6">
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+          <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
                 <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
@@ -2447,88 +2446,88 @@ const VPSDetail: React.FC = () => {
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
               </div>
-                <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
-                  <p className="text-xs text-gray-500 dark:text-gray-300">
-                    The following IP details are reported directly by the cloud provider and may include public and private reachability.
-                  </p>
-                <div className="flex items-center justify-between">
-                  <span>Image</span>
-                  <span className="font-medium">{providerImageLabel}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Provider status</span>
-                  <span className="font-medium">{detail?.provider ? detail.provider.status : 'Unavailable'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Region code</span>
-                  <span className="font-medium">{detail?.provider?.region || detail?.region || '—'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Created</span>
-                  <span className="font-medium">{formatDateTime(detail?.provider?.created || null)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Last update</span>
-                  <span className="font-medium">{formatDateTime(detail?.provider?.updated || null)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>rDNS edits</span>
-                  <span className="font-medium">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>IPv4 rDNS</span>
-                  <div className="flex items-center gap-2">
-                    {shouldDisplayRdns(primaryIpv4Rdns, rdnsBaseDomain) ? (
-                      <>
-                        <span
-                          className="max-w-[200px] truncate font-medium"
-                          title={primaryIpv4Rdns ?? 'Not set'}
-                        >
-                          {primaryIpv4Rdns}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(primaryIpv4Rdns!, 'IPv4 rDNS')}
-                          className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
-                          aria-label="Copy IPv4 rDNS"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-gray-500 dark:text-gray-400 italic">
-                        Setting up...
-                      </span>
-                    )}
+              <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
+                <p className="text-xs text-gray-500 dark:text-gray-300">
+                  The following IP details are reported directly by the cloud provider and may include public and private reachability.
+                </p>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">Image</span>
+                    <span className="font-medium text-gray-900 dark:text-white break-words sm:text-right">{providerImageLabel}</span>
                   </div>
-                </div>
-                {slaacAddress ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span>IPv6 rDNS</span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="max-w-[200px] truncate font-medium"
-                        title={slaacCurrentValue || 'Not set'}
-                      >
-                        {slaacCurrentValue || 'Not set'}
-                      </span>
-                      {slaacCurrentValue ? (
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(slaacCurrentValue, 'IPv6 rDNS')}
-                          className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
-                          aria-label="Copy IPv6 rDNS"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">Provider status</span>
+                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{detail?.provider ? detail.provider.status : 'Unavailable'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">Region code</span>
+                    <span className="font-medium text-gray-900 dark:text-white break-words sm:text-right">{detail?.provider?.region || detail?.region || '—'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">Created</span>
+                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{formatDateTime(detail?.provider?.created || null)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">Last update</span>
+                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{formatDateTime(detail?.provider?.updated || null)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">rDNS edits</span>
+                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-gray-500 dark:text-gray-300">IPv4 rDNS</span>
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                      {shouldDisplayRdns(primaryIpv4Rdns, rdnsBaseDomain) ? (
+                        <>
+                          <span
+                            className="max-w-full truncate font-medium text-gray-900 dark:text-white sm:max-w-[220px] sm:text-right"
+                            title={primaryIpv4Rdns ?? 'Not set'}
+                          >
+                            {primaryIpv4Rdns}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(primaryIpv4Rdns!, 'IPv4 rDNS')}
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                            aria-label="Copy IPv4 rDNS"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="italic text-gray-500 dark:text-gray-400">Setting up...</span>
+                      )}
                     </div>
                   </div>
-                ) : null}
+                  {slaacAddress ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-gray-500 dark:text-gray-300">IPv6 rDNS</span>
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                        <span
+                          className="max-w-full truncate font-medium text-gray-900 dark:text-white sm:max-w-[220px] sm:text-right"
+                          title={slaacCurrentValue || 'Not set'}
+                        >
+                          {slaacCurrentValue || 'Not set'}
+                        </span>
+                        {slaacCurrentValue ? (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(slaacCurrentValue, 'IPv6 rDNS')}
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                            aria-label="Copy IPv6 rDNS"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 {detail?.provider?.ipv4?.length || providerIpv6Address ? (
-                  <div>
+                  <div className="space-y-2">
                     <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IP addresses</span>
-                    <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-200">
+                    <ul className="space-y-2 text-xs text-gray-600 dark:text-gray-200">
                       {(detail.provider?.ipv4 ?? []).map(ip => {
                         const classification = classifyProviderIpv4(ip);
                         const descriptor = classification === 'private'
@@ -2537,7 +2536,7 @@ const VPSDetail: React.FC = () => {
                             ? 'public network'
                             : 'unclassified';
                         return (
-                          <li key={ip} className="flex items-center justify-between gap-3 rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                          <li key={ip} className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800">
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-gray-700 dark:text-gray-100" title={ip}>{ip}</p>
                               <p className="text-xs text-gray-500 dark:text-gray-300">({descriptor}, provider assigned)</p>
@@ -2545,7 +2544,7 @@ const VPSDetail: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleCopy(ip, 'Provider IPv4')}
-                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
                               aria-label={`Copy provider IPv4 ${ip}`}
                             >
                               <Copy className="h-3.5 w-3.5" />
@@ -2554,7 +2553,7 @@ const VPSDetail: React.FC = () => {
                         );
                       })}
                       {providerIpv6Address && (
-                        <li className="flex items-center justify-between gap-3 rounded bg-gray-100 px-2 py-1 dark:bg-gray-800">
+                        <li className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800">
                           <div className="min-w-0">
                             <p className="break-all font-semibold text-gray-700 dark:text-gray-100" title={providerIpv6Address}>{providerIpv6Address}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-300">(ipv6 slaac, provider assigned)</p>
@@ -2562,7 +2561,7 @@ const VPSDetail: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCopy(providerIpv6Address, 'Provider IPv6')}
-                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500"
                             aria-label="Copy provider IPv6"
                           >
                             <Copy className="h-3.5 w-3.5" />
@@ -2574,7 +2573,6 @@ const VPSDetail: React.FC = () => {
                 ) : null}
               </div>
             </section>
-          </aside>
         </div>
       </div>
     </div>

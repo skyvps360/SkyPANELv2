@@ -155,27 +155,39 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <span className="text-sm text-gray-500 dark:text-gray-400">Status: {status}</span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <select
             value={connectedUser}
             onChange={(e) => setConnectedUser(e.target.value)}
-            className="text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1"
+            className="w-full min-w-[100px] rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 sm:w-auto"
           >
             <option value="root">root</option>
             <option value="ubuntu">ubuntu</option>
           </select>
-          <button onClick={connect} disabled={status === 'connecting' || status === 'connected'} className="px-2 py-1 text-sm rounded-md bg-blue-600 text-white disabled:bg-blue-400">Connect</button>
-          <button onClick={disconnect} disabled={status !== 'connected'} className="px-2 py-1 text-sm rounded-md bg-gray-600 text-white disabled:bg-gray-400">Disconnect</button>
-          <button onClick={clear} className="px-2 py-1 text-sm rounded-md bg-slate-700 text-white">Clear</button>
-          <button onClick={decreaseFont} className="px-2 py-1 text-sm rounded-md bg-slate-600 text-white">A-</button>
-          <button onClick={increaseFont} className="px-2 py-1 text-sm rounded-md bg-slate-600 text-white">A+</button>
+          <button
+            onClick={connect}
+            disabled={status === 'connecting' || status === 'connected'}
+            className="w-full rounded-md bg-blue-600 px-2 py-1 text-sm text-white transition disabled:bg-blue-400 sm:w-auto"
+          >
+            Connect
+          </button>
+          <button
+            onClick={disconnect}
+            disabled={status !== 'connected'}
+            className="w-full rounded-md bg-gray-600 px-2 py-1 text-sm text-white transition disabled:bg-gray-400 sm:w-auto"
+          >
+            Disconnect
+          </button>
+          <button onClick={clear} className="w-full rounded-md bg-slate-700 px-2 py-1 text-sm text-white sm:w-auto">Clear</button>
+          <button onClick={decreaseFont} className="rounded-md bg-slate-600 px-2 py-1 text-sm text-white">A-</button>
+          <button onClick={increaseFont} className="rounded-md bg-slate-600 px-2 py-1 text-sm text-white">A+</button>
         </div>
       </div>
       <div
         ref={containerRef}
-        className="h-[540px] w-full rounded-md border border-gray-300 dark:border-gray-700 bg-black/95 overflow-hidden"
+        className="h-[360px] w-full overflow-hidden rounded-md border border-gray-300 bg-black/95 dark:border-gray-700 sm:h-[540px]"
       />
       <div className="text-xs text-gray-500 dark:text-gray-400">
         Tips: Ctrl+F to search, click links to open in a new tab, use A+/A- to adjust font.
