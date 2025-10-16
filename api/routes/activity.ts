@@ -48,7 +48,7 @@ router.get('/', requireOrganization, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const orgId = user.organizationId;
-    const { type, status, from, to, limit = '50', offset = '0' } = req.query as any;
+    const { type, status, from, to, limit = '10', offset = '0' } = req.query as any;
     const clauses: string[] = ['organization_id = $1'];
     const params: any[] = [orgId];
     let paramIdx = 2;
@@ -58,11 +58,19 @@ router.get('/', requireOrganization, async (req: Request, res: Response) => {
     if (from && typeof from === 'string') { clauses.push('created_at >= $' + paramIdx); params.push(new Date(from)); paramIdx++; }
     if (to && typeof to === 'string') { clauses.push('created_at <= $' + paramIdx); params.push(new Date(to)); paramIdx++; }
 
-    const lim = Math.min(Number(limit) || 50, 200);
+    const lim = Math.min(Number(limit) || 10, 200);
     const off = Math.max(Number(offset) || 0, 0);
 
-  await ensureActivityLogsTable();
+    await ensureActivityLogsTable();
 
+    // Get total count for pagination
+    const countSql = `SELECT COUNT(*) as total
+                      FROM activity_logs
+                      WHERE ${clauses.join(' AND ')}`;
+    const countResult = await query(countSql, params.slice(0, paramIdx - 1));
+    const total = parseInt(countResult.rows[0]?.total || '0', 10);
+
+    // Get paginated results
     const sql = `SELECT id, user_id, organization_id, event_type, entity_type, entity_id, message, status, metadata, created_at
                  FROM activity_logs
                  WHERE ${clauses.join(' AND ')}
@@ -71,7 +79,17 @@ router.get('/', requireOrganization, async (req: Request, res: Response) => {
     params.push(lim, off);
 
     const result = await query(sql, params);
-    res.json({ activities: result.rows || [] });
+    
+    res.json({ 
+      activities: result.rows || [],
+      pagination: {
+        total,
+        limit: lim,
+        offset: off,
+        page: Math.floor(off / lim) + 1,
+        totalPages: Math.ceil(total / lim)
+      }
+    });
   } catch (err: any) {
     console.error('Activity list error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch activity' });
