@@ -186,68 +186,6 @@ router.post(
   }
 );
 
-// Close a ticket (user can only close if has_staff_reply is true)
-router.patch(
-  '/tickets/:id/close',
-  [param('id').isUUID().withMessage('Invalid ticket id')],
-  async (req: Request, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
-        return;
-      }
-
-      const { id } = req.params;
-      const organizationId = (req as AuthenticatedRequest).user.organizationId;
-
-      // Check if ticket exists and belongs to organization
-      const ticketCheck = await query(
-        'SELECT id, has_staff_reply, status FROM support_tickets WHERE id = $1 AND organization_id = $2',
-        [id, organizationId]
-      );
-      
-      if (ticketCheck.rows.length === 0) {
-        res.status(404).json({ error: 'Ticket not found' });
-        return;
-      }
-
-      const ticket = ticketCheck.rows[0];
-
-      // Check if ticket already closed
-      if (ticket.status === 'closed') {
-        res.status(400).json({ error: 'Ticket is already closed' });
-        return;
-      }
-
-      // Check if user has received a staff reply
-      if (!ticket.has_staff_reply) {
-        res.status(403).json({ 
-          error: 'Cannot close ticket before receiving a staff reply',
-          message: 'You must wait for a staff member to respond before closing this ticket'
-        });
-        return;
-      }
-
-      // Close the ticket
-      const now = new Date().toISOString();
-      const updateRes = await query(
-        'UPDATE support_tickets SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *',
-        ['closed', now, id]
-      );
-
-      res.json({ 
-        ticket: updateRes.rows[0],
-        message: 'Ticket closed successfully'
-      });
-    } catch (err: unknown) {
-      console.error('Close ticket error:', err);
-      const error = err as Error;
-      res.status(500).json({ error: error.message || 'Failed to close ticket' });
-    }
-  }
-);
-
 // Stream real-time updates for a specific ticket (SSE)
 router.get(
   '/tickets/:id/stream',

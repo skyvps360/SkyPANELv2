@@ -13,8 +13,7 @@ import {
   HelpCircle,
   Send,
   X,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
@@ -322,40 +321,6 @@ const Support: React.FC = () => {
     }
   };
 
-  const handleCloseTicket = async (ticketId: string, hasStaffReply: boolean) => {
-    if (!hasStaffReply) {
-      toast.error('Cannot close ticket until you receive a reply from staff');
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/support/tickets/${ticketId}/close`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to close ticket');
-      }
-
-      setTickets(prev => prev.map(t => 
-        t.id === ticketId ? { ...t, status: 'closed' } : t
-      ));
-
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket(prev => prev ? { ...prev, status: 'closed' } : prev);
-      }
-
-      toast.success('Ticket closed successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to close ticket');
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -508,17 +473,6 @@ const Support: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                {selectedTicket.status !== 'closed' && (
-                  <button
-                    onClick={() => handleCloseTicket(selectedTicket.id, selectedTicket.has_staff_reply)}
-                    disabled={!selectedTicket.has_staff_reply}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={!selectedTicket.has_staff_reply ? 'Cannot close until you receive a reply from staff' : 'Close ticket'}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Close Ticket
-                  </button>
-                )}
               </div>
             </div>
 

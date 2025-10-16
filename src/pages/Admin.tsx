@@ -1048,6 +1048,14 @@ const Admin: React.FC = () => {
                             <div className="text-sm text-gray-500 dark:text-gray-400">{selectedTicket.category}</div>
                           </div>
                           <div className="flex items-center gap-2">
+                            {selectedTicket.status !== 'open' && (
+                              <button
+                                className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
+                                onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-1" /> Re-open
+                              </button>
+                            )}
                             <button
                               className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
                               onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
