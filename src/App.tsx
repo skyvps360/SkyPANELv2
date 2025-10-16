@@ -9,6 +9,9 @@ import Containers from "./pages/Containers";
 import VPS from "./pages/VPS";
 import Billing from "./pages/Billing";
 import InvoiceDetail from "./pages/InvoiceDetail";
+import TransactionDetail from "./pages/TransactionDetail";
+import BillingPaymentSuccess from "./pages/BillingPaymentSuccess";
+import BillingPaymentCancel from "./pages/BillingPaymentCancel";
 import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
@@ -152,6 +155,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <InvoiceDetail />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/billing/transaction/:id" 
+        element={
+          <ProtectedRoute>
+            <TransactionDetail />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/billing/payment/success" 
+        element={
+          <ProtectedRoute>
+            <BillingPaymentSuccess />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/billing/payment/cancel" 
+        element={
+          <ProtectedRoute>
+            <BillingPaymentCancel />
           </ProtectedRoute>
         } 
       />

@@ -37,9 +37,26 @@ export interface PaymentHistory {
   amount: number;
   currency: string;
   description: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
   provider: string;
   providerPaymentId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTransactionDetail {
+  id: string;
+  organizationId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  status: PaymentHistory['status'];
+  provider: string;
+  paymentMethod: string;
+  providerPaymentId?: string;
+  type: 'credit' | 'debit';
+  balanceAfter: number | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -171,8 +188,10 @@ class PaymentService {
         return { transactions: [], hasMore: false };
       }
 
+      const transactionsSource = Array.isArray(data.transactions) ? data.transactions : [];
+
       return {
-        transactions: (data.transactions || []).map((tx: any) => {
+        transactions: transactionsSource.map((tx: any) => {
           const amountValue = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
           const amount = Number.isFinite(amountValue) ? amountValue : 0;
           const balanceRaw = tx.balanceAfter ?? tx.balance_after;
@@ -195,7 +214,7 @@ class PaymentService {
             createdAt,
           };
         }),
-        hasMore: data.pagination.hasMore,
+        hasMore: Boolean(data.pagination?.hasMore),
       };
     } catch (error) {
       console.error('Get wallet transactions error:', error);
@@ -239,8 +258,10 @@ class PaymentService {
         return { payments: [], hasMore: false };
       }
 
+      const paymentsSource = Array.isArray(data.payments) ? data.payments : [];
+
       return {
-        payments: data.payments.map((payment: any) => ({
+        payments: paymentsSource.map((payment: any) => ({
           id: payment.id,
           amount: payment.amount,
           currency: payment.currency,
@@ -251,11 +272,102 @@ class PaymentService {
           createdAt: payment.created_at,
           updatedAt: payment.updated_at,
         })),
-        hasMore: data.pagination.hasMore,
+        hasMore: Boolean(data.pagination?.hasMore),
       };
     } catch (error) {
       console.error('Get payment history error:', error);
       return { payments: [], hasMore: false };
+    }
+  }
+
+  /**
+   * Get a single payment transaction by ID
+   */
+  async getTransactionById(transactionId: string): Promise<{
+    success: boolean;
+    transaction?: PaymentTransactionDetail;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/transactions/${transactionId}`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to load transaction',
+        };
+      }
+
+      const transaction = data.transaction;
+
+      return {
+        success: true,
+        transaction: {
+          id: transaction.id,
+          organizationId: transaction.organizationId,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          description: transaction.description,
+          status: transaction.status,
+          provider: transaction.provider,
+          paymentMethod: transaction.paymentMethod,
+          providerPaymentId: transaction.providerPaymentId,
+          type: transaction.type,
+          balanceAfter: transaction.balanceAfter,
+          metadata: transaction.metadata || null,
+          createdAt: transaction.createdAt,
+          updatedAt: transaction.updatedAt,
+        },
+      };
+    } catch (error) {
+      console.error('Get transaction error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
+  }
+
+  /**
+   * Create an invoice from a single transaction
+   */
+  async createInvoiceFromTransaction(transactionId: string): Promise<{
+    success: boolean;
+    invoiceId?: string;
+    invoiceNumber?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/invoices/from-transaction/${transactionId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to generate invoice',
+        };
+      }
+
+      return {
+        success: true,
+        invoiceId: data.invoiceId,
+        invoiceNumber: data.invoiceNumber,
+      };
+    } catch (error) {
+      console.error('Create transaction invoice error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
     }
   }
 

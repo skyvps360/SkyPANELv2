@@ -4,16 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  CreditCard, 
   Wallet, 
   Plus, 
-  History, 
   Download,
   ArrowUpRight,
   ArrowDownLeft,
   DollarSign,
-  Calendar,
   Filter,
   X
 } from 'lucide-react';
@@ -26,8 +24,8 @@ interface FilterState {
   dateFrom: string;
   dateTo: string;
 }
-
 const Billing: React.FC = () => {
+  const navigate = useNavigate();
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
@@ -43,13 +41,42 @@ const Billing: React.FC = () => {
     dateTo: ''
   });
 
+  const applyFilters = React.useCallback(() => {
+    let filtered = [...paymentHistory];
+
+    // Filter by status
+    if (filters.status) {
+      filtered = filtered.filter(payment => payment.status === filters.status);
+    }
+
+    // Filter by date range
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      filtered = filtered.filter(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        return paymentDate >= fromDate;
+      });
+    }
+
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        return paymentDate <= toDate;
+      });
+    }
+
+    setFilteredPaymentHistory(filtered);
+  }, [filters, paymentHistory]);
+
   useEffect(() => {
     loadBillingData();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [paymentHistory, filters]);
+  }, [applyFilters]);
 
   const loadBillingData = async () => {
     setLoading(true);
@@ -166,12 +193,14 @@ const Billing: React.FC = () => {
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       case 'cancelled':
         return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+      case 'refunded':
+        return 'text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/20';
       default:
         return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
     }
   };
 
-  const exportToCSV = (data: any[], filename: string, headers: string[]) => {
+  const exportToCSV = (data: Array<Record<string, string>>, filename: string, headers: string[]) => {
     try {
       // Create CSV content
       const csvContent = [
@@ -230,63 +259,6 @@ const Billing: React.FC = () => {
     }));
     
     exportToCSV(exportData, 'payment-history.csv', headers);
-  };
-
-  const handleCreateInvoice = async () => {
-    try {
-      const response = await fetch('/api/invoices/from-transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to create invoice');
-        return;
-      }
-
-      if (data.success) {
-        toast.success(`Invoice ${data.invoiceNumber} created successfully`);
-        // Navigate to invoice detail page
-        window.location.href = `/billing/invoice/${data.invoiceId}`;
-      }
-    } catch (error) {
-      console.error('Create invoice error:', error);
-      toast.error('Failed to create invoice');
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...paymentHistory];
-
-    // Filter by status
-    if (filters.status) {
-      filtered = filtered.filter(payment => payment.status === filters.status);
-    }
-
-    // Filter by date range
-    if (filters.dateFrom) {
-      const fromDate = new Date(filters.dateFrom);
-      filtered = filtered.filter(payment => {
-        const paymentDate = new Date(payment.createdAt);
-        return paymentDate >= fromDate;
-      });
-    }
-
-    if (filters.dateTo) {
-      const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59, 999); // End of day
-      filtered = filtered.filter(payment => {
-        const paymentDate = new Date(payment.createdAt);
-        return paymentDate <= toDate;
-      });
-    }
-
-    setFilteredPaymentHistory(filtered);
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -466,7 +438,11 @@ const Billing: React.FC = () => {
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activity</h3>
                   <div className="space-y-3">
                     {transactions.slice(0, 5).map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+                      <div 
+                        key={transaction.id} 
+                        onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
+                        className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
                         <div className="flex items-center">
                           <div className={`p-2 rounded-lg ${transaction.type === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
                             {transaction.type === 'credit' ? (
@@ -532,7 +508,11 @@ const Billing: React.FC = () => {
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {transactions.map((transaction) => (
-                        <tr key={transaction.id}>
+                        <tr 
+                          key={transaction.id}
+                          onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
+                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                             {transaction.description}
                           </td>
@@ -588,14 +568,6 @@ const Billing: React.FC = () => {
                       <Download className="h-4 w-4 mr-2" />
                       Export as CSV
                     </button>
-                    <button 
-                      onClick={handleCreateInvoice}
-                      disabled={filteredPaymentHistory.length === 0}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export as HTML Invoice
-                    </button>
                   </div>
                 </div>
 
@@ -627,6 +599,7 @@ const Billing: React.FC = () => {
                           <option value="pending">Pending</option>
                           <option value="failed">Failed</option>
                           <option value="cancelled">Cancelled</option>
+                          <option value="refunded">Refunded</option>
                         </select>
                       </div>
                       <div>

@@ -4,10 +4,11 @@
  */
 
 import express, { Request, Response } from 'express';
-import { param, query, validationResult } from 'express-validator';
+import { param, query as queryValidator, validationResult } from 'express-validator';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { InvoiceService } from '../services/invoiceService.js';
 import { PayPalService } from '../services/paypalService.js';
+import { query } from '../lib/database.js';
 
 const router = express.Router();
 
@@ -20,11 +21,11 @@ router.use(authenticateToken);
 router.get(
   '/',
   [
-    query('limit')
+    queryValidator('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
       .withMessage('Limit must be between 1 and 100'),
-    query('offset')
+    queryValidator('offset')
       .optional()
       .isInt({ min: 0 })
       .withMessage('Offset must be a non-negative integer'),
@@ -160,6 +161,82 @@ router.get(
       res.send(invoice.htmlContent);
     } catch (error) {
       console.error('Download invoice error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
+ * Create invoice from a single wallet transaction
+ */
+router.post(
+  '/from-transaction/:transactionId',
+  [
+    param('transactionId')
+      .isUUID()
+      .withMessage('Transaction ID must be a valid UUID'),
+  ],
+  requireOrganization,
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
+      const organizationId = (req as any).user.organizationId;
+      const transactionId = req.params.transactionId;
+
+      // Get the specific transaction
+      const result = await query(
+        `SELECT * FROM wallet_transactions WHERE id = $1 AND organization_id = $2`,
+        [transactionId, organizationId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Transaction not found',
+        });
+      }
+
+      const transaction = result.rows[0];
+      const invoiceNumber = `INV-TXN-${Date.now()}`;
+
+      // Generate invoice data from single transaction
+      const invoiceData = InvoiceService.generateInvoiceFromTransactions(
+        organizationId,
+        [transaction],
+        invoiceNumber
+      );
+
+      // Generate HTML
+      const htmlContent = InvoiceService.generateInvoiceHTML(invoiceData);
+
+      // Store invoice
+      const invoiceId = await InvoiceService.createInvoice(
+        organizationId,
+        invoiceNumber,
+        htmlContent,
+        invoiceData as unknown as Record<string, unknown>,
+        invoiceData.total,
+        'USD'
+      );
+
+      res.json({
+        success: true,
+        invoiceId,
+        invoiceNumber,
+      });
+    } catch (error) {
+      console.error('Create invoice from transaction error:', error);
       res.status(500).json({
         success: false,
         error: 'Internal server error',
