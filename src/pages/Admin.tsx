@@ -3,7 +3,7 @@
  * Manage support tickets and VPS plans
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -139,6 +139,13 @@ const Admin: React.FC = () => {
   const [replyMessage, setReplyMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | TicketStatus>('all');
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Plans state
   const [plans, setPlans] = useState<VPSPlan[]>([]);
@@ -315,6 +322,7 @@ const Admin: React.FC = () => {
         created_at: m.created_at,
       }));
       setSelectedTicket(prev => (prev ? { ...prev, messages: msgs } : prev));
+      setTimeout(scrollToBottom, 100);
     } catch (e: any) {
       toast.error(e.message || 'Failed to load replies');
     }
@@ -555,6 +563,7 @@ const Admin: React.FC = () => {
       setSelectedTicket(prev => (prev ? { ...prev, messages: [...prev.messages, reply] } : prev));
       setReplyMessage('');
       toast.success('Reply sent');
+      setTimeout(scrollToBottom, 100);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -1086,6 +1095,8 @@ const Admin: React.FC = () => {
                             ) : (
                               <div className="text-sm text-gray-500 dark:text-gray-400">No replies yet</div>
                             )}
+                            {/* Auto-scroll anchor */}
+                            <div ref={messagesEndRef} />
                           </div>
                         </div>
                         <div className="pt-3 border-t border-gray-200 dark:border-gray-700">

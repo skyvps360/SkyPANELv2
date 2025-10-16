@@ -9,6 +9,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
+import { logActivity } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -111,6 +112,19 @@ router.post(
       const { id } = req.params;
       const { message } = req.body as { message: string };
 
+      // Get ticket details for activity logging
+      const ticketRes = await query(
+        'SELECT organization_id, created_by, subject FROM support_tickets WHERE id = $1',
+        [id]
+      );
+
+      if (ticketRes.rows.length === 0) {
+        res.status(404).json({ error: 'Ticket not found' });
+        return;
+      }
+
+      const ticket = ticketRes.rows[0];
+
       // Create reply
       const replyResult = await query(
         `INSERT INTO support_ticket_replies (ticket_id, user_id, message, is_staff_reply, created_at) 
@@ -127,6 +141,22 @@ router.post(
         'UPDATE support_tickets SET updated_at = $1 WHERE id = $2',
         [new Date().toISOString(), id]
       );
+
+      // Log activity notification for the ticket creator
+      await logActivity({
+        userId: ticket.created_by,
+        organizationId: ticket.organization_id,
+        eventType: 'ticket_reply',
+        entityType: 'support_ticket',
+        entityId: id,
+        message: `Staff replied to your ticket: "${ticket.subject}"`,
+        status: 'info',
+        metadata: { 
+          ticket_id: id,
+          reply_preview: message.substring(0, 100),
+          is_staff_reply: true
+        }
+      }, req);
 
       const replyRow = replyResult.rows[0];
       res.status(201).json({
