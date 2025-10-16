@@ -16,7 +16,9 @@ import {
   EyeOff,
   Copy,
   RefreshCw,
-  Trash2
+  Trash2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
@@ -36,7 +38,13 @@ const Settings: React.FC = () => {
   } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState<{[key: string]: boolean}>({});
+  const [newlyCreatedKeys, setNewlyCreatedKeys] = useState<{[key: string]: string}>({});
+  const [revokeModal, setRevokeModal] = useState<{isOpen: boolean, keyId: string, keyName: string}>({
+    isOpen: false,
+    keyId: '',
+    keyName: ''
+  });
 
   // Profile settings
   const [profileData, setProfileData] = useState({
@@ -208,8 +216,10 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleCopyApiKey = (key: string) => {
-    navigator.clipboard.writeText(key);
+  const handleCopyApiKey = (keyId: string, key: string) => {
+    // For newly created keys, copy the full key. For existing keys, copy the preview
+    const fullKey = newlyCreatedKeys[keyId] || key;
+    navigator.clipboard.writeText(fullKey);
     toast.success('API key copied to clipboard');
   };
 
@@ -223,6 +233,10 @@ const Settings: React.FC = () => {
     try {
       const newKey = await createApiKey(newApiKeyName);
       setApiKeys(prev => [...prev, newKey]);
+      // Store the full key for this session only
+      if (newKey.key) {
+        setNewlyCreatedKeys(prev => ({ ...prev, [newKey.id]: newKey.key }));
+      }
       setNewApiKeyName('');
       toast.success('API key created successfully');
     } catch (error: any) {
@@ -233,20 +247,50 @@ const Settings: React.FC = () => {
   };
 
   const handleRevokeApiKey = async (keyId: string) => {
-    if (!confirm('Are you sure you want to revoke this API key? This action cannot be undone.')) {
-      return;
-    }
-
     setLoading(true);
     try {
       await revokeApiKey(keyId);
       setApiKeys(prev => prev.filter(key => key.id !== keyId));
+      // Remove from newly created keys if it exists
+      setNewlyCreatedKeys(prev => {
+        const updated = { ...prev };
+        delete updated[keyId];
+        return updated;
+      });
+      setRevokeModal({ isOpen: false, keyId: '', keyName: '' });
       toast.success('API key revoked successfully');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to revoke API key');
     } finally {
       setLoading(false);
     }
+  };
+
+  const openRevokeModal = (keyId: string, keyName: string) => {
+    setRevokeModal({ isOpen: true, keyId, keyName });
+  };
+
+  const closeRevokeModal = () => {
+    setRevokeModal({ isOpen: false, keyId: '', keyName: '' });
+  };
+
+  const toggleApiKeyVisibility = (keyId: string) => {
+    setShowApiKey(prev => ({ ...prev, [keyId]: !prev[keyId] }));
+  };
+
+  const getDisplayKey = (key: any) => {
+    const isVisible = showApiKey[key.id];
+    const hasFullKey = newlyCreatedKeys[key.id];
+    
+    if (!isVisible) {
+      return '••••••••••••••••••••••••••••••••';
+    }
+    
+    if (hasFullKey) {
+      return newlyCreatedKeys[key.id];
+    }
+    
+    return key.key_preview || key.key;
   };
 
   const renderTabContent = () => {
@@ -619,29 +663,44 @@ const Settings: React.FC = () => {
                       <div className="flex items-center gap-2 mb-4">
                         <div className="flex-1 relative">
                           <input
-                            type={showApiKey ? 'text' : 'password'}
-                            value={key.key_preview || key.key}
+                            type="text"
+                            value={getDisplayKey(key)}
                             readOnly
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
                           />
                         </div>
                         <button
-                          onClick={() => setShowApiKey(!showApiKey)}
+                          onClick={() => toggleApiKeyVisibility(key.id)}
                           className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          title={showApiKey[key.id] ? 'Hide API key' : 'Show API key'}
                         >
-                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showApiKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                         <button
-                          onClick={() => handleCopyApiKey(key.key_preview || key.key)}
+                          onClick={() => handleCopyApiKey(key.id, key.key_preview || key.key)}
                           className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          title="Copy API key"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
                       </div>
 
+                      {/* Security notice for existing keys */}
+                      {!newlyCreatedKeys[key.id] && showApiKey[key.id] && (
+                        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                          <div className="flex">
+                            <Shield className="h-4 w-4 text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+                            <div className="text-sm text-blue-700 dark:text-blue-300">
+                              <p className="font-medium">Security Notice</p>
+                              <p>For security reasons, only the prefix of existing API keys can be displayed. The full key was only shown when it was first created.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleRevokeApiKey(key.id)}
+                          onClick={() => openRevokeModal(key.id, key.name)}
                           disabled={loading}
                           className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-red-500 disabled:opacity-50"
                         >
@@ -654,6 +713,61 @@ const Settings: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Revocation Confirmation Modal */}
+            {revokeModal.isOpen && (
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                          Revoke API Key
+                        </h3>
+                      </div>
+                      <button
+                        onClick={closeRevokeModal}
+                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        Are you sure you want to revoke the API key:
+                      </p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded border">
+                        {revokeModal.keyName}
+                      </p>
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                        This action cannot be undone. Any applications using this key will lose access immediately.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 justify-end">
+                      <button
+                        onClick={closeRevokeModal}
+                        disabled={loading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleRevokeApiKey(revokeModal.keyId)}
+                        disabled={loading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        {loading ? 'Revoking...' : 'Revoke API Key'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
 

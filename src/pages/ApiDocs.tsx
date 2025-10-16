@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { BRAND_NAME } from '../lib/brand';
 
 export default function ApiDocs() {
-  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
+  const apiBase = (import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}/api`).replace(/\/$/, '');
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
 
   const toggleSection = (sectionTitle: string) => {
@@ -50,11 +50,49 @@ export default function ApiDocs() {
           response: { success: true, message: 'Logged out successfully' }
         },
         { 
+          method: 'POST', 
+          path: '/verify-email', 
+          description: 'Verify user email address (placeholder)',
+          auth: false,
+          body: { token: 'verification_token_here' },
+          response: { success: false, message: 'Email verification not implemented' }
+        },
+        { 
+          method: 'POST', 
+          path: '/forgot-password', 
+          description: 'Initiate password reset flow (placeholder)',
+          auth: false,
+          body: { email: 'user@example.com' },
+          response: { success: true, message: 'Password reset email sent (not implemented)' }
+        },
+        { 
+          method: 'POST', 
+          path: '/reset-password', 
+          description: 'Complete password reset (placeholder)',
+          auth: false,
+          body: { token: 'reset_token', newPassword: 'newpassword123' },
+          response: { success: false, error: 'Password reset not implemented' }
+        },
+        { 
+          method: 'POST', 
+          path: '/refresh', 
+          description: 'Refresh JWT token for current user',
+          auth: true,
+          response: { success: true, token: 'new_jwt_token_here', user: { id: 1, email: 'user@example.com' } }
+        },
+        { 
           method: 'GET', 
           path: '/me', 
           description: 'Get current user profile',
           auth: true,
           response: { id: 1, email: 'user@example.com', firstName: 'John', lastName: 'Doe', role: 'user' }
+        },
+        { 
+          method: 'GET', 
+          path: '/debug/user', 
+          description: 'Debug helper returning database snapshot for current user',
+          auth: true,
+          response: { user: { id: 1, email: 'user@example.com' }, organization: { id: 1, name: 'My Org' }, debug_info: 'Database snapshot data' }
         },
         { 
           method: 'PUT', 
@@ -85,6 +123,13 @@ export default function ApiDocs() {
           description: 'Delete an API key',
           auth: true,
           response: { success: true, message: 'API key deleted successfully' }
+        },
+        { 
+          method: 'GET', 
+          path: '/organization', 
+          description: 'Get current user organization details',
+          auth: true,
+          response: { id: 1, name: 'My Company', website: 'https://mycompany.com', address: '123 Main St', taxId: 'TAX123', created_at: '2024-01-01T00:00:00Z' }
         },
         { 
           method: 'PUT', 
@@ -119,33 +164,18 @@ export default function ApiDocs() {
       endpoints: [
         { 
           method: 'POST', 
-          path: '/create-payment-intent', 
-          description: 'Create PayPal payment intent for container deployment',
+          path: '/create-payment', 
+          description: 'Create a PayPal payment for adding funds to wallet',
           auth: true,
-          body: { amount: 10.00, currency: 'USD', containerId: 'container_123' },
-          response: { paymentId: 'PAYID-123', approvalUrl: 'https://paypal.com/approve/...' }
+          body: { amount: 50.00, currency: 'USD', description: 'Wallet top-up' },
+          response: { success: true, paymentId: 'PAYID-123', approvalUrl: 'https://paypal.com/approve/...' }
         },
         { 
           method: 'POST', 
-          path: '/capture-payment', 
-          description: 'Capture completed payment after user approval',
+          path: '/capture-payment/:orderId', 
+          description: 'Capture a PayPal payment after user approval',
           auth: true,
-          body: { paymentId: 'PAYID-123', payerId: 'PAYER-123' },
-          response: { success: true, transactionId: 'TXN-456', status: 'completed' }
-        },
-        { 
-          method: 'GET', 
-          path: '/history', 
-          description: 'Get user payment history',
-          auth: true,
-          response: [{ id: 1, amount: 10.00, status: 'completed', date: '2024-01-01T00:00:00Z', description: 'Container deployment' }]
-        },
-        { 
-          method: 'GET', 
-          path: '/invoices', 
-          description: 'Get user invoices',
-          auth: true,
-          response: [{ id: 1, number: 'INV-001', amount: 10.00, status: 'paid', date: '2024-01-01T00:00:00Z' }]
+          response: { success: true, transactionId: 'TXN-456', status: 'completed', amount: 50.00 }
         },
         { 
           method: 'GET', 
@@ -157,22 +187,70 @@ export default function ApiDocs() {
         { 
           method: 'POST', 
           path: '/wallet/deduct', 
-          description: 'Deduct funds from wallet for VPS creation',
+          description: 'Deduct funds from wallet for services',
           auth: true,
-          body: { amount: 20.00, description: 'VPS instance creation', vpsId: 'vps_123' },
+          body: { amount: 20.00, description: 'VPS instance creation' },
           response: { success: true, transaction_id: 'txn_456', remaining_balance: 130.75 }
         },
         { 
           method: 'GET', 
           path: '/wallet/transactions', 
-          description: 'Get wallet transaction history',
+          description: 'Get wallet transaction history with pagination',
           auth: true,
+          params: { limit: '20', offset: '0' },
           response: { 
             transactions: [
               { id: 'txn_123', type: 'credit', amount: 50.00, description: 'Wallet top-up', date: '2024-01-01T00:00:00Z' },
               { id: 'txn_124', type: 'debit', amount: 20.00, description: 'VPS instance creation', date: '2024-01-01T01:00:00Z' }
             ],
             pagination: { page: 1, limit: 20, total: 45 }
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/history', 
+          description: 'Get payment history with filtering options',
+          auth: true,
+          params: { limit: '20', offset: '0', status: 'completed' },
+          response: { 
+            payments: [
+              { id: 'pay_123', amount: 50.00, status: 'completed', date: '2024-01-01T00:00:00Z', description: 'Wallet top-up', currency: 'USD' }
+            ],
+            pagination: { page: 1, limit: 20, total: 15 }
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/transactions/:id', 
+          description: 'Get detailed information about a specific transaction',
+          auth: true,
+          response: { 
+            id: 'txn_123', 
+            type: 'credit', 
+            amount: 50.00, 
+            description: 'Wallet top-up', 
+            date: '2024-01-01T00:00:00Z',
+            status: 'completed',
+            paypal_order_id: 'ORDER-123',
+            organization_id: 'org_456'
+          }
+        },
+        { 
+          method: 'POST', 
+          path: '/refund', 
+          description: 'Process a refund to a user via PayPal',
+          auth: true,
+          body: { 
+            email: 'user@example.com', 
+            amount: 25.00, 
+            currency: 'USD', 
+            reason: 'Service cancellation' 
+          },
+          response: { 
+            success: true, 
+            refund_id: 'REFUND-123', 
+            status: 'pending',
+            message: 'Refund initiated successfully'
           }
         },
       ],
@@ -780,6 +858,24 @@ export default function ApiDocs() {
         },
         { 
           method: 'GET', 
+          path: '/networking/rdns', 
+          description: 'Get default reverse DNS base domain configuration',
+          auth: true,
+          response: { 
+            base_domain: 'ip.rev.skyvps360.xyz',
+            updated_at: '2024-01-01T00:00:00Z'
+          }
+        },
+        { 
+          method: 'PUT', 
+          path: '/networking/rdns', 
+          description: 'Update default reverse DNS base domain',
+          auth: true,
+          body: { base_domain: 'custom.rdns.domain.com' },
+          response: { success: true, message: 'rDNS base domain updated successfully' }
+        },
+        { 
+          method: 'GET', 
           path: '/container/plans', 
           description: 'List all container plans',
           auth: true,
@@ -938,6 +1034,99 @@ export default function ApiDocs() {
               containers: 'operational',
               vps: 'operational',
               payments: 'operational'
+            }
+          }
+        },
+      ],
+    },
+    {
+      title: 'Invoices',
+      base: `${apiBase}/invoices`,
+      description: 'Invoice management and generation for billing transactions',
+      endpoints: [
+        { 
+          method: 'GET', 
+          path: '/', 
+          description: 'List invoices for the organization',
+          auth: true,
+          params: { limit: '20', offset: '0' },
+          response: { 
+            invoices: [
+              { 
+                id: 'inv_123', 
+                invoiceNumber: 'INV-2024-001', 
+                amount: 150.75, 
+                currency: 'USD',
+                status: 'paid', 
+                dueDate: '2024-01-15T00:00:00Z',
+                createdAt: '2024-01-01T00:00:00Z',
+                organizationId: 'org_456'
+              }
+            ],
+            pagination: { page: 1, limit: 20, total: 5 }
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/:id', 
+          description: 'Get detailed invoice information',
+          auth: true,
+          response: { 
+            id: 'inv_123', 
+            invoiceNumber: 'INV-2024-001', 
+            amount: 150.75, 
+            currency: 'USD',
+            status: 'paid', 
+            dueDate: '2024-01-15T00:00:00Z',
+            createdAt: '2024-01-01T00:00:00Z',
+            organizationId: 'org_456',
+            lineItems: [
+              { description: 'VPS Instance - January 2024', amount: 50.00, quantity: 1 },
+              { description: 'Container Hosting - January 2024', amount: 100.75, quantity: 1 }
+            ]
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/:id/download', 
+          description: 'Download invoice as HTML file',
+          auth: true,
+          response: 'HTML file download with Content-Disposition header'
+        },
+        { 
+          method: 'POST', 
+          path: '/from-transaction/:transactionId', 
+          description: 'Create invoice from a specific wallet transaction',
+          auth: true,
+          body: { includeCompanyDetails: true },
+          response: { 
+            success: true, 
+            invoice: { 
+              id: 'inv_124', 
+              invoiceNumber: 'INV-2024-002', 
+              amount: 75.50, 
+              status: 'generated' 
+            }
+          }
+        },
+        { 
+          method: 'POST', 
+          path: '/from-transactions', 
+          description: 'Create invoice from multiple wallet transactions',
+          auth: true,
+          body: { 
+            transactionIds: ['txn_123', 'txn_124', 'txn_125'],
+            includeCompanyDetails: true,
+            customDescription: 'Monthly services invoice'
+          },
+          response: { 
+            success: true, 
+            invoice: { 
+              id: 'inv_125', 
+              invoiceNumber: 'INV-2024-003', 
+              amount: 225.00, 
+              status: 'generated',
+              transactionCount: 3
             }
           }
         },

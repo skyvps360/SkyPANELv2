@@ -7,7 +7,8 @@ import {
   CreditCard,
   HelpCircle,
   Settings,
-  Activity
+  Activity,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -38,7 +39,7 @@ const Sidebar: React.FC = () => {
   ];
 
   const items = user?.role === 'admin'
-    ? [...navigationItems, { name: 'Admin', href: '/admin', icon: Settings }]
+    ? [...navigationItems, { name: 'Admin', href: '/admin', icon: Shield }]
     : navigationItems;
 
   const isActive = (path: string) => location.pathname === path;
