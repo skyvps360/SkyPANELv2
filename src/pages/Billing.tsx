@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory } from '../services/paymentService';
+import Pagination from '../components/ui/Pagination';
 // Navigation provided by AppLayout
 
 interface FilterState {
@@ -24,12 +25,18 @@ interface FilterState {
   dateFrom: string;
   dateTo: string;
 }
+
+interface PaginationState {
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+}
+
 const Billing: React.FC = () => {
   const navigate = useNavigate();
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
-  const [filteredPaymentHistory, setFilteredPaymentHistory] = useState<PaymentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [addFundsAmount, setAddFundsAmount] = useState('');
   const [addFundsLoading, setAddFundsLoading] = useState(false);
@@ -41,64 +48,146 @@ const Billing: React.FC = () => {
     dateTo: ''
   });
 
-  const applyFilters = React.useCallback(() => {
-    let filtered = [...paymentHistory];
+  // Pagination states for each tab
+  const [overviewPagination, setOverviewPagination] = useState<PaginationState>({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+  });
 
-    // Filter by status
-    if (filters.status) {
-      filtered = filtered.filter(payment => payment.status === filters.status);
+  const [transactionsPagination, setTransactionsPagination] = useState<PaginationState>({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+  });
+
+  const [historyPagination, setHistoryPagination] = useState<PaginationState>({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+  });
+
+  // Define load functions with useCallback
+  const loadOverviewData = React.useCallback(async () => {
+    try {
+      const offset = (overviewPagination.currentPage - 1) * overviewPagination.itemsPerPage;
+      const result = await paymentService.getWalletTransactions(
+        overviewPagination.itemsPerPage,
+        offset
+      );
+      setTransactions(result.transactions);
+      
+      // Fetch total count - we'll approximate based on hasMore
+      if (result.hasMore) {
+        setOverviewPagination(prev => ({
+          ...prev,
+          totalItems: Math.max(prev.totalItems, offset + result.transactions.length + 1)
+        }));
+      } else {
+        setOverviewPagination(prev => ({
+          ...prev,
+          totalItems: offset + result.transactions.length
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load overview data:', error);
+      toast.error('Failed to load recent activity');
     }
+  }, [overviewPagination.currentPage, overviewPagination.itemsPerPage]);
 
-    // Filter by date range
-    if (filters.dateFrom) {
-      const fromDate = new Date(filters.dateFrom);
-      filtered = filtered.filter(payment => {
-        const paymentDate = new Date(payment.createdAt);
-        return paymentDate >= fromDate;
-      });
+  const loadTransactionsData = React.useCallback(async () => {
+    try {
+      const offset = (transactionsPagination.currentPage - 1) * transactionsPagination.itemsPerPage;
+      const result = await paymentService.getWalletTransactions(
+        transactionsPagination.itemsPerPage,
+        offset
+      );
+      setTransactions(result.transactions);
+      
+      if (result.hasMore) {
+        setTransactionsPagination(prev => ({
+          ...prev,
+          totalItems: Math.max(prev.totalItems, offset + result.transactions.length + 1)
+        }));
+      } else {
+        setTransactionsPagination(prev => ({
+          ...prev,
+          totalItems: offset + result.transactions.length
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+      toast.error('Failed to load wallet transactions');
     }
+  }, [transactionsPagination.currentPage, transactionsPagination.itemsPerPage]);
 
-    if (filters.dateTo) {
-      const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59, 999); // End of day
-      filtered = filtered.filter(payment => {
-        const paymentDate = new Date(payment.createdAt);
-        return paymentDate <= toDate;
-      });
+  const loadHistoryData = React.useCallback(async () => {
+    try {
+      const offset = (historyPagination.currentPage - 1) * historyPagination.itemsPerPage;
+      const result = await paymentService.getPaymentHistory(
+        historyPagination.itemsPerPage,
+        offset,
+        filters.status
+      );
+      setPaymentHistory(result.payments);
+      
+      if (result.hasMore) {
+        setHistoryPagination(prev => ({
+          ...prev,
+          totalItems: Math.max(prev.totalItems, offset + result.payments.length + 1)
+        }));
+      } else {
+        setHistoryPagination(prev => ({
+          ...prev,
+          totalItems: offset + result.payments.length
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load payment history:', error);
+      toast.error('Failed to load payment history');
     }
+  }, [historyPagination.currentPage, historyPagination.itemsPerPage, filters.status]);
 
-    setFilteredPaymentHistory(filtered);
-  }, [filters, paymentHistory]);
-
-  useEffect(() => {
-    loadBillingData();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [applyFilters]);
-
-  const loadBillingData = async () => {
+  const loadBillingData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [balance, transactionsData, historyData] = await Promise.all([
-        paymentService.getWalletBalance(),
-        paymentService.getWalletTransactions(10),
-        paymentService.getPaymentHistory(10)
-      ]);
-
+      const balance = await paymentService.getWalletBalance();
       if (balance) {
         setWalletBalance(balance.balance);
       }
-      setTransactions(transactionsData.transactions);
-      setPaymentHistory(historyData.payments);
+      
+      // Load initial data based on active tab
+      await loadOverviewData();
     } catch (error) {
       console.error('Failed to load billing data:', error);
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadOverviewData]);
+
+  // Initial load
+  useEffect(() => {
+    loadBillingData();
+  }, [loadBillingData]);
+
+  // Reload data when filter status changes
+  useEffect(() => {
+    if (filters.status && activeTab === 'history') {
+      setHistoryPagination(prev => ({ ...prev, currentPage: 1 }));
+    }
+  }, [filters.status, activeTab]);
+
+  // Load data when tab or pagination changes
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      loadOverviewData();
+    } else if (activeTab === 'transactions') {
+      loadTransactionsData();
+    } else if (activeTab === 'history') {
+      loadHistoryData();
+    }
+  }, [activeTab, loadOverviewData, loadTransactionsData, loadHistoryData]);
 
   const handleAddFunds = async () => {
     if (!addFundsAmount || parseFloat(addFundsAmount) <= 0) {
@@ -250,7 +339,7 @@ const Billing: React.FC = () => {
 
   const handleExportPaymentHistory = () => {
     const headers = ['Description', 'Amount', 'Status', 'Provider', 'Date'];
-    const exportData = filteredPaymentHistory.map(payment => ({
+    const exportData = paymentHistory.map(payment => ({
       description: payment.description,
       amount: `${formatCurrency(payment.amount)} ${payment.currency}`,
       status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
@@ -437,7 +526,7 @@ const Billing: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activity</h3>
                   <div className="space-y-3">
-                    {transactions.slice(0, 5).map((transaction) => (
+                    {transactions.map((transaction) => (
                       <div 
                         key={transaction.id} 
                         onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
@@ -469,6 +558,16 @@ const Billing: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                  {overviewPagination.totalItems > 0 && (
+                    <Pagination
+                      currentPage={overviewPagination.currentPage}
+                      totalItems={overviewPagination.totalItems}
+                      itemsPerPage={overviewPagination.itemsPerPage}
+                      onPageChange={(page) => setOverviewPagination(prev => ({ ...prev, currentPage: page }))}
+                      onItemsPerPageChange={(itemsPerPage) => setOverviewPagination(prev => ({ ...prev, itemsPerPage, currentPage: 1 }))}
+                      className="mt-4"
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -537,6 +636,16 @@ const Billing: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                {transactionsPagination.totalItems > 0 && (
+                  <Pagination
+                    currentPage={transactionsPagination.currentPage}
+                    totalItems={transactionsPagination.totalItems}
+                    itemsPerPage={transactionsPagination.itemsPerPage}
+                    onPageChange={(page) => setTransactionsPagination(prev => ({ ...prev, currentPage: page }))}
+                    onItemsPerPageChange={(itemsPerPage) => setTransactionsPagination(prev => ({ ...prev, itemsPerPage, currentPage: 1 }))}
+                    className="mt-4"
+                  />
+                )}
               </div>
             )}
 
@@ -662,7 +771,7 @@ const Billing: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {filteredPaymentHistory.map((payment) => (
+                      {paymentHistory.map((payment) => (
                         <tr key={payment.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                             {payment.description}
@@ -686,6 +795,16 @@ const Billing: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                {historyPagination.totalItems > 0 && (
+                  <Pagination
+                    currentPage={historyPagination.currentPage}
+                    totalItems={historyPagination.totalItems}
+                    itemsPerPage={historyPagination.itemsPerPage}
+                    onPageChange={(page) => setHistoryPagination(prev => ({ ...prev, currentPage: page }))}
+                    onItemsPerPageChange={(itemsPerPage) => setHistoryPagination(prev => ({ ...prev, itemsPerPage, currentPage: 1 }))}
+                    className="mt-4"
+                  />
+                )}
               </div>
             )}
           </div>
