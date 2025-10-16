@@ -18,7 +18,8 @@ import {
   X,
   Moon,
   Sun,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
@@ -48,6 +49,11 @@ const Navigation: React.FC = () => {
       name: 'Containers',
       href: '/containers',
       icon: Container
+    },
+    {
+      name: 'Activity',
+      href: '/activity',
+      icon: Activity
     },
     {
       name: 'Billing',
@@ -104,7 +110,20 @@ const Navigation: React.FC = () => {
           </div>
 
           {/* User menu */}
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-3">
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="bg-white dark:bg-gray-800 p-2 rounded-full text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </button>
+            
             <div className="ml-3 relative">
               <div>
                 <button
@@ -127,22 +146,6 @@ const Navigation: React.FC = () => {
                     <div className="font-medium text-gray-900 dark:text-white break-all leading-tight" title={user?.email || ''}>{user?.email}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">Organization Admin</div>
                   </div>
-                  
-                  {/* Theme Toggle */}
-                  <button
-                    onClick={() => {
-                      toggleTheme();
-                      setIsUserMenuOpen(false);
-                    }}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    {theme === 'dark' ? (
-                      <Sun className="h-4 w-4 mr-2" />
-                    ) : (
-                      <Moon className="h-4 w-4 mr-2" />
-                    )}
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </button>
                   
                   {user?.role === 'admin' && (
                     <Link
@@ -194,7 +197,20 @@ const Navigation: React.FC = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="-mr-2 flex items-center sm:hidden">
+          <div className="-mr-2 flex items-center space-x-2 sm:hidden">
+            {/* Theme Toggle for Mobile Header */}
+            <button
+              onClick={toggleTheme}
+              className="bg-white dark:bg-gray-800 p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </button>
+            
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="bg-white dark:bg-gray-800 inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
@@ -250,22 +266,6 @@ const Navigation: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 space-y-1">
-              {/* Theme Toggle for Mobile */}
-              <button
-                onClick={() => {
-                  toggleTheme();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="flex items-center w-full px-4 py-2 text-base font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                {theme === 'dark' ? (
-                  <Sun className="h-5 w-5 mr-3" />
-                ) : (
-                  <Moon className="h-5 w-5 mr-3" />
-                )}
-                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              </button>
-              
               {user?.role === 'admin' && (
                 <Link
                   to="/admin"

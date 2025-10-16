@@ -22,6 +22,7 @@ interface AuthContextType {
   logout: () => void;
   refreshToken: () => Promise<void>;
   updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; timezone?: string }) => Promise<void>;
+  getOrganization: () => Promise<any>;
   updateOrganization: (name?: string, website?: string, address?: string, taxId?: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updatePreferences: (notifications?: any, security?: any) => Promise<void>;
@@ -183,6 +184,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const getOrganization = async () => {
+    try {
+      if (!token) throw new Error('Not authenticated');
+      const response = await fetch('/api/auth/organization', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch organization');
+      }
+      return result.organization;
+    } catch (error) {
+      console.error('Get organization error:', error);
+      throw error;
+    }
+  };
+
   const updateOrganization = async (name?: string, website?: string, address?: string, taxId?: string) => {
     try {
       if (!token) throw new Error('Not authenticated');
@@ -319,6 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     refreshToken,
     updateProfile,
+    getOrganization,
     updateOrganization,
     changePassword,
     updatePreferences,

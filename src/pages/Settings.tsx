@@ -18,7 +18,7 @@ import {
   RefreshCw,
   Trash2
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,6 +26,7 @@ const Settings: React.FC = () => {
   const { 
     user, 
     updateProfile, 
+    getOrganization,
     updateOrganization, 
     changePassword, 
     updatePreferences, 
@@ -61,10 +62,10 @@ const Settings: React.FC = () => {
 
   // Organization settings
   const [orgData, setOrgData] = useState({
-    name: 'Acme Corporation',
-    website: 'https://acme.com',
-    address: '123 Business St, City, State 12345',
-    taxId: '12-3456789'
+    name: '',
+    website: '',
+    address: '',
+    taxId: ''
   });
 
   // Security settings
@@ -102,13 +103,31 @@ const Settings: React.FC = () => {
     loadApiKeys();
   }, [getApiKeys]);
 
+  // Load organization data on mount
+  useEffect(() => {
+    const loadOrganizationData = async () => {
+      try {
+        const organization = await getOrganization();
+        setOrgData({
+          name: organization.name || '',
+          website: organization.website || '',
+          address: organization.address || '',
+          taxId: organization.taxId || ''
+        });
+      } catch (error) {
+        console.error('Failed to load organization data:', error);
+        // Keep empty values if loading fails
+      }
+    };
+    loadOrganizationData();
+  }, [getOrganization]);
+
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'organization', name: 'Organization', icon: Building },
     { id: 'security', name: 'Security', icon: Shield },
     { id: 'notifications', name: 'Notifications', icon: Bell },
-    { id: 'api', name: 'API Keys', icon: Key },
-    { id: 'billing', name: 'Billing', icon: CreditCard }
+    { id: 'api', name: 'API Keys', icon: Key }
   ];
 
   const handleSaveProfile = async () => {
@@ -638,32 +657,7 @@ const Settings: React.FC = () => {
           </div>
         );
 
-      case 'billing':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Billing Settings</h3>
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <CreditCard className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Billing management
-                    </h3>
-                    <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                      <p>
-                        For detailed billing settings, payment methods, and invoices, please visit the{' '}
-                        <a href="/billing" className="font-medium underline">Billing page</a>.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+
 
       default:
         return null;

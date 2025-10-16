@@ -388,7 +388,44 @@ router.put(
 );
 
 /**
- * Update Organization Settings
+ * Get Organization
+ * GET /api/auth/organization
+ */
+router.get('/organization', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.organizationId) {
+      res.status(400).json({ error: 'No organization associated with user' });
+      return;
+    }
+
+    const result = await query(
+      'SELECT id, name, website, address, tax_id FROM organizations WHERE id = $1',
+      [req.user.organizationId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Organization not found' });
+      return;
+    }
+
+    const org = result.rows[0];
+    res.json({
+      organization: {
+        id: org.id,
+        name: org.name,
+        website: org.website,
+        address: org.address,
+        taxId: org.tax_id
+      }
+    });
+  } catch (error: any) {
+    console.error('Get organization error:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch organization' });
+  }
+});
+
+/**
+ * Update Organization
  * PUT /api/auth/organization
  */
 router.put(

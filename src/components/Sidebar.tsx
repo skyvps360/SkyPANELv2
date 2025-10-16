@@ -6,7 +6,8 @@ import {
   Server,
   CreditCard,
   HelpCircle,
-  Settings
+  Settings,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -30,6 +31,7 @@ const Sidebar: React.FC = () => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'VPS', href: '/vps', icon: Server },
     { name: 'Containers', href: '/containers', icon: Container },
+    { name: 'Activity', href: '/activity', icon: Activity },
     { name: 'Billing', href: '/billing', icon: CreditCard },
     { name: 'Support', href: '/support', icon: HelpCircle },
     { name: 'Settings', href: '/settings', icon: Settings },
@@ -42,26 +44,28 @@ const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className={`hidden md:block ${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-4rem)] transition-all duration-200`}>
+    <aside className={`hidden md:block ${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-4rem)] transition-all duration-300 ease-in-out`}>
       <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className={`text-xs uppercase text-gray-500 dark:text-gray-400 ${collapsed ? 'sr-only' : ''}`}>Navigation</div>
+        <div className="flex items-center justify-between mb-6">
+          <div className={`text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider transition-opacity duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+            Navigation
+          </div>
           <button
             onClick={toggleCollapsed}
-            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-105"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
               // chevron right
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M9 6l6 6-6 6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 transition-transform duration-200"><path d="M9 6l6 6-6 6"/></svg>
             ) : (
               // chevron left
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M15 6l-6 6 6 6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 transition-transform duration-200"><path d="M15 6l-6 6 6 6"/></svg>
             )}
           </button>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-2">
           {items.map((item) => {
             const Icon = item.icon as any;
             const active = isActive(item.href);
@@ -69,14 +73,17 @@ const Sidebar: React.FC = () => {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`group flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
                   active
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 shadow-sm'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                 }`}
+                title={collapsed ? item.name : undefined}
               >
-                <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-2'} ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                <span className={collapsed ? 'sr-only' : ''}>{item.name}</span>
+                <Icon className={`h-5 w-5 flex-shrink-0 transition-all duration-200 ${collapsed ? '' : 'mr-3'} ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+                <span className={`transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                  {item.name}
+                </span>
               </Link>
             );
           })}
