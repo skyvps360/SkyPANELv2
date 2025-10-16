@@ -807,14 +807,34 @@ const VPSDetail: React.FC = () => {
       return;
     }
     try {
-      if (typeof navigator === 'undefined' || !navigator.clipboard || !navigator.clipboard.writeText) {
-        throw new Error('Clipboard API unavailable');
+      // Try modern Clipboard API first (requires HTTPS)
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        toast.success(`${label ?? 'Value'} copied to clipboard`);
+        return;
       }
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label ?? 'Value'} copied to clipboard`);
+      
+      // Fallback for non-HTTPS environments
+      const textArea = document.createElement('textarea');
+      textArea.value = value;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        toast.success(`${label ?? 'Value'} copied to clipboard`);
+      } else {
+        throw new Error('Copy command failed');
+      }
     } catch (err) {
       console.error('Failed to copy value to clipboard:', err);
-      toast.error('Unable to copy to clipboard');
+      toast.error('Unable to copy to clipboard. Please copy manually.');
     }
   }, []);
 
