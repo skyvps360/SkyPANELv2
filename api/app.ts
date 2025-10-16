@@ -25,6 +25,8 @@ import vpsRoutes from './routes/vps.js'
 import supportRoutes from './routes/support.js'
 import activityRoutes from './routes/activity.js'
 import invoicesRouter from './routes/invoices.js';
+import notificationsRouter from './routes/notifications.js';
+import { notificationService } from './services/notificationService.js';
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -32,6 +34,11 @@ const __dirname = path.dirname(__filename)
 
 // Validate configuration
 validateConfig()
+
+// Start notification service for real-time updates
+notificationService.start().catch(err => {
+  console.error('Failed to start notification service:', err);
+});
 
 const app: express.Application = express()
 
@@ -94,6 +101,7 @@ app.use('/api/containers', containersRoutes)
 app.use('/api/vps', vpsRoutes)
 app.use('/api/support', supportRoutes)
 app.use('/api/activity', activityRoutes)
+app.use('/api/notifications', notificationsRouter)
 
 /**
  * health

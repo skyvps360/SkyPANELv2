@@ -25,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 import { toast } from 'sonner';
 import { BRAND_NAME } from '../lib/brand';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
@@ -123,6 +124,9 @@ const Navigation: React.FC = () => {
                 <Moon className="h-5 w-5" />
               )}
             </button>
+
+            {/* Notification Bell */}
+            <NotificationDropdown />
             
             <div className="ml-3 relative">
               <div>
@@ -210,6 +214,9 @@ const Navigation: React.FC = () => {
                 <Moon className="h-5 w-5" />
               )}
             </button>
+
+            {/* Notification Bell for Mobile */}
+            <NotificationDropdown />
             
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
