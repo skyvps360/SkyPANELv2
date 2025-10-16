@@ -3,20 +3,43 @@
  * Handles all API communication with the backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const resolveApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  if (envUrl && envUrl.length > 0) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api`.replace(/\/$/, '');
+  }
+
+  return 'http://localhost:3001/api';
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
+
+export const buildApiUrl = (path: string, baseUrl: string = API_BASE_URL) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  if (baseUrl.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    return `${baseUrl}${normalizedPath.substring(4)}`;
+  }
+
+  return `${baseUrl}${normalizedPath}`;
+};
 
 class ApiClient {
   private baseURL: string;
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL;
+    this.baseURL = baseURL.replace(/\/$/, '');
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = buildApiUrl(endpoint, this.baseURL);
     const token = localStorage.getItem('auth_token');
 
     const config: RequestInit = {

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Check, CheckCheck, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { buildApiUrl } from '../lib/api';
 
 interface Notification {
   id: string;
@@ -37,7 +38,7 @@ const NotificationDropdown: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+  const response = await fetch(buildApiUrl(`/api/notifications/${notificationId}/read`), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -62,7 +63,7 @@ const NotificationDropdown: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch('/api/notifications/read-all', {
+  const response = await fetch(buildApiUrl('/api/notifications/read-all'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -93,7 +94,7 @@ const NotificationDropdown: React.FC = () => {
 
       try {
         setIsLoading(true);
-        const response = await fetch('/api/notifications/unread?limit=20', {
+  const response = await fetch(buildApiUrl('/api/notifications/unread?limit=20'), {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -115,7 +116,7 @@ const NotificationDropdown: React.FC = () => {
     initNotifications();
 
     // Setup SSE connection with token in URL (EventSource doesn't support custom headers)
-    const eventSource = new EventSource(`/api/notifications/stream?token=${encodeURIComponent(token)}`);
+  const eventSource = new EventSource(`${buildApiUrl('/api/notifications/stream')}?token=${encodeURIComponent(token)}`);
 
     eventSource.onmessage = (event) => {
       try {
