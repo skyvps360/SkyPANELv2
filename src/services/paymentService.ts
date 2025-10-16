@@ -25,9 +25,11 @@ export interface WalletBalance {
 export interface WalletTransaction {
   id: string;
   amount: number;
+  currency: string;
   type: 'credit' | 'debit';
   description: string;
   paymentId?: string;
+  balanceBefore?: number | null;
   balanceAfter: number | null;
   createdAt: string;
 }
@@ -55,6 +57,7 @@ export interface PaymentTransactionDetail {
   paymentMethod: string;
   providerPaymentId?: string;
   type: 'credit' | 'debit';
+  balanceBefore: number | null;
   balanceAfter: number | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
@@ -188,28 +191,52 @@ class PaymentService {
         return { transactions: [], hasMore: false };
       }
 
-      const transactionsSource = Array.isArray(data.transactions) ? data.transactions : [];
+      const transactionsSource = (Array.isArray(data.transactions) ? data.transactions : []) as Array<Record<string, unknown>>;
 
       return {
-        transactions: transactionsSource.map((tx: any) => {
-          const amountValue = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
-          const amount = Number.isFinite(amountValue) ? amountValue : 0;
-          const balanceRaw = tx.balanceAfter ?? tx.balance_after;
+        transactions: transactionsSource.map((tx) => {
+          const amountRaw = tx.amount;
+          const amountValue = typeof amountRaw === 'string'
+            ? parseFloat(amountRaw)
+            : typeof amountRaw === 'number'
+              ? amountRaw
+              : null;
+          const amount = amountValue !== null && Number.isFinite(amountValue) ? amountValue : 0;
+          const txRecord = tx as Record<string, unknown>;
+          const balanceRaw = txRecord.balanceAfter ?? txRecord.balance_after;
+          const balanceBeforeRaw = txRecord.balanceBefore ?? txRecord.balance_before;
           const balanceAfter =
             typeof balanceRaw === 'string'
               ? parseFloat(balanceRaw)
               : typeof balanceRaw === 'number' && Number.isFinite(balanceRaw)
                 ? balanceRaw
                 : null;
-          const type = tx.type ?? (amount >= 0 ? 'credit' : 'debit');
-          const createdAt = tx.createdAt ?? tx.created_at ?? '';
+          const balanceBefore =
+            typeof balanceBeforeRaw === 'string'
+              ? parseFloat(balanceBeforeRaw)
+              : typeof balanceBeforeRaw === 'number' && Number.isFinite(balanceBeforeRaw)
+                ? balanceBeforeRaw
+                : balanceAfter !== null
+                  ? parseFloat((balanceAfter - amount).toFixed(2))
+                  : null;
+          const typeValue = (tx as Record<string, unknown>).type;
+          const type = typeValue === 'credit' || typeValue === 'debit' ? typeValue : (amount >= 0 ? 'credit' : 'debit');
+          const createdAtValue = (tx as Record<string, unknown>).createdAt ?? (tx as Record<string, unknown>).created_at;
+          const createdAt = typeof createdAtValue === 'string' ? createdAtValue : '';
+          const descriptionValue = txRecord.description;
+          const description = typeof descriptionValue === 'string' ? descriptionValue : 'Unknown transaction';
+          const paymentIdValue = txRecord.paymentId ?? txRecord.payment_id;
+          const paymentId = typeof paymentIdValue === 'string' ? paymentIdValue : undefined;
+          const currencyValue = typeof txRecord.currency === 'string' ? txRecord.currency : 'USD';
 
           return {
-            id: tx.id,
+            id: String(txRecord.id ?? ''),
             amount,
             type,
-            description: tx.description ?? 'Unknown transaction',
-            paymentId: tx.paymentId ?? tx.payment_id,
+            description,
+            paymentId,
+            currency: currencyValue,
+            balanceBefore,
             balanceAfter,
             createdAt,
           };
@@ -258,19 +285,19 @@ class PaymentService {
         return { payments: [], hasMore: false };
       }
 
-      const paymentsSource = Array.isArray(data.payments) ? data.payments : [];
+      const paymentsSource = (Array.isArray(data.payments) ? data.payments : []) as Array<Record<string, unknown>>;
 
       return {
-        payments: paymentsSource.map((payment: any) => ({
-          id: payment.id,
-          amount: payment.amount,
-          currency: payment.currency,
-          description: payment.description,
-          status: payment.status,
-          provider: payment.provider,
-          providerPaymentId: payment.provider_payment_id,
-          createdAt: payment.created_at,
-          updatedAt: payment.updated_at,
+        payments: paymentsSource.map((payment) => ({
+          id: String(payment.id ?? ''),
+          amount: typeof payment.amount === 'string' ? parseFloat(payment.amount) : Number(payment.amount ?? 0),
+          currency: typeof payment.currency === 'string' ? payment.currency : 'USD',
+          description: typeof payment.description === 'string' ? payment.description : 'Payment',
+          status: (payment.status as PaymentHistory['status']) ?? 'pending',
+          provider: typeof payment.provider === 'string' ? payment.provider : 'unknown',
+          providerPaymentId: typeof payment.provider_payment_id === 'string' ? payment.provider_payment_id : undefined,
+          createdAt: typeof payment.created_at === 'string' ? payment.created_at : '',
+          updatedAt: typeof payment.updated_at === 'string' ? payment.updated_at : '',
         })),
         hasMore: Boolean(data.pagination?.hasMore),
       };
@@ -318,6 +345,7 @@ class PaymentService {
           paymentMethod: transaction.paymentMethod,
           providerPaymentId: transaction.providerPaymentId,
           type: transaction.type,
+          balanceBefore: transaction.balanceBefore ?? null,
           balanceAfter: transaction.balanceAfter,
           metadata: transaction.metadata || null,
           createdAt: transaction.createdAt,

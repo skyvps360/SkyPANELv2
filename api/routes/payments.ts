@@ -11,6 +11,25 @@ import { query as dbQuery } from '../lib/database.js';
 
 const router = express.Router();
 
+type AuthenticatedRequest = Request & {
+  user: {
+    id: string;
+    organizationId: string;
+    [key: string]: unknown;
+  };
+};
+
+const safeParseNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
 
@@ -42,9 +61,8 @@ router.post(
         });
       }
 
-      const { amount, currency, description } = req.body;
-      const userId = (req as any).user.id;
-      const organizationId = (req as any).user.organizationId;
+    const { amount, currency, description } = req.body;
+    const { id: userId, organizationId } = (req as AuthenticatedRequest).user;
 
       const result = await PayPalService.createPayment({
         amount: parseFloat(amount),
@@ -127,7 +145,7 @@ router.post(
  */
 router.get('/wallet/balance', requireOrganization, async (req: Request, res: Response) => {
   try {
-    const organizationId = (req as any).user.organizationId;
+  const { organizationId } = (req as AuthenticatedRequest).user;
 
     const balance = await PayPalService.getWalletBalance(organizationId);
 
@@ -176,8 +194,8 @@ router.post(
         });
       }
 
-      const { amount, description } = req.body;
-      const organizationId = (req as any).user.organizationId;
+  const { amount, description } = req.body;
+  const { organizationId } = (req as AuthenticatedRequest).user;
 
       const success = await PayPalService.deductFundsFromWallet(
         organizationId,
@@ -233,7 +251,7 @@ router.get(
         });
       }
 
-      const organizationId = (req as any).user.organizationId;
+  const { organizationId } = (req as AuthenticatedRequest).user;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
 
@@ -293,7 +311,7 @@ router.get(
         });
       }
 
-      const organizationId = (req as any).user.organizationId;
+  const { organizationId } = (req as AuthenticatedRequest).user;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string;
@@ -361,7 +379,7 @@ router.get(
       }
 
       const transactionId = req.params.id;
-      const organizationId = (req as any).user.organizationId;
+  const { organizationId } = (req as AuthenticatedRequest).user;
 
       const result = await dbQuery(
         `SELECT id, organization_id, amount, currency, payment_method, payment_provider, provider_transaction_id, status, description, metadata, created_at, updated_at
@@ -378,14 +396,17 @@ router.get(
       }
 
       const row = result.rows[0];
-      const amount = typeof row.amount === 'string' ? parseFloat(row.amount) : row.amount;
+      const amount = safeParseNumber(row.amount) ?? 0;
       const metadataRaw = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
       const metadata = metadataRaw && typeof metadataRaw === 'object' ? metadataRaw : null;
       const metadataBalance = metadata?.balance_after ?? metadata?.balanceAfter ?? metadata?.balance ?? null;
-      const balanceAfter =
-        metadataBalance !== null && metadataBalance !== undefined
-          ? parseFloat(metadataBalance)
-          : null;
+      const balanceAfter = safeParseNumber(metadataBalance);
+      const metadataBalanceBefore = metadata?.balance_before ?? metadata?.balanceBefore ?? null;
+      const balanceBefore =
+        safeParseNumber(metadataBalanceBefore) ??
+        (balanceAfter !== null
+          ? parseFloat((balanceAfter - amount).toFixed(2))
+          : null);
 
       res.json({
         success: true,
@@ -400,6 +421,7 @@ router.get(
           status: row.status,
           description: row.description || 'Wallet transaction',
           type: amount >= 0 ? 'credit' : 'debit',
+          balanceBefore,
           balanceAfter,
           metadata,
           createdAt: row.created_at,
@@ -448,7 +470,7 @@ router.post(
       }
 
       const { email, amount, currency, reason } = req.body;
-      const organizationId = (req as any).user.organizationId;
+  const { organizationId } = (req as AuthenticatedRequest).user;
 
       // Check if organization has sufficient funds
       const balance = await PayPalService.getWalletBalance(organizationId);

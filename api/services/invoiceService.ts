@@ -29,6 +29,46 @@ export interface InvoiceItem {
 }
 
 export class InvoiceService {
+  private static invoiceTableEnsured = false;
+
+  /**
+   * Ensure the billing_invoices table exists before performing operations.
+   */
+  private static async ensureInvoiceTable(): Promise<void> {
+    if (this.invoiceTableEnsured) {
+      return;
+    }
+
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS billing_invoices (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+          invoice_number TEXT NOT NULL,
+          html_content TEXT NOT NULL,
+          data JSONB NOT NULL DEFAULT '{}',
+          total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await query(
+        `CREATE INDEX IF NOT EXISTS idx_billing_invoices_org ON billing_invoices(organization_id)`
+      );
+
+      await query(
+        `CREATE INDEX IF NOT EXISTS idx_billing_invoices_created_at ON billing_invoices(created_at)`
+      );
+
+      this.invoiceTableEnsured = true;
+    } catch (error) {
+      console.error('Failed to ensure billing_invoices table exists:', error);
+      throw error;
+    }
+  }
+
   /**
    * Generate HTML invoice from transaction data
    */
@@ -321,6 +361,8 @@ export class InvoiceService {
     currency: string = 'USD'
   ): Promise<string> {
     try {
+      await this.ensureInvoiceTable();
+
       const result = await query(
         `INSERT INTO billing_invoices (
           organization_id, 
@@ -347,6 +389,8 @@ export class InvoiceService {
    */
   static async getInvoice(invoiceId: string, organizationId: string) {
     try {
+      await this.ensureInvoiceTable();
+
       const result = await query(
         `SELECT 
           id, 
@@ -390,6 +434,8 @@ export class InvoiceService {
    */
   static async listInvoices(organizationId: string, limit: number = 50, offset: number = 0) {
     try {
+      await this.ensureInvoiceTable();
+
       const result = await query(
         `SELECT 
           id, 
@@ -424,11 +470,17 @@ export class InvoiceService {
    */
   static generateInvoiceFromTransactions(
     organizationId: string,
-    transactions: Array<{description?: string; amount: string | number; createdAt?: string}>,
+    transactions: Array<{description?: string; amount: string | number; currency?: string; createdAt?: string}>,
     invoiceNumber: string
   ): InvoiceData {
+    const detectedCurrency = transactions.find(
+      tx => typeof tx.currency === 'string' && tx.currency.trim().length > 0
+    )?.currency || 'USD';
+    const currency = detectedCurrency.toUpperCase();
+
     const items: InvoiceItem[] = transactions.map(tx => {
-      const amount = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
+      const amountRaw = typeof tx.amount === 'string' ? parseFloat(tx.amount) : Number(tx.amount ?? 0);
+      const amount = Number.isFinite(amountRaw) ? amountRaw : 0;
       return {
         description: tx.description || 'Wallet transaction',
         quantity: 1,
@@ -451,7 +503,7 @@ export class InvoiceService {
       subtotal,
       tax,
       total,
-      currency: 'USD',
+      currency,
       createdAt: new Date(),
       status: 'issued',
     };

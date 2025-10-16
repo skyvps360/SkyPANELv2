@@ -7,10 +7,17 @@ import express, { Request, Response } from 'express';
 import { param, query as queryValidator, validationResult } from 'express-validator';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { InvoiceService } from '../services/invoiceService.js';
-import { PayPalService } from '../services/paypalService.js';
+import { PayPalService, type WalletTransaction } from '../services/paypalService.js';
 import { query } from '../lib/database.js';
 
 const router = express.Router();
+
+type AuthenticatedRequest = Request & {
+  user: {
+    organizationId: string;
+    [key: string]: unknown;
+  };
+};
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -42,7 +49,7 @@ router.get(
         });
       }
 
-      const organizationId = (req as any).user.organizationId;
+  const organizationId = (req as AuthenticatedRequest).user.organizationId;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
 
@@ -90,7 +97,7 @@ router.get(
       }
 
       const { id } = req.params;
-      const organizationId = (req as any).user.organizationId;
+  const organizationId = (req as AuthenticatedRequest).user.organizationId;
 
       const invoice = await InvoiceService.getInvoice(id, organizationId);
 
@@ -139,7 +146,7 @@ router.get(
       }
 
       const { id } = req.params;
-      const organizationId = (req as any).user.organizationId;
+  const organizationId = (req as AuthenticatedRequest).user.organizationId;
 
       const invoice = await InvoiceService.getInvoice(id, organizationId);
 
@@ -191,12 +198,14 @@ router.post(
         });
       }
 
-      const organizationId = (req as any).user.organizationId;
+  const organizationId = (req as AuthenticatedRequest).user.organizationId;
       const transactionId = req.params.transactionId;
 
       // Get the specific transaction
       const result = await query(
-        `SELECT * FROM wallet_transactions WHERE id = $1 AND organization_id = $2`,
+        `SELECT id, organization_id, amount, currency, description, status, metadata, created_at
+         FROM payment_transactions
+         WHERE id = $1 AND organization_id = $2`,
         [transactionId, organizationId]
       );
 
@@ -210,10 +219,23 @@ router.post(
       const transaction = result.rows[0];
       const invoiceNumber = `INV-TXN-${Date.now()}`;
 
-      // Generate invoice data from single transaction
+      const amountRaw =
+        typeof transaction.amount === 'string'
+          ? parseFloat(transaction.amount)
+          : Number(transaction.amount ?? 0);
+      const amountValue = Number.isFinite(amountRaw) ? amountRaw : 0;
+      const currency = transaction.currency || 'USD';
+
       const invoiceData = InvoiceService.generateInvoiceFromTransactions(
         organizationId,
-        [transaction],
+        [
+          {
+            description: transaction.description || 'Wallet transaction',
+            amount: amountValue,
+            currency,
+            createdAt: transaction.created_at ? new Date(transaction.created_at).toISOString() : undefined,
+          },
+        ],
         invoiceNumber
       );
 
@@ -227,7 +249,7 @@ router.post(
         htmlContent,
         invoiceData as unknown as Record<string, unknown>,
         invoiceData.total,
-        'USD'
+        invoiceData.currency || 'USD'
       );
 
       res.json({
@@ -253,11 +275,11 @@ router.post(
   requireOrganization,
   async (req: Request, res: Response) => {
     try {
-      const organizationId = (req as any).user.organizationId;
+  const organizationId = (req as AuthenticatedRequest).user.organizationId;
       const invoiceNumber = `INV-${Date.now()}`;
 
       // Get recent transactions for this organization
-      const transactions = await PayPalService.getWalletTransactions(
+      const transactions: WalletTransaction[] = await PayPalService.getWalletTransactions(
         organizationId,
         50,
         0
@@ -273,7 +295,12 @@ router.post(
       // Generate invoice data
       const invoiceData = InvoiceService.generateInvoiceFromTransactions(
         organizationId,
-        transactions,
+        transactions.map((tx) => ({
+          description: tx.description,
+          amount: tx.amount,
+          currency: tx.currency || 'USD',
+          createdAt: tx.createdAt,
+        })),
         invoiceNumber
       );
 
@@ -287,7 +314,7 @@ router.post(
         htmlContent,
         invoiceData as unknown as Record<string, unknown>,
         invoiceData.total,
-        'USD'
+        invoiceData.currency || 'USD'
       );
 
       res.json({

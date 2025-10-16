@@ -62,11 +62,25 @@ export interface WalletTransaction {
   id: string;
   organizationId: string;
   amount: number;
+  currency: string;
   type: 'credit' | 'debit';
   description: string;
   paymentId?: string;
+  balanceBefore: number | null;
+  balanceAfter: number | null;
   createdAt: string;
 }
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
 
 export class PayPalService {
   /**
@@ -303,8 +317,8 @@ export class PayPalService {
           return false;
         }
 
-  const currentBalance = parseFloat(walletResult.rows[0].balance);
-  const newBalance = Number((currentBalance + amount).toFixed(2));
+        const currentBalance = parseFloat(walletResult.rows[0].balance);
+        const newBalance = Number((currentBalance + amount).toFixed(2));
 
         // Update wallet balance
         await client.query(
@@ -313,6 +327,7 @@ export class PayPalService {
         );
 
         const metadataUpdate: Record<string, unknown> = {
+          balance_before: currentBalance,
           balance_after: newBalance,
           ...extraMetadata,
         };
@@ -386,7 +401,16 @@ export class PayPalService {
         await client.query(
           `INSERT INTO payment_transactions (organization_id, amount, currency, payment_method, payment_provider, status, description, metadata)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [organizationId, -amount, 'USD', 'wallet_debit', 'internal', 'completed', description, JSON.stringify({ balance_after: newBalance })]
+          [
+            organizationId,
+            -amount,
+            'USD',
+            'wallet_debit',
+            'internal',
+            'completed',
+            description,
+            JSON.stringify({ balance_before: currentBalance, balance_after: newBalance }),
+          ]
         );
 
         return true;
@@ -434,6 +458,7 @@ export class PayPalService {
              id,
              organization_id,
              amount,
+              currency,
              payment_method,
              description,
              provider_transaction_id,
@@ -450,6 +475,7 @@ export class PayPalService {
            id,
            organization_id,
            amount,
+            currency,
            payment_method,
            description,
            provider_transaction_id,
@@ -463,7 +489,7 @@ export class PayPalService {
       );
 
       return result.rows.map(row => {
-        const amount = parseFloat(row.amount);
+        const amount = toNumber(row.amount) ?? 0;
         const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
         const metadataBalance =
           metadata.balance_after ??
@@ -474,16 +500,27 @@ export class PayPalService {
           metadataBalance !== null && metadataBalance !== undefined
             ? metadataBalance
             : row.balance_after ?? null;
-        const balanceAfter =
-          rawBalance !== null && rawBalance !== undefined ? parseFloat(rawBalance) : null;
+        const balanceAfter = toNumber(rawBalance);
+
+        const metadataBefore =
+          metadata.balance_before ??
+          metadata.balanceBefore ??
+          null;
+        const balanceBefore =
+          toNumber(metadataBefore) ??
+          (balanceAfter !== null
+            ? parseFloat((balanceAfter - amount).toFixed(2))
+            : null);
 
         return {
           id: row.id,
           organizationId: row.organization_id,
           amount,
+          currency: row.currency || 'USD',
           type: amount >= 0 ? 'credit' : 'debit',
           description: row.description ?? 'Wallet adjustment',
           paymentId: row.provider_transaction_id || undefined,
+          balanceBefore,
           balanceAfter,
           createdAt: row.created_at,
         };

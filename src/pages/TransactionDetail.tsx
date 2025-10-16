@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentService, type PaymentTransactionDetail } from '../services/paymentService';
 
@@ -53,14 +53,17 @@ const TransactionDetail: React.FC = () => {
     };
   }, [id]);
 
-  const formatCurrency = (amount: number | null | undefined): string => {
+  const formatCurrency = (amount: number | null | undefined, currency: string = 'USD'): string => {
     if (amount === null || amount === undefined || Number.isNaN(amount)) {
-      return '$0.00';
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(0);
     }
 
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency,
     }).format(amount);
   };
 
@@ -79,7 +82,7 @@ const TransactionDetail: React.FC = () => {
     });
   };
 
-  const handlePrintInvoice = async () => {
+  const handleDownloadInvoice = async () => {
     if (!transaction) {
       return;
     }
@@ -92,12 +95,12 @@ const TransactionDetail: React.FC = () => {
         return;
       }
 
-      toast.success(`Invoice ${result.invoiceNumber} generated.`);
+      toast.success(`Invoice ${result.invoiceNumber} ready for download.`);
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const downloadUrl = `${apiBase}/invoices/${result.invoiceId}/download`;
       window.open(downloadUrl, '_blank', 'noopener');
     } catch (err) {
-      console.error('Print invoice error:', err);
+      console.error('Download invoice error:', err);
       toast.error('Failed to generate invoice.');
     } finally {
       setInvoiceLoading(false);
@@ -150,16 +153,16 @@ const TransactionDetail: React.FC = () => {
             Back to Billing
           </button>
           <button
-            onClick={handlePrintInvoice}
+            onClick={handleDownloadInvoice}
             disabled={invoiceLoading}
             className="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
           >
             {invoiceLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
-              <Printer className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-2" />
             )}
-            Print Invoice
+            Download Invoice
           </button>
         </div>
 
@@ -187,8 +190,9 @@ const TransactionDetail: React.FC = () => {
               <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Summary</h2>
               <div className="space-y-2 text-gray-700 dark:text-gray-300">
                 <p><span className="font-medium">Description:</span> {transaction.description}</p>
-                <p><span className="font-medium">Amount:</span> {formatCurrency(Math.abs(transaction.amount))} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
-                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null ? formatCurrency(transaction.balanceAfter) : 'N/A'}</p>
+                <p><span className="font-medium">Amount:</span> {formatCurrency(Math.abs(transaction.amount), transaction.currency)} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
+                <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null ? formatCurrency(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
+                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null ? formatCurrency(transaction.balanceAfter, transaction.currency) : 'N/A'}</p>
                 <p><span className="font-medium">Created At:</span> {formatDate(transaction.createdAt)}</p>
                 <p><span className="font-medium">Updated At:</span> {formatDate(transaction.updatedAt)}</p>
               </div>
