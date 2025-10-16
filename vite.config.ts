@@ -15,6 +15,9 @@ export default defineConfig({
   // Expose custom env prefix so frontend can read COMPANY-NAME
   envPrefix: ['VITE_', 'COMPANY-'],
   server: {
+    host: '0.0.0.0', // Allow connections from any IP address
+    port: 5173, // Default Vite port
+    strictPort: false, // Allow fallback to other ports if 5173 is busy
     proxy: {
       '/api/': {
         target: 'http://localhost:3001',
