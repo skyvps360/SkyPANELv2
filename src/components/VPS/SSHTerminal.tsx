@@ -188,7 +188,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
 
     let wsUrl: string;
     try {
-      const httpTarget = buildApiUrl(`/api/vps/${instanceId}/ssh`, API_BASE_URL);
+      const httpTarget = buildApiUrl(`/vps/${instanceId}/ssh`, API_BASE_URL);
       const url = new URL(httpTarget, window.location.origin);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.searchParams.set('token', token);
