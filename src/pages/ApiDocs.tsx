@@ -611,7 +611,8 @@ export default function ApiDocs() {
           body: { 
             subject: 'Container deployment issue', 
             message: 'I am having trouble deploying my container...',
-            priority: 'medium'
+            priority: 'medium',
+            category: 'technical'
           },
           response: { 
             id: 'ticket_123', 
@@ -647,6 +648,123 @@ export default function ApiDocs() {
             ticket_id: 'ticket_123',
             message: 'Reply added successfully',
             created_at: '2024-01-01T14:00:00Z'
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/tickets/:id/stream', 
+          description: 'Real-time Server-Sent Events (SSE) stream for ticket updates and replies. Token passed via query parameter.',
+          auth: true,
+          params: { token: 'your_jwt_token' },
+          response: { 
+            type: 'event-stream',
+            events: [
+              'data: {"type":"connected","message":"Connected to ticket stream"}',
+              'data: {"type":"ticket_message","ticket_id":"ticket_123","message_id":"msg_456","message":"New reply","is_staff_reply":true,"created_at":"2024-01-01T14:30:00Z"}',
+              'data: {"type":"ticket_status_change","ticket_id":"ticket_123","new_status":"resolved"}'
+            ]
+          }
+        },
+      ],
+    },
+    {
+      title: 'Notifications',
+      base: `${apiBase}/notifications`,
+      description: 'Real-time notification system for activity updates and alerts',
+      endpoints: [
+        { 
+          method: 'GET', 
+          path: '/stream', 
+          description: 'Server-Sent Events (SSE) stream for real-time notifications. Token passed via query parameter.',
+          auth: true,
+          params: { token: 'your_jwt_token' },
+          response: { 
+            type: 'event-stream',
+            events: [
+              'data: {"type":"connected","message":"Notification stream connected"}',
+              'data: {"type":"notification","data":{"id":"notif_123","user_id":"user_456","event_type":"vps.created","entity_type":"vps","message":"VPS instance created successfully","status":"success","created_at":"2024-01-01T15:00:00Z","is_read":false}}',
+              ':heartbeat (every 30 seconds)'
+            ]
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/unread-count', 
+          description: 'Get count of unread notifications for current user',
+          auth: true,
+          response: { count: 5 }
+        },
+        { 
+          method: 'GET', 
+          path: '/unread', 
+          description: 'Get recent unread notifications (default limit: 20, max: 100)',
+          auth: true,
+          params: { limit: '20' },
+          response: { 
+            notifications: [
+              {
+                id: 'notif_123',
+                user_id: 'user_456',
+                organization_id: 'org_789',
+                event_type: 'vps.created',
+                entity_type: 'vps',
+                entity_id: 'vps_001',
+                message: 'VPS instance created successfully',
+                status: 'success',
+                metadata: { instance_name: 'production-web-1' },
+                created_at: '2024-01-01T15:00:00Z',
+                is_read: false,
+                read_at: null
+              }
+            ]
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/', 
+          description: 'Get all notifications (read and unread) with pagination',
+          auth: true,
+          params: { limit: '50', offset: '0' },
+          response: { 
+            notifications: [
+              {
+                id: 'notif_123',
+                user_id: 'user_456',
+                event_type: 'container.deployed',
+                entity_type: 'container',
+                message: 'Container deployed successfully',
+                status: 'success',
+                created_at: '2024-01-01T14:00:00Z',
+                is_read: true,
+                read_at: '2024-01-01T14:05:00Z'
+              }
+            ],
+            pagination: { page: 1, limit: 50, total: 125 }
+          }
+        },
+        { 
+          method: 'PATCH', 
+          path: '/:id/read', 
+          description: 'Mark a specific notification as read',
+          auth: true,
+          response: { 
+            success: true, 
+            notification: {
+              id: 'notif_123',
+              is_read: true,
+              read_at: '2024-01-01T16:00:00Z'
+            }
+          }
+        },
+        { 
+          method: 'PATCH', 
+          path: '/read-all', 
+          description: 'Mark all notifications as read for current user',
+          auth: true,
+          response: { 
+            success: true, 
+            message: 'All notifications marked as read',
+            count: 12
           }
         },
       ],
@@ -746,9 +864,23 @@ export default function ApiDocs() {
           response: { success: true, message: 'Ticket deleted' }
         },
         { 
+          method: 'GET', 
+          path: '/tickets/:id/replies', 
+          description: 'Get all replies for a specific support ticket (admin view)',
+          auth: true,
+          response: [{ 
+            id: 'reply_123', 
+            ticket_id: 'ticket_123',
+            message: 'Thank you for contacting support. We are looking into your issue.',
+            sender_type: 'admin',
+            sender_name: 'Support Team',
+            created_at: '2024-01-01T13:00:00Z'
+          }]
+        },
+        { 
           method: 'POST', 
           path: '/tickets/:id/replies', 
-          description: 'Reply to a support ticket',
+          description: 'Reply to a support ticket as admin',
           auth: true,
           body: { message: 'Thank you for contacting support...' },
           response: { success: true, message: 'Reply added to ticket' }
