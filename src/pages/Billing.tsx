@@ -14,24 +14,42 @@ import {
   ArrowDownLeft,
   DollarSign,
   Calendar,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory } from '../services/paymentService';
 // Navigation provided by AppLayout
 
+interface FilterState {
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
 const Billing: React.FC = () => {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [filteredPaymentHistory, setFilteredPaymentHistory] = useState<PaymentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [addFundsAmount, setAddFundsAmount] = useState('');
   const [addFundsLoading, setAddFundsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'history'>('overview');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    status: '',
+    dateFrom: '',
+    dateTo: ''
+  });
 
   useEffect(() => {
     loadBillingData();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [paymentHistory, filters]);
 
   const loadBillingData = async () => {
     setLoading(true);
@@ -85,21 +103,57 @@ const Billing: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number | null | undefined): string => {
+    // Handle null, undefined, or NaN values
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '$0.00';
+    }
+    
+    // Always format as positive amount to avoid double negatives
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount);
+    }).format(Math.abs(amount));
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDate = (dateString: string | null | undefined): string => {
+    // Handle null, undefined, or empty strings
+    if (!dateString) {
+      return 'N/A';
+    }
+
+    try {
+      let date: Date;
+      
+      // Check if it's a Unix timestamp (number as string)
+      if (/^\d+$/.test(dateString)) {
+        const timestamp = parseInt(dateString);
+        // Check if it's in seconds (Unix timestamp) or milliseconds
+        date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
+      } else {
+        // Try to parse as ISO string or other date format
+        date = new Date(dateString);
+      }
+
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        // If parsing failed, try to show the original string as fallback
+        console.warn('Failed to parse date:', dateString);
+        return dateString.length > 20 ? dateString.substring(0, 20) + '...' : dateString;
+      }
+
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      // Return the original string as fallback instead of "Invalid Date"
+      return dateString.length > 20 ? dateString.substring(0, 20) + '...' : dateString;
+    }
   };
 
   const getStatusColor = (status: string): string => {
@@ -116,6 +170,114 @@ const Billing: React.FC = () => {
         return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
     }
   };
+
+  const exportToCSV = (data: any[], filename: string, headers: string[]) => {
+    try {
+      // Create CSV content
+      const csvContent = [
+        headers.join(','),
+        ...data.map(row => 
+          headers.map(header => {
+            const value = row[header.toLowerCase().replace(/\s+/g, '')];
+            // Escape commas and quotes in values
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value || '';
+          }).join(',')
+        )
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(`${filename} downloaded successfully`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data');
+    }
+  };
+
+  const handleExportTransactions = () => {
+    const headers = ['Description', 'Type', 'Amount', 'Date', 'Balance After'];
+    const exportData = transactions.map(transaction => ({
+      description: transaction.description,
+      type: transaction.type === 'credit' ? 'Credit' : 'Debit',
+      amount: `${transaction.type === 'credit' ? '+' : '-'}${formatCurrency(transaction.amount)}`,
+      date: formatDate(transaction.createdAt),
+      balanceafter: formatCurrency(transaction.balanceAfter)
+    }));
+    
+    exportToCSV(exportData, 'wallet-transactions.csv', headers);
+  };
+
+  const handleExportPaymentHistory = () => {
+    const headers = ['Description', 'Amount', 'Status', 'Provider', 'Date'];
+    const exportData = filteredPaymentHistory.map(payment => ({
+      description: payment.description,
+      amount: `${formatCurrency(payment.amount)} ${payment.currency}`,
+      status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
+      provider: payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1),
+      date: formatDate(payment.createdAt)
+    }));
+    
+    exportToCSV(exportData, 'payment-history.csv', headers);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...paymentHistory];
+
+    // Filter by status
+    if (filters.status) {
+      filtered = filtered.filter(payment => payment.status === filters.status);
+    }
+
+    // Filter by date range
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      filtered = filtered.filter(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        return paymentDate >= fromDate;
+      });
+    }
+
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        return paymentDate <= toDate;
+      });
+    }
+
+    setFilteredPaymentHistory(filtered);
+  };
+
+  const handleFilterChange = (key: keyof FilterState, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      status: '',
+      dateFrom: '',
+      dateTo: ''
+    });
+    setShowFilter(false);
+  };
+
+  const hasActiveFilters = filters.status || filters.dateFrom || filters.dateTo;
 
   if (loading) {
     return (
@@ -309,7 +471,10 @@ const Billing: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Wallet Transactions</h3>
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800">
+                  <button 
+                    onClick={handleExportTransactions}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </button>
@@ -329,6 +494,9 @@ const Billing: React.FC = () => {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Balance After
                         </th>
                       </tr>
                     </thead>
@@ -351,6 +519,9 @@ const Billing: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {formatDate(transaction.createdAt)}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatCurrency(transaction.balanceAfter)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -364,16 +535,100 @@ const Billing: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Payment History</h3>
                   <div className="flex items-center space-x-2">
-                    <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800">
+                    <button 
+                      onClick={() => setShowFilter(!showFilter)}
+                      className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 ${
+                        hasActiveFilters 
+                          ? 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:bg-blue-900/20' 
+                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
                       <Filter className="h-4 w-4 mr-2" />
                       Filter
+                      {hasActiveFilters && (
+                        <span className="ml-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full">
+                          {[filters.status, filters.dateFrom, filters.dateTo].filter(Boolean).length}
+                        </span>
+                      )}
                     </button>
-                    <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800">
+                    <button 
+                      onClick={handleExportPaymentHistory}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    >
                       <Download className="h-4 w-4 mr-2" />
                       Export
                     </button>
                   </div>
                 </div>
+
+                {/* Filter Panel */}
+                {showFilter && (
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">Filter Options</h4>
+                      <button
+                        onClick={() => setShowFilter(false)}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Status
+                        </label>
+                        <select
+                          id="status-filter"
+                          value={filters.status}
+                          onChange={(e) => handleFilterChange('status', e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        >
+                          <option value="">All Statuses</option>
+                          <option value="completed">Completed</option>
+                          <option value="pending">Pending</option>
+                          <option value="failed">Failed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="date-from" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          From Date
+                        </label>
+                        <input
+                          type="date"
+                          id="date-from"
+                          value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="date-to" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          To Date
+                        </label>
+                        <input
+                          type="date"
+                          id="date-to"
+                          value={filters.dateTo}
+                          onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        />
+                      </div>
+                    </div>
+                    {hasActiveFilters && (
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          onClick={clearFilters}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 md:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -396,7 +651,7 @@ const Billing: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {paymentHistory.map((payment) => (
+                      {filteredPaymentHistory.map((payment) => (
                         <tr key={payment.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                             {payment.description}

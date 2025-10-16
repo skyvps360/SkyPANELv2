@@ -18,6 +18,7 @@ export default defineConfig({
     host: '0.0.0.0', // Allow connections from any IP address
     port: 5173, // Default Vite port
     strictPort: false, // Allow fallback to other ports if 5173 is busy
+    allowedHosts: true, // Accept requests for any hostname (useful for custom domains)
     proxy: {
       '/api/': {
         target: 'http://localhost:3001',
@@ -36,5 +37,8 @@ export default defineConfig({
         },
       }
     }
+  },
+  preview: {
+    allowedHosts: true, // Mirror dev server behaviour for Vite preview builds
   }
 })
