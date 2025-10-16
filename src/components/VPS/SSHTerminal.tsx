@@ -4,6 +4,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
 import 'xterm/css/xterm.css';
+import { API_BASE_URL, buildApiUrl } from '../../lib/api';
 
 interface SSHTerminalProps {
   instanceId: string;
@@ -183,20 +184,21 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
 
   const connect = useCallback((isReconnect = false) => {
     if (status === 'connecting' || status === 'connected') return;
-    const token = localStorage.getItem('auth_token');
-    const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    
-    // Properly construct WebSocket URL
+    const token = localStorage.getItem('auth_token') ?? '';
+
     let wsUrl: string;
-    if (base.startsWith('https://')) {
-      wsUrl = base.replace('https://', 'wss://') + `/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
-    } else if (base.startsWith('http://')) {
-      wsUrl = base.replace('http://', 'ws://') + `/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
-    } else {
-      // Fallback for relative URLs or other formats
+    try {
+      const httpTarget = buildApiUrl(`/api/vps/${instanceId}/ssh`, API_BASE_URL);
+      const url = new URL(httpTarget, window.location.origin);
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      url.searchParams.set('token', token);
+      url.searchParams.set('rows', String(rows));
+      url.searchParams.set('cols', String(cols));
+      wsUrl = url.toString();
+    } catch (err) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      wsUrl = `${protocol}//${host}${base}/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
+      wsUrl = `${protocol}//${window.location.host}/api/vps/${instanceId}/ssh?token=${encodeURIComponent(token)}&rows=${rows}&cols=${cols}`;
+      console.warn('Falling back to window-based WebSocket URL due to error constructing URL:', err);
     }
 
     try {
@@ -384,7 +386,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {/* Connection Controls */}
           <button
-            onClick={connect}
+            onClick={() => connect()}
             disabled={status === 'connecting' || status === 'connected'}
             className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:bg-blue-400"
           >

@@ -20,6 +20,29 @@ const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
 
+const DEFAULT_RDNS_BASE_DOMAIN = 'ip.rev.skyvps360.xyz';
+
+router.get('/networking/config', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      'SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1'
+    );
+    const row = result.rows?.[0] ?? null;
+    const baseDomain = typeof row?.rdns_base_domain === 'string' && row.rdns_base_domain.trim().length > 0
+      ? row.rdns_base_domain.trim()
+      : DEFAULT_RDNS_BASE_DOMAIN;
+    res.json({ config: { rdns_base_domain: baseDomain } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load networking configuration';
+    if (message.toLowerCase().includes('does not exist')) {
+      res.json({ config: { rdns_base_domain: DEFAULT_RDNS_BASE_DOMAIN }, warning: message });
+      return;
+    }
+    console.error('Networking config fetch error:', error);
+    res.status(500).json({ error: message });
+  }
+});
+
 router.get('/plans', async (_req: Request, res: Response) => {
   try {
     const result = await query(

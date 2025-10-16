@@ -780,7 +780,7 @@ const VPSDetail: React.FC = () => {
   const loadNetworkingConfig = useCallback(async () => {
     if (!token) return;
     try {
-      const response = await fetch('/api/admin/networking/rdns', {
+      const response = await fetch('/api/vps/networking/config', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = await response.json();
