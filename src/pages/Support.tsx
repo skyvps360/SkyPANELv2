@@ -1,9 +1,9 @@
 /**
- * Support Tickets Page
- * Manage support tickets and communication with support team
+ * Support Tickets Page - Live Chat Interface
+ * Real-time messaging with support team
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
@@ -12,7 +12,9 @@ import {
   User, 
   HelpCircle,
   Send,
-  X
+  X,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
@@ -36,6 +38,7 @@ interface SupportTicket {
   category: 'technical' | 'billing' | 'general' | 'feature_request';
   created_at: string;
   updated_at: string;
+  has_staff_reply: boolean;
   messages: TicketMessage[];
 }
 
@@ -50,6 +53,14 @@ const Support: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<string[]>([]);
   const { token } = useAuth();
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -69,6 +80,7 @@ const Support: React.FC = () => {
           category: t.category,
           created_at: t.created_at,
           updated_at: t.updated_at,
+          has_staff_reply: t.has_staff_reply || false,
           messages: [],
         }));
         setTickets(mapped);
@@ -80,6 +92,89 @@ const Support: React.FC = () => {
     };
     fetchTickets();
   }, [token]);
+
+  // Set up real-time updates for selected ticket
+  useEffect(() => {
+    if (!selectedTicket || !token) return;
+
+    const es = new EventSource(`/api/support/tickets/${selectedTicket.id}/stream?token=${token}`);
+    eventSourceRef.current = es;
+
+    es.onopen = () => {
+      console.log('✅ Connected to ticket stream');
+    };
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'connected') {
+          return;
+        }
+
+        if (data.type === 'ticket_message' && data.ticket_id === selectedTicket.id) {
+          const newMsg: TicketMessage = {
+            id: data.message_id,
+            ticket_id: data.ticket_id,
+            sender_type: data.is_staff_reply ? 'admin' : 'user',
+            sender_name: data.is_staff_reply ? 'Staff Member' : 'You',
+            message: data.message,
+            created_at: data.created_at,
+          };
+
+          setSelectedTicket(prev => {
+            if (!prev || prev.id !== data.ticket_id) return prev;
+            if (prev.messages.some(m => m.id === newMsg.id)) return prev;
+            
+            const updated = {
+              ...prev,
+              messages: [...prev.messages, newMsg],
+              has_staff_reply: prev.has_staff_reply || data.is_staff_reply
+            };
+            
+            if (data.is_staff_reply) {
+              toast.success('New reply from staff');
+            }
+            
+            return updated;
+          });
+
+          setTickets(prev => prev.map(t => 
+            t.id === data.ticket_id 
+              ? { ...t, has_staff_reply: t.has_staff_reply || data.is_staff_reply }
+              : t
+          ));
+
+          setTimeout(scrollToBottom, 100);
+        }
+
+        if (data.type === 'ticket_status_change' && data.ticket_id === selectedTicket.id) {
+          setSelectedTicket(prev => prev ? { ...prev, status: data.new_status } : prev);
+          setTickets(prev => prev.map(t => t.id === data.ticket_id ? { ...t, status: data.new_status } : t));
+          toast.info(`Ticket status updated to: ${data.new_status.replace('_', ' ')}`);
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
+
+    es.onerror = (err) => {
+      console.error('SSE error:', err);
+      es.close();
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [selectedTicket?.id, token, scrollToBottom]);
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    if (selectedTicket && selectedTicket.messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [selectedTicket?.messages.length, scrollToBottom]);
 
   const [newTicket, setNewTicket] = useState({
     subject: '',
@@ -155,6 +250,7 @@ const Support: React.FC = () => {
         category: data.ticket.category,
         created_at: data.ticket.created_at,
         updated_at: data.ticket.updated_at,
+        has_staff_reply: false,
         messages: [],
       };
 
@@ -223,6 +319,40 @@ const Support: React.FC = () => {
       setSelectedTicket(prev => prev ? { ...prev, messages: msgs } : prev);
     } catch (e: any) {
       toast.error(e.message || 'Failed to load messages');
+    }
+  };
+
+  const handleCloseTicket = async (ticketId: string, hasStaffReply: boolean) => {
+    if (!hasStaffReply) {
+      toast.error('Cannot close ticket until you receive a reply from staff');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/support/tickets/${ticketId}/close`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to close ticket');
+      }
+
+      setTickets(prev => prev.map(t => 
+        t.id === ticketId ? { ...t, status: 'closed' } : t
+      ));
+
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(prev => prev ? { ...prev, status: 'closed' } : prev);
+      }
+
+      toast.success('Ticket closed successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to close ticket');
     }
   };
 
@@ -378,53 +508,103 @@ const Support: React.FC = () => {
                     </span>
                   </div>
                 </div>
+                {selectedTicket.status !== 'closed' && (
+                  <button
+                    onClick={() => handleCloseTicket(selectedTicket.id, selectedTicket.has_staff_reply)}
+                    disabled={!selectedTicket.has_staff_reply}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!selectedTicket.has_staff_reply ? 'Cannot close until you receive a reply from staff' : 'Close ticket'}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Close Ticket
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="px-6 py-4 max-h-96 overflow-y-auto">
+            {/* Messages - Chat Style */}
+            <div className="px-6 py-4 h-[32rem] overflow-y-auto bg-gray-50 dark:bg-gray-900">
               <div className="space-y-4">
-                {selectedTicket.messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender_type === 'admin' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <User className="h-3 w-3" />
-                        <span className="text-xs font-medium">{message.sender_name}</span>
-                        <span className="text-xs opacity-75">
-                          {formatDate(message.created_at)}
+                {/* Initial ticket message */}
+                <div className="flex justify-start">
+                  <div className="max-w-xs lg:max-w-md">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">You</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(selectedTicket.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm">{message.message}</p>
+                      <p className="text-sm text-gray-900 dark:text-white">{selectedTicket.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conversation messages */}
+                {selectedTicket.messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-xs lg:max-w-md">
+                      <div className={`rounded-lg px-4 py-3 shadow-sm ${
+                        message.sender_type === 'admin' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-white dark:bg-gray-800'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className={`h-4 w-4 ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`} />
+                          <span className={`text-xs font-medium ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {message.sender_name}
+                          </span>
+                          <span className={`text-xs ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {formatDate(message.created_at)}
+                          </span>
+                        </div>
+                        <p className={`text-sm whitespace-pre-wrap ${message.sender_type === 'admin' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                          {message.message}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
+                
+                {/* Auto-scroll anchor */}
+                <div ref={messagesEndRef} />
               </div>
             </div>
 
             {/* Message Input */}
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    rows={3}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
-                  />
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              {selectedTicket.status === 'closed' ? (
+                <div className="text-center py-4">
+                  <CheckCircle className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">This ticket has been closed</p>
                 </div>
-                <button
-                  onClick={handleSendMessage}
-                  disabled={loading || !newMessage.trim()}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
+              ) : (
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                      rows={3}
+                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={loading || !newMessage.trim()}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

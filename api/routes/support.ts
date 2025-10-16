@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
-import { authenticateToken, requireOrganization } from '../middleware/auth.js';
-import { query } from '../lib/database.js';
+import { authenticateToken, requireOrganization, AuthenticatedRequest } from '../middleware/auth.js';
+import { query, pool } from '../lib/database.js';
 
 const router = express.Router();
 
@@ -182,6 +182,160 @@ router.post(
       }
       console.error('Create ticket reply error:', err);
       res.status(500).json({ error: err.message || 'Failed to add reply' });
+    }
+  }
+);
+
+// Close a ticket (user can only close if has_staff_reply is true)
+router.patch(
+  '/tickets/:id/close',
+  [param('id').isUUID().withMessage('Invalid ticket id')],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id } = req.params;
+      const organizationId = (req as AuthenticatedRequest).user.organizationId;
+
+      // Check if ticket exists and belongs to organization
+      const ticketCheck = await query(
+        'SELECT id, has_staff_reply, status FROM support_tickets WHERE id = $1 AND organization_id = $2',
+        [id, organizationId]
+      );
+      
+      if (ticketCheck.rows.length === 0) {
+        res.status(404).json({ error: 'Ticket not found' });
+        return;
+      }
+
+      const ticket = ticketCheck.rows[0];
+
+      // Check if ticket already closed
+      if (ticket.status === 'closed') {
+        res.status(400).json({ error: 'Ticket is already closed' });
+        return;
+      }
+
+      // Check if user has received a staff reply
+      if (!ticket.has_staff_reply) {
+        res.status(403).json({ 
+          error: 'Cannot close ticket before receiving a staff reply',
+          message: 'You must wait for a staff member to respond before closing this ticket'
+        });
+        return;
+      }
+
+      // Close the ticket
+      const now = new Date().toISOString();
+      const updateRes = await query(
+        'UPDATE support_tickets SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *',
+        ['closed', now, id]
+      );
+
+      res.json({ 
+        ticket: updateRes.rows[0],
+        message: 'Ticket closed successfully'
+      });
+    } catch (err: unknown) {
+      console.error('Close ticket error:', err);
+      const error = err as Error;
+      res.status(500).json({ error: error.message || 'Failed to close ticket' });
+    }
+  }
+);
+
+// Stream real-time updates for a specific ticket (SSE)
+router.get(
+  '/tickets/:id/stream',
+  [param('id').isUUID().withMessage('Invalid ticket id')],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id } = req.params;
+      
+      // For SSE, we need to get token from query param since EventSource doesn't support headers
+      const token = req.query.token as string;
+      if (!token) {
+        res.status(401).json({ error: 'Authentication token required' });
+        return;
+      }
+
+      // Validate token manually (similar to notification stream)
+      const jwt = await import('jsonwebtoken');
+      const { config } = await import('../config/index.js');
+      
+      let decoded: { userId: string; organizationId: string };
+      try {
+        decoded = jwt.default.verify(token, config.JWT_SECRET) as { userId: string; organizationId: string };
+      } catch {
+        res.status(401).json({ error: 'Invalid or expired token' });
+        return;
+      }
+
+      // Verify ticket belongs to user's organization
+      const ticketCheck = await query(
+        'SELECT id FROM support_tickets WHERE id = $1 AND organization_id = $2',
+        [id, decoded.organizationId]
+      );
+      
+      if (ticketCheck.rows.length === 0) {
+        res.status(404).json({ error: 'Ticket not found' });
+        return;
+      }
+
+      // Set up SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+      // Send initial connection success
+      res.write('data: {"type":"connected"}\n\n');
+
+      // Create PostgreSQL client for LISTEN
+      const client = await pool.connect();
+      const channelName = `ticket_${id}`;
+
+      await client.query(`LISTEN "${channelName}"`);
+
+      // Handle notifications
+      const notificationHandler = (msg: { channel: string; payload?: string }) => {
+        if (msg.channel === channelName && msg.payload) {
+          res.write(`data: ${msg.payload}\n\n`);
+        }
+      };
+
+      client.on('notification', notificationHandler);
+
+      // Send heartbeat every 30 seconds
+      const heartbeat = setInterval(() => {
+        res.write(': heartbeat\n\n');
+      }, 30000);
+
+      // Cleanup on client disconnect
+      req.on('close', async () => {
+        clearInterval(heartbeat);
+        client.removeListener('notification', notificationHandler);
+        await client.query(`UNLISTEN "${channelName}"`);
+        client.release();
+        res.end();
+      });
+
+    } catch (err: unknown) {
+      console.error('Ticket stream error:', err);
+      const error = err as Error;
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || 'Failed to establish stream' });
+      }
     }
   }
 );
