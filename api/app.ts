@@ -24,6 +24,7 @@ import containersRoutes from './routes/containers.js'
 import vpsRoutes from './routes/vps.js'
 import supportRoutes from './routes/support.js'
 import activityRoutes from './routes/activity.js'
+import invoicesRouter from './routes/invoices.js';
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -87,6 +88,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
  */
 app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentRoutes)
+app.use('/api/invoices', invoicesRouter);
 app.use('/api/admin', adminRoutes)
 app.use('/api/containers', containersRoutes)
 app.use('/api/vps', vpsRoutes)

@@ -303,6 +303,48 @@ class PaymentService {
   }
 
   /**
+   * List invoices for the organization
+   */
+  async getInvoices(
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<{
+    invoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      totalAmount: number;
+      currency: string;
+      createdAt: string;
+    }>;
+    hasMore: boolean;
+  }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/invoices?limit=${limit}&offset=${offset}`,
+        {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to get invoices:', data.error);
+        return { invoices: [], hasMore: false };
+      }
+
+      return {
+        invoices: data.invoices,
+        hasMore: data.pagination.hasMore,
+      };
+    } catch (error) {
+      console.error('Get invoices error:', error);
+      return { invoices: [], hasMore: false };
+    }
+  }
+
+  /**
    * Open PayPal payment window
    */
   openPayPalPayment(approvalUrl: string): void {

@@ -232,6 +232,34 @@ const Billing: React.FC = () => {
     exportToCSV(exportData, 'payment-history.csv', headers);
   };
 
+  const handleCreateInvoice = async () => {
+    try {
+      const response = await fetch('/api/invoices/from-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to create invoice');
+        return;
+      }
+
+      if (data.success) {
+        toast.success(`Invoice ${data.invoiceNumber} created successfully`);
+        // Navigate to invoice detail page
+        window.location.href = `/billing/invoice/${data.invoiceId}`;
+      }
+    } catch (error) {
+      console.error('Create invoice error:', error);
+      toast.error('Failed to create invoice');
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...paymentHistory];
 
@@ -558,7 +586,15 @@ const Billing: React.FC = () => {
                       className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Export
+                      Export as CSV
+                    </button>
+                    <button 
+                      onClick={handleCreateInvoice}
+                      disabled={filteredPaymentHistory.length === 0}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export as HTML Invoice
                     </button>
                   </div>
                 </div>

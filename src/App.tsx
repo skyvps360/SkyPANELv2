@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Containers from "./pages/Containers";
 import VPS from "./pages/VPS";
 import Billing from "./pages/Billing";
+import InvoiceDetail from "./pages/InvoiceDetail";
 import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
@@ -143,6 +144,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Billing />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/billing/invoice/:id" 
+        element={
+          <ProtectedRoute>
+            <InvoiceDetail />
           </ProtectedRoute>
         } 
       />
