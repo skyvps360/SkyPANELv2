@@ -2,10 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { BRAND_NAME } from './lib/brand'
 
-const env = import.meta.env as Record<string, string | undefined>
-const companyName = env.VITE_COMPANY_NAME || env['COMPANY-NAME'] || 'SkyVPS360'
-document.title = `${companyName} | Cloud`
+document.title = `${BRAND_NAME} | Cloud`
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

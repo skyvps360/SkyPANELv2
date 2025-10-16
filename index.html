@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= VITE_COMPANY_NAME || COMPANY_NAME || 'SkyVPS360' %> | Cloud</title>
+    <title>Loading...</title>
+    <script type="module">
+      const env = import.meta.env ?? {};
+      const candidates = [env['COMPANY-NAME'], env.COMPANY_NAME, env.VITE_COMPANY_NAME];
+      const companyName = candidates
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .find((value) => value.length > 0) || 'SkyVPS360';
+      document.title = `${companyName} | Cloud`;
+    </script>
     <script type="module">
       if (import.meta.hot?.on) {
         import.meta.hot.on('vite:error', (error) => {
