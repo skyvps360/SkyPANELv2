@@ -4,6 +4,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { v4 as uuidv4 } from 'uuid';
 import { AuthService } from '../services/authService.js';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
 import { logActivity } from '../services/activityLogger.js';
@@ -390,17 +391,67 @@ router.put(
 /**
  * Get Organization
  * GET /api/auth/organization
+ * Auto-creates organization if user doesn't have one
  */
 router.get('/organization', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    if (!req.user?.organizationId) {
-      res.status(400).json({ error: 'No organization associated with user' });
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
+    let organizationId = req.user.organizationId;
+
+    // If user doesn't have an organization, create one automatically
+    if (!organizationId) {
+      const now = new Date().toISOString();
+      const orgId = uuidv4();
+      
+      // Get user's name for default organization name
+      const userResult = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
+      const userName = userResult.rows[0]?.name || 'User';
+      const defaultOrgName = `${userName}'s Organization`;
+      const slug = defaultOrgName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + orgId.substring(0, 8);
+
+      // Create organization
+      const orgResult = await query(
+        `INSERT INTO organizations (id, name, slug, owner_id, settings, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7) 
+         RETURNING *`,
+        [orgId, defaultOrgName, slug, req.user.id, '{}', now, now]
+      );
+
+      organizationId = orgResult.rows[0].id;
+
+      // Add user to organization as owner
+      try {
+        await query(
+          `INSERT INTO organization_members (organization_id, user_id, role, created_at) 
+           VALUES ($1, $2, $3, $4)`,
+          [organizationId, req.user.id, 'owner', now]
+        );
+      } catch (err) {
+        console.warn('Failed to create organization_members entry:', err);
+      }
+
+      // Create wallet for organization
+      try {
+        await query(
+          `INSERT INTO wallets (id, organization_id, balance, currency, created_at, updated_at) 
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [uuidv4(), organizationId, 0, 'USD', now, now]
+        );
+      } catch (err) {
+        console.warn('Failed to create wallet:', err);
+      }
+
+      console.log(`Auto-created organization ${organizationId} for user ${req.user.id}`);
+    }
+
+    // Fetch organization details
     const result = await query(
       'SELECT id, name, website, address, tax_id FROM organizations WHERE id = $1',
-      [req.user.organizationId]
+      [organizationId]
     );
 
     if (result.rows.length === 0) {
@@ -427,6 +478,7 @@ router.get('/organization', authenticateToken, async (req: AuthenticatedRequest,
 /**
  * Update Organization
  * PUT /api/auth/organization
+ * Auto-creates organization if user doesn't have one
  */
 router.put(
   '/organization',
@@ -445,22 +497,69 @@ router.put(
         return;
       }
 
-      if (!req.user?.organizationId) {
-        res.status(400).json({ error: 'No organization associated with user' });
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
         return;
       }
 
       const { name, website, address, taxId } = req.body;
-      const updateData: any = { updated_at: new Date().toISOString() };
-      
-      if (typeof name !== 'undefined') updateData.name = name;
-      if (typeof website !== 'undefined') updateData.website = website;
-      if (typeof address !== 'undefined') updateData.address = address;
-      if (typeof taxId !== 'undefined') updateData.tax_id = taxId;
+      let organizationId = req.user.organizationId;
 
-      // Build dynamic UPDATE with parameterized values
+      // If user doesn't have an organization, create one
+      if (!organizationId) {
+        const now = new Date().toISOString();
+        const orgId = uuidv4();
+        const orgName = name || 'My Organization';
+        const slug = orgName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + orgId.substring(0, 8);
+
+        // Create organization
+        const orgResult = await query(
+          `INSERT INTO organizations (id, name, slug, owner_id, settings, website, address, tax_id, created_at, updated_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+           RETURNING *`,
+          [orgId, orgName, slug, req.user.id, '{}', website || null, address || null, taxId || null, now, now]
+        );
+
+        organizationId = orgResult.rows[0].id;
+
+        // Add user to organization as owner
+        try {
+          await query(
+            `INSERT INTO organization_members (organization_id, user_id, role, created_at) 
+             VALUES ($1, $2, $3, $4)`,
+            [organizationId, req.user.id, 'owner', now]
+          );
+        } catch (err) {
+          console.warn('Failed to create organization_members entry:', err);
+        }
+
+        // Create wallet for organization
+        try {
+          await query(
+            `INSERT INTO wallets (id, organization_id, balance, currency, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [uuidv4(), organizationId, 0, 'USD', now, now]
+          );
+        } catch (err) {
+          console.warn('Failed to create wallet:', err);
+        }
+
+        const org = orgResult.rows[0];
+        res.json({
+          organization: {
+            id: org.id,
+            name: org.name,
+            website: org.website,
+            address: org.address,
+            taxId: org.tax_id
+          }
+        });
+        return;
+      }
+
+      // Update existing organization
       const fields: string[] = [];
-      const values: any[] = [];
+      const values: (string | null | undefined)[] = [];
       let idx = 1;
       if (typeof name !== 'undefined') { fields.push(`name = $${idx++}`); values.push(name); }
       if (typeof website !== 'undefined') { fields.push(`website = $${idx++}`); values.push(website); }
@@ -469,7 +568,7 @@ router.put(
       fields.push(`updated_at = $${idx++}`); values.push(new Date().toISOString());
 
       const updateSql = `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, name, website, address, tax_id`;
-      values.push(req.user.organizationId);
+      values.push(organizationId);
 
       const updatedResult = await query(updateSql, values);
       if (updatedResult.rows.length === 0) {
@@ -487,9 +586,10 @@ router.put(
           taxId: updated.tax_id
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Organization update error:', error);
-      res.status(500).json({ error: error.message || 'Failed to update organization' });
+      const err = error as Error;
+      res.status(500).json({ error: err.message || 'Failed to update organization' });
     }
   }
 );
