@@ -1242,48 +1242,51 @@ const VPS: React.FC = () => {
                           <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                             Allowed base images: {allowedImagesDisplay}
                           </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {selectedStackScript.user_defined_fields.map((f: any) => {
-                              const value = stackscriptData[f.name] ?? '';
-                              const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
-                              const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
-                              const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
-                              const options = optionsArr || parsedOptions;
-                              const nameLower = String(f.name || '').toLowerCase();
-                              const inputType: 'text' | 'password' | 'email' = options && options.length > 0
-                                ? 'text'
-                                : nameLower.includes('password') || nameLower.includes('pass')
-                                  ? 'password'
-                                  : nameLower.includes('email')
-                                    ? 'email'
-                                    : 'text';
-                              return (
-                                <div key={f.name}>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label || f.name}</label>
-                                  {options && options.length > 0 ? (
-                                    <select
-                                      value={value}
-                                      onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                                      className="w-full text-xs rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                    >
-                                      <option value="">Select</option>
-                                      {options.map((opt: string) => (
-                                        <option key={opt} value={opt}>{opt}</option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <input
-                                      type={inputType}
-                                      value={value}
-                                      onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                                      placeholder={f.example || f.default || ''}
-                                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
+                          <form onSubmit={(e) => e.preventDefault()}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {selectedStackScript.user_defined_fields.map((f: any) => {
+                                const value = stackscriptData[f.name] ?? '';
+                                const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
+                                const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
+                                const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
+                                const options = optionsArr || parsedOptions;
+                                const nameLower = String(f.name || '').toLowerCase();
+                                const inputType: 'text' | 'password' | 'email' = options && options.length > 0
+                                  ? 'text'
+                                  : nameLower.includes('password') || nameLower.includes('pass')
+                                    ? 'password'
+                                    : nameLower.includes('email')
+                                      ? 'email'
+                                      : 'text';
+                                return (
+                                  <div key={f.name}>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label || f.name}</label>
+                                    {options && options.length > 0 ? (
+                                      <select
+                                        value={value}
+                                        onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                                        className="w-full text-xs rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                      >
+                                        <option value="">Select</option>
+                                        {options.map((opt: string) => (
+                                          <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        type={inputType}
+                                        value={value}
+                                        onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                                        placeholder={f.example || f.default || ''}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                                        autoComplete={inputType === 'password' ? 'new-password' : 'off'}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </form>
                         </div>
                       )}
                     </div>
@@ -1392,18 +1395,21 @@ const VPS: React.FC = () => {
                   )}
 
                   {createStep === 4 && (<>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Root Password *
-                    </label>
-                    <input
-                      type="password"
-                      value={createForm.rootPassword}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
-                      placeholder="Enter a strong password"
-                    />
-                  </div>
+                  <form onSubmit={(e) => e.preventDefault()}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Root Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={createForm.rootPassword}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        placeholder="Enter a strong password"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </form>
 
                   <div className="flex items-center space-x-6">
                     <label className="flex items-center">
@@ -1529,27 +1535,31 @@ const VPS: React.FC = () => {
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Server name</label>
-                  <input
-                    type="text"
-                    value={deleteModal.input}
-                    onChange={(e) => setDeleteModal(m => ({ ...m, input: e.target.value, error: '' }))}
-                    placeholder="Type the server name to confirm"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
-                
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Password</label>
-                  <input
-                    type="password"
-                    value={deleteModal.password}
-                    onChange={(e) => setDeleteModal(m => ({ ...m, password: e.target.value, error: '' }))}
-                    placeholder="Enter your account password"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
+                <form onSubmit={(e) => e.preventDefault()}>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Server name</label>
+                    <input
+                      type="text"
+                      value={deleteModal.input}
+                      onChange={(e) => setDeleteModal(m => ({ ...m, input: e.target.value, error: '' }))}
+                      placeholder="Type the server name to confirm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      autoComplete="off"
+                    />
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Password</label>
+                    <input
+                      type="password"
+                      value={deleteModal.password}
+                      onChange={(e) => setDeleteModal(m => ({ ...m, password: e.target.value, error: '' }))}
+                      placeholder="Enter your account password"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </form>
                 
                 <div className="mt-4">
                   <label className="flex items-center">

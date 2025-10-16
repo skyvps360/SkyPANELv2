@@ -185,9 +185,22 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
     if (status === 'connecting' || status === 'connected') return;
     const token = localStorage.getItem('auth_token');
     const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    const wsUrl = base.replace(/^http/, 'ws') + `/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
+    
+    // Properly construct WebSocket URL
+    let wsUrl: string;
+    if (base.startsWith('https://')) {
+      wsUrl = base.replace('https://', 'wss://') + `/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
+    } else if (base.startsWith('http://')) {
+      wsUrl = base.replace('http://', 'ws://') + `/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
+    } else {
+      // Fallback for relative URLs or other formats
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      wsUrl = `${protocol}//${host}${base}/vps/${instanceId}/ssh?token=${encodeURIComponent(String(token || ''))}&rows=${rows}&cols=${cols}`;
+    }
 
     try {
+      console.log('Attempting WebSocket connection to:', wsUrl);
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
       setStatus('connecting');
@@ -235,9 +248,10 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
           }, delay);
         }
       };
-      ws.onerror = () => {
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
         setStatus('error');
-        write('\r\n\x1b[31mWebSocket error\x1b[0m\r\n');
+        write('\r\n\x1b[31mWebSocket connection error\x1b[0m\r\n');
       };
 
       // Pipe terminal input to WS
