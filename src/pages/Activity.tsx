@@ -281,8 +281,8 @@ const ActivityPage: React.FC = () => {
                         Next
                       </button>
                     </div>
-                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                      <div>
+                    <div className="hidden sm:flex sm:flex-col sm:items-center sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="text-center lg:text-left">
                         <p className="text-sm text-gray-700 dark:text-gray-300">
                           Showing{' '}
                           <span className="font-medium">{pagination.offset + 1}</span>
@@ -295,9 +295,9 @@ const ActivityPage: React.FC = () => {
                           {' '}results
                         </p>
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-center">
                         {/* Enhanced Pagination Navigation */}
-                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <nav className="relative z-0 flex flex-wrap justify-center rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                           {/* First Page Button */}
                           <button
                             onClick={handleFirstPage}
@@ -359,7 +359,7 @@ const ActivityPage: React.FC = () => {
                         </nav>
 
                         {/* Page Input Field */}
-                        <form onSubmit={handlePageInputSubmit} className="flex items-center space-x-2">
+                        <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2 justify-center lg:justify-start">
                           <span className="text-sm text-gray-700 dark:text-gray-300">Go to:</span>
                           <input
                             type="number"
