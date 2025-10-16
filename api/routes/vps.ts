@@ -23,10 +23,18 @@ router.use(authenticateToken, requireOrganization);
 router.get('/plans', async (_req: Request, res: Response) => {
   try {
     const result = await query(
-      `SELECT id, name, description, provider_plan_id, base_price, markup_price, region_id, specifications
-         FROM vps_plans
-        WHERE active = true
-        ORDER BY created_at DESC`
+      `SELECT
+         id,
+         name,
+         COALESCE(specifications->>'description', '') AS description,
+         provider_plan_id,
+         base_price,
+         markup_price,
+         COALESCE(specifications->>'region_id', specifications->>'region') AS region_id,
+         specifications
+       FROM vps_plans
+       WHERE active = true
+       ORDER BY created_at DESC`
     );
 
     const plans = (result.rows || []).map((row: any) => ({
