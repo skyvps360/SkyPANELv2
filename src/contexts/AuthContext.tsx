@@ -154,6 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setToken(data.token);
       localStorage.setItem('auth_token', data.token);
+      
+      // Update user data if returned from refresh
+      if (data.user) {
+        setUser(data.user);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+      }
     } catch (error) {
       console.error('Token refresh error:', error);
       logout(); // If refresh fails, logout the user

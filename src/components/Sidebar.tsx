@@ -45,14 +45,14 @@ const Sidebar: React.FC = () => {
 
   return (
     <aside className={`hidden md:block ${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-4rem)] transition-all duration-300 ease-in-out`}>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-6">
+      <div className={`${collapsed ? 'py-2 px-1' : 'p-4'} transition-all duration-300`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} mb-6`}>
           <div className={`text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider transition-opacity duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
             Navigation
           </div>
           <button
             onClick={toggleCollapsed}
-            className="rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-105"
+            className={`rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-105 ${collapsed ? 'mx-auto' : ''}`}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -73,7 +73,7 @@ const Sidebar: React.FC = () => {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
+                className={`group flex items-center ${collapsed ? 'justify-center mx-1 px-0' : 'px-3'} py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
                   active
                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 shadow-sm'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'

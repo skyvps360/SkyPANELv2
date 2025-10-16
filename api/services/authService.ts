@@ -162,8 +162,10 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
-          firstName: user.name.split(' ')[0] || '',
-          lastName: user.name.split(' ').slice(1).join(' ') || '',
+          firstName: user.name ? user.name.split(' ')[0] || '' : '',
+          lastName: user.name ? user.name.split(' ').slice(1).join(' ') || '' : '',
+          phone: user.phone,
+          timezone: user.timezone,
           role: user.role,
           emailVerified: true,
           organizationId: orgMember?.organization_id,
@@ -225,7 +227,7 @@ export class AuthService {
   static async refreshToken(userId: string) {
     try {
       const userResult = await query(
-        'SELECT id, email, role FROM users WHERE id = $1',
+        'SELECT id, email, role, name, phone, timezone FROM users WHERE id = $1',
         [userId]
       );
 
@@ -235,6 +237,18 @@ export class AuthService {
 
       const user = userResult.rows[0];
 
+      // Get user's organization membership
+      let orgMember = null;
+      try {
+        const orgResult = await query(
+          'SELECT organization_id, role FROM organization_members WHERE user_id = $1',
+          [user.id]
+        );
+        orgMember = orgResult.rows[0] || null;
+      } catch (err) {
+        console.warn('organization_members table not found, skipping organization lookup');
+      }
+
       // Generate new JWT token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
@@ -242,7 +256,21 @@ export class AuthService {
         { expiresIn: config.JWT_EXPIRES_IN }
       );
 
-      return { token };
+      return { 
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.name ? user.name.split(' ')[0] || '' : '',
+          lastName: user.name ? user.name.split(' ').slice(1).join(' ') || '' : '',
+          phone: user.phone,
+          timezone: user.timezone,
+          role: user.role,
+          emailVerified: true,
+          organizationId: orgMember?.organization_id,
+          organizationRole: orgMember?.role
+        }
+      };
     } catch (error) {
       console.error('Token refresh error:', error);
       throw error;
