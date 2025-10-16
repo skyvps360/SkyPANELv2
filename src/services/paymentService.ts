@@ -28,7 +28,7 @@ export interface WalletTransaction {
   type: 'credit' | 'debit';
   description: string;
   paymentId?: string;
-  balanceAfter: number;
+  balanceAfter: number | null;
   createdAt: string;
 }
 
@@ -172,15 +172,29 @@ class PaymentService {
       }
 
       return {
-        transactions: data.transactions.map((tx: any) => ({
-          id: tx.id,
-          amount: tx.amount,
-          type: tx.type,
-          description: tx.description,
-          paymentId: tx.payment_id,
-          balanceAfter: tx.balance_after,
-          createdAt: tx.created_at,
-        })),
+        transactions: (data.transactions || []).map((tx: any) => {
+          const amountValue = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
+          const amount = Number.isFinite(amountValue) ? amountValue : 0;
+          const balanceRaw = tx.balanceAfter ?? tx.balance_after;
+          const balanceAfter =
+            typeof balanceRaw === 'string'
+              ? parseFloat(balanceRaw)
+              : typeof balanceRaw === 'number' && Number.isFinite(balanceRaw)
+                ? balanceRaw
+                : null;
+          const type = tx.type ?? (amount >= 0 ? 'credit' : 'debit');
+          const createdAt = tx.createdAt ?? tx.created_at ?? '';
+
+          return {
+            id: tx.id,
+            amount,
+            type,
+            description: tx.description ?? 'Unknown transaction',
+            paymentId: tx.paymentId ?? tx.payment_id,
+            balanceAfter,
+            createdAt,
+          };
+        }),
         hasMore: data.pagination.hasMore,
       };
     } catch (error) {

@@ -457,7 +457,9 @@ const Billing: React.FC = () => {
                             {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Balance: {formatCurrency(transaction.balanceAfter)}
+                            Balance: {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined && !isNaN(transaction.balanceAfter)
+                              ? formatCurrency(transaction.balanceAfter)
+                              : 'N/A'}
                           </p>
                         </div>
                       </div>

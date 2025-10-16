@@ -332,24 +332,65 @@ export class PayPalService {
   ): Promise<WalletTransaction[]> {
     try {
       const result = await query(
-        `SELECT id, organization_id, amount, payment_method as type, description, 
-                provider_transaction_id as payment_id, created_at
-         FROM payment_transactions 
-         WHERE organization_id = $1 
-         ORDER BY created_at DESC 
+        `WITH ordered AS (
+           SELECT
+             id,
+             organization_id,
+             amount,
+             payment_method,
+             description,
+             provider_transaction_id,
+             created_at,
+             metadata,
+             SUM(amount) OVER (
+               PARTITION BY organization_id
+               ORDER BY created_at ASC, id ASC
+             ) AS balance_after
+           FROM payment_transactions
+           WHERE organization_id = $1
+         )
+         SELECT
+           id,
+           organization_id,
+           amount,
+           payment_method,
+           description,
+           provider_transaction_id,
+           created_at,
+           metadata,
+           balance_after
+         FROM ordered
+         ORDER BY created_at DESC, id DESC
          LIMIT $2 OFFSET $3`,
         [organizationId, limit, offset]
       );
 
-      return result.rows.map(row => ({
-        id: row.id,
-        organizationId: row.organization_id,
-        amount: parseFloat(row.amount),
-        type: row.type.includes('credit') ? 'credit' : 'debit',
-        description: row.description,
-        paymentId: row.payment_id,
-        createdAt: row.created_at
-      }));
+      return result.rows.map(row => {
+        const amount = parseFloat(row.amount);
+        const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
+        const metadataBalance =
+          metadata.balance_after ??
+          metadata.balanceAfter ??
+          metadata.balance ??
+          null;
+        const rawBalance =
+          metadataBalance !== null && metadataBalance !== undefined
+            ? metadataBalance
+            : row.balance_after ?? null;
+        const balanceAfter =
+          rawBalance !== null && rawBalance !== undefined ? parseFloat(rawBalance) : null;
+
+        return {
+          id: row.id,
+          organizationId: row.organization_id,
+          amount,
+          type: amount >= 0 ? 'credit' : 'debit',
+          description: row.description ?? 'Wallet adjustment',
+          paymentId: row.provider_transaction_id || undefined,
+          balanceAfter,
+          createdAt: row.created_at,
+        };
+      });
     } catch (error) {
       console.error('Get wallet transactions error:', error);
       return [];
