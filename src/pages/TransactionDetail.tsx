@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 import { paymentService, type PaymentTransactionDetail } from '../services/paymentService';
 
 const TransactionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [transaction, setTransaction] = useState<PaymentTransactionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
@@ -87,6 +89,11 @@ const TransactionDetail: React.FC = () => {
       return;
     }
 
+    if (!token) {
+      toast.error('You must be logged in to download invoices.');
+      return;
+    }
+
     setInvoiceLoading(true);
     try {
       const result = await paymentService.createInvoiceFromTransaction(transaction.id);
@@ -95,10 +102,48 @@ const TransactionDetail: React.FC = () => {
         return;
       }
 
-      toast.success(`Invoice ${result.invoiceNumber} ready for download.`);
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const downloadUrl = `${apiBase}/invoices/${result.invoiceId}/download`;
-      window.open(downloadUrl, '_blank', 'noopener');
+      const response = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          toast.error(errorData.error || 'Failed to download invoice.');
+        } catch (payloadError) {
+          console.error('Failed to parse invoice error payload:', payloadError);
+          toast.error('Failed to download invoice.');
+        }
+        return;
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = `invoice-${result.invoiceNumber || result.invoiceId}.pdf`;
+      const filenameMatch = contentDisposition?.match(/filename\*?=(?:UTF-8''|"?)([^";\n]+)/i);
+
+      if (filenameMatch && filenameMatch[1]) {
+        try {
+          filename = decodeURIComponent(filenameMatch[1].replace(/"/g, ''));
+        } catch (filenameError) {
+          console.warn('Failed to decode invoice filename:', filenameError);
+        }
+      }
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.success(`Invoice ${result.invoiceNumber || result.invoiceId} downloaded.`);
     } catch (err) {
       console.error('Download invoice error:', err);
       toast.error('Failed to generate invoice.');
@@ -140,6 +185,26 @@ const TransactionDetail: React.FC = () => {
   }
 
   const metadataEntries = transaction.metadata ? Object.entries(transaction.metadata) : [];
+  const filteredMetadataEntries = metadataEntries.filter(([key]) => {
+    const normalizedKey = key.replace(/[\s_-]/g, '').toLowerCase();
+    return normalizedKey !== 'balancebefore' && normalizedKey !== 'balanceafter';
+  });
+  const supplementalDetails = [
+    {
+      key: 'balance-before',
+      label: 'Balance Before',
+      value: transaction.balanceBefore !== null && transaction.balanceBefore !== undefined
+        ? formatCurrency(transaction.balanceBefore, transaction.currency)
+        : 'N/A',
+    },
+    {
+      key: 'balance-after',
+      label: 'Balance After',
+      value: transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
+        ? formatCurrency(transaction.balanceAfter, transaction.currency)
+        : 'N/A',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -191,8 +256,8 @@ const TransactionDetail: React.FC = () => {
               <div className="space-y-2 text-gray-700 dark:text-gray-300">
                 <p><span className="font-medium">Description:</span> {transaction.description}</p>
                 <p><span className="font-medium">Amount:</span> {formatCurrency(Math.abs(transaction.amount), transaction.currency)} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
-                <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null ? formatCurrency(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
-                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null ? formatCurrency(transaction.balanceAfter, transaction.currency) : 'N/A'}</p>
+                <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined ? formatCurrency(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
+                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined ? formatCurrency(transaction.balanceAfter, transaction.currency) : 'N/A'}</p>
                 <p><span className="font-medium">Created At:</span> {formatDate(transaction.createdAt)}</p>
                 <p><span className="font-medium">Updated At:</span> {formatDate(transaction.updatedAt)}</p>
               </div>
@@ -210,24 +275,29 @@ const TransactionDetail: React.FC = () => {
 
           <div>
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Additional Details</h2>
-            {metadataEntries.length > 0 ? (
-              <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  {metadataEntries.map(([key, value]) => (
-                    <div key={key}>
-                      <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{key}</dt>
-                      <dd className="text-sm text-gray-700 dark:text-gray-300">
-                        {typeof value === 'object' && value !== null
-                          ? JSON.stringify(value)
-                          : String(value)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600 dark:text-gray-400">No additional metadata stored for this transaction.</p>
-            )}
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-md p-4">
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                {supplementalDetails.map(detail => (
+                  <div key={detail.key}>
+                    <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{detail.label}</dt>
+                    <dd className="text-sm text-gray-700 dark:text-gray-300">{detail.value}</dd>
+                  </div>
+                ))}
+                {filteredMetadataEntries.map(([key, value]) => (
+                  <div key={key}>
+                    <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{key}</dt>
+                    <dd className="text-sm text-gray-700 dark:text-gray-300">
+                      {typeof value === 'object' && value !== null
+                        ? JSON.stringify(value)
+                        : String(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {filteredMetadataEntries.length === 0 && (
+                <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No additional metadata stored for this transaction.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

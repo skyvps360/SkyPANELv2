@@ -12,6 +12,16 @@ import { query } from '../lib/database.js';
 
 const router = express.Router();
 
+const resolveCompanyName = (): string =>
+  (process.env['COMPANY-NAME'] && process.env['COMPANY-NAME'].trim())
+  || (process.env.COMPANY_NAME && process.env.COMPANY_NAME.trim())
+  || (process.env.VITE_COMPANY_NAME && process.env.VITE_COMPANY_NAME.trim())
+  || 'SkyVPS360';
+
+const resolveCompanyLogo = (): string | undefined =>
+  (process.env.COMPANY_LOGO_URL && process.env.COMPANY_LOGO_URL.trim())
+  || undefined;
+
 type AuthenticatedRequest = Request & {
   user: {
     organizationId: string;
@@ -240,7 +250,11 @@ router.post(
       );
 
       // Generate HTML
-      const htmlContent = InvoiceService.generateInvoiceHTML(invoiceData);
+      const htmlContent = InvoiceService.generateInvoiceHTML(
+        invoiceData,
+        resolveCompanyName(),
+        resolveCompanyLogo()
+      );
 
       // Store invoice
       const invoiceId = await InvoiceService.createInvoice(
@@ -305,7 +319,11 @@ router.post(
       );
 
       // Generate HTML
-      const htmlContent = InvoiceService.generateInvoiceHTML(invoiceData);
+      const htmlContent = InvoiceService.generateInvoiceHTML(
+        invoiceData,
+        resolveCompanyName(),
+        resolveCompanyLogo()
+      );
 
       // Store invoice
       const invoiceId = await InvoiceService.createInvoice(

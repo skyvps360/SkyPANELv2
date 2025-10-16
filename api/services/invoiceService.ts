@@ -74,9 +74,15 @@ export class InvoiceService {
    */
   static generateInvoiceHTML(
     invoiceData: InvoiceData,
-    companyName: string = 'ContainerStacks',
+    companyName?: string,
     companyLogo?: string
   ): string {
+    const resolvedCompanyName = (companyName && companyName.trim())
+      || (process.env['COMPANY-NAME'] && process.env['COMPANY-NAME'].trim())
+      || (process.env.COMPANY_NAME && process.env.COMPANY_NAME.trim())
+      || (process.env.VITE_COMPANY_NAME && process.env.VITE_COMPANY_NAME.trim())
+      || 'SkyVPS360';
+
     const formattedDate = invoiceData.createdAt.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -97,7 +103,7 @@ export class InvoiceService {
       .join('');
 
     const logoHTML = companyLogo
-      ? `<img src="${companyLogo}" alt="Logo" style="height: 60px; margin-bottom: 20px;" />`
+      ? `<img src="${companyLogo}" alt="${resolvedCompanyName} logo" style="height: 60px; margin-bottom: 20px;" />`
       : '';
 
     const html = `
@@ -262,7 +268,7 @@ export class InvoiceService {
         <div class="header">
           <div class="company-info">
             ${logoHTML}
-            <h1>${companyName}</h1>
+            <h1>${resolvedCompanyName}</h1>
             <p style="color: #666;">Billing & Payments</p>
           </div>
           <div class="invoice-info">
@@ -337,7 +343,7 @@ export class InvoiceService {
         </div>
 
         <div class="footer">
-          <p style="margin: 10px 0;">Thank you for your business with ${companyName}</p>
+          <p style="margin: 10px 0;">Thank you for your business with ${resolvedCompanyName}</p>
           <p style="margin: 10px 0; color: #999;">This is an automated invoice. Please retain this document for your records.</p>
           <p style="margin: 10px 0; color: #999;">Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC</p>
         </div>
