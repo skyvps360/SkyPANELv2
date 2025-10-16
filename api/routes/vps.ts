@@ -20,6 +20,34 @@ const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
 
+router.get('/plans', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT id, name, description, provider_plan_id, base_price, markup_price, region_id, specifications
+         FROM vps_plans
+        WHERE active = true
+        ORDER BY created_at DESC`
+    );
+
+    const plans = (result.rows || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      provider_plan_id: row.provider_plan_id,
+      base_price: row.base_price,
+      markup_price: row.markup_price,
+      region_id: row.region_id,
+      specifications: row.specifications,
+    }));
+
+    res.json({ plans });
+  } catch (error) {
+    console.error('VPS plans fetch error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch plans';
+    res.status(500).json({ error: message });
+  }
+});
+
 const BACKUP_DAY_OPTIONS = new Set([
   'Sunday',
   'Monday',

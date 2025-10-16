@@ -319,7 +319,7 @@ const VPS: React.FC = () => {
   const loadVPSPlans = async () => {
     setLoadingPlans(true);
     try {
-      const res = await fetch('/api/admin/plans', {
+      const res = await fetch('/api/vps/plans', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = await res.json();

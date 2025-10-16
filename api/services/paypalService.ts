@@ -49,6 +49,7 @@ export interface PaymentIntent {
   description: string;
   organizationId: string;
   userId: string;
+  clientBaseUrl?: string;
 }
 
 export interface PaymentResult {
@@ -103,6 +104,8 @@ export class PayPalService {
       const amountValue = paymentIntent.amount.toFixed(2);
       const itemName = paymentIntent.description?.substring(0, 127) || 'Wallet Credit';
 
+      const clientBaseUrl = paymentIntent.clientBaseUrl || process.env.CLIENT_URL || 'http://localhost:5173';
+
       const request = {
         body: {
           intent: CheckoutPaymentIntent.CAPTURE,
@@ -135,8 +138,8 @@ export class PayPalService {
           ],
           applicationContext: {
             brandName: 'ContainerStacks',
-            returnUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/billing/payment/success`,
-            cancelUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/billing/payment/cancel`,
+            returnUrl: `${clientBaseUrl}/billing/payment/success`,
+            cancelUrl: `${clientBaseUrl}/billing/payment/cancel`,
             userAction: OrderApplicationContextUserAction.PAYNOW,
             shippingPreference: OrderApplicationContextShippingPreference.NOSHIPPING,
           },
