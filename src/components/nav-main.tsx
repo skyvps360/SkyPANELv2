@@ -45,10 +45,12 @@ export function NavMain({
               <SidebarMenuItem>
                 {item.items?.length ? (
                   <>
-                    <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuAction className="data-[state=open]:rotate-90">
                         <ChevronRight />
