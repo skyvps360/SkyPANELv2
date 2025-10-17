@@ -240,30 +240,30 @@ const Containers: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading containers...</p>
+          <p className="mt-4 text-muted-foreground">Loading containers...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Container Management</h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
+              <h1 className="text-3xl font-bold text-foreground">Container Management</h1>
+              <p className="mt-2 text-muted-foreground">
                 Manage your Docker containers and monitor their performance
               </p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
             >
               <Plus className="h-4 w-4 mr-2" />
               New Container
@@ -272,7 +272,7 @@ const Containers: React.FC = () => {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="bg-card p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -282,13 +282,13 @@ const Containers: React.FC = () => {
                   placeholder="Search containers..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="pl-10 pr-4 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 />
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                className="px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
               >
                 <option value="all">All Status</option>
                 <option value="running">Running</option>
@@ -300,7 +300,7 @@ const Containers: React.FC = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={loadContainers}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -311,54 +311,54 @@ const Containers: React.FC = () => {
 
         {/* Container Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <Play className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Running</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Running</p>
+                <p className="text-2xl font-bold text-foreground">
                   {containers.filter(c => c.status === 'running').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                <Square className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+              <div className="p-2 bg-secondary rounded-lg">
+                <Square className="h-6 w-6 text-muted-foreground" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Stopped</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Stopped</p>
+                <p className="text-2xl font-bold text-foreground">
                   {containers.filter(c => c.status === 'stopped').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                 <Container className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{containers.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold text-foreground">{containers.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                 <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg CPU</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Avg CPU</p>
+                <p className="text-2xl font-bold text-foreground">
                   {(containers.reduce((sum, c) => sum + c.stats.cpu, 0) / containers.length || 0).toFixed(1)}%
                 </p>
               </div>
@@ -367,35 +367,35 @@ const Containers: React.FC = () => {
         </div>
 
         {/* Container List */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Containers ({filteredContainers.length})</h2>
+        <div className="bg-card">
+          <div className="px-6 py-4 border-b border">
+            <h2 className="text-lg font-semibold text-foreground">Containers ({filteredContainers.length})</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Container
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Resources
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Uptime
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-card divide-y divide-border">
                 {filteredContainers.map((container) => (
                   <tr key={container.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -404,8 +404,8 @@ const Containers: React.FC = () => {
                           <Container className="h-8 w-8 text-gray-400 dark:text-gray-500" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{container.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{container.image}</div>
+                          <div className="text-sm font-medium text-foreground">{container.name}</div>
+                          <div className="text-sm text-muted-foreground">{container.image}</div>
                         </div>
                       </div>
                     </td>
@@ -414,7 +414,7 @@ const Containers: React.FC = () => {
                         {container.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       <div className="space-y-1">
                         <div className="flex items-center">
                           <Cpu className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
@@ -426,10 +426,10 @@ const Containers: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {container.stats.uptime}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {formatDate(container.created)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -486,86 +486,86 @@ const Containers: React.FC = () => {
         {/* Create Container Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-full max-w-2xl shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Create New Container</h3>
+                <h3 className="text-lg font-medium text-foreground mb-4">Create New Container</h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
                         Container Name *
                       </label>
                       <input
                         type="text"
                         value={createForm.name}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                         placeholder="my-container"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
                         Docker Image *
                       </label>
                       <input
                         type="text"
                         value={createForm.image}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                         placeholder="nginx:latest"
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Port Mappings
                     </label>
                     <input
                       type="text"
                       value={createForm.ports}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, ports: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                       placeholder="80:8080, 443:8443"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Comma-separated list (host:container)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Comma-separated list (host:container)</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Volume Mounts
                     </label>
                     <input
                       type="text"
                       value={createForm.volumes}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, volumes: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                       placeholder="/host/path:/container/path"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Comma-separated list (host:container)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Comma-separated list (host:container)</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Environment Variables (JSON)
                     </label>
                     <textarea
                       value={createForm.environment}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, environment: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                       rows={3}
                       placeholder='{"NODE_ENV": "production", "PORT": "3000"}'
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Restart Policy
                     </label>
                     <select
                       value={createForm.restart}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, restart: e.target.value as any }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                     >
                       <option value="no">No</option>
                       <option value="always">Always</option>
@@ -578,13 +578,13 @@ const Containers: React.FC = () => {
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateContainer}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                   >
                     Create Container
                   </button>

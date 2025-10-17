@@ -1283,7 +1283,7 @@ export default function ApiDocs() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">API Documentation</h1>
+        <h1 className="text-2xl font-semibold text-foreground">API Documentation</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-100">
           Base URL: <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">{apiBase}</code>
         </p>
@@ -1305,7 +1305,7 @@ export default function ApiDocs() {
         {sections.map((section) => {
           const isExpanded = expandedSections.includes(section.title);
           return (
-            <div key={section.title} className="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
+            <div key={section.title} className="bg-card">
               <div 
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
                 onClick={() => toggleSection(section.title)}
@@ -1313,7 +1313,7 @@ export default function ApiDocs() {
                 <div className="flex items-center space-x-3">
                   {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">{section.title}</h2>
+                    <h2 className="text-lg font-medium text-foreground">{section.title}</h2>
                     {section.description && (
                       <p className="text-sm text-gray-500 dark:text-gray-200">{section.description}</p>
                     )}
@@ -1368,7 +1368,7 @@ export default function ApiDocs() {
 
                         {endpoint.body && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Request Body:</h4>
+                            <h4 className="text-sm font-medium text-foreground mb-2">Request Body:</h4>
                             <pre className="bg-gray-100 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto">
                               <code className="text-gray-800 dark:text-gray-100">{JSON.stringify(endpoint.body, null, 2)}</code>
                             </pre>
@@ -1377,7 +1377,7 @@ export default function ApiDocs() {
 
                         {endpoint.response && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Response:</h4>
+                            <h4 className="text-sm font-medium text-foreground mb-2">Response:</h4>
                             <pre className="bg-gray-100 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto">
                               <code className="text-gray-800 dark:text-gray-100">{JSON.stringify(endpoint.response, null, 2)}</code>
                             </pre>
@@ -1386,7 +1386,7 @@ export default function ApiDocs() {
 
                         {/* cURL Example */}
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">cURL Example:</h4>
+                          <h4 className="text-sm font-medium text-foreground mb-2">cURL Example:</h4>
                           <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto relative">
                             <code>
                               {`curl -X ${endpoint.method} "${section.base}${endpoint.path}" \\`}

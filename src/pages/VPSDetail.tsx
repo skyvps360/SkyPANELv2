@@ -1227,7 +1227,7 @@ const VPSDetail: React.FC = () => {
 
   if (loading && !detail) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="space-y-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="space-y-6 animate-pulse">
             <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded" />
@@ -1243,11 +1243,11 @@ const VPSDetail: React.FC = () => {
 
   if (error && !detail) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="space-y-6">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/60 rounded-2xl shadow-sm p-8 text-center">
+          <div className="bg-card border border-red-200 dark:border-red-900/60 rounded-2xl shadow-sm p-8 text-center">
             <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
-            <h1 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Unable to load server details</h1>
+            <h1 className="mt-4 text-xl font-semibold text-foreground">Unable to load server details</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-300">{error}</p>
             <div className="mt-6 flex justify-center gap-3">
               <button
@@ -1273,7 +1273,7 @@ const VPSDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-full xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
         <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4">
           <div>
@@ -1302,7 +1302,7 @@ const VPSDetail: React.FC = () => {
                           cancelEditingHostname();
                         }
                       }}
-                      className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
+                      className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
                       placeholder="Enter hostname"
                       autoFocus
                       disabled={hostnameSaving}
@@ -1335,7 +1335,7 @@ const VPSDetail: React.FC = () => {
               ) : (
                 <div className="flex-1 min-w-0">
                   <h1 
-                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2 break-words"
+                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2 break-words"
                     onClick={startEditingHostname}
                     title="Click to edit hostname"
                   >
@@ -1352,7 +1352,7 @@ const VPSDetail: React.FC = () => {
                   {detail.status.toUpperCase()}
                 </span>
                 {detail?.updatedAt && (
-                  <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     Updated {formatRelativeTime(detail.updatedAt)}
                   </span>
                 )}
@@ -1419,7 +1419,7 @@ const VPSDetail: React.FC = () => {
                   <select
                     value={activeTab}
                     onChange={(e) => setActiveTab(e.target.value)}
-                    className="w-full px-4 py-3.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-gray-900 dark:text-gray-100"
+                    className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-gray-900 dark:text-gray-100"
                   >
                     {tabDefinitions.map(tab => (
                       <option key={tab.id} value={tab.id}>
@@ -1467,11 +1467,11 @@ const VPSDetail: React.FC = () => {
                   <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 dark:border-gray-800">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                        <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
                           <LayoutDashboard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
                           <span>Instance Overview</span>
                         </h2>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Metadata and quick actions for this server.</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Metadata and quick actions for this server.</p>
                       </div>
 
                     </div>
@@ -1480,73 +1480,73 @@ const VPSDetail: React.FC = () => {
                     <div className="space-y-6 sm:space-y-8">
                         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>vCPUs</span>
                             <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
                           </div>
-                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{detail?.plan.specs.vcpus ?? 0}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{detail?.plan.specs.vcpus ?? 0}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Memory</span>
                             <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
                           </div>
-                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Storage</span>
                             <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
                           </div>
-                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Transfer</span>
                             <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
                           </div>
-                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
+                          <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{formatTransferAllowance(detail?.plan.specs.transfer ?? 0)}</p>
                         </div>
                       </div>
 
                       <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Plan</p>
-                          <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{detail?.plan.name || 'Custom Plan'}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Plan</p>
+                          <p className="mt-1 text-sm sm:text-base font-semibold text-foreground">{detail?.plan.name || 'Custom Plan'}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Pricing</p>
-                          <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-xs sm:text-sm font-normal text-gray-500 dark:text-gray-400">/ month</span></p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(detail?.plan.pricing.hourly ?? 0)} hourly billable</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Pricing</p>
+                          <p className="mt-1 text-sm sm:text-base font-semibold text-foreground">{formatCurrency(detail?.plan.pricing.monthly ?? 0)} <span className="text-xs sm:text-sm font-normal text-muted-foreground">/ month</span></p>
+                          <p className="text-xs text-muted-foreground">{formatCurrency(detail?.plan.pricing.hourly ?? 0)} hourly billable</p>
                         </div>
                       </div>
                     </div>
 
                     <dl className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Instance ID</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Instance ID</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.id}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Provider Reference</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Provider Reference</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200 break-all">{detail?.providerInstanceId}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Public IPv4</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Public IPv4</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200">{detail?.ipAddress || 'Not yet assigned'}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Region</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Region</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-200">
                           {detail?.regionLabel || detail?.region || 'Unknown'}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Created</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Created</dt>
                         <dd className="mt-1 text-xs sm:text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.createdAt || null)}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Last Updated</dt>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last Updated</dt>
                         <dd className="mt-1 text-xs sm:text-sm text-gray-800 dark:text-gray-300">{formatDateTime(detail?.updatedAt || null)}</dd>
                       </div>
                     </dl>
@@ -1561,19 +1561,19 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'backups' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 dark:border-gray-800">
-                  <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                  <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
                     <ShieldCheck className="h-5 w-5 text-blue-500" />
                     Backup Protection
                   </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Automatic snapshots captured by the underlying platform.</p>
+                  <p className="text-sm text-muted-foreground">Automatic snapshots captured by the underlying platform.</p>
                 </div>
                 <div className="px-6 py-5 space-y-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-sm">
                       <ShieldCheck className={`h-4 w-4 ${detail?.backups?.enabled ? 'text-green-500' : 'text-gray-400'}`} />
-                      <span className="font-medium text-gray-800 dark:text-gray-200">{detail?.backups?.enabled ? 'Backups Enabled' : 'Backups Disabled'}</span>
+                      <span className="font-medium ">{detail?.backups?.enabled ? 'Backups Enabled' : 'Backups Disabled'}</span>
                     </div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
                       {detail?.backups?.schedule
                         ? `Schedule: ${detail.backups.schedule.day ?? 'Any day'} · Window ${detail.backups.schedule.window ?? 'Automatic'}`
                         : 'No schedule data available'}
@@ -1593,7 +1593,7 @@ const VPSDetail: React.FC = () => {
                         </button>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                        <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Snapshot label</label>
+                        <label className="text-xs uppercase tracking-wide text-muted-foreground">Snapshot label</label>
                         <input
                           type="text"
                           value={snapshotLabel}
@@ -1613,7 +1613,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </div>
                     {!backupsEnabled && (
-                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
+                      <p className="mt-3 text-xs text-muted-foreground">
                         Manual snapshots require backups to be enabled. Toggle backups on to request a new snapshot.
                       </p>
                     )}
@@ -1622,20 +1622,20 @@ const VPSDetail: React.FC = () => {
                   <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                           <CalendarClock className="h-4 w-4 text-blue-500" />
                           Automated backup schedule
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                        <p className="text-xs text-muted-foreground">
                           Choose the preferred weekly snapshot day and two-hour window. Leave either field on auto to let the provider pick.
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                        <p className="text-xs text-muted-foreground">
                           Current provider selection: {normalizedOriginalDay ? normalizedOriginalDay : 'Auto'} · {normalizedOriginalWindow ? describeBackupWindow(normalizedOriginalWindow) : 'Auto'}
                         </p>
                       </div>
                       <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto">
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Preferred day</label>
+                          <label className="text-xs uppercase tracking-wide text-muted-foreground">Preferred day</label>
                           <select
                             value={scheduleDay}
                             onChange={event => setScheduleDay(event.target.value)}
@@ -1650,7 +1650,7 @@ const VPSDetail: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Backup window</label>
+                          <label className="text-xs uppercase tracking-wide text-muted-foreground">Backup window</label>
                           <select
                             value={scheduleWindow}
                             onChange={event => setScheduleWindow(event.target.value)}
@@ -1685,7 +1685,7 @@ const VPSDetail: React.FC = () => {
                       </button>
                     </div>
                     {!backupsEnabled && (
-                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">
+                      <p className="mt-3 text-xs text-muted-foreground">
                         Enable backups to configure the automated schedule.
                       </p>
                     )}
@@ -1701,17 +1701,17 @@ const VPSDetail: React.FC = () => {
                   )}
 
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Last successful backup</p>
-                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{detail?.backups?.lastSuccessful ? `${formatDateTime(detail.backups.lastSuccessful)} (${formatRelativeTime(detail.backups.lastSuccessful)})` : 'No successful backups recorded yet'}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Last successful backup</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{detail?.backups?.lastSuccessful ? `${formatDateTime(detail.backups.lastSuccessful)} (${formatRelativeTime(detail.backups.lastSuccessful)})` : 'No successful backups recorded yet'}</p>
                   </div>
 
                   <div className="space-y-4">
                     <div>
-                      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                         <Cloud className="h-4 w-4 text-blue-500" />
                         Automatic backups
                       </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Most recent restore points (up to 5 shown).</p>
+                      <p className="text-xs text-muted-foreground">Most recent restore points (up to 5 shown).</p>
                     </div>
                     {detail?.backups?.automatic && detail.backups.automatic.length > 0 ? (
                       <div className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
@@ -1724,13 +1724,13 @@ const VPSDetail: React.FC = () => {
                           return (
                             <div key={itemKey} className="flex flex-col gap-2 bg-white px-4 py-3 text-sm dark:bg-gray-900/60 sm:flex-row sm:items-center sm:justify-between">
                               <div>
-                                <p className="font-medium text-gray-900 dark:text-white">{backup.label || `Backup ${backupId ?? ''}`}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{backup.created ? `${formatDateTime(backup.created)} (${formatRelativeTime(backup.created)})` : 'Pending'}</p>
+                                <p className="font-medium text-foreground">{backup.label || `Backup ${backupId ?? ''}`}</p>
+                                <p className="text-xs text-muted-foreground">{backup.created ? `${formatDateTime(backup.created)} (${formatRelativeTime(backup.created)})` : 'Pending'}</p>
                               </div>
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                                 <div className="flex items-center gap-4">
                                   <span className={`text-xs font-semibold uppercase tracking-wide ${backup.available ? 'text-green-500' : 'text-amber-500'}`}>{backup.status || 'pending'}</span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatSizeFromMb(backup.totalSizeMb)}</span>
+                                  <span className="text-xs text-muted-foreground">{formatSizeFromMb(backup.totalSizeMb)}</span>
                                 </div>
                                 {restoreAvailable && (
                                   <button
@@ -1795,11 +1795,11 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'networking' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                     <Globe2 className="h-5 w-5 text-blue-500" />
                     Networking
                   </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Current IPv4/IPv6 assignments and routing details.</p>
+                  <p className="text-sm text-muted-foreground">Current IPv4/IPv6 assignments and routing details.</p>
                 </div>
                 <div className="px-6 py-5 space-y-8">
                   <div className="space-y-8">
@@ -1812,8 +1812,8 @@ const VPSDetail: React.FC = () => {
                               <Gauge className="h-5 w-5 text-blue-500" />
                             </div>
                             <div>
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Transfer utilisation</p>
-                              <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white truncate">{transferUsageTitle}</h3>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Transfer utilisation</p>
+                              <h3 className="mt-1 text-base font-semibold text-foreground truncate">{transferUsageTitle}</h3>
                             </div>
                           </div>
                           {hasTransferData && (
@@ -1822,9 +1822,9 @@ const VPSDetail: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-300 truncate">{transferUsageDescription}</p>
+                        <p className="text-xs text-muted-foreground truncate">{transferUsageDescription}</p>
                         <div>
-                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>{usageLabel}</span>
                             <span>
                               {hasTransferData ? `${usageUsedGb.toFixed(2)} GB of ${usageQuotaGb.toFixed(0)} GB` : 'Unavailable'}
@@ -1841,24 +1841,24 @@ const VPSDetail: React.FC = () => {
                           <>
                             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferUsedGb.toFixed(2)} GB</dd>
+                                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
+                                <dd className="mt-1 text-base font-semibold text-foreground">{transferUsedGb.toFixed(2)} GB</dd>
                               </div>
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
-                                <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
+                                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
+                                <dd className="mt-1 text-base font-semibold text-foreground">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
                               </div>
                               {!accountTransferInfo && (
                                 <>
                                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Available quota</dt>
-                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">Available quota</dt>
+                                    <dd className="mt-1 text-base font-semibold text-foreground">
                                       {usageRemainingGb !== null ? `${usageRemainingGb.toFixed(2)} GB` : '—'}
                                     </dd>
                                   </div>
                                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                    <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Billable</dt>
-                                    <dd className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{effectiveBillableGb.toFixed(2)} GB</dd>
+                                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">Billable</dt>
+                                    <dd className="mt-1 text-base font-semibold text-foreground">{effectiveBillableGb.toFixed(2)} GB</dd>
                                   </div>
                                 </>
                               )}
@@ -1871,7 +1871,7 @@ const VPSDetail: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Usage data unavailable.</p>
+                          <p className="text-xs text-muted-foreground">Usage data unavailable.</p>
                         )}
                       </div>
                     </div>
@@ -1880,31 +1880,31 @@ const VPSDetail: React.FC = () => {
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                       <div className="flex flex-col gap-6">
                         <div>
-                          <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+                          <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
                             <Network className="h-4 w-4 text-blue-500" />
                             Connectivity overview
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             Quick reference for address availability and DNS controls.
                           </p>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public IPv4</p>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{publicIpv4Count}</p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Public IPv4</p>
+                            <p className="mt-2 text-2xl font-semibold text-foreground">{publicIpv4Count}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
                           </div>
                           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Private IPv4</p>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{privateIpv4Count}</p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Internal networking</p>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Private IPv4</p>
+                            <p className="mt-2 text-2xl font-semibold text-foreground">{privateIpv4Count}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Internal networking</p>
                           </div>
                           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center dark:border-gray-800 dark:bg-gray-900/60">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">IPv6 SLAAC</p>
-                            <p className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">IPv6 SLAAC</p>
+                            <p className="mt-2 text-xl font-semibold text-foreground">
                               {hasSlaacIpv6 ? 'Available' : 'Not provisioned'}
                             </p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               {hasSlaacIpv6 ? 'rDNS adjustable in-place' : 'Automatic configuration pending'}
                             </p>
                           </div>
@@ -1916,8 +1916,8 @@ const VPSDetail: React.FC = () => {
                     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div>
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv4 assignments</h3>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Public and private allocations</p>
+                          <h3 className="text-sm font-semibold text-foreground">IPv4 assignments</h3>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Public and private allocations</p>
                         </div>
                         <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800/60 dark:text-gray-300">
                           {totalIpv4Count} {totalIpv4Count === 1 ? 'address' : 'addresses'}
@@ -1927,8 +1927,8 @@ const VPSDetail: React.FC = () => {
                         {ipv4Categories.map(category => (
                           <div key={category.label} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">{category.label}</p>
-                              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{category.addresses.length}</span>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{category.label}</p>
+                              <span className="text-xs font-semibold text-muted-foreground">{category.addresses.length}</span>
                             </div>
                             {category.addresses.length > 0 ? (
                               <ul className="space-y-3 text-sm text-gray-700 dark:text-gray-200">
@@ -1943,20 +1943,20 @@ const VPSDetail: React.FC = () => {
                                   return (
                                     <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-gray-900/60">
                                       <div className="flex items-center justify-between gap-2">
-                                        <span className="font-semibold text-gray-900 dark:text-white truncate" title={addr.address}>{addr.address}</span>
+                                        <span className="font-semibold text-foreground truncate" title={addr.address}>{addr.address}</span>
                                         {addr.prefix !== null && (
-                                          <span className="text-xs text-gray-500 dark:text-gray-300">/{addr.prefix}</span>
+                                          <span className="text-xs text-muted-foreground">/{addr.prefix}</span>
                                         )}
                                       </div>
-                                      <p className="text-xs text-gray-500 dark:text-gray-300">
+                                      <p className="text-xs text-muted-foreground">
                                         {formatStatusLabel(addr.type)} · {addr.public ? 'Public' : 'Private'}
                                         {addr.region ? ` · ${addr.region}` : ''}
                                       </p>
                                       {addr.gateway && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-300">Gateway: {addr.gateway}</p>
+                                        <p className="text-xs text-muted-foreground">Gateway: {addr.gateway}</p>
                                       )}
                                       {showRdnsInfo && (
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                           <span className="truncate">
                                             rDNS: {shouldDisplayRdns(currentValue, rdnsBaseDomain) ? currentValue : 'Setting up...'}
                                           </span>
@@ -2018,7 +2018,7 @@ const VPSDetail: React.FC = () => {
                                 })}
                               </ul>
                             ) : (
-                              <p className="text-xs text-gray-500 dark:text-gray-300">No addresses assigned.</p>
+                              <p className="text-xs text-muted-foreground">No addresses assigned.</p>
                             )}
                           </div>
                         ))}
@@ -2028,8 +2028,8 @@ const VPSDetail: React.FC = () => {
 
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div>
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">IPv6 assignments</h3>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider supplied ranges</p>
+                          <h3 className="text-sm font-semibold text-foreground">IPv6 assignments</h3>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Provider supplied ranges</p>
                         </div>
                         {hasSlaacIpv6 && (
                           <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
@@ -2042,14 +2042,14 @@ const VPSDetail: React.FC = () => {
                           <div className="grid gap-4 md:grid-cols-2">
                             {ipv6Info.slaac && (
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">SLAAC</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white truncate" title={ipv6Info.slaac.address ?? ''}>{ipv6Info.slaac.address}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
+                                <p className="text-xs uppercase tracking-wide text-muted-foreground">SLAAC</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground truncate" title={ipv6Info.slaac.address ?? ''}>{ipv6Info.slaac.address}</p>
+                                <p className="text-xs text-muted-foreground">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
                                 {ipv6Info.slaac.gateway && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.slaac.gateway}</p>
+                                  <p className="text-xs text-muted-foreground">Gateway: {ipv6Info.slaac.gateway}</p>
                                 )}
                                 {slaacAddress && (
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <span className="truncate">rDNS: {slaacCurrentValue || 'Not set'}</span>
                                     {slaacCurrentValue ? (
                                       <button
@@ -2111,18 +2111,18 @@ const VPSDetail: React.FC = () => {
                             )}
                             {ipv6Info.linkLocal && (
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Link-local</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white truncate" title={ipv6Info.linkLocal.address ?? ''}>{ipv6Info.linkLocal.address}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Prefix /{ipv6Info.linkLocal.prefix ?? '—'}</p>
+                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Link-local</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground truncate" title={ipv6Info.linkLocal.address ?? ''}>{ipv6Info.linkLocal.address}</p>
+                                <p className="text-xs text-muted-foreground">Prefix /{ipv6Info.linkLocal.prefix ?? '—'}</p>
                                 {ipv6Info.linkLocal.gateway && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Gateway: {ipv6Info.linkLocal.gateway}</p>
+                                  <p className="text-xs text-muted-foreground">Gateway: {ipv6Info.linkLocal.gateway}</p>
                                 )}
                               </div>
                             )}
                           </div>
                           {(ipv6Info.global ?? []).length > 0 && (
                             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global prefixes</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Global prefixes</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                                 {(ipv6Info.global ?? []).map((range, index) => (
                                   <li key={`global-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
@@ -2136,7 +2136,7 @@ const VPSDetail: React.FC = () => {
                           )}
                           {(ipv6Info.ranges ?? []).length > 0 && (
                             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Ranged allocations</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ranged allocations</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                                 {(ipv6Info.ranges ?? []).map((range, index) => (
                                   <li key={`range-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
@@ -2150,7 +2150,7 @@ const VPSDetail: React.FC = () => {
                           )}
                           {(ipv6Info.pools ?? []).length > 0 && (
                             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Pool assignments</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pool assignments</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                                 {(ipv6Info.pools ?? []).map((pool, index) => (
                                   <li key={`pool-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/60">
@@ -2164,7 +2164,7 @@ const VPSDetail: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No IPv6 assignments reported by the provider.</p>
+                        <p className="mt-2 text-xs text-muted-foreground">No IPv6 assignments reported by the provider.</p>
                       )}
                     </div>
                   </div>
@@ -2175,8 +2175,8 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'activity' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Provider Activity Feed</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Recent VPS events for this instance.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Provider Activity Feed</h2>
+                  <p className="text-sm text-muted-foreground">Recent VPS events for this instance.</p>
                 </div>
                 <div className="px-6 py-5">
                   {eventFeed.length > 0 ? (
@@ -2184,13 +2184,13 @@ const VPSDetail: React.FC = () => {
                       {eventFeed.map(event => (
                         <div key={event.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatEventAction(event.action)}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{event.message || 'No additional details provided.'}</p>
+                            <p className="text-sm font-semibold text-foreground">{formatEventAction(event.action)}</p>
+                            <p className="text-xs text-muted-foreground">{event.message || 'No additional details provided.'}</p>
                             {event.entityLabel && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Entity: {event.entityLabel}</p>
+                              <p className="text-xs text-muted-foreground">Entity: {event.entityLabel}</p>
                             )}
                           </div>
-                          <div className="flex flex-col items-start gap-1 text-xs text-gray-500 dark:text-gray-400 sm:items-end">
+                          <div className="flex flex-col items-start gap-1 text-xs text-muted-foreground sm:items-end">
                             <span>{formatDateTime(event.created)}</span>
                             {event.username && <span>By {event.username}</span>}
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${statusBadgeClasses(event.status)}`}>
@@ -2215,15 +2215,15 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'firewall' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Firewall Management</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Firewalls attached to this instance and their rule summaries.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Firewall Management</h2>
+                  <p className="text-sm text-muted-foreground">Firewalls attached to this instance and their rule summaries.</p>
                 </div>
                 <div className="px-6 py-5 space-y-4">
                   <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Attach existing firewall</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-300">Assign a firewall from your catalogue to this server.</p>
+                        <h3 className="text-sm font-semibold text-foreground">Attach existing firewall</h3>
+                        <p className="text-xs text-muted-foreground">Assign a firewall from your catalogue to this server.</p>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <select
@@ -2251,7 +2251,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </div>
                     {availableFirewallOptions.length === 0 && (
-                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-300">No unattached firewalls were returned by the provider.</p>
+                      <p className="mt-3 text-xs text-muted-foreground">No unattached firewalls were returned by the provider.</p>
                     )}
                   </div>
 
@@ -2264,8 +2264,8 @@ const VPSDetail: React.FC = () => {
                         <div key={firewall.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-gray-900 dark:text-white">{firewall.label || `Firewall ${firewall.id}`}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                              <p className="text-base font-semibold text-foreground">{firewall.label || `Firewall ${firewall.id}`}</p>
+                              <p className="text-xs text-muted-foreground">
                                 {firewall.created ? `Created ${formatDateTime(firewall.created)}` : 'Creation date unknown'}
                               </p>
                               {firewall.tags.length > 0 && (
@@ -2278,7 +2278,7 @@ const VPSDetail: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-col items-start gap-1 text-xs text-gray-500 dark:text-gray-400 sm:items-end">
+                            <div className="flex flex-col items-start gap-1 text-xs text-muted-foreground sm:items-end">
                               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${statusBadgeClasses(firewall.status)}`}>
                                 {formatStatusLabel(firewall.status)}
                               </span>
@@ -2303,7 +2303,7 @@ const VPSDetail: React.FC = () => {
                           </div>
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <div>
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Inbound rules ({inbound.length})</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Inbound rules ({inbound.length})</p>
                               {inbound.length > 0 ? (
                                 <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                                   {inbound.slice(0, 5).map((rule, index) => (
@@ -2319,11 +2319,11 @@ const VPSDetail: React.FC = () => {
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No inbound rules.</p>
+                                <p className="mt-2 text-xs text-muted-foreground">No inbound rules.</p>
                               )}
                             </div>
                             <div>
-                              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Outbound rules ({outbound.length})</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Outbound rules ({outbound.length})</p>
                               {outbound.length > 0 ? (
                                 <ul className="mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                                   {outbound.slice(0, 5).map((rule, index) => (
@@ -2339,7 +2339,7 @@ const VPSDetail: React.FC = () => {
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No outbound rules.</p>
+                                <p className="mt-2 text-xs text-muted-foreground">No outbound rules.</p>
                               )}
                             </div>
                           </div>
@@ -2358,8 +2358,8 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'metrics' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detailed Metrics</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Last reported utilisation from the infrastructure provider.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Detailed Metrics</h2>
+                  <p className="text-sm text-muted-foreground">Last reported utilisation from the infrastructure provider.</p>
                 </div>
                 <div className="px-6 py-5 space-y-6">
                   {detail?.metrics ? (
@@ -2372,30 +2372,30 @@ const VPSDetail: React.FC = () => {
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">CPU</p>
-                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">CPU</p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
+                          <p className="text-xs text-muted-foreground">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Network (inbound)</p>
-                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Network (inbound)</p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
+                          <p className="text-xs text-muted-foreground">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Network (outbound)</p>
-                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Network (outbound)</p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
+                          <p className="text-xs text-muted-foreground">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Disk I/O</p>
-                          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'} · Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'}</p>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Disk I/O</p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
+                          <p className="text-xs text-muted-foreground">Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'} · Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'}</p>
                         </div>
                       </div>
 
                       <div className="grid gap-6 lg:grid-cols-2">
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">CPU timeline</h3>
+                          <h3 className="text-sm font-semibold text-foreground">CPU timeline</h3>
                           {cpuSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                               {cpuSeries.slice(-20).reverse().map(point => (
@@ -2406,11 +2406,11 @@ const VPSDetail: React.FC = () => {
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No CPU samples recorded.</p>
+                            <p className="mt-2 text-xs text-muted-foreground">No CPU samples recorded.</p>
                           )}
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Network throughput</h3>
+                          <h3 className="text-sm font-semibold text-foreground">Network throughput</h3>
                           {inboundSeries.length + outboundSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                               {inboundSeries.slice(-6).reverse().map(point => (
@@ -2439,11 +2439,11 @@ const VPSDetail: React.FC = () => {
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No network samples recorded.</p>
+                            <p className="mt-2 text-xs text-muted-foreground">No network samples recorded.</p>
                           )}
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Disk reads</h3>
+                          <h3 className="text-sm font-semibold text-foreground">Disk reads</h3>
                           {ioSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                               {ioSeries.slice(-8).reverse().map(point => (
@@ -2454,11 +2454,11 @@ const VPSDetail: React.FC = () => {
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No disk samples recorded.</p>
+                            <p className="mt-2 text-xs text-muted-foreground">No disk samples recorded.</p>
                           )}
                         </div>
                         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/60">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Swap activity</h3>
+                          <h3 className="text-sm font-semibold text-foreground">Swap activity</h3>
                           {swapSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-300">
                               {swapSeries.slice(-8).reverse().map(point => (
@@ -2469,7 +2469,7 @@ const VPSDetail: React.FC = () => {
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No swap samples recorded.</p>
+                            <p className="mt-2 text-xs text-muted-foreground">No swap samples recorded.</p>
                           )}
                         </div>
                       </div>
@@ -2486,11 +2486,11 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'ssh' && (
               <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
                 <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                  <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                     <TerminalIcon className="h-5 w-5 text-blue-500" />
                     SSH Console
                   </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Single sign-on web shell into this VPS instance.</p>
+                  <p className="text-sm text-muted-foreground">Single sign-on web shell into this VPS instance.</p>
                 </div>
                 <div className="px-6 py-5 space-y-4">
                   <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -2505,7 +2505,7 @@ const VPSDetail: React.FC = () => {
                       <TerminalIcon className="h-4 w-4" />
                       Open SSH Console
                     </button>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Sessions auto-authenticate using your current account token.</span>
+                    <span className="text-xs text-muted-foreground">Sessions auto-authenticate using your current account token.</span>
                   </div>
                   {!detail?.id && (
                     <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
@@ -2521,48 +2521,48 @@ const VPSDetail: React.FC = () => {
           <aside className="w-full xl:w-80 2xl:w-96 flex-shrink-0">
             <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
               <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 dark:border-gray-800">
-                <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
                   <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                   Provider Telemetry
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Details reported by the infrastructure provider.</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Details reported by the infrastructure provider.</p>
               </div>
               <div className="px-6 sm:px-8 py-6 sm:py-8 space-y-6 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
-                <p className="text-xs text-gray-500 dark:text-gray-300">
+                <p className="text-xs text-muted-foreground">
                   The following IP details are reported directly by the cloud provider and may include public and private reachability.
                 </p>
                 <div className="space-y-4 sm:space-y-5">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">Image</span>
-                    <span className="font-medium text-gray-900 dark:text-white break-words sm:text-right">{providerImageLabel}</span>
+                    <span className="text-muted-foreground">Image</span>
+                    <span className="font-medium text-foreground break-words sm:text-right">{providerImageLabel}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">Provider status</span>
-                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{detail?.provider ? detail.provider.status : 'Unavailable'}</span>
+                    <span className="text-muted-foreground">Provider status</span>
+                    <span className="font-medium text-foreground sm:text-right">{detail?.provider ? detail.provider.status : 'Unavailable'}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">Region code</span>
-                    <span className="font-medium text-gray-900 dark:text-white break-words sm:text-right">{detail?.provider?.region || detail?.region || '—'}</span>
+                    <span className="text-muted-foreground">Region code</span>
+                    <span className="font-medium text-foreground break-words sm:text-right">{detail?.provider?.region || detail?.region || '—'}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">Created</span>
-                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{formatDateTime(detail?.provider?.created || null)}</span>
+                    <span className="text-muted-foreground">Created</span>
+                    <span className="font-medium text-foreground sm:text-right">{formatDateTime(detail?.provider?.created || null)}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">Last update</span>
-                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{formatDateTime(detail?.provider?.updated || null)}</span>
+                    <span className="text-muted-foreground">Last update</span>
+                    <span className="font-medium text-foreground sm:text-right">{formatDateTime(detail?.provider?.updated || null)}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">rDNS edits</span>
-                    <span className="font-medium text-gray-900 dark:text-white sm:text-right">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
+                    <span className="text-muted-foreground">rDNS edits</span>
+                    <span className="font-medium text-foreground sm:text-right">{rdnsEditable ? 'Allowed' : 'Read-only'}</span>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-500 dark:text-gray-300">IPv4 rDNS</span>
+                    <span className="text-muted-foreground">IPv4 rDNS</span>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       {shouldDisplayRdns(primaryIpv4Rdns, rdnsBaseDomain) ? (
                         <>
                           <span
-                            className="max-w-full truncate font-medium text-gray-900 dark:text-white sm:max-w-[220px] sm:text-right"
+                            className="max-w-full truncate font-medium text-foreground sm:max-w-[220px] sm:text-right"
                             title={primaryIpv4Rdns ?? 'Not set'}
                           >
                             {primaryIpv4Rdns}
@@ -2577,16 +2577,16 @@ const VPSDetail: React.FC = () => {
                           </button>
                         </>
                       ) : (
-                        <span className="italic text-gray-500 dark:text-gray-400">Setting up...</span>
+                        <span className="italic text-muted-foreground">Setting up...</span>
                       )}
                     </div>
                   </div>
                   {slaacAddress ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-gray-500 dark:text-gray-300">IPv6 rDNS</span>
+                      <span className="text-muted-foreground">IPv6 rDNS</span>
                       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                         <span
-                          className="max-w-full truncate font-medium text-gray-900 dark:text-white sm:max-w-[220px] sm:text-right"
+                          className="max-w-full truncate font-medium text-foreground sm:max-w-[220px] sm:text-right"
                           title={slaacCurrentValue || 'Not set'}
                         >
                           {slaacCurrentValue || 'Not set'}
@@ -2607,7 +2607,7 @@ const VPSDetail: React.FC = () => {
                 </div>
                 {detail?.provider?.ipv4?.length || providerIpv6Address ? (
                   <div className="space-y-2">
-                    <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300">Provider IP addresses</span>
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground">Provider IP addresses</span>
                     <ul className="space-y-2 text-xs text-gray-600 dark:text-gray-200">
                       {(detail.provider?.ipv4 ?? []).map(ip => {
                         const classification = classifyProviderIpv4(ip);
@@ -2620,7 +2620,7 @@ const VPSDetail: React.FC = () => {
                           <li key={ip} className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800">
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-gray-700 dark:text-gray-100" title={ip}>{ip}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-300">({descriptor}, provider assigned)</p>
+                              <p className="text-xs text-muted-foreground">({descriptor}, provider assigned)</p>
                             </div>
                             <button
                               type="button"
@@ -2637,7 +2637,7 @@ const VPSDetail: React.FC = () => {
                         <li className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800">
                           <div className="min-w-0">
                             <p className="break-all font-semibold text-gray-700 dark:text-gray-100" title={providerIpv6Address}>{providerIpv6Address}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-300">(ipv6 slaac, provider assigned)</p>
+                            <p className="text-xs text-muted-foreground">(ipv6 slaac, provider assigned)</p>
                           </div>
                           <button
                             type="button"
@@ -2673,7 +2673,7 @@ const VPSDetail: React.FC = () => {
               onClick={event => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                   <TerminalIcon className="h-5 w-5 text-blue-500" />
                   SSH Console
                   {sshFullScreen && <span className="text-sm font-normal text-gray-500">(Full Screen)</span>}

@@ -921,22 +921,22 @@ const Admin: React.FC = () => {
   const filteredTickets = tickets.filter(t => (statusFilter === 'all' ? true : t.status === statusFilter));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Manage support tickets and VPS plans</p>
+            <h1 className="text-2xl font-semibold text-foreground">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Manage support tickets and VPS plans</p>
           </div>
           <Settings className="h-6 w-6 text-gray-400 dark:text-gray-500" />
         </div>
 
-        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="mb-6 border-b border">
           <nav className="-mb-px flex space-x-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('tickets')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'tickets' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'tickets' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <Ticket className="h-4 w-4 inline mr-2" /> Tickets
@@ -944,7 +944,7 @@ const Admin: React.FC = () => {
             <button
               onClick={() => setActiveTab('plans')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'plans' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'plans' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <DollarSign className="h-4 w-4 inline mr-2" /> VPS Plans
@@ -952,7 +952,7 @@ const Admin: React.FC = () => {
             <button
               onClick={() => setActiveTab('stackscripts')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'stackscripts' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'stackscripts' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <FileCode className="h-4 w-4 inline mr-2" /> StackScripts
@@ -960,7 +960,7 @@ const Admin: React.FC = () => {
             <button
               onClick={() => setActiveTab('containers')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'containers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'containers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <Server className="h-4 w-4 inline mr-2" /> Container Plans
@@ -968,7 +968,7 @@ const Admin: React.FC = () => {
             <button
               onClick={() => setActiveTab('networking')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'networking' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'networking' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <Globe className="h-4 w-4 inline mr-2" /> Networking
@@ -976,7 +976,7 @@ const Admin: React.FC = () => {
             <button
               onClick={() => setActiveTab('providers')}
               className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'providers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                activeTab === 'providers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <Settings className="h-4 w-4 inline mr-2" /> Providers
@@ -985,17 +985,17 @@ const Admin: React.FC = () => {
         </div>
 
         {activeTab === 'tickets' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <ClipboardList className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Support Tickets</h2>
+                <h2 className="text-lg font-medium text-foreground">Support Tickets</h2>
               </div>
               <div>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  className="rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                 >
                   <option value="all">All Status</option>
                   <option value="open">Open</option>
@@ -1008,9 +1008,9 @@ const Admin: React.FC = () => {
             <div className="px-6 py-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                  <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <ul className="divide-y divide-border">
                     {filteredTickets.length === 0 ? (
-                      <li className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No tickets found</li>
+                      <li className="px-4 py-10 text-center text-muted-foreground">No tickets found</li>
                     ) : (
                       filteredTickets.map(t => (
                         <li key={t.id}>
@@ -1020,13 +1020,13 @@ const Admin: React.FC = () => {
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <div className="font-medium text-gray-900 dark:text-white">{t.subject}</div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">{t.category} • {new Date(t.created_at).toLocaleString()}</div>
+                                <div className="font-medium text-foreground">{t.subject}</div>
+                                <div className="text-sm text-muted-foreground">{t.category} • {new Date(t.created_at).toLocaleString()}</div>
                               </div>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 t.status === 'open' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
                                 t.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                                t.status === 'resolved' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                                t.status === 'resolved' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-secondary '
                               }`}>
                                 {t.status.replace('_', ' ')}
                               </span>
@@ -1039,46 +1039,46 @@ const Admin: React.FC = () => {
                 </div>
                 <div>
                   {!selectedTicket ? (
-                    <div className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    <div className="px-4 py-10 text-center text-muted-foreground">
                       Select a ticket to view details
                     </div>
                   ) : (
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-md">
-                      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <div className="border border rounded-md">
+                      <div className="px-4 py-3 border-b border">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">{selectedTicket.subject}</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">{selectedTicket.category}</div>
+                            <div className="text-lg font-semibold text-foreground">{selectedTicket.subject}</div>
+                            <div className="text-sm text-muted-foreground">{selectedTicket.category}</div>
                           </div>
                           <div className="flex items-center gap-2">
                             {selectedTicket.status !== 'open' && (
                               <button
-                                className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
+                                className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-secondary text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
                                 onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
                               >
                                 <RefreshCw className="h-4 w-4 mr-1" /> Re-open
                               </button>
                             )}
                             <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                               onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
                             >
                               <AlertCircle className="h-4 w-4 mr-1" /> In Progress
                             </button>
                             <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                               onClick={() => updateTicketStatus(selectedTicket.id, 'resolved')}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" /> Resolve
                             </button>
                             <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                               onClick={() => closeTicket(selectedTicket.id)}
                             >
                               <X className="h-4 w-4 mr-1" /> Close
                             </button>
                             <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900"
+                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-secondary hover:bg-red-50 dark:hover:bg-red-900"
                               onClick={() => setDeleteTicketId(selectedTicket.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-1" /> Delete
@@ -1087,14 +1087,14 @@ const Admin: React.FC = () => {
                         </div>
                       </div>
                       <div className="px-4 py-3 space-y-3">
-                        <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedTicket.message}</div>
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedTicket.message}</div>
                         {/* Replies thread */}
                         <div className="max-h-96 overflow-y-auto">
                           <div className="space-y-3">
                             {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
                               selectedTicket.messages.map((m) => (
                                 <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
+                                  <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-secondary text-foreground'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
                                     <div className="text-xs opacity-80 mb-1">
                                       <span className="font-medium mr-2">{m.sender_name}</span>
                                       <span>{new Date(m.created_at).toLocaleString()}</span>
@@ -1104,16 +1104,16 @@ const Admin: React.FC = () => {
                                 </div>
                               ))
                             ) : (
-                              <div className="text-sm text-gray-500 dark:text-gray-400">No replies yet</div>
+                              <div className="text-sm text-muted-foreground">No replies yet</div>
                             )}
                             {/* Auto-scroll anchor */}
                             <div ref={messagesEndRef} />
                           </div>
                         </div>
-                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reply</label>
+                        <div className="pt-3 border-t border">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">Reply</label>
                           <textarea
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                             rows={3}
                             value={replyMessage}
                             onChange={(e) => setReplyMessage(e.target.value)}
@@ -1129,7 +1129,7 @@ const Admin: React.FC = () => {
                             </button>
                             <button
                               onClick={() => setSelectedTicket(null)}
-                              className="ml-2 inline-flex items-center px-4 py-2 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                              className="ml-2 inline-flex items-center px-4 py-2 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                             >
                               Cancel
                             </button>
@@ -1145,11 +1145,11 @@ const Admin: React.FC = () => {
         )}
 
         {activeTab === 'plans' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">VPS Plans</h2>
+                <h2 className="text-lg font-medium text-foreground">VPS Plans</h2>
               </div>
               <button
                 onClick={() => setShowAddVPSPlan(true)}
@@ -1161,21 +1161,21 @@ const Admin: React.FC = () => {
             </div>
             <div className="px-6 py-4">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Provider Plan ID</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Base Price</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Markup Price</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider Plan ID</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Base Price</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Markup Price</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
                       <th className="px-4 py-2"></th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-card divide-y divide-border">
                     {plans.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No plans available</td>
+                        <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No plans available</td>
                       </tr>
                     ) : (
                       plans.map(plan => (
@@ -1184,26 +1184,26 @@ const Admin: React.FC = () => {
                             {editPlanId === plan.id ? (
                               <input
                                 type="text"
-                                className="w-64 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                className="w-64 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                                 value={(editPlan.name as string | undefined) ?? plan.name}
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, name: e.target.value }))}
                               />
                             ) : (
-                              <span className="text-sm text-gray-900 dark:text-white">{plan.name}</span>
+                              <span className="text-sm text-foreground">{plan.name}</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{plan.provider_plan_id}</td>
+                          <td className="px-4 py-2 text-sm text-muted-foreground">{plan.provider_plan_id}</td>
                           <td className="px-4 py-2">
                             {editPlanId === plan.id ? (
                               <input
                                 type="number"
                                 step="0.01"
-                                className="w-28 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                className="w-28 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                                 value={editPlan.base_price as number | undefined ?? plan.base_price}
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
                               />
                             ) : (
-                              <span className="text-sm text-gray-700 dark:text-gray-300">${Number(plan.base_price).toFixed(2)}</span>
+                              <span className="text-sm text-muted-foreground">${Number(plan.base_price).toFixed(2)}</span>
                             )}
                           </td>
                           <td className="px-4 py-2">
@@ -1211,18 +1211,18 @@ const Admin: React.FC = () => {
                               <input
                                 type="number"
                                 step="0.01"
-                                className="w-28 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                className="w-28 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                                 value={editPlan.markup_price as number | undefined ?? plan.markup_price}
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, markup_price: parseFloat(e.target.value) }))}
                               />
                             ) : (
-                              <span className="text-sm text-gray-700 dark:text-gray-300">${Number(plan.markup_price).toFixed(2)}</span>
+                              <span className="text-sm text-muted-foreground">${Number(plan.markup_price).toFixed(2)}</span>
                             )}
                           </td>
                           <td className="px-4 py-2">
                             {editPlanId === plan.id ? (
                               <select
-                                className="rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                className="rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                                 value={(editPlan.active as boolean | undefined ?? plan.active) ? 'true' : 'false'}
                                 onChange={(e) => setEditPlan(prev => ({ ...prev, active: e.target.value === 'true' }))}
                               >
@@ -1230,7 +1230,7 @@ const Admin: React.FC = () => {
                                 <option value="false">Inactive</option>
                               </select>
                             ) : (
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${plan.active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${plan.active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-secondary '}`}>
                                 {plan.active ? 'Active' : 'Inactive'}
                               </span>
                             )}
@@ -1246,7 +1246,7 @@ const Admin: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={() => { setEditPlanId(null); setEditPlan({}); }}
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                                 >
                                   Cancel
                                 </button>
@@ -1255,13 +1255,13 @@ const Admin: React.FC = () => {
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => { setEditPlanId(plan.id); setEditPlan({ name: plan.name, base_price: plan.base_price, markup_price: plan.markup_price, active: plan.active }); }}
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
                                 >
                                   <Edit className="h-4 w-4 mr-1" /> Edit
                                 </button>
                                 <button
                                   onClick={() => setDeletePlanId(plan.id)}
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900"
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-secondary hover:bg-red-50 dark:hover:bg-red-900"
                                 >
                                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                                 </button>
@@ -1278,30 +1278,30 @@ const Admin: React.FC = () => {
               {/* Add New VPS Plan Modal */}
               {showAddVPSPlan && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                  <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-600 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                  <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
                     <div className="mt-3">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New VPS Plan</h3>
+                      <h3 className="text-lg font-medium text-foreground mb-4">Add New VPS Plan</h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
                             Name
                           </label>
                           <input
                             type="text"
                             value={newVPSPlan.name}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                             placeholder="e.g. US-East 4GB Standard"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
                             Linode Plan Type
                           </label>
                           <select
                             value={newVPSPlan.selectedType}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, selectedType: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                           >
                             <option value="">Select a plan type</option>
                             {linodeTypes.map(type => (
@@ -1313,13 +1313,13 @@ const Admin: React.FC = () => {
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
                             Region
                           </label>
                           <select
                             value={newVPSPlan.selectedRegion}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, selectedRegion: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                             disabled={allowedLinodeRegions.length === 0}
                           >
                             <option value="">Select a region</option>
@@ -1330,12 +1330,12 @@ const Admin: React.FC = () => {
                             ))}
                           </select>
                           {allowedLinodeRegions.length === 0 && (
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No regions available. Check Linode API token or network.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">No regions available. Check Linode API token or network.</p>
                           )}
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
                             Markup Price (USD)
                           </label>
                           <input
@@ -1344,7 +1344,7 @@ const Admin: React.FC = () => {
                             min="0"
                             value={newVPSPlan.markupPrice}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, markupPrice: parseFloat(e.target.value) || 0 }))}
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                             placeholder="0.00"
                           />
                         </div>
@@ -1355,9 +1355,9 @@ const Admin: React.FC = () => {
                             id="active"
                             checked={newVPSPlan.active}
                             onChange={(e) => setNewVPSPlan(prev => ({ ...prev, active: e.target.checked }))}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border rounded"
                           />
-                          <label htmlFor="active" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                          <label htmlFor="active" className="ml-2 block text-sm text-foreground">
                             Active
                           </label>
                         </div>
@@ -1375,7 +1375,7 @@ const Admin: React.FC = () => {
                               active: true
                             });
                           }}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                         >
                           Cancel
                         </button>
@@ -1396,21 +1396,21 @@ const Admin: React.FC = () => {
         )}
 
         {activeTab === 'stackscripts' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <FileCode className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Manage StackScripts</h2>
+                <h2 className="text-lg font-medium text-foreground">Manage StackScripts</h2>
               </div>
               <button
                 onClick={fetchStackscriptsAndConfigs}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
               >
                 <RefreshCw className="h-4 w-4 inline mr-1" /> Refresh
               </button>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Configure which Linode StackScripts appear on the VPS creation page. Only enabled scripts will be shown to users.
               </p>
               
@@ -1421,7 +1421,7 @@ const Admin: React.FC = () => {
                   placeholder="Search StackScripts..."
                   value={stackscriptSearch}
                   onChange={(e) => setStackscriptSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground"
                 />
               </div>
 
@@ -1445,7 +1445,7 @@ const Admin: React.FC = () => {
                     const isNew = !config;
 
                     return (
-                      <div key={script.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div key={script.id} className="border border rounded-lg p-4">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                           {/* Checkbox and badge */}
                           <div className="lg:col-span-1 flex items-center gap-2">
@@ -1468,7 +1468,7 @@ const Admin: React.FC = () => {
                           {/* Script info and inputs */}
                           <div className="lg:col-span-9 space-y-3">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Display Label</label>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Display Label</label>
                               <input
                                 type="text"
                                 value={draft.label}
@@ -1477,11 +1477,11 @@ const Admin: React.FC = () => {
                                   setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
                                 }}
                                 placeholder={script.label}
-                                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="w-full px-3 py-1.5 text-sm border border rounded-md bg-secondary text-foreground"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
                               <input
                                 type="text"
                                 value={draft.description}
@@ -1490,10 +1490,10 @@ const Admin: React.FC = () => {
                                   setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
                                 }}
                                 placeholder={script.description || 'No description'}
-                                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="w-full px-3 py-1.5 text-sm border border rounded-md bg-secondary text-foreground"
                               />
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs text-muted-foreground">
                               ID: {script.id} • Images: {script.images?.map((img: string) => img.replace(/^linode\//i, '')).join(', ') || 'Any'}
                             </div>
                           </div>
@@ -1501,7 +1501,7 @@ const Admin: React.FC = () => {
                           {/* Display order and save button */}
                           <div className="lg:col-span-2 flex flex-col gap-2">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Order</label>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Order</label>
                               <input
                                 type="number"
                                 value={draft.display_order}
@@ -1509,7 +1509,7 @@ const Admin: React.FC = () => {
                                   const updated = { ...draft, display_order: Number(e.target.value) };
                                   setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
                                 }}
-                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="w-full px-2 py-1 text-sm border border rounded-md bg-secondary text-foreground"
                               />
                             </div>
                             <button
@@ -1517,7 +1517,7 @@ const Admin: React.FC = () => {
                               disabled={savingStackscriptId === script.id || (!hasChanges && !isNew)}
                               className={`px-3 py-1.5 text-sm font-medium rounded-md ${
                                 hasChanges || isNew
-                                  ? 'text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+                                  ? 'text-white bg-primary hover:bg-primary/90'
                                   : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
                               }`}
                             >
@@ -1534,81 +1534,81 @@ const Admin: React.FC = () => {
         )}
 
         {activeTab === 'containers' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Server className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Container Pricing & Plans</h2>
+                <h2 className="text-lg font-medium text-foreground">Container Pricing & Plans</h2>
               </div>
             </div>
             <div className="px-6 py-4 space-y-6">
               <div>
-                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">Pricing Configuration</h3>
+                <h3 className="text-md font-medium text-foreground mb-3">Pricing Configuration</h3>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per CPU</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={pricing.price_per_cpu}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per CPU</label>
+                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_cpu}
                       onChange={e => setPricing(p => ({ ...p, price_per_cpu: Number(e.target.value) }))} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per RAM GB</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={pricing.price_per_ram_gb}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per RAM GB</label>
+                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_ram_gb}
                       onChange={e => setPricing(p => ({ ...p, price_per_ram_gb: Number(e.target.value) }))} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per Storage GB</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={pricing.price_per_storage_gb}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per Storage GB</label>
+                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_storage_gb}
                       onChange={e => setPricing(p => ({ ...p, price_per_storage_gb: Number(e.target.value) }))} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per Mbps</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={pricing.price_per_network_mbps}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per Mbps</label>
+                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_network_mbps}
                       onChange={e => setPricing(p => ({ ...p, price_per_network_mbps: Number(e.target.value) }))} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
-                    <input className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={pricing.currency}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Currency</label>
+                    <input className="w-full rounded-md border bg-secondary text-foreground" value={pricing.currency}
                       onChange={e => setPricing(p => ({ ...p, currency: e.target.value }))} />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <button className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600" onClick={savePricing}>Save Pricing</button>
+                  <button className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80" onClick={savePricing}>Save Pricing</button>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-md font-medium text-gray-900 dark:text-white">Container Plans</h3>
+                  <h3 className="text-md font-medium text-foreground">Container Plans</h3>
                 </div>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-700 mb-4">
+                <div className="border border rounded-md p-4 bg-muted mb-4">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                      <input className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" placeholder="Plan name" value={newContainerPlan.name as string}
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
+                      <input className="w-full rounded-md border bg-card text-foreground" placeholder="Plan name" value={newContainerPlan.name as string}
                         onChange={e => setNewContainerPlan(p => ({ ...p, name: e.target.value }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">CPU Cores</label>
-                      <input type="number" min={1} className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" placeholder="1" value={newContainerPlan.cpu_cores as number}
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">CPU Cores</label>
+                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="1" value={newContainerPlan.cpu_cores as number}
                         onChange={e => setNewContainerPlan(p => ({ ...p, cpu_cores: Number(e.target.value) }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">RAM (GB)</label>
-                      <input type="number" min={1} className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" placeholder="1" value={newContainerPlan.ram_gb as number}
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">RAM (GB)</label>
+                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="1" value={newContainerPlan.ram_gb as number}
                         onChange={e => setNewContainerPlan(p => ({ ...p, ram_gb: Number(e.target.value) }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Storage (GB)</label>
-                      <input type="number" min={1} className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" placeholder="10" value={newContainerPlan.storage_gb as number}
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Storage (GB)</label>
+                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="10" value={newContainerPlan.storage_gb as number}
                         onChange={e => setNewContainerPlan(p => ({ ...p, storage_gb: Number(e.target.value) }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Network (Mbps)</label>
-                      <input type="number" min={0} className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" placeholder="0" value={newContainerPlan.network_mbps as number}
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Network (Mbps)</label>
+                      <input type="number" min={0} className="w-full rounded-md border bg-card text-foreground" placeholder="0" value={newContainerPlan.network_mbps as number}
                         onChange={e => setNewContainerPlan(p => ({ ...p, network_mbps: Number(e.target.value) }))} />
                     </div>
                     <div className="flex items-end">
-                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700" onClick={createContainerPlan}>
+                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700" onClick={createContainerPlan}>
                         <Plus className="h-4 w-4 mr-1" /> Add Plan
                       </button>
                     </div>
@@ -1616,33 +1616,33 @@ const Admin: React.FC = () => {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">CPU</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">RAM</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Storage</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Network</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">CPU</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RAM</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Storage</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Network</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Price</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
                         <th className="px-4 py-2"></th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-card divide-y divide-border">
                       {containerPlans.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No container plans</td>
+                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No container plans</td>
                         </tr>
                       ) : (
                         containerPlans.map(p => (
                           <tr key={p.id}>
-                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{p.name}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.cpu_cores}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.ram_gb} GB</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.storage_gb} GB</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{p.network_mbps} Mbps</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${computeContainerPlanPrice(p).toFixed(2)}</td>
+                            <td className="px-4 py-2 text-sm text-foreground">{p.name}</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.cpu_cores}</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.ram_gb} GB</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.storage_gb} GB</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.network_mbps} Mbps</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">${computeContainerPlanPrice(p).toFixed(2)}</td>
                             <td className="px-4 py-2 text-sm">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{p.active ? 'Active' : 'Inactive'}</span>
                             </td>
@@ -1650,13 +1650,13 @@ const Admin: React.FC = () => {
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => { setEditContainerPlanId(p.id); setEditContainerPlan(p); }}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700"
                                 >
                                   <Edit className="h-3 w-3 mr-1" /> Edit
                                 </button>
                                 <button
                                   onClick={() => setDeleteContainerPlanId(p.id)}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20"
                                 >
                                   <Trash2 className="h-3 w-3 mr-1" /> Delete
                                 </button>
@@ -1674,21 +1674,21 @@ const Admin: React.FC = () => {
         )}
 
         {activeTab === 'networking' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Globe className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Networking</h2>
+                <h2 className="text-lg font-medium text-foreground">Networking</h2>
               </div>
             </div>
             <div className="px-6 py-4">
               {/* Subtabs */}
-              <div className="mb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="mb-4 border-b border">
                 <nav className="-mb-px flex space-x-4" aria-label="Networking Tabs">
                   <button
                     onClick={() => setNetworkingTab('rdns')}
                     className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${
-                      networkingTab === 'rdns' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                      networkingTab === 'rdns' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
                     rDNS
@@ -1699,8 +1699,8 @@ const Admin: React.FC = () => {
               {networkingTab === 'rdns' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">Reverse DNS Template</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <h3 className="text-md font-medium text-foreground mb-2">Reverse DNS Template</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
                       Define the base domain used when setting custom rDNS for VPS instances.
                       If unset, the system uses <span className="font-mono">ip.rev.skyvps360.xyz</span>.
                       During provisioning we automatically prepend <span className="font-mono">0-0-0-0.</span> and later
@@ -1708,16 +1708,16 @@ const Admin: React.FC = () => {
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">rDNS base domain</label>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">rDNS base domain</label>
                         <input
                           type="text"
                           value={rdnsBaseDomain}
                           onChange={(e) => setRdnsBaseDomain(e.target.value)}
                           placeholder="ip.rev.skyvps360.xyz"
-                          className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                          className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                           disabled={rdnsLoading}
                         />
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           Example final rDNS: <span className="font-mono">123-45-67-89.{rdnsBaseDomain || 'ip.rev.skyvps360.xyz'}</span>
                         </p>
                       </div>
@@ -1726,7 +1726,7 @@ const Admin: React.FC = () => {
                       <button
                         onClick={saveNetworkingRdns}
                         disabled={rdnsSaving || rdnsLoading}
-                        className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                        className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-50"
                       >
                         {rdnsSaving ? 'Saving...' : 'Save rDNS Template'}
                       </button>
@@ -1739,11 +1739,11 @@ const Admin: React.FC = () => {
         )}
 
         {activeTab === 'providers' && (
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Settings className="h-5 w-5 text-gray-400" />
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Service Providers</h2>
+                <h2 className="text-lg font-medium text-foreground">Service Providers</h2>
               </div>
               <button
                 onClick={() => setShowAddProvider(true)}
@@ -1755,25 +1755,25 @@ const Admin: React.FC = () => {
             </div>
             <div className="px-6 py-4">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
                       <th className="px-4 py-2"></th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-card divide-y divide-border">
                     {providers.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No providers configured</td>
+                        <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">No providers configured</td>
                       </tr>
                     ) : (
                       providers.map(provider => (
                         <tr key={provider.id}>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{provider.name}</td>
-                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{provider.type}</td>
+                          <td className="px-4 py-2 text-sm text-foreground">{provider.name}</td>
+                          <td className="px-4 py-2 text-sm text-muted-foreground">{provider.type}</td>
                           <td className="px-4 py-2">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${provider.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                               {provider.active ? 'Active' : 'Inactive'}
@@ -1783,13 +1783,13 @@ const Admin: React.FC = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => { setEditProviderId(provider.id); setEditProvider(provider); }}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700"
                               >
                                 <Edit className="h-3 w-3 mr-1" /> Edit
                               </button>
                               <button
                                 onClick={() => setDeleteProviderId(provider.id)}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20"
                               >
                                 <Trash2 className="h-3 w-3 mr-1" /> Delete
                               </button>
@@ -1894,80 +1894,80 @@ const Admin: React.FC = () => {
         {/* Edit Container Plan Modal */}
         {editContainerPlanId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-[500px] shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-[500px] shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Container Plan</h3>
+                <h3 className="text-lg font-medium text-foreground mb-4">Edit Container Plan</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
                     <input
                       type="text"
                       value={editContainerPlan.name || ''}
                       onChange={(e) => setEditContainerPlan(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPU Cores</label>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">CPU Cores</label>
                       <input
                         type="number"
                         min="1"
                         value={editContainerPlan.cpu_cores || ''}
                         onChange={(e) => setEditContainerPlan(prev => ({ ...prev, cpu_cores: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RAM (GB)</label>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">RAM (GB)</label>
                       <input
                         type="number"
                         min="1"
                         value={editContainerPlan.ram_gb || ''}
                         onChange={(e) => setEditContainerPlan(prev => ({ ...prev, ram_gb: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Storage (GB)</label>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">Storage (GB)</label>
                       <input
                         type="number"
                         min="1"
                         value={editContainerPlan.storage_gb || ''}
                         onChange={(e) => setEditContainerPlan(prev => ({ ...prev, storage_gb: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Network (Mbps)</label>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">Network (Mbps)</label>
                       <input
                         type="number"
                         min="0"
                         value={editContainerPlan.network_mbps || ''}
                         onChange={(e) => setEditContainerPlan(prev => ({ ...prev, network_mbps: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Price</label>
                     <input
                       type="number"
                       step="0.01"
                       value={editContainerPlan.base_price || ''}
                       onChange={(e) => setEditContainerPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                       placeholder="Monthly price"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Active</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Active</label>
                     <select
                       value={editContainerPlan.active ? 'true' : 'false'}
                       onChange={(e) => setEditContainerPlan(prev => ({ ...prev, active: e.target.value === 'true' }))}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
@@ -1977,7 +1977,7 @@ const Admin: React.FC = () => {
                 <div className="flex items-center justify-end gap-3 mt-6">
                   <button
                     onClick={() => { setEditContainerPlanId(null); setEditContainerPlan({}); }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                   >
                     Cancel
                   </button>
@@ -1996,25 +1996,25 @@ const Admin: React.FC = () => {
         {/* Edit Provider Modal */}
         {editProviderId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Provider</h3>
+                <h3 className="text-lg font-medium text-foreground mb-4">Edit Provider</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
                     <input
                       type="text"
                       value={editProvider.name || ''}
                       onChange={(e) => setEditProvider(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Active</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Active</label>
                     <select
                       value={editProvider.active ? 'true' : 'false'}
                       onChange={(e) => setEditProvider(prev => ({ ...prev, active: e.target.value === 'true' }))}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
@@ -2024,7 +2024,7 @@ const Admin: React.FC = () => {
                 <div className="flex items-center justify-end gap-3 mt-6">
                   <button
                     onClick={() => { setEditProviderId(null); setEditProvider({}); }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
@@ -2043,14 +2043,14 @@ const Admin: React.FC = () => {
         {/* Delete Ticket Confirmation Modal */}
         {deleteTicketId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Delete Ticket</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+                <h3 className="text-lg font-medium text-foreground mb-4">Delete Ticket</h3>
+                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this ticket? This action cannot be undone.</p>
                 <div className="flex items-center justify-end gap-3">
                   <button
                     onClick={() => setDeleteTicketId(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
@@ -2069,14 +2069,14 @@ const Admin: React.FC = () => {
         {/* Delete VPS Plan Confirmation Modal */}
         {deletePlanId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Delete VPS Plan</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to delete this VPS plan? This action cannot be undone.</p>
+                <h3 className="text-lg font-medium text-foreground mb-4">Delete VPS Plan</h3>
+                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this VPS plan? This action cannot be undone.</p>
                 <div className="flex items-center justify-end gap-3">
                   <button
                     onClick={() => setDeletePlanId(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
@@ -2095,14 +2095,14 @@ const Admin: React.FC = () => {
         {/* Delete Container Plan Confirmation Modal */}
         {deleteContainerPlanId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Delete Container Plan</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to delete this container plan? This action cannot be undone.</p>
+                <h3 className="text-lg font-medium text-foreground mb-4">Delete Container Plan</h3>
+                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this container plan? This action cannot be undone.</p>
                 <div className="flex items-center justify-end gap-3">
                   <button
                     onClick={() => setDeleteContainerPlanId(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
@@ -2121,14 +2121,14 @@ const Admin: React.FC = () => {
         {/* Delete Provider Confirmation Modal */}
         {deleteProviderId && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Delete Provider</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to delete this provider? This action cannot be undone.</p>
+                <h3 className="text-lg font-medium text-foreground mb-4">Delete Provider</h3>
+                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this provider? This action cannot be undone.</p>
                 <div className="flex items-center justify-end gap-3">
                   <button
                     onClick={() => setDeleteProviderId(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
                   >
                     Cancel
                   </button>

@@ -157,7 +157,7 @@ const TransactionDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center text-gray-600 dark:text-gray-300">
           <Loader2 className="h-8 w-8 animate-spin mb-4" />
           <p>Loading transaction details...</p>
@@ -168,16 +168,16 @@ const TransactionDetail: React.FC = () => {
 
   if (error || !transaction) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 w-full max-w-md text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card border border rounded-lg p-6 w-full max-w-md text-center">
           <div className="flex justify-center mb-3">
             <AlertCircle className="h-10 w-10 text-red-500" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Transaction Not Available</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">{error || 'We could not find the requested transaction.'}</p>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Transaction Not Available</h2>
+          <p className="text-muted-foreground mb-6">{error || 'We could not find the requested transaction.'}</p>
           <button
             onClick={() => navigate('/billing')}
-            className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+            className="inline-flex items-center px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Billing
@@ -210,12 +210,12 @@ const TransactionDetail: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate('/billing')}
-            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-card text-sm font-medium text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Billing
@@ -234,11 +234,11 @@ const TransactionDetail: React.FC = () => {
           </button>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-6">
+        <div className="bg-card border border rounded-lg shadow-sm p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transaction Details</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Review the transaction information and generate an invoice for your records.</p>
+              <h1 className="text-2xl font-bold text-foreground">Transaction Details</h1>
+              <p className="text-muted-foreground mt-1">Review the transaction information and generate an invoice for your records.</p>
             </div>
             <span
               className={`mt-4 md:mt-0 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -255,8 +255,8 @@ const TransactionDetail: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Summary</h2>
-              <div className="space-y-2 text-gray-700 dark:text-gray-300">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Summary</h2>
+              <div className="space-y-2 text-muted-foreground">
                 <p><span className="font-medium">Description:</span> {transaction.description}</p>
                 <p><span className="font-medium">Amount:</span> {formatCurrency(Math.abs(transaction.amount), transaction.currency)} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
                 <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined ? formatCurrency(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
@@ -266,8 +266,8 @@ const TransactionDetail: React.FC = () => {
               </div>
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Payment Source</h2>
-              <div className="space-y-2 text-gray-700 dark:text-gray-300">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Payment Source</h2>
+              <div className="space-y-2 text-muted-foreground">
                 <p><span className="font-medium">Provider:</span> {transaction.provider || 'Internal'}</p>
                 <p><span className="font-medium">Method:</span> {transaction.paymentMethod}</p>
                 <p><span className="font-medium">Provider Reference:</span> {transaction.providerPaymentId || 'N/A'}</p>
@@ -277,19 +277,19 @@ const TransactionDetail: React.FC = () => {
           </div>
 
           <div>
-            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Additional Details</h2>
-            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-md p-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Additional Details</h2>
+            <div className="bg-background/40 border border rounded-md p-4">
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                 {supplementalDetails.map(detail => (
                   <div key={detail.key}>
-                    <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{detail.label}</dt>
-                    <dd className="text-sm text-gray-700 dark:text-gray-300">{detail.value}</dd>
+                    <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{detail.label}</dt>
+                    <dd className="text-sm text-muted-foreground">{detail.value}</dd>
                   </div>
                 ))}
                 {filteredMetadataEntries.map(([key, value]) => (
                   <div key={key}>
-                    <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{key}</dt>
-                    <dd className="text-sm text-gray-700 dark:text-gray-300">
+                    <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key}</dt>
+                    <dd className="text-sm text-muted-foreground">
                       {typeof value === 'object' && value !== null
                         ? JSON.stringify(value)
                         : String(value)}
@@ -298,7 +298,7 @@ const TransactionDetail: React.FC = () => {
                 ))}
               </dl>
               {filteredMetadataEntries.length === 0 && (
-                <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No additional metadata stored for this transaction.</p>
+                <p className="mt-4 text-sm text-muted-foreground">No additional metadata stored for this transaction.</p>
               )}
             </div>
           </div>

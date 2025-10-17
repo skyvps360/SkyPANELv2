@@ -373,50 +373,50 @@ const Billing: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading billing information...</p>
+          <p className="mt-4 text-muted-foreground">Loading billing information...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Billing &amp; Payments</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-foreground">Billing &amp; Payments</h1>
+          <p className="mt-2 text-muted-foreground">
             Manage your wallet, add funds, and view payment history
           </p>
         </div>
 
         {/* Wallet Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                 <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Wallet Balance</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
+                <p className="text-2xl font-bold text-foreground">
                   {formatCurrency(walletBalance)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <ArrowUpRight className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                <p className="text-2xl font-bold text-foreground">
                   {formatCurrency(
                     transactions
                       .filter(tx => tx.type === 'credit')
@@ -427,14 +427,14 @@ const Billing: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-card p-6">
             <div className="flex items-center">
               <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
                 <ArrowDownLeft className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Spent This Month</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Spent This Month</p>
+                <p className="text-2xl font-bold text-foreground">
                   {formatCurrency(
                     transactions
                       .filter(tx => tx.type === 'debit')
@@ -447,8 +447,8 @@ const Billing: React.FC = () => {
         </div>
 
         {/* Add Funds Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Funds to Wallet</h2>
+        <div className="bg-card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Add Funds to Wallet</h2>
           <div className="flex items-center space-x-4">
             <div className="flex-1 max-w-xs">
               <label htmlFor="amount" className="sr-only">Amount</label>
@@ -464,14 +464,14 @@ const Billing: React.FC = () => {
                   placeholder="0.00"
                   min="1"
                   step="0.01"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="block w-full pl-10 pr-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 />
               </div>
             </div>
             <button
               onClick={handleAddFunds}
               disabled={addFundsLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addFundsLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -481,21 +481,21 @@ const Billing: React.FC = () => {
               Add Funds via PayPal
             </button>
           </div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             Funds will be added to your wallet after successful PayPal payment
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-card">
+          <div className="border-b border">
             <nav className="-mb-px flex space-x-8 px-6">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'overview'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 Overview
@@ -505,7 +505,7 @@ const Billing: React.FC = () => {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'transactions'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 Wallet Transactions
@@ -515,7 +515,7 @@ const Billing: React.FC = () => {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'history'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 Payment History
@@ -527,7 +527,7 @@ const Billing: React.FC = () => {
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activity</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-4">Recent Activity</h3>
                   <div className="space-y-3">
                     {transactions.map((transaction) => (
                       <div 
@@ -544,15 +544,15 @@ const Billing: React.FC = () => {
                             )}
                           </div>
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(transaction.createdAt)}</p>
+                            <p className="text-sm font-medium text-foreground">{transaction.description}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(transaction.createdAt)}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-medium ${transaction.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-muted-foreground">
                             Balance: {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined && !isNaN(transaction.balanceAfter)
                               ? formatCurrency(transaction.balanceAfter)
                               : 'N/A'}
@@ -578,10 +578,10 @@ const Billing: React.FC = () => {
             {activeTab === 'transactions' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Wallet Transactions</h3>
+                  <h3 className="text-lg font-medium text-foreground">Wallet Transactions</h3>
                   <button 
                     onClick={handleExportTransactions}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export
@@ -589,33 +589,33 @@ const Billing: React.FC = () => {
                 </div>
                 <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 md:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                    <thead className="bg-muted">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Description
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Type
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Amount
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Date
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Balance After
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-card divide-y divide-border">
                       {transactions.map((transaction) => (
                         <tr 
                           key={transaction.id}
                           onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
                           className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {transaction.description}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -625,13 +625,13 @@ const Billing: React.FC = () => {
                               {transaction.type === 'credit' ? 'Credit' : 'Debit'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {formatDate(transaction.createdAt)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {formatCurrency(transaction.balanceAfter)}
                           </td>
                         </tr>
@@ -655,14 +655,14 @@ const Billing: React.FC = () => {
             {activeTab === 'history' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Payment History</h3>
+                  <h3 className="text-lg font-medium text-foreground">Payment History</h3>
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => setShowFilter(!showFilter)}
                       className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 ${
                         hasActiveFilters 
                           ? 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:bg-blue-900/20' 
-                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                          : 'border text-muted-foreground bg-secondary hover:bg-secondary/80'
                       }`}
                     >
                       <Filter className="h-4 w-4 mr-2" />
@@ -675,7 +675,7 @@ const Billing: React.FC = () => {
                     </button>
                     <button 
                       onClick={handleExportPaymentHistory}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                      className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Export as CSV
@@ -685,9 +685,9 @@ const Billing: React.FC = () => {
 
                 {/* Filter Panel */}
                 {showFilter && (
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                  <div className="bg-muted rounded-lg p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">Filter Options</h4>
+                      <h4 className="text-sm font-medium text-foreground">Filter Options</h4>
                       <button
                         onClick={() => setShowFilter(false)}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -697,14 +697,14 @@ const Billing: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label htmlFor="status-filter" className="block text-sm font-medium text-muted-foreground mb-1">
                           Status
                         </label>
                         <select
                           id="status-filter"
                           value={filters.status}
                           onChange={(e) => handleFilterChange('status', e.target.value)}
-                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                         >
                           <option value="">All Statuses</option>
                           <option value="completed">Completed</option>
@@ -715,7 +715,7 @@ const Billing: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label htmlFor="date-from" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label htmlFor="date-from" className="block text-sm font-medium text-muted-foreground mb-1">
                           From Date
                         </label>
                         <input
@@ -723,11 +723,11 @@ const Billing: React.FC = () => {
                           id="date-from"
                           value={filters.dateFrom}
                           onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                         />
                       </div>
                       <div>
-                        <label htmlFor="date-to" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label htmlFor="date-to" className="block text-sm font-medium text-muted-foreground mb-1">
                           To Date
                         </label>
                         <input
@@ -735,7 +735,7 @@ const Billing: React.FC = () => {
                           id="date-to"
                           value={filters.dateTo}
                           onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                         />
                       </div>
                     </div>
@@ -754,32 +754,32 @@ const Billing: React.FC = () => {
 
                 <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 md:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                    <thead className="bg-muted">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Description
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Amount
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Provider
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Date
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-card divide-y divide-border">
                       {paymentHistory.map((payment) => (
                         <tr key={payment.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {payment.description}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {formatCurrency(payment.amount)} {payment.currency}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -787,10 +787,10 @@ const Billing: React.FC = () => {
                               {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {formatDate(payment.createdAt)}
                           </td>
                         </tr>
