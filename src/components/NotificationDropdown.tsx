@@ -3,11 +3,17 @@
  * Real-time notification dropdown with SSE support
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, CheckCheck, X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner';
-import { buildApiUrl } from '../lib/api';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Bell, Check, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { buildApiUrl } from "@/lib/api";
 
 interface Notification {
   id: string;
@@ -23,283 +29,256 @@ interface Notification {
   is_read: boolean;
   read_at?: string | null;
 }
+const statusVariant: Record<Notification["status"], string> = {
+  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+  error: "bg-red-500/10 text-red-600 dark:text-red-300",
+  info: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+};
+
+const formatTimeAgo = (timestamp: string) => {
+  const now = Date.now();
+  const then = new Date(timestamp).getTime();
+  const seconds = Math.floor((now - then) / 1000);
+
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
 
 const NotificationDropdown: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { token } = useAuth();
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Mark notification as read
+  const syncUnreadCount = (items: Notification[]) => {
+    setUnreadCount(items.filter((n) => !n.is_read).length);
+  };
+
   const markAsRead = async (notificationId: string) => {
     if (!token) return;
-
     try {
-  const response = await fetch(buildApiUrl(`/api/notifications/${notificationId}/read`), {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(buildApiUrl(`/api/notifications/${notificationId}/read`), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error('Failed to mark notification as read');
+      if (!response.ok) throw new Error("Failed to mark notification as read");
 
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications((prev) => {
+        const next = prev.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, is_read: true, read_at: new Date().toISOString() }
+            : notification
+        );
+        syncUnreadCount(next);
+        return next;
+      });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
-      toast.error('Failed to mark notification as read');
+      console.error("Error marking notification as read:", error);
+      toast.error("Failed to mark notification as read");
     }
   };
 
-  // Mark all as read
   const markAllAsRead = async () => {
-    if (!token) return;
-
+    if (!token || unreadCount === 0) return;
     try {
-  const response = await fetch(buildApiUrl('/api/notifications/read-all'), {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(buildApiUrl("/api/notifications/read-all"), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error('Failed to mark all notifications as read');
+      if (!response.ok) throw new Error("Failed to mark all notifications as read");
 
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
-      );
-      setUnreadCount(0);
-      toast.success('All notifications marked as read');
+      setNotifications((prev) => {
+        const next = prev.map((notification) => ({
+          ...notification,
+          is_read: true,
+          read_at: new Date().toISOString(),
+        }));
+        syncUnreadCount(next);
+        return next;
+      });
+      toast.success("All notifications marked as read");
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      toast.error('Failed to mark all notifications as read');
+      console.error("Error marking all notifications as read:", error);
+      toast.error("Failed to mark all notifications as read");
     }
   };
 
-  // Setup SSE connection for real-time notifications
+  const loadNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const response = await fetch(buildApiUrl("/api/notifications/unread?limit=20"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch notifications");
+
+      const payload = await response.json();
+      const items: Notification[] = payload.notifications || [];
+      setNotifications(items);
+      syncUnreadCount(items);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
+    loadNotifications();
 
-    // Fetch initial notifications
-    const initNotifications = async () => {
-      if (!token) return;
-
-      try {
-        setIsLoading(true);
-  const response = await fetch(buildApiUrl('/api/notifications/unread?limit=20'), {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch notifications');
-
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.notifications?.length || 0);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Initial fetch
-    initNotifications();
-
-    // Setup SSE connection with token in URL (EventSource doesn't support custom headers)
-  const eventSource = new EventSource(`${buildApiUrl('/api/notifications/stream')}?token=${encodeURIComponent(token)}`);
+    const eventSource = new EventSource(
+      `${buildApiUrl("/api/notifications/stream")}?token=${encodeURIComponent(token)}`
+    );
 
     eventSource.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'connected') {
-          console.log('Notification stream connected');
-        } else if (data.type === 'notification') {
-          const newNotification = data.data as Notification;
-          
-          // Add to notifications list
-          setNotifications(prev => [newNotification, ...prev].slice(0, 20));
-          setUnreadCount(prev => prev + 1);
-          
-          // Show toast notification
-          toast.info(newNotification.message || 'New notification', {
-            duration: 4000,
+        const payload = JSON.parse(event.data);
+        if (payload.type === "notification") {
+          const nextNotification = payload.data as Notification;
+          setNotifications((prev) => {
+            const next = [nextNotification, ...prev].slice(0, 20);
+            syncUnreadCount(next);
+            return next;
           });
+          toast.info(nextNotification.message || "New notification", { duration: 4000 });
         }
       } catch (error) {
-        console.error('Error parsing SSE message:', error);
+        console.error("Error parsing SSE message:", error);
       }
     };
 
     eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
+      console.error("Notification stream error:", error);
       eventSource.close();
     };
 
     eventSourceRef.current = eventSource;
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
     };
-  }, [token]);
+  }, [token, loadNotifications]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-        return 'text-green-600 dark:text-green-400';
-      case 'error':
-        return 'text-red-600 dark:text-red-400';
-      case 'warning':
-        return 'text-yellow-600 dark:text-yellow-400';
-      default:
-        return 'text-blue-600 dark:text-blue-400';
-    }
-  };
-
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const then = new Date(timestamp);
-    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
-
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  };
+  const hasNotifications = notifications.length > 0;
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative bg-white dark:bg-gray-800 p-2 rounded-full text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-colors"
-        title="Notifications"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full min-w-[18px] animate-pulse">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-96 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-700 focus:outline-none z-50 max-h-[80vh] flex flex-col">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Notifications
-            </h3>
-            <div className="flex items-center space-x-2">
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                  title="Mark all as read"
-                >
-                  <CheckCheck className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Notification List */}
-          <div className="overflow-y-auto flex-1">
-            {isLoading ? (
-              <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                Loading notifications...
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No notifications</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                      !notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${getStatusColor(notification.status)}`}>
-                          {notification.entity_type}
-                        </p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                          {notification.message || `${notification.event_type} ${notification.entity_type}`}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {formatTimeAgo(notification.created_at)}
-                        </p>
-                      </div>
-                      {!notification.is_read && (
-                        <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="ml-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
-                          title="Mark as read"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
-              <a
-                href="/activity"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                View all activity
-              </a>
-            </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label="Open notifications"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
           )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[360px] p-0" align="end">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">Notifications</p>
+            <p className="text-xs text-muted-foreground">
+              Stay on top of provisioning and billing updates.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-transparent"
+            onClick={markAllAsRead}
+            disabled={unreadCount === 0}
+            aria-label="Mark all as read"
+          >
+            <CheckCheck className="h-4 w-4" />
+          </Button>
         </div>
-      )}
-    </div>
+
+        {loading ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            Loading notifications…
+          </div>
+        ) : !hasNotifications ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            <Bell className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+            You are all caught up.
+          </div>
+        ) : (
+          <ScrollArea className="max-h-[320px]">
+            <div className="divide-y">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`px-4 py-3 transition-colors ${
+                    notification.is_read ? "bg-background" : "bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge className={statusVariant[notification.status] || statusVariant.info}>
+                          {notification.status}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatTimeAgo(notification.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        {notification.message || `${notification.event_type} ${notification.entity_type}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {notification.entity_type}
+                      </p>
+                    </div>
+                    {!notification.is_read && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-1"
+                        onClick={() => markAsRead(notification.id)}
+                        aria-label="Mark notification as read"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+
+        {hasNotifications && (
+          <>
+            <Separator />
+            <div className="px-4 py-3">
+              <Button
+                variant="link"
+                className="px-0 text-sm"
+                onClick={() => setOpen(false)}
+                asChild
+              >
+                <a href="/activity">View all activity</a>
+              </Button>
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
 

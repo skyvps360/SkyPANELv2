@@ -8,6 +8,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Download, ChevronLeft, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import AppLayout from '../components/AppLayout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Invoice {
   id: string;
@@ -109,10 +112,10 @@ const InvoiceDetail: React.FC = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <Loader className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Loading invoice...</p>
+            <Loader className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading invoice...</p>
           </div>
         </div>
       </AppLayout>
@@ -122,18 +125,17 @@ const InvoiceDetail: React.FC = () => {
   if (!invoice) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-          <div className="max-w-4xl mx-auto">
-            <button
-              onClick={() => navigate('/billing')}
-              className="flex items-center text-blue-600 dark:text-blue-400 hover:underline mb-4"
-            >
+        <div className="p-8">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <Button variant="ghost" onClick={() => navigate('/billing')}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Back to Billing
-            </button>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center">
-              <p className="text-gray-600 dark:text-gray-400">Invoice not found</p>
-            </div>
+            </Button>
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">Invoice not found</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </AppLayout>
@@ -142,65 +144,72 @@ const InvoiceDetail: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="p-4 sm:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <button
-              onClick={() => navigate('/billing')}
-              className="flex items-center text-blue-600 dark:text-blue-400 hover:underline"
-            >
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => navigate('/billing')}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Back to Billing
-            </button>
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            </Button>
+            <Button onClick={handleDownload} disabled={downloading}>
               <Download className="h-4 w-4 mr-2" />
               {downloading ? 'Downloading...' : 'Download as HTML'}
-            </button>
+            </Button>
           </div>
 
           {/* Invoice HTML Preview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-            <div
-              className="p-4 sm:p-8 prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: invoice.htmlContent }}
-            />
-          </div>
+          <Card>
+            <CardContent className="p-4 sm:p-8">
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: invoice.htmlContent }}
+              />
+            </CardContent>
+          </Card>
 
           {/* Invoice Metadata */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                Invoice Number
-              </p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {invoice.invoiceNumber}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                Total Amount
-              </p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {invoice.currency} ${invoice.totalAmount.toFixed(2)}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                Date
-              </p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {new Date(invoice.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs font-semibold uppercase">
+                  Invoice Number
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {invoice.invoiceNumber}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs font-semibold uppercase">
+                  Total Amount
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {invoice.currency} ${invoice.totalAmount.toFixed(2)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs font-semibold uppercase">
+                  Date
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {new Date(invoice.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

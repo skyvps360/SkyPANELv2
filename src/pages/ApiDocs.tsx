@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { BRAND_NAME } from '../lib/brand';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ApiDocs() {
   const apiBase = (import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}/api`).replace(/\/$/, '');
@@ -1273,16 +1276,16 @@ export default function ApiDocs() {
       case 'PUT': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200';
       case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200';
       case 'PATCH': return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-200';
+      default: return 'bg-gray-100 text-gray-700 bg-background ';
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">API Documentation</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-100">
-          Base URL: <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">{apiBase}</code>
+        <h1 className="text-2xl font-semibold text-foreground">API Documentation</h1>
+        <p className="mt-2 text-sm text-gray-600 ">
+          Base URL: <code className="px-2 py-1 bg-muted rounded text-xs">{apiBase}</code>
         </p>
       </div>
 
@@ -1302,28 +1305,28 @@ export default function ApiDocs() {
         {sections.map((section) => {
           const isExpanded = expandedSections.includes(section.title);
           return (
-            <div key={section.title} className="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
+            <div key={section.title} className="bg-card">
               <div 
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/80"
                 onClick={() => toggleSection(section.title)}
               >
                 <div className="flex items-center space-x-3">
                   {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">{section.title}</h2>
+                    <h2 className="text-lg font-medium text-foreground">{section.title}</h2>
                     {section.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-200">{section.description}</p>
+                      <p className="text-sm text-gray-500 ">{section.description}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <code className="text-xs text-gray-500 dark:text-gray-200">{section.base}</code>
+                  <code className="text-xs text-gray-500 ">{section.base}</code>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       copyToClipboard(section.base);
                     }}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    className="p-1 hover:bg-gray-200 hover:bg-secondary/80 rounded"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -1331,21 +1334,21 @@ export default function ApiDocs() {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+                <div className="border-t border-gray-200 border p-4">
                   <div className="space-y-4">
                     {section.endpoints.map((endpoint, index) => (
-                      <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div key={index} className="border border-gray-200 border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <span className={`text-xs font-semibold px-2 py-1 rounded ${getMethodColor(endpoint.method)}`}>
                               {endpoint.method}
                             </span>
-                            <code className="text-sm font-mono text-gray-700 dark:text-gray-100">
+                            <code className="text-sm font-mono text-gray-700 ">
                               {section.base}{endpoint.path}
                             </code>
                             <button
                               onClick={() => copyToClipboard(`${section.base}${endpoint.path}`)}
-                              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                              className="p-1 hover:bg-gray-200 hover:bg-secondary/80 rounded"
                             >
                               <Copy className="h-3 w-3" />
                             </button>
@@ -1361,29 +1364,29 @@ export default function ApiDocs() {
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-600 dark:text-gray-100 mb-3">{endpoint.description}</p>
+                        <p className="text-sm text-gray-600  mb-3">{endpoint.description}</p>
 
                         {endpoint.body && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Request Body:</h4>
-                            <pre className="bg-gray-100 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto">
-                              <code className="text-gray-800 dark:text-gray-100">{JSON.stringify(endpoint.body, null, 2)}</code>
+                            <h4 className="text-sm font-medium text-foreground mb-2">Request Body:</h4>
+                            <pre className="bg-gray-100 bg-background p-3 rounded text-xs overflow-x-auto">
+                              <code className="text-gray-800 ">{JSON.stringify(endpoint.body, null, 2)}</code>
                             </pre>
                           </div>
                         )}
 
                         {endpoint.response && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Response:</h4>
-                            <pre className="bg-gray-100 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto">
-                              <code className="text-gray-800 dark:text-gray-100">{JSON.stringify(endpoint.response, null, 2)}</code>
+                            <h4 className="text-sm font-medium text-foreground mb-2">Response:</h4>
+                            <pre className="bg-gray-100 bg-background p-3 rounded text-xs overflow-x-auto">
+                              <code className="text-gray-800 ">{JSON.stringify(endpoint.response, null, 2)}</code>
                             </pre>
                           </div>
                         )}
 
                         {/* cURL Example */}
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">cURL Example:</h4>
+                          <h4 className="text-sm font-medium text-foreground mb-2">cURL Example:</h4>
                           <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto relative">
                             <code>
                               {`curl -X ${endpoint.method} "${section.base}${endpoint.path}" \\`}

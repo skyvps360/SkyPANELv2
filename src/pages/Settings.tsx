@@ -23,6 +23,9 @@ import {
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Settings: React.FC = () => {
   const { 
@@ -299,32 +302,32 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Personal Information</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Personal Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     First Name
                   </label>
                   <input
                     type="text"
                     value={profileData.firstName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Last Name
                   </label>
                   <input
                     type="text"
                     value={profileData.lastName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Email
                   </label>
                   <input
@@ -332,28 +335,28 @@ const Settings: React.FC = () => {
                     value={profileData.email}
                     disabled
                     title="Email changes are not supported in the current schema"
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    className="w-full rounded-md border shadow-sm bg-muted text-muted-foreground cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Phone
                   </label>
                   <input
                     type="tel"
                     value={profileData.phone}
                     onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Timezone
                   </label>
                   <select
                     value={profileData.timezone}
                     onChange={(e) => setProfileData(prev => ({ ...prev, timezone: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="America/New_York">Eastern Time (ET)</option>
                     <option value="America/Chicago">Central Time (CT)</option>
@@ -381,50 +384,50 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Organization Details</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Organization Details</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Organization Name
                   </label>
                   <input
                     type="text"
                     value={orgData.name}
                     onChange={(e) => setOrgData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Website
                   </label>
                   <input
                     type="url"
                     value={orgData.website}
                     onChange={(e) => setOrgData(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Address
                   </label>
                   <textarea
                     value={orgData.address}
                     onChange={(e) => setOrgData(prev => ({ ...prev, address: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Tax ID
                   </label>
                   <input
                     type="text"
                     value={orgData.taxId}
                     onChange={(e) => setOrgData(prev => ({ ...prev, taxId: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -446,39 +449,39 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Change Password</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Change Password</h3>
               <div className="space-y-4 max-w-md">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Current Password
                   </label>
                   <input
                     type="password"
                     value={securityData.currentPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     New Password
                   </label>
                   <input
                     type="password"
                     value={securityData.newPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Confirm New Password
                   </label>
                   <input
                     type="password"
                     value={securityData.confirmPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <button
@@ -491,11 +494,11 @@ const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="border-t dark:border-gray-700 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Two-Factor Authentication</h3>
+            <div className="border-t border pt-6">
+              <h3 className="text-lg font-medium text-foreground mb-4">Two-Factor Authentication</h3>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Add an extra layer of security to your account
                   </p>
                 </div>
@@ -506,7 +509,7 @@ const Settings: React.FC = () => {
                     onChange={(e) => setSecurityData(prev => ({ ...prev, twoFactorEnabled: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
             </div>
@@ -517,12 +520,12 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Notification Preferences</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Notification Preferences</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Email Notifications</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive notifications via email</p>
+                    <h4 className="text-sm font-medium text-foreground">Email Notifications</h4>
+                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -531,14 +534,14 @@ const Settings: React.FC = () => {
                       onChange={(e) => setNotificationData(prev => ({ ...prev, emailNotifications: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">SMS Notifications</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive notifications via SMS</p>
+                    <h4 className="text-sm font-medium text-foreground">SMS Notifications</h4>
+                    <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -547,12 +550,12 @@ const Settings: React.FC = () => {
                       onChange={(e) => setNotificationData(prev => ({ ...prev, smsNotifications: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
 
-                <div className="border-t dark:border-gray-700 pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Alert Types</h4>
+                <div className="border-t border pt-4">
+                  <h4 className="text-sm font-medium text-foreground mb-3">Alert Types</h4>
                   <div className="space-y-3">
                     {[
                       { key: 'containerAlerts', label: 'Container Alerts', description: 'Container status changes and issues' },
@@ -562,8 +565,8 @@ const Settings: React.FC = () => {
                     ].map((alert) => (
                       <div key={alert.key} className="flex items-center justify-between">
                         <div>
-                          <h5 className="text-sm font-medium text-gray-900 dark:text-white">{alert.label}</h5>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{alert.description}</p>
+                          <h5 className="text-sm font-medium text-foreground">{alert.label}</h5>
+                          <p className="text-sm text-muted-foreground">{alert.description}</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -572,7 +575,7 @@ const Settings: React.FC = () => {
                             onChange={(e) => setNotificationData(prev => ({ ...prev, [alert.key]: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                       </div>
                     ))}
@@ -597,7 +600,7 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">API Keys</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">API Keys</h3>
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4 mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -617,15 +620,15 @@ const Settings: React.FC = () => {
               </div>
 
               {/* Create new API key */}
-              <div className="border dark:border-gray-700 rounded-lg p-4 mb-6">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Create New API Key</h4>
+              <div className="border border rounded-lg p-4 mb-6">
+                <h4 className="text-sm font-medium text-foreground mb-4">Create New API Key</h4>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Enter API key name"
                     value={newApiKeyName}
                     onChange={(e) => setNewApiKeyName(e.target.value)}
-                    className="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="flex-1 rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                   <button
                     onClick={handleCreateApiKey}
@@ -641,17 +644,17 @@ const Settings: React.FC = () => {
               {/* Existing API keys */}
               <div className="space-y-4">
                 {apiKeys.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <Key className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Key className="h-12 w-12 mx-auto mb-4 text-gray-300 " />
                     <p>No API keys found. Create your first API key above.</p>
                   </div>
                 ) : (
                   apiKeys.map((key) => (
-                    <div key={key.id} className="border dark:border-gray-700 rounded-lg p-4">
+                    <div key={key.id} className="border border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">{key.name}</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <h4 className="text-sm font-medium text-foreground">{key.name}</h4>
+                          <p className="text-sm text-muted-foreground">
                             Created {new Date(key.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -666,19 +669,19 @@ const Settings: React.FC = () => {
                             type="text"
                             value={getDisplayKey(key)}
                             readOnly
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                            className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
                           />
                         </div>
                         <button
                           onClick={() => toggleApiKeyVisibility(key.id)}
-                          className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                           title={showApiKey[key.id] ? 'Hide API key' : 'Show API key'}
                         >
                           {showApiKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                         <button
                           onClick={() => handleCopyApiKey(key.id, key.key_preview || key.key)}
-                          className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                           title="Copy API key"
                         >
                           <Copy className="h-4 w-4" />
@@ -702,7 +705,7 @@ const Settings: React.FC = () => {
                         <button
                           onClick={() => openRevokeModal(key.id, key.name)}
                           disabled={loading}
-                          className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-red-500 disabled:opacity-50"
+                          className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-red-500 disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           {loading ? 'Revoking...' : 'Revoke'}
@@ -717,30 +720,30 @@ const Settings: React.FC = () => {
             {/* Revocation Confirmation Modal */}
             {revokeModal.isOpen && (
               <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div className="relative bg-card rounded-lg shadow-xl max-w-md w-full mx-4">
                   <div className="p-6">
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0">
                         <AlertTriangle className="h-6 w-6 text-red-600" />
                       </div>
                       <div className="ml-3">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-medium text-foreground">
                           Revoke API Key
                         </h3>
                       </div>
                       <button
                         onClick={closeRevokeModal}
-                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                       >
                         <X className="h-5 w-5" />
                       </button>
                     </div>
                     
                     <div className="mb-6">
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">
                         Are you sure you want to revoke the API key:
                       </p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded border">
+                      <p className="text-sm font-medium text-foreground bg-muted px-3 py-2 rounded border">
                         {revokeModal.keyName}
                       </p>
                       <p className="text-sm text-red-600 dark:text-red-400 mt-2">
@@ -752,7 +755,7 @@ const Settings: React.FC = () => {
                       <button
                         onClick={closeRevokeModal}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -779,11 +782,11 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+          <p className="mt-2 text-muted-foreground">
             Manage your account settings and preferences
           </p>
         </div>
@@ -801,7 +804,7 @@ const Settings: React.FC = () => {
                     className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
                       activeTab === tab.id
                         ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                        : 'text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     <Icon className="h-5 w-5 mr-3" />
@@ -814,7 +817,7 @@ const Settings: React.FC = () => {
 
           {/* Content */}
           <div className="flex-1">
-            <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg border dark:border-gray-700">
+            <div className="bg-card shadow sm:rounded-lg border border">
               <div className="px-6 py-6">
                 {renderTabContent()}
               </div>

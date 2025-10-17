@@ -26,6 +26,10 @@ import {
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Mock data interfaces
 interface ContainerStats {
@@ -245,13 +249,13 @@ const Dashboard: React.FC = () => {
       case 'running':
         return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20';
       case 'stopped':
-        return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+        return 'text-gray-600 text-muted-foreground bg-muted';
       case 'error':
         return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
       case 'provisioning':
         return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20';
       default:
-        return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+        return 'text-gray-600 text-muted-foreground bg-muted';
     }
   };
 
@@ -281,7 +285,7 @@ const Dashboard: React.FC = () => {
       case 'info':
         return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20';
       default:
-        return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+        return 'text-gray-600 text-muted-foreground bg-muted';
     }
   };
 
@@ -291,219 +295,238 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+      <div className="space-y-8">
+        <div>
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-5 w-96 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+                <Skeleton className="h-5 w-32 mt-4" />
+                <Skeleton className="h-8 w-20 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Overview of your containers, VPS instances, and account status
-          </p>
-        </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="mt-2 text-muted-foreground">
+          Overview of your containers, VPS instances, and account status
+        </p>
+      </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                 <Container className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Containers</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Active Containers</p>
+                <p className="text-2xl font-bold">
                   {containers.filter(c => c.status === 'running').length}
                 </p>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <Server className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">VPS Instances</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">VPS Instances</p>
+                <p className="text-2xl font-bold">
                   {vpsInstances.filter(v => v.status === 'running').length}
                 </p>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                 <Wallet className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Wallet Balance</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
+                <p className="text-2xl font-bold">
                   {billing ? formatCurrency(billing.walletBalance) : '$0.00'}
                 </p>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly Spend</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-muted-foreground">Monthly Spend</p>
+                <p className="text-2xl font-bold">
                   {billing ? formatCurrency(billing.monthlySpend) : '$0.00'}
                 </p>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* VPS Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">VPS Instances</h2>
-                <Link
-                  to="/vps"
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-                >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* VPS Overview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>VPS Instances</CardTitle>
+              <Button asChild size="sm">
+                <Link to="/vps">
                   <Plus className="h-4 w-4 mr-2" />
                   New VPS
                 </Link>
-              </div>
+              </Button>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {vpsInstances.slice(0, 3).map((vps) => (
-                  <div 
-                    key={vps.id} 
-                    className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-                    onClick={() => handleVpsClick(vps.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <Server className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{vps.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{vps.plan} • {vps.location}</p>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(vps.status)}`}>
-                        {vps.status}
-                      </span>
-                    </div>
-
-
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Link
-                  to="/vps"
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {vpsInstances.slice(0, 3).map((vps) => (
+                <div 
+                  key={vps.id} 
+                  className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => handleVpsClick(vps.id)}
                 >
-                  View all VPS instances →
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Containers Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Containers</h2>
-                <Link
-                  to="/containers"
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Container
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {containers.slice(0, 3).map((container) => (
-                  <div key={container.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <Container className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                        <Server className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{container.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{container.image}</p>
+                        <p className="text-sm font-medium">{vps.name}</p>
+                        <p className="text-xs text-muted-foreground">{vps.plan} • {vps.location}</p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">CPU: {container.cpu}%</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Memory: {container.memory}%</p>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(container.status)}`}>
-                        {container.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Link
-                  to="/containers"
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
-                >
-                  View all containers →
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-4">
-                  <div className={`p-2 rounded-lg ${getActivityStatusColor(activity.status)}`}>
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900 dark:text-white">{activity.message}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{activity.timestamp}</p>
+                    <Badge variant={vps.status === 'running' ? 'default' : vps.status === 'stopped' ? 'secondary' : 'outline'}>
+                      {vps.status}
+                    </Badge>
                   </div>
                 </div>
               ))}
             </div>
+            {vpsInstances.length > 0 && (
+              <div className="mt-4">
+                <Link
+                  to="/vps"
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  View all VPS instances →
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Containers Overview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Containers</CardTitle>
+              <Button asChild size="sm">
+                <Link to="/containers">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Container
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {containers.slice(0, 3).map((container) => (
+                <div key={container.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Container className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium">{container.name}</p>
+                      <p className="text-xs text-muted-foreground">{container.image}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">CPU: {container.cpu}%</p>
+                      <p className="text-xs text-muted-foreground">Memory: {container.memory}%</p>
+                    </div>
+                    <Badge variant={container.status === 'running' ? 'default' : container.status === 'stopped' ? 'secondary' : 'destructive'}>
+                      {container.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {containers.length > 0 && (
+              <div className="mt-4">
+                <Link
+                  to="/containers"
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  View all containers →
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recentActivity.map((activity) => (
+              <div key={activity.id} className="flex items-center space-x-4">
+                <div className={`p-2 rounded-lg ${getActivityStatusColor(activity.status)}`}>
+                  {getActivityIcon(activity.type)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm">{activity.message}</p>
+                  <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {recentActivity.length > 0 && (
             <div className="mt-6">
               <Link
                 to="/activity"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
+                className="text-sm text-primary hover:underline font-medium"
               >
                 View all activity →
               </Link>
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
