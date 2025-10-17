@@ -14,8 +14,6 @@ import express, {
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import { config, validateConfig } from './config/index.js'
 import authRoutes from './routes/auth.js'
 import paymentRoutes from './routes/payments.js'
@@ -26,11 +24,10 @@ import supportRoutes from './routes/support.js'
 import activityRoutes from './routes/activity.js'
 import invoicesRouter from './routes/invoices.js';
 import notificationsRouter from './routes/notifications.js';
+import themeRoutes from './routes/theme.js';
 import { notificationService } from './services/notificationService.js';
 
 // for esm mode
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 // Validate configuration
 validateConfig()
@@ -102,13 +99,15 @@ app.use('/api/vps', vpsRoutes)
 app.use('/api/support', supportRoutes)
 app.use('/api/activity', activityRoutes)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/theme', themeRoutes)
 
 /**
  * health
  */
 app.use(
   '/api/health',
-  (req: Request, res: Response, next: NextFunction): void => {
+  (req: Request, res: Response, _next: NextFunction): void => {
+    void _next;
     res.status(200).json({
       success: true,
       message: 'ok',
@@ -119,7 +118,8 @@ app.use(
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((error: Error, req: Request, res: Response, _next: NextFunction) => {
+  void _next;
   // Log full error details server-side
   console.error('API error:', error)
   const isDev = process.env.NODE_ENV !== 'production'

@@ -1,4 +1,4 @@
-export type ThemeId = "teal" | "mono" | "violet" | "emerald" | "amber";
+export type ThemeId = "teal" | "mono" | "violet" | "emerald" | "amber" | "custom";
 
 export interface ThemePreset {
   id: ThemeId;

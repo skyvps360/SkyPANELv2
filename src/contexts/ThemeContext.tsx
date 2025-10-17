@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { buildApiUrl } from "@/lib/api";
 import {
   DEFAULT_THEME_ID,
   ThemeId,
@@ -16,16 +17,32 @@ import {
   ThemeVariables,
 } from "@/theme/presets";
 
+interface ThemeConfigPayload {
+  presetId?: string;
+  customPreset?: ThemePresetLike | null;
+}
+
+interface ThemePresetLike {
+  id?: string;
+  label?: string;
+  description?: string;
+  light?: Record<string, unknown>;
+  dark?: Record<string, unknown>;
+}
+
 interface ThemeContextValue {
   themeId: ThemeId;
   setTheme: (themeId: ThemeId) => void;
   themes: ThemePreset[];
+  reloadTheme: () => Promise<void>;
+  customPreset: ThemePreset | null;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "containerstacks:theme";
 const STYLE_ELEMENT_ID = "containerstacks-theme-style";
+const BASE_THEME_IDS = new Set(themePresets.map((preset) => preset.id));
 
 const serializeVariables = (vars: ThemeVariables): string =>
   Object.entries(vars)
@@ -76,41 +93,147 @@ const getStoredTheme = (): ThemeId | null => {
     return null;
   }
 
+  if (stored === "custom") {
+    return "custom";
+  }
+
   return themePresets.some((preset) => preset.id === stored)
     ? (stored as ThemeId)
     : null;
 };
 
+const sanitizeThemePreset = (preset: ThemePresetLike | null | undefined): ThemePreset | null => {
+  if (!preset) {
+    return null;
+  }
+
+  const label = typeof preset.label === "string" && preset.label.trim().length > 0
+    ? preset.label.trim()
+    : "Custom Theme";
+
+  const description = typeof preset.description === "string"
+    ? preset.description
+    : "Organization-defined theme preset.";
+
+  const sanitizeVariables = (vars: Record<string, unknown> | undefined): ThemeVariables => {
+    if (!vars) {
+      return {};
+    }
+    const entries: [string, string][] = [];
+    for (const [key, value] of Object.entries(vars)) {
+      if (typeof value === "string") {
+        entries.push([key, value]);
+      }
+    }
+    return Object.fromEntries(entries);
+  };
+
+  const light = sanitizeVariables(preset.light);
+  const dark = sanitizeVariables(preset.dark);
+
+  if (Object.keys(light).length === 0 || Object.keys(dark).length === 0) {
+    return null;
+  }
+
+  return {
+    id: "custom",
+    label,
+    description,
+    light,
+    dark,
+  };
+};
+
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [themeId, setThemeId] = useState<ThemeId>(() => getStoredTheme() ?? DEFAULT_THEME_ID);
+  const [customPreset, setCustomPreset] = useState<ThemePreset | null>(null);
 
-  const preset = useMemo(
-    () => themePresets.find((item) => item.id === themeId) ?? themePresets[0],
-    [themeId]
-  );
+  const themes = useMemo<ThemePreset[]>(() => {
+    if (!customPreset) {
+      return themePresets;
+    }
+    const withoutDuplicate = themePresets.filter((preset) => preset.id !== customPreset.id);
+    return [...withoutDuplicate, customPreset];
+  }, [customPreset]);
+
+  const activePreset = useMemo<ThemePreset>(() => {
+    const found = themes.find((item) => item.id === themeId);
+    return found ?? themes[0];
+  }, [themes, themeId]);
 
   useLayoutEffect(() => {
-    applyTheme(preset);
-  }, [preset]);
+    applyTheme(activePreset);
+  }, [activePreset]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem(STORAGE_KEY, preset.id);
-  }, [preset.id]);
+    window.localStorage.setItem(STORAGE_KEY, activePreset.id);
+  }, [activePreset.id]);
 
   const handleSetTheme = useCallback((next: ThemeId) => {
     setThemeId(next);
   }, []);
 
+  const applyRemoteConfig = useCallback((config: ThemeConfigPayload | null | undefined) => {
+    const remoteCustom = sanitizeThemePreset(config?.customPreset);
+    setCustomPreset(remoteCustom);
+
+    const remotePresetId = typeof config?.presetId === "string" ? config?.presetId : undefined;
+
+    if (remotePresetId === "custom" && remoteCustom) {
+      setThemeId("custom");
+      return;
+    }
+
+    if (remotePresetId && BASE_THEME_IDS.has(remotePresetId as ThemeId)) {
+      setThemeId(remotePresetId as ThemeId);
+      return;
+    }
+
+    if (remoteCustom) {
+      setThemeId("custom");
+      return;
+    }
+
+    setThemeId((current) => (BASE_THEME_IDS.has(current) ? current : DEFAULT_THEME_ID));
+  }, []);
+
+  const fetchThemeConfig = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const response = await fetch(buildApiUrl('/api/theme'));
+      if (!response.ok) {
+        throw new Error(`Failed to load theme configuration: ${response.status}`);
+      }
+      const payload = await response.json();
+      const config: ThemeConfigPayload | null = payload?.theme ?? null;
+      applyRemoteConfig(config);
+    } catch (error) {
+      console.warn('Theme config fetch failed:', error);
+    }
+  }, [applyRemoteConfig]);
+
+  useEffect(() => {
+    fetchThemeConfig();
+  }, [fetchThemeConfig]);
+
+  const reloadTheme = useCallback(async () => {
+    await fetchThemeConfig();
+  }, [fetchThemeConfig]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
-      themeId: preset.id,
+      themeId: activePreset.id,
       setTheme: handleSetTheme,
-      themes: themePresets,
+      themes,
+      reloadTheme,
+      customPreset,
     }),
-    [handleSetTheme, preset.id]
+    [activePreset.id, handleSetTheme, themes, reloadTheme, customPreset]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

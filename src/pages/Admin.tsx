@@ -10,8 +10,13 @@ import { toast } from 'sonner';
 import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe, Palette } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useTheme } from '@/contexts/ThemeContext';
+import { buildApiUrl } from '@/lib/api';
+import { hexToHslString, hslStringToHex } from '@/lib/color';
+import type { ThemePreset } from '@/theme/presets';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -130,11 +135,43 @@ interface LinodeRegion {
   status: string;
 }
 
+type ThemeMode = 'light' | 'dark';
+
+interface ThemeColorField {
+  mode: ThemeMode;
+  key: string;
+  label: string;
+}
+
+const LIGHT_THEME_FIELDS: ThemeColorField[] = [
+  { mode: 'light', key: 'background', label: 'Background' },
+  { mode: 'light', key: 'foreground', label: 'Foreground' },
+  { mode: 'light', key: 'primary', label: 'Primary' },
+  { mode: 'light', key: 'primary-foreground', label: 'Primary Text' },
+  { mode: 'light', key: 'accent', label: 'Accent' },
+  { mode: 'light', key: 'accent-foreground', label: 'Accent Text' },
+  { mode: 'light', key: 'sidebar-background', label: 'Sidebar Background' },
+  { mode: 'light', key: 'sidebar-primary', label: 'Sidebar Primary' },
+  { mode: 'light', key: 'sidebar-primary-foreground', label: 'Sidebar Primary Text' },
+];
+
+const DARK_THEME_FIELDS: ThemeColorField[] = [
+  { mode: 'dark', key: 'background', label: 'Background (Dark)' },
+  { mode: 'dark', key: 'foreground', label: 'Foreground (Dark)' },
+  { mode: 'dark', key: 'primary', label: 'Primary (Dark)' },
+  { mode: 'dark', key: 'primary-foreground', label: 'Primary Text (Dark)' },
+  { mode: 'dark', key: 'accent', label: 'Accent (Dark)' },
+  { mode: 'dark', key: 'accent-foreground', label: 'Accent Text (Dark)' },
+  { mode: 'dark', key: 'sidebar-background', label: 'Sidebar Background (Dark)' },
+  { mode: 'dark', key: 'sidebar-primary', label: 'Sidebar Primary (Dark)' },
+  { mode: 'dark', key: 'sidebar-primary-foreground', label: 'Sidebar Primary Text (Dark)' },
+];
+
 const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const { themeId, setTheme, themes } = useTheme();
+  const { themeId, setTheme, themes, reloadTheme, customPreset } = useTheme();
   const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme'>('tickets');
   const [, setLoading] = useState(false);
 
@@ -201,6 +238,22 @@ const Admin: React.FC = () => {
   const [stackscriptSearch, setStackscriptSearch] = useState('');
   const [savingStackscriptId, setSavingStackscriptId] = useState<number | null>(null);
   const [loadingStackscripts, setLoadingStackscripts] = useState(false);
+  const [themeConfigLoading, setThemeConfigLoading] = useState(false);
+  const [themeConfigLoaded, setThemeConfigLoaded] = useState(false);
+  const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
+  const [savingCustomTheme, setSavingCustomTheme] = useState(false);
+  const [themeUpdatedAt, setThemeUpdatedAt] = useState<string | null>(null);
+  const [customThemeDraft, setCustomThemeDraft] = useState<ThemePreset>(() => {
+    const activePreset = customPreset ?? themes.find((preset) => preset.id === themeId) ?? themes[0];
+    return {
+      ...activePreset,
+      id: 'custom',
+      label: activePreset?.label ?? 'Custom Theme',
+      description: activePreset?.description ?? 'Organization-defined theme preset.',
+      light: { ...activePreset.light },
+      dark: { ...activePreset.dark },
+    };
+  });
 
   // Networking rDNS state
   const [networkingTab, setNetworkingTab] = useState<'rdns'>('rdns');
@@ -226,30 +279,228 @@ const Admin: React.FC = () => {
     return linodeRegions.filter(r => set.has(r.id));
   }, [linodeRegions, allowedRegionIds]);
 
-  const sortedStackscriptConfigs = useMemo(() => {
-    if (stackscriptConfigs.length === 0) return [] as StackscriptConfigRecord[];
-    return [...stackscriptConfigs].sort((a, b) => {
-      const orderA = typeof a.display_order === 'number' ? a.display_order : Number(a.display_order) || 0;
-      const orderB = typeof b.display_order === 'number' ? b.display_order : Number(b.display_order) || 0;
-      if (orderA !== orderB) return orderA - orderB;
-      const labelA = (a.label || a.script?.label || '').toLowerCase();
-      const labelB = (b.label || b.script?.label || '').toLowerCase();
-      return labelA.localeCompare(labelB);
-    });
-  }, [stackscriptConfigs]);
-
   const filteredAvailableStackscripts = useMemo(() => {
-    const configuredIds = new Set(sortedStackscriptConfigs.map(cfg => cfg.stackscript_id));
     const searchTerm = stackscriptSearch.trim().toLowerCase();
     return availableStackscripts
-      .filter(script => !configuredIds.has(script.id))
       .filter(script => {
         if (!searchTerm) return true;
-        const haystack = `${script.label} ${script.description ?? ''} ${script.rev_note ?? ''}`.toLowerCase();
+        const haystack = `${script.label} ${script.description ?? ''}`.toLowerCase();
         return haystack.includes(searchTerm);
       })
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [availableStackscripts, sortedStackscriptConfigs, stackscriptSearch]);
+  }, [availableStackscripts, stackscriptSearch]);
+
+  const formattedThemeUpdatedAt = useMemo(() => {
+    if (!themeUpdatedAt) {
+      return 'Not yet applied';
+    }
+    const parsed = new Date(themeUpdatedAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return themeUpdatedAt;
+    }
+    return parsed.toLocaleString();
+  }, [themeUpdatedAt]);
+
+  const getPaletteValue = useCallback(
+    (mode: ThemeMode, key: string) => {
+      const palette = customThemeDraft[mode];
+      return palette?.[key];
+    },
+    [customThemeDraft]
+  );
+
+  const getHexValue = useCallback(
+    (mode: ThemeMode, key: string) => {
+      const hsl = getPaletteValue(mode, key);
+      if (!hsl) {
+        return mode === 'light' ? '#ffffff' : '#000000';
+      }
+      return hslStringToHex(hsl, mode === 'light' ? '#ffffff' : '#000000');
+    },
+    [getPaletteValue]
+  );
+
+  const handleColorChange = useCallback(
+    (mode: ThemeMode, key: string, hex: string) => {
+      const nextHsl = hexToHslString(hex);
+      setCustomThemeDraft((prev) => ({
+        ...prev,
+        [mode]: {
+          ...prev[mode],
+          [key]: nextHsl,
+        },
+      }));
+    },
+    []
+  );
+
+  const handleCustomMetaChange = useCallback((field: 'label' | 'description', value: string) => {
+    setCustomThemeDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const handleResetCustomTheme = useCallback(() => {
+    const basePreset = themes.find((preset) => preset.id === themeId) ?? themes[0];
+    if (!basePreset) {
+      return;
+    }
+    setCustomThemeDraft({
+      ...basePreset,
+      id: 'custom',
+      label: 'Custom Theme',
+      description: 'Organization-defined theme preset.',
+      light: { ...basePreset.light },
+      dark: { ...basePreset.dark },
+    });
+  }, [themes, themeId]);
+
+  useEffect(() => {
+    if (!customPreset) {
+      return;
+    }
+    setCustomThemeDraft({
+      ...customPreset,
+      id: 'custom',
+      light: { ...customPreset.light },
+      dark: { ...customPreset.dark },
+    });
+  }, [customPreset]);
+
+  const buildCustomPayload = useCallback(() => ({
+    ...customThemeDraft,
+    id: 'custom',
+    light: { ...customThemeDraft.light },
+    dark: { ...customThemeDraft.dark },
+  }), [customThemeDraft]);
+
+  const fetchThemeConfiguration = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      setThemeConfigLoading(true);
+      const response = await fetch(buildApiUrl('/api/admin/theme'), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load theme configuration: ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const theme = payload?.theme as { updatedAt?: string; customPreset?: ThemePreset } | undefined;
+
+      if (theme?.customPreset) {
+        setCustomThemeDraft({
+          ...theme.customPreset,
+          id: 'custom',
+          light: { ...theme.customPreset.light },
+          dark: { ...theme.customPreset.dark },
+        });
+      }
+
+      setThemeUpdatedAt(typeof theme?.updatedAt === 'string' ? theme.updatedAt : null);
+      setThemeConfigLoaded(true);
+    } catch (error) {
+      console.error('Theme configuration fetch failed:', error);
+      toast.error('Unable to load theme configuration');
+    } finally {
+      setThemeConfigLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (activeTab === 'theme' && token && !themeConfigLoaded) {
+      fetchThemeConfiguration();
+    }
+  }, [activeTab, fetchThemeConfiguration, themeConfigLoaded, token]);
+
+  const handlePresetSelection = useCallback(async (preset: ThemePreset) => {
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    try {
+      setSavingPresetId(preset.id);
+      setTheme(preset.id);
+
+      const response = await fetch(buildApiUrl('/api/admin/theme'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ presetId: preset.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update theme: ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const theme = payload?.theme as { updatedAt?: string } | undefined;
+      setThemeUpdatedAt(typeof theme?.updatedAt === 'string' ? theme.updatedAt : null);
+
+      await reloadTheme();
+      setThemeConfigLoaded(false);
+      await fetchThemeConfiguration();
+
+      toast.success(`${preset.label} theme applied for all users.`);
+    } catch (error) {
+      console.error('Theme preset apply failed:', error);
+      toast.error('Failed to apply theme preset');
+      await reloadTheme();
+    } finally {
+      setSavingPresetId(null);
+    }
+  }, [token, setTheme, reloadTheme, fetchThemeConfiguration]);
+
+  const handleSaveCustomTheme = useCallback(async () => {
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    try {
+      setSavingCustomTheme(true);
+      const customPayload = buildCustomPayload();
+
+      const response = await fetch(buildApiUrl('/api/admin/theme'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ presetId: 'custom', customPreset: customPayload }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save custom theme: ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const theme = payload?.theme as { updatedAt?: string } | undefined;
+      setThemeUpdatedAt(typeof theme?.updatedAt === 'string' ? theme.updatedAt : null);
+
+      setTheme('custom');
+      await reloadTheme();
+      setThemeConfigLoaded(false);
+      await fetchThemeConfiguration();
+
+      toast.success('Custom theme saved and applied for all users.');
+    } catch (error) {
+      console.error('Custom theme save failed:', error);
+      toast.error('Failed to save custom theme');
+    } finally {
+      setSavingCustomTheme(false);
+    }
+  }, [token, buildCustomPayload, fetchThemeConfiguration, reloadTheme, setTheme]);
 
   useEffect(() => {
     if (!token) {
@@ -457,80 +708,6 @@ const Admin: React.FC = () => {
       setSavingStackscriptId(null);
     }
   };
-
-  const handleAddStackscript = async (script: LinodeStackScriptSummary) => {
-    try {
-      setSavingStackscriptId(script.id);
-      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify({
-          stackscript_id: script.id,
-          label: script.label,
-          description: script.description || script.rev_note || '',
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to add StackScript');
-      toast.success('StackScript added');
-      await fetchStackscriptConfigs();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to add StackScript');
-    } finally {
-      setSavingStackscriptId(null);
-    }
-  };
-
-  const handleSaveStackscript = async (stackscriptId: number) => {
-    const draft = stackscriptDrafts[stackscriptId];
-    if (!draft) return;
-    try {
-      setSavingStackscriptId(stackscriptId);
-      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts/${stackscriptId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify({
-          label: draft.label,
-          description: draft.description,
-          display_order: draft.display_order,
-          is_enabled: draft.is_enabled,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to update StackScript');
-      toast.success('StackScript updated');
-      await fetchStackscriptConfigs();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to update StackScript');
-    } finally {
-      setSavingStackscriptId(null);
-    }
-  };
-
-  const handleRemoveStackscript = async (stackscriptId: number) => {
-    try {
-      setSavingStackscriptId(stackscriptId);
-      const res = await fetch(`${API_BASE_URL}/admin/linode/stackscripts/${stackscriptId}`, {
-        method: 'DELETE',
-        headers: authHeader,
-      });
-      if (res.status === 404) {
-        toast.error('StackScript configuration not found');
-        return;
-      }
-      if (!res.ok && res.status !== 204) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to remove StackScript');
-      }
-      toast.success('StackScript removed');
-      await fetchStackscriptConfigs();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to remove StackScript');
-    } finally {
-      setSavingStackscriptId(null);
-    }
-  };
-
   const updateTicketStatus = async (ticketId: string, status: TicketStatus) => {
     if (!token) return;
     try {
@@ -998,67 +1175,253 @@ const Admin: React.FC = () => {
 
         {activeTab === 'theme' && (
           <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
               <div className="flex items-center gap-3">
                 <Palette className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
-                  <p className="text-sm text-muted-foreground">Switch between shadcn presets and preview brand colors.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Switch between presets or fine-tune a custom palette. Updates roll out to every user instantly.
+                  </p>
                 </div>
               </div>
-            </div>
-            <div className="px-6 py-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {themes.map((preset) => {
-                  const isActive = preset.id === themeId;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setTheme(preset.id)}
-                      className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                        isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
-                        </div>
-                        <Badge variant={isActive ? 'default' : 'outline'}>
-                          {isActive ? 'Active' : 'Preview'}
-                        </Badge>
-                      </div>
-                      <div className="mt-4 flex gap-4">
-                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          <span>Primary</span>
-                          <span
-                            className="h-10 w-10 rounded-md border shadow-sm"
-                            style={{ backgroundColor: `hsl(${preset.light.primary})` }}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          <span>Surface</span>
-                          <span
-                            className="h-10 w-10 rounded-md border shadow-sm"
-                            style={{ backgroundColor: `hsl(${preset.light.background})` }}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          <span>Dark Primary</span>
-                          <span
-                            className="h-10 w-10 rounded-md border shadow-sm"
-                            style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
-                          />
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="text-xs text-muted-foreground">
+                {themeConfigLoading ? 'Syncing...' : `Last updated: ${formattedThemeUpdatedAt}`}
               </div>
-              <p className="mt-6 text-sm text-muted-foreground">
-                Theme changes apply instantly on this device. Additional presets can be added later to extend the open-source theme system.
-              </p>
+            </div>
+            <div className="space-y-10 px-6 py-6">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Presets</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Choose a built-in palette. Applying a preset changes the experience for every organization member.
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {themes.map((preset) => {
+                    const isActive = preset.id === themeId;
+                    const isSaving = savingPresetId === preset.id;
+                    const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || savingCustomTheme || themeConfigLoading;
+
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handlePresetSelection(preset)}
+                        disabled={disabled}
+                        className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                          isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
+                        } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
+                          </div>
+                          <Badge variant={isActive ? 'default' : 'outline'}>
+                            {isSaving ? 'Saving...' : isActive ? 'Active' : 'Preview'}
+                          </Badge>
+                        </div>
+                        <div className="mt-4 flex gap-4">
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <span>Primary</span>
+                            <span
+                              className="h-10 w-10 rounded-md border shadow-sm"
+                              style={{ backgroundColor: `hsl(${preset.light.primary})` }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <span>Surface</span>
+                            <span
+                              className="h-10 w-10 rounded-md border shadow-sm"
+                              style={{ backgroundColor: `hsl(${preset.light.background})` }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <span>Dark Primary</span>
+                            <span
+                              className="h-10 w-10 rounded-md border shadow-sm"
+                              style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
+                            />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Custom Theme Builder</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust brand colors to match your identity. Saving applies the palette instantly across the platform.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetCustomTheme}
+                    disabled={savingCustomTheme || savingPresetId !== null || themeConfigLoading}
+                  >
+                    Reset to Active Preset
+                  </Button>
+                </div>
+
+                {themeConfigLoading && !themeConfigLoaded ? (
+                  <div className="text-sm text-muted-foreground">Loading theme configuration...</div>
+                ) : (
+                  <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="space-y-6">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="flex flex-col gap-2">
+                          <Label htmlFor="custom-theme-name">Display name</Label>
+                          <Input
+                            id="custom-theme-name"
+                            value={customThemeDraft.label}
+                            onChange={(event) => handleCustomMetaChange('label', event.target.value)}
+                            placeholder="Custom Theme"
+                            disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label htmlFor="custom-theme-description">Description</Label>
+                          <Input
+                            id="custom-theme-description"
+                            value={customThemeDraft.description}
+                            onChange={(event) => handleCustomMetaChange('description', event.target.value)}
+                            placeholder="Organization-defined theme preset."
+                            disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Light palette</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {LIGHT_THEME_FIELDS.map((field) => (
+                            <div key={field.key} className="flex flex-col gap-2">
+                              <Label>{field.label}</Label>
+                              <input
+                                type="color"
+                                className="h-10 w-full cursor-pointer rounded-md border border-border bg-background p-1"
+                                value={getHexValue(field.mode, field.key)}
+                                onChange={(event) => handleColorChange(field.mode, field.key, event.target.value)}
+                                disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
+                                aria-label={`${field.label} color`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dark palette</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {DARK_THEME_FIELDS.map((field) => (
+                            <div key={field.key} className="flex flex-col gap-2">
+                              <Label>{field.label}</Label>
+                              <input
+                                type="color"
+                                className="h-10 w-full cursor-pointer rounded-md border border-border bg-background p-1"
+                                value={getHexValue(field.mode, field.key)}
+                                onChange={(event) => handleColorChange(field.mode, field.key, event.target.value)}
+                                disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
+                                aria-label={`${field.label} color`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="rounded-lg border bg-background p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Light preview</p>
+                        <div
+                          className="mt-4 rounded-md border p-4"
+                          style={{
+                            backgroundColor: `hsl(${customThemeDraft.light.background ?? '0 0% 100%'})`,
+                            color: `hsl(${customThemeDraft.light.foreground ?? '0 0% 0%'})`,
+                          }}
+                        >
+                          <p className="text-sm font-medium">Dashboard Header</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <span
+                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: `hsl(${customThemeDraft.light.primary ?? '0 0% 0%'})`,
+                                color: `hsl(${customThemeDraft.light['primary-foreground'] ?? '0 0% 100%'})`,
+                              }}
+                            >
+                              Primary
+                            </span>
+                            <span
+                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: `hsl(${customThemeDraft.light.accent ?? '0 0% 100%'})`,
+                                color: `hsl(${customThemeDraft.light['accent-foreground'] ?? '0 0% 0%'})`,
+                              }}
+                            >
+                              Accent
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border bg-background p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dark preview</p>
+                        <div
+                          className="mt-4 rounded-md border p-4"
+                          style={{
+                            backgroundColor: `hsl(${customThemeDraft.dark.background ?? '0 0% 0%'})`,
+                            color: `hsl(${customThemeDraft.dark.foreground ?? '0 0% 100%'})`,
+                          }}
+                        >
+                          <p className="text-sm font-medium">Navigation Drawer</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <span
+                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: `hsl(${customThemeDraft.dark.primary ?? '0 0% 100%'})`,
+                                color: `hsl(${customThemeDraft.dark['primary-foreground'] ?? '0 0% 0%'})`,
+                              }}
+                            >
+                              Primary
+                            </span>
+                            <span
+                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: `hsl(${customThemeDraft.dark.accent ?? '0 0% 0%'})`,
+                                color: `hsl(${customThemeDraft.dark['accent-foreground'] ?? '0 0% 100%'})`,
+                              }}
+                            >
+                              Accent
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button
+                    variant="secondary"
+                    onClick={handleResetCustomTheme}
+                    disabled={savingCustomTheme || savingPresetId !== null || themeConfigLoading}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    onClick={handleSaveCustomTheme}
+                    disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
+                  >
+                    {savingCustomTheme ? 'Saving...' : 'Save & Apply Custom Theme'}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1483,9 +1846,11 @@ const Admin: React.FC = () => {
               </div>
               <button
                 onClick={fetchStackscriptsAndConfigs}
-                className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
+                disabled={loadingStackscripts}
+                className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="h-4 w-4 inline mr-1" /> Refresh
+                <RefreshCw className="h-4 w-4 inline mr-1" />
+                {loadingStackscripts ? 'Refreshing…' : 'Refresh'}
               </button>
             </div>
             <div className="px-6 py-4">
@@ -1505,9 +1870,12 @@ const Admin: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {availableStackscripts
-                  .filter(s => !stackscriptSearch || s.label.toLowerCase().includes(stackscriptSearch.toLowerCase()))
-                  .map(script => {
+                {loadingStackscripts ? (
+                  <div className="text-sm text-muted-foreground">Loading StackScripts…</div>
+                ) : filteredAvailableStackscripts.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No StackScripts match your search.</div>
+                ) : (
+                  filteredAvailableStackscripts.map(script => {
                     const config = stackscriptConfigs.find(c => c.stackscript_id === script.id);
                     const draft = stackscriptDrafts[script.id] || {
                       label: config?.label || script.label,
@@ -1606,7 +1974,8 @@ const Admin: React.FC = () => {
                         </div>
                       </div>
                     );
-                  })}
+                  })
+                )}
               </div>
             </div>
           </div>
