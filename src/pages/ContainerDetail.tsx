@@ -9,21 +9,23 @@ export default function ContainerDetail() {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Container Details</h1>
-            <p className="text-sm text-gray-500">ID: {id}</p>
-          </div>
-          <Link to="/containers" className="text-blue-600">Back to Containers</Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Container Details</h1>
+          <p className="text-sm text-muted-foreground">ID: {id}</p>
         </div>
-
-        <div className="bg-white shadow sm:rounded-lg p-6">
-          <p className="text-gray-600">This page will show container configuration, logs, metrics, and actions.</p>
-          <p className="mt-2 text-sm text-gray-500">Wire API calls to load details based on the container ID.</p>
-        </div>
+        <Button variant="ghost" asChild>
+          <Link to="/containers">Back to Containers</Link>
+        </Button>
       </div>
+
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-muted-foreground">This page will show container configuration, logs, metrics, and actions.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Wire API calls to load details based on the container ID.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
