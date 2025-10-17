@@ -132,42 +132,57 @@ const NotificationDropdown: React.FC = () => {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    loadNotifications();
+    let eventSource: EventSource | null = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
 
-    const eventSource = new EventSource(
-      `${buildApiUrl("/api/notifications/stream")}?token=${encodeURIComponent(token)}`
-    );
-
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "notification") {
-          const nextNotification = payload.data as Notification;
-          setNotifications((prev) => {
-            const next = [nextNotification, ...prev].slice(0, 20);
-            syncUnreadCount(next);
-            return next;
-          });
-          toast.info(nextNotification.message || "New notification", { duration: 4000 });
-        }
-      } catch (error) {
-        console.error("Error parsing SSE message:", error);
+    const connectEventSource = () => {
+      if (eventSource) {
+        eventSource.close();
       }
+
+      eventSource = new EventSource("/api/notifications/stream");
+
+      eventSource.onmessage = (event) => {
+        try {
+          const notification = JSON.parse(event.data);
+          setNotifications((prev) => [notification, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        } catch (error) {
+          console.error("Error parsing notification:", error);
+        }
+      };
+
+      eventSource.onopen = () => {
+        retryCount = 0; // Reset retry count on successful connection
+      };
+
+      eventSource.onerror = () => {
+        eventSource?.close();
+        
+        // Only show console warnings after the first retry attempt fails
+        if (retryCount > 0) {
+          console.warn(`Notification stream connection failed. Retry ${retryCount}/${maxRetries}`);
+        }
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(connectEventSource, retryDelay);
+        } else {
+          console.warn("Notification stream: Max retries reached. Notifications will not be real-time.");
+        }
+      };
     };
 
-    eventSource.onerror = (error) => {
-      console.error("Notification stream error:", error);
-      eventSource.close();
-    };
-
-    eventSourceRef.current = eventSource;
+    connectEventSource();
 
     return () => {
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+      if (eventSource) {
+        eventSource.close();
+      }
     };
-  }, [token, loadNotifications]);
+  }, []);
 
   const hasNotifications = notifications.length > 0;
 

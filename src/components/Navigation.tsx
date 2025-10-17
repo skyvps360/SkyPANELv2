@@ -129,7 +129,7 @@ const Navigation: React.FC = () => {
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-60" align="end" forceMount>
+            <DropdownMenuContent className="w-60" align="end">
               <DropdownMenuLabel>
                 <div className="flex flex-col gap-1">
                   <span className="truncate text-sm font-medium">
