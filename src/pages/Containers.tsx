@@ -30,6 +30,9 @@ import {
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ContainerInfo {
   id: string;

@@ -18,6 +18,9 @@ import {
 import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory } from '../services/paymentService';
 import Pagination from '../components/ui/Pagination';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 // Navigation provided by AppLayout
 
 interface FilterState {

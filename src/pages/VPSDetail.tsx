@@ -32,6 +32,9 @@ import {
 import SSHTerminal from '../components/VPS/SSHTerminal';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MetricPoint {
   timestamp: number;

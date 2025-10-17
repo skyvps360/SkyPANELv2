@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { BRAND_NAME } from '../lib/brand';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ApiDocs() {
   const apiBase = (import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}/api`).replace(/\/$/, '');

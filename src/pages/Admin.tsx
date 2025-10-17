@@ -8,6 +8,9 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 

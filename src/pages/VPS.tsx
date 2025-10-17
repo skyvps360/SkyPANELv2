@@ -33,6 +33,9 @@ import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService } from '../services/paymentService';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface VPSInstance {
   id: string;
