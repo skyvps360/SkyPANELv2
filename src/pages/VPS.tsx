@@ -2,29 +2,16 @@
  * VPS Management Page
  * Handles Linode VPS instance creation, management, and monitoring
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Server, 
-  Plus, 
-  Play, 
-  Square, 
-  Trash2, 
-  Settings, 
-  Terminal, 
-  Eye,
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Server,
+  Plus,
   RefreshCw,
   Search,
-  Filter,
-  Monitor,
-  Cpu,
-  MemoryStick,
-  HardDrive,
-  Network,
   MapPin,
   DollarSign,
-  Clock,
   Power,
   PowerOff,
   Copy
@@ -33,42 +20,8 @@ import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService } from '../services/paymentService';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-interface VPSInstance {
-  id: string;
-  label: string;
-  status: 'running' | 'stopped' | 'provisioning' | 'rebooting' | 'error' | 'restoring' | 'backing_up';
-  type: string;
-  region: string;
-  regionLabel?: string;
-  image: string;
-  ipv4: string[];
-  ipv6: string;
-  created: string;
-  specs: {
-    vcpus: number;
-    memory: number;
-    disk: number;
-    transfer: number;
-  };
-  stats: {
-    cpu: number;
-    memory: number;
-    disk: number;
-    network: {
-      in: number;
-      out: number;
-    };
-    uptime: string;
-  };
-  pricing: {
-    hourly: number;
-    monthly: number;
-  };
-}
+import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
+import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
   label: string;
@@ -110,7 +63,6 @@ const VPS: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState<number>(1);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; password: string; confirmCheckbox: boolean; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
-  const [selectedInstance, setSelectedInstance] = useState<VPSInstance | null>(null);
   const [createForm, setCreateForm] = useState<CreateVPSForm>({
     label: '',
     type: '',
@@ -123,12 +75,10 @@ const VPS: React.FC = () => {
   });
   const { token } = useAuth();
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(true);
   const [linodeImages, setLinodeImages] = useState<any[]>([]);
   const [linodeStackScripts, setLinodeStackScripts] = useState<any[]>([]);
   const [selectedStackScript, setSelectedStackScript] = useState<any | null>(null);
   const [stackscriptData, setStackscriptData] = useState<Record<string, any>>({});
-  const [loadingStackScripts, setLoadingStackScripts] = useState<boolean>(false);
   // OS selection redesign: tabs, grouping, and per-OS version selection
   const [osTab, setOsTab] = useState<'templates' | 'iso'>('templates');
   const [selectedOSGroup, setSelectedOSGroup] = useState<string | null>(null);
@@ -222,54 +172,6 @@ const VPS: React.FC = () => {
     return ids.map(id => ({ id, label: id, country: '' }));
   }, [linodeTypes]);
 
-  const osImages = [
-    { id: 'linode/ubuntu24.04', label: 'Ubuntu 24.04 LTS' },
-    { id: 'linode/ubuntu22.04', label: 'Ubuntu 22.04 LTS' },
-    { id: 'linode/ubuntu20.04', label: 'Ubuntu 20.04 LTS' },
-    { id: 'linode/debian12', label: 'Debian 12' },
-    { id: 'linode/debian11', label: 'Debian 11' },
-    { id: 'linode/debian10', label: 'Debian 10' },
-    { id: 'linode/centos-stream9', label: 'CentOS Stream 9' },
-    { id: 'linode/centos-stream8', label: 'CentOS Stream 8' },
-    { id: 'linode/rocky9', label: 'Rocky Linux 9' },
-    { id: 'linode/rocky8', label: 'Rocky Linux 8' },
-    { id: 'linode/almalinux9', label: 'AlmaLinux 9' },
-    { id: 'linode/almalinux8', label: 'AlmaLinux 8' },
-    { id: 'linode/fedora39', label: 'Fedora 39' },
-    { id: 'linode/fedora38', label: 'Fedora 38' },
-    { id: 'linode/alpine3.19', label: 'Alpine 3.19' },
-    { id: 'linode/alpine3.18', label: 'Alpine 3.18' },
-    { id: 'linode/arch', label: 'Arch Linux' },
-    { id: 'linode/gentoo', label: 'Gentoo' },
-    { id: 'linode/opensuse-leap15.5', label: 'openSUSE Leap 15.5' },
-    { id: 'linode/slackware15.0', label: 'Slackware 15.0' }
-  ];
-
-  useEffect(() => {
-    // Load plans first so instance mapping can derive specs and pricing
-    (async () => {
-      await loadVPSPlans();
-      await loadInstances();
-    })();
-  }, []);
-
-  // Simple polling: refresh instances while any are provisioning or rebooting
-  useEffect(() => {
-    const hasPending = instances.some(i => i.status === 'provisioning' || i.status === 'rebooting');
-    if (!hasPending) return;
-    const interval = setInterval(() => {
-      loadInstances();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [instances]);
-
-  // Load images and stack scripts when create modal opens
-  useEffect(() => {
-    if (showCreateModal) {
-      loadLinodeImages();
-      loadLinodeStackScripts();
-    }
-  }, [showCreateModal]);
 
   // Initialize StackScript data defaults when a script is selected
   useEffect(() => {
@@ -317,10 +219,9 @@ const VPS: React.FC = () => {
         setSelectedOSVersion(prev => ({ ...prev, [key]: pick }));
       }
     }
-  }, [selectedStackScript, linodeImages]);
+  }, [selectedStackScript, linodeImages, createForm.image]);
 
-  const loadVPSPlans = async () => {
-    setLoadingPlans(true);
+  const loadVPSPlans = useCallback(async () => {
     try {
       const res = await fetch('/api/vps/plans', {
         headers: { Authorization: `Bearer ${token}` },
@@ -378,12 +279,10 @@ const VPS: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to load VPS plans:', error);
       toast.error(error.message || 'Failed to load VPS plans');
-    } finally {
-      setLoadingPlans(false);
     }
-  };
+  }, [token]);
 
-  const loadLinodeImages = async () => {
+  const loadLinodeImages = useCallback(async () => {
     try {
       const res = await fetch('/api/vps/images', {
         headers: { Authorization: `Bearer ${token}` },
@@ -395,10 +294,9 @@ const VPS: React.FC = () => {
       console.error('Failed to load Linode images:', error);
       toast.error(error.message || 'Failed to load images');
     }
-  };
+  }, [token]);
 
-  const loadLinodeStackScripts = async () => {
-    setLoadingStackScripts(true);
+  const loadLinodeStackScripts = useCallback(async () => {
     try {
       // Load admin-configured StackScripts for 1-Click deployments
       const res = await fetch('/api/vps/stackscripts?configured=true', {
@@ -424,12 +322,9 @@ const VPS: React.FC = () => {
       console.error('Failed to load 1-Click deployments:', error);
       toast.error(error.message || 'Failed to load deployments');
     }
-    finally {
-      setLoadingStackScripts(false);
-    }
-  };
+  }, [token]);
 
-  const loadInstances = async () => {
+  const loadInstances = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/vps', {
@@ -487,7 +382,33 @@ const VPS: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, linodeTypes]);
+
+  useEffect(() => {
+    loadVPSPlans();
+  }, [loadVPSPlans]);
+
+  useEffect(() => {
+    loadInstances();
+  }, [loadInstances]);
+
+  // Simple polling: refresh instances while any are provisioning or rebooting
+  useEffect(() => {
+    const hasPending = instances.some(i => i.status === 'provisioning' || i.status === 'rebooting');
+    if (!hasPending) return;
+    const interval = setInterval(() => {
+      loadInstances();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [instances, loadInstances]);
+
+  // Load images and stack scripts when create modal opens
+  useEffect(() => {
+    if (showCreateModal) {
+      loadLinodeImages();
+      loadLinodeStackScripts();
+    }
+  }, [showCreateModal, loadLinodeImages, loadLinodeStackScripts]);
 
   const handleInstanceAction = async (instanceId: string, action: 'boot' | 'shutdown' | 'reboot' | 'delete') => {
     try {
@@ -496,8 +417,8 @@ const VPS: React.FC = () => {
         setDeleteModal({ open: true, id: instanceId, label: inst?.label || '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
         return;
       }
-      let url = `/api/vps/${instanceId}`;
-      let method: 'POST' | 'DELETE' = 'POST';
+  let url = `/api/vps/${instanceId}`;
+  const method: 'POST' | 'DELETE' = 'POST';
       if (action === 'boot') url += '/boot';
       else if (action === 'shutdown') url += '/shutdown';
       else if (action === 'reboot') url += '/reboot';
@@ -714,37 +635,10 @@ const VPS: React.FC = () => {
     return matchesSearch && matchesStatus && matchesRegion;
   });
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'running':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'stopped':
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
-      case 'provisioning':
-        return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
-      case 'rebooting':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'error':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default:
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
-    }
-  };
-
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 GB';
     const gb = bytes / 1024;
     return `${gb.toFixed(0)} GB`;
-  };
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   const formatCurrency = (amount: number): string => {
@@ -921,139 +815,19 @@ const VPS: React.FC = () => {
         </div>
 
         {/* VPS List */}
-        <div className="bg-card">
-          <div className="px-6 py-4 border-b border">
-            <h2 className="text-lg font-semibold text-foreground">VPS Instances ({filteredInstances.length})</h2>
+        <div className="bg-card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">
+              VPS Instances ({filteredInstances.length})
+            </h2>
           </div>
-          <div className="p-6">
-            {filteredInstances.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400  mb-4">
-                  <Server className="h-12 w-12 mx-auto" />
-                </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">No VPS instances found</h3>
-                <p className="text-muted-foreground">Get started by creating your first VPS instance.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredInstances.map((instance) => (
-                  <div key={instance.id} className="bg-card rounded-lg border border hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 hover:shadow-md">
-                    <div className="p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                        {/* Left Section - Instance Info */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div>
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-lg font-semibold text-foreground">{instance.label}</h3>
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-                                  <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                    instance.status === 'running' ? 'bg-green-400' :
-                                    instance.status === 'stopped' ? 'bg-red-400' :
-                                    instance.status === 'provisioning' ? 'bg-yellow-400' :
-                                    'bg-gray-400'
-                                  }`}></div>
-                                  {instance.status.replace('_', ' ')}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span className="font-mono">{instance.ipv4[0]}</span>
-                                <span>{(instance.regionLabel || allowedRegions.find(r => r.id === instance.region)?.label || instance.region)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Specs Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
-                            <div>
-                              <div className="text-muted-foreground">CPU</div>
-                              <div className="font-medium text-foreground">{instance.specs.vcpus} vCPU</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Memory</div>
-                              <div className="font-medium text-foreground">{formatBytes(instance.specs.memory)}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Storage</div>
-                              <div className="font-medium text-foreground">{Math.round(instance.specs.disk / 1024)} GB</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Transfer</div>
-                              <div className="font-medium text-foreground">{Math.round(instance.specs.transfer / 1024)} GB</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Hourly</div>
-                              <div className="font-medium text-foreground">{formatCurrency(instance.pricing.hourly)}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Monthly</div>
-                              <div className="font-medium text-foreground">{formatCurrency(instance.pricing.monthly)}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right Section - Actions */}
-                        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-                          {/* Actions */}
-                          <div className="flex flex-wrap gap-2 lg:flex-nowrap lg:justify-end">
-                            {instance.status === 'running' ? (
-                              <>
-                                <button
-                                  onClick={() => handleInstanceAction(instance.id, 'shutdown')}
-                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground bg-muted border border rounded-lg hover:bg-gray-100 hover:bg-secondary/80 transition-colors min-w-[80px] justify-center"
-                                  title="Shutdown"
-                                >
-                                  <PowerOff className="h-4 w-4" />
-                                  <span className="hidden sm:inline">Stop</span>
-                                </button>
-                                <button
-                                  onClick={() => handleInstanceAction(instance.id, 'reboot')}
-                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors min-w-[80px] justify-center"
-                                  title="Reboot"
-                                >
-                                  <RefreshCw className="h-4 w-4" />
-                                  <span className="hidden sm:inline">Reboot</span>
-                                </button>
-                              </>
-                            ) : instance.status === 'stopped' ? (
-                              <button
-                                onClick={() => handleInstanceAction(instance.id, 'boot')}
-                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors min-w-[80px] justify-center"
-                                title="Boot"
-                              >
-                                <Power className="h-4 w-4" />
-                                <span className="hidden sm:inline">Start</span>
-                              </button>
-                            ) : null}
-                            
-                            <Link
-                              to={`/vps/${instance.id}`}
-                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors min-w-[80px] justify-center"
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="hidden sm:inline">Details</span>
-                            </Link>
-                            
-                            {instance.status !== 'restoring' && instance.status !== 'backing_up' && (
-                              <button
-                                onClick={() => handleInstanceAction(instance.id, 'delete')}
-                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors min-w-[80px] justify-center"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="hidden sm:inline">Delete</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <VpsInstancesTable
+            instances={filteredInstances}
+            allowedRegions={allowedRegions}
+            onAction={handleInstanceAction}
+            onCopy={copyToClipboard}
+            isLoading={loading && instances.length > 0}
+          />
         </div>
 
         {/* Create VPS Modal */}
