@@ -241,7 +241,7 @@ npx shadcn@latest add calendar
 npx shadcn@latest add form
 ```
 
-Note: Due to network restrictions, you may need to manually copy component code from https://ui.shadcn.com/docs/components/
+If the CLI doesn't work in your environment, you can also manually copy component code from the [Shadcn UI documentation](https://ui.shadcn.com/docs/components/).
 
 ## Benefits
 
