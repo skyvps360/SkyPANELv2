@@ -131,6 +131,30 @@ const NotificationDropdown: React.FC = () => {
     }
   }, [token]);
 
+  // Load unread count immediately when component mounts
+  const loadUnreadCount = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(buildApiUrl("/api/notifications/unread-count"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch unread count");
+
+      const payload = await response.json();
+      setUnreadCount(payload.count || 0);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  }, [token]);
+
+  // Load unread count on mount and when token changes
+  useEffect(() => {
+    if (token) {
+      loadUnreadCount();
+    }
+  }, [token, loadUnreadCount]);
+
   useEffect(() => {
     let eventSource: EventSource | null = null;
     let retryCount = 0;
@@ -148,14 +172,21 @@ const NotificationDropdown: React.FC = () => {
         : buildApiUrl("/api/notifications/stream");
 
       eventSource = new EventSource(url);
+      eventSourceRef.current = eventSource;
 
       eventSource.onmessage = (event) => {
         try {
-          const notification = JSON.parse(event.data);
-          setNotifications((prev) => [notification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
+          const payload = JSON.parse(event.data);
+          if (payload?.type === 'notification' && payload?.data) {
+            const notification: Notification = payload.data;
+            setNotifications((prev) => [notification, ...prev]);
+            setUnreadCount((prev) => prev + (notification.is_read ? 0 : 1));
+            // Brief toast for new notifications
+            toast.success(notification.message || `${notification.event_type} ${notification.entity_type}`);
+          }
+          // Ignore other event types like 'connected' or heartbeats
         } catch (error) {
-          console.error("Error parsing notification:", error);
+          console.error("Error parsing notification message:", error);
         }
       };
 
@@ -185,8 +216,9 @@ const NotificationDropdown: React.FC = () => {
     }
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
   }, [token]);
@@ -209,11 +241,14 @@ const NotificationDropdown: React.FC = () => {
           aria-label="Open notifications"
         >
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
+          {/* Always show badge, with different styling for zero count */}
+          <span className={`absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
+            unreadCount > 0 
+              ? "bg-destructive text-destructive-foreground" 
+              : "bg-muted text-muted-foreground border border-border"
+          }`}>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[360px] p-0" align="end">
