@@ -284,11 +284,11 @@ const Billing: React.FC = () => {
       case 'failed':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       case 'cancelled':
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
       case 'refunded':
         return 'text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/20';
       default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
     }
   };
 
@@ -454,7 +454,7 @@ const Billing: React.FC = () => {
               <label htmlFor="amount" className="sr-only">Amount</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <DollarSign className="h-5 w-5 text-gray-400 " />
                 </div>
                 <input
                   type="number"
@@ -533,7 +533,7 @@ const Billing: React.FC = () => {
                       <div 
                         key={transaction.id} 
                         onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
-                        className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-gray-100 border last:border-b-0 rounded-md cursor-pointer hover:bg-secondary/80/50 transition-colors"
                       >
                         <div className="flex items-center">
                           <div className={`p-2 rounded-lg ${transaction.type === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
@@ -613,7 +613,7 @@ const Billing: React.FC = () => {
                         <tr 
                           key={transaction.id}
                           onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
-                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          className="cursor-pointer hover:bg-secondary/80 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {transaction.description}

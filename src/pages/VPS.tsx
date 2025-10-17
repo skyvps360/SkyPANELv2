@@ -719,7 +719,7 @@ const VPS: React.FC = () => {
       case 'running':
         return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
       case 'stopped':
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
       case 'provisioning':
         return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
       case 'rebooting':
@@ -727,7 +727,7 @@ const VPS: React.FC = () => {
       case 'error':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
     }
   };
 
@@ -804,7 +804,7 @@ const VPS: React.FC = () => {
             {/* Search Row */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
                 <input
                   type="text"
                   placeholder="Search instances..."
@@ -928,7 +928,7 @@ const VPS: React.FC = () => {
           <div className="p-6">
             {filteredInstances.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 dark:text-gray-500 mb-4">
+                <div className="text-gray-400  mb-4">
                   <Server className="h-12 w-12 mx-auto" />
                 </div>
                 <h3 className="text-lg font-medium text-foreground mb-2">No VPS instances found</h3>
@@ -1000,7 +1000,7 @@ const VPS: React.FC = () => {
                               <>
                                 <button
                                   onClick={() => handleInstanceAction(instance.id, 'shutdown')}
-                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground bg-muted border border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors min-w-[80px] justify-center"
+                                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground bg-muted border border rounded-lg hover:bg-gray-100 hover:bg-secondary/80 transition-colors min-w-[80px] justify-center"
                                   title="Shutdown"
                                 >
                                   <PowerOff className="h-4 w-4" />
@@ -1058,7 +1058,7 @@ const VPS: React.FC = () => {
 
         {/* Create VPS Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border w-full max-w-2xl shadow-lg rounded-md bg-card">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-foreground mb-4">Create New VPS Instance</h3>
@@ -1068,7 +1068,7 @@ const VPS: React.FC = () => {
                     <div className="text-xs text-muted-foreground">Step {createStep} of {totalSteps}</div>
                     <div className="flex items-center space-x-1">
                       {[...Array(totalSteps)].map((_, i) => (
-                        <span key={i} className={`w-2 h-2 rounded-full ${i + 1 <= createStep ? 'bg-blue-600 dark:bg-blue-400' : 'bg-gray-300 dark:bg-gray-600'}`}></span>
+                        <span key={i} className={`w-2 h-2 rounded-full ${i + 1 <= createStep ? 'bg-primary' : 'bg-muted'}`}></span>
                       ))}
                     </div>
                   </div>
@@ -1121,7 +1121,7 @@ const VPS: React.FC = () => {
                     <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Region
                     </label>
-                    <div className="w-full px-3 py-2 border border rounded-md bg-gray-50 dark:bg-gray-600 text-foreground">
+                    <div className="w-full px-3 py-2 border border rounded-md bg-muted text-foreground">
                       {createForm.type && createForm.region ? (
                         (() => {
                           const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
@@ -1523,16 +1523,16 @@ const VPS: React.FC = () => {
         )}
 
         {deleteModal.open && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border w-full max-w-lg shadow-lg rounded-md bg-card">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-foreground mb-4">Confirm Delete</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">To confirm deletion, type the server name exactly:</p>
+                <p className="text-sm text-gray-600 text-muted-foreground">To confirm deletion, type the server name exactly:</p>
                 <div className="mt-2 flex items-center space-x-2">
                   <p className="text-sm font-mono px-2 py-1 bg-secondary text-foreground rounded">{deleteModal.label}</p>
                   <button
                     onClick={() => copyToClipboard(deleteModal.label)}
-                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                    className="p-1 text-gray-500 hover:text-gray-700 text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                     title="Copy server name"
                   >
                     <Copy className="h-4 w-4" />

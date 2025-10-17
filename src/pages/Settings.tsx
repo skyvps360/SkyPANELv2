@@ -335,7 +335,7 @@ const Settings: React.FC = () => {
                     value={profileData.email}
                     disabled
                     title="Email changes are not supported in the current schema"
-                    className="w-full rounded-md border shadow-sm bg-gray-100 dark:bg-gray-600 text-muted-foreground cursor-not-allowed"
+                    className="w-full rounded-md border shadow-sm bg-muted text-muted-foreground cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -394,7 +394,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={orgData.name}
                     onChange={(e) => setOrgData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -405,7 +405,7 @@ const Settings: React.FC = () => {
                     type="url"
                     value={orgData.website}
                     onChange={(e) => setOrgData(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -416,7 +416,7 @@ const Settings: React.FC = () => {
                     value={orgData.address}
                     onChange={(e) => setOrgData(prev => ({ ...prev, address: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -427,7 +427,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={orgData.taxId}
                     onChange={(e) => setOrgData(prev => ({ ...prev, taxId: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -459,7 +459,7 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.currentPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -470,7 +470,7 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.newPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -481,7 +481,7 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.confirmPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <button
@@ -494,7 +494,7 @@ const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="border-t dark:border-gray-700 pt-6">
+            <div className="border-t border pt-6">
               <h3 className="text-lg font-medium text-foreground mb-4">Two-Factor Authentication</h3>
               <div className="flex items-center justify-between">
                 <div>
@@ -509,7 +509,7 @@ const Settings: React.FC = () => {
                     onChange={(e) => setSecurityData(prev => ({ ...prev, twoFactorEnabled: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
             </div>
@@ -534,7 +534,7 @@ const Settings: React.FC = () => {
                       onChange={(e) => setNotificationData(prev => ({ ...prev, emailNotifications: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
 
@@ -550,11 +550,11 @@ const Settings: React.FC = () => {
                       onChange={(e) => setNotificationData(prev => ({ ...prev, smsNotifications: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
 
-                <div className="border-t dark:border-gray-700 pt-4">
+                <div className="border-t border pt-4">
                   <h4 className="text-sm font-medium text-foreground mb-3">Alert Types</h4>
                   <div className="space-y-3">
                     {[
@@ -575,7 +575,7 @@ const Settings: React.FC = () => {
                             onChange={(e) => setNotificationData(prev => ({ ...prev, [alert.key]: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                       </div>
                     ))}
@@ -620,7 +620,7 @@ const Settings: React.FC = () => {
               </div>
 
               {/* Create new API key */}
-              <div className="border dark:border-gray-700 rounded-lg p-4 mb-6">
+              <div className="border border rounded-lg p-4 mb-6">
                 <h4 className="text-sm font-medium text-foreground mb-4">Create New API Key</h4>
                 <div className="flex gap-2">
                   <input
@@ -628,7 +628,7 @@ const Settings: React.FC = () => {
                     placeholder="Enter API key name"
                     value={newApiKeyName}
                     onChange={(e) => setNewApiKeyName(e.target.value)}
-                    className="flex-1 rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="flex-1 rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                   <button
                     onClick={handleCreateApiKey}
@@ -645,12 +645,12 @@ const Settings: React.FC = () => {
               <div className="space-y-4">
                 {apiKeys.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Key className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                    <Key className="h-12 w-12 mx-auto mb-4 text-gray-300 " />
                     <p>No API keys found. Create your first API key above.</p>
                   </div>
                 ) : (
                   apiKeys.map((key) => (
-                    <div key={key.id} className="border dark:border-gray-700 rounded-lg p-4">
+                    <div key={key.id} className="border border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <h4 className="text-sm font-medium text-foreground">{key.name}</h4>
@@ -669,19 +669,19 @@ const Settings: React.FC = () => {
                             type="text"
                             value={getDisplayKey(key)}
                             readOnly
-                            className="w-full rounded-md border dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                            className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
                           />
                         </div>
                         <button
                           onClick={() => toggleApiKeyVisibility(key.id)}
-                          className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                           title={showApiKey[key.id] ? 'Hide API key' : 'Show API key'}
                         >
                           {showApiKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                         <button
                           onClick={() => handleCopyApiKey(key.id, key.key_preview || key.key)}
-                          className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                           title="Copy API key"
                         >
                           <Copy className="h-4 w-4" />
@@ -733,7 +733,7 @@ const Settings: React.FC = () => {
                       </div>
                       <button
                         onClick={closeRevokeModal}
-                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
                       >
                         <X className="h-5 w-5" />
                       </button>
@@ -817,7 +817,7 @@ const Settings: React.FC = () => {
 
           {/* Content */}
           <div className="flex-1">
-            <div className="bg-card shadow sm:rounded-lg border dark:border-gray-700">
+            <div className="bg-card shadow sm:rounded-lg border border">
               <div className="px-6 py-6">
                 {renderTabContent()}
               </div>

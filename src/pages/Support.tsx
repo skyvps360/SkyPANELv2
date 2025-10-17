@@ -194,8 +194,8 @@ const Support: React.FC = () => {
       case 'open': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'closed': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      case 'closed': return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
+      default: return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
     }
   };
 
@@ -205,7 +205,7 @@ const Support: React.FC = () => {
       case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
       case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      default: return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
     }
   };
 
@@ -355,7 +355,7 @@ const Support: React.FC = () => {
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Ticket
@@ -363,7 +363,7 @@ const Support: React.FC = () => {
 
               <div className="flex-1 flex gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
                   <input
                     type="text"
                     placeholder="Search tickets..."
@@ -404,7 +404,7 @@ const Support: React.FC = () => {
               <ul className="divide-y divide-border">
                 {filteredTickets.length === 0 ? (
                   <li className="px-6 py-12 text-center">
-                    <HelpCircle className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                    <HelpCircle className="mx-auto h-12 w-12 text-gray-400 " />
                     <h3 className="mt-2 text-sm font-medium text-foreground">No tickets found</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
@@ -417,7 +417,7 @@ const Support: React.FC = () => {
                     <li key={ticket.id}>
                       <button
                         onClick={() => openTicket(ticket)}
-                        className="w-full px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 text-left"
+                        className="w-full px-6 py-4 hover:bg-secondary/80 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 text-left"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
@@ -435,7 +435,7 @@ const Support: React.FC = () => {
                             <p className="text-sm text-muted-foreground truncate">
                               {ticket.description}
                             </p>
-                            <div className="mt-2 flex items-center text-xs text-gray-400 dark:text-gray-500 gap-4">
+                            <div className="mt-2 flex items-center text-xs text-gray-400  gap-4">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 {formatDate(ticket.created_at)}
@@ -537,7 +537,7 @@ const Support: React.FC = () => {
             <div className="px-6 py-4 border-t border bg-card">
               {selectedTicket.status === 'closed' ? (
                 <div className="text-center py-4">
-                  <CheckCircle className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                  <CheckCircle className="h-12 w-12 text-gray-400  mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">This ticket has been closed</p>
                 </div>
               ) : (
@@ -572,13 +572,13 @@ const Support: React.FC = () => {
 
         {/* Create Ticket Modal */}
         {isCreateModalOpen && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-foreground">Create Support Ticket</h3>
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+                  className="text-gray-400  hover:text-gray-600 dark:hover:text-gray-400"
                 >
                   <X className="h-5 w-5" />
                 </button>

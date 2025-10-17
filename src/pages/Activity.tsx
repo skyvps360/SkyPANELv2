@@ -199,11 +199,11 @@ const ActivityPage: React.FC = () => {
         <div className="bg-card rounded-lg p-4 mb-6">
           <div className="flex items-end gap-4">
             <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Type</label>
+              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Type</label>
               <input value={type} onChange={e => setType(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" placeholder="vps, container, billing" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Status</label>
+              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Status</label>
               <select value={status} onChange={e => setStatus(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground">
                 <option value="">Any</option>
                 <option value="success">Success</option>
@@ -213,15 +213,15 @@ const ActivityPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">From</label>
+              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">From</label>
               <input type="datetime-local" value={from} onChange={e => setFrom(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">To</label>
+              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">To</label>
               <input type="datetime-local" value={to} onChange={e => setTo(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Items per page</label>
+              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Items per page</label>
               <select value={limit} onChange={e => handleLimitChange(Number(e.target.value))} className="px-3 py-2 border rounded-md bg-background text-foreground">
                 <option value={10}>10</option>
                 <option value={20}>20</option>

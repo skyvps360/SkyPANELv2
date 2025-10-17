@@ -928,7 +928,7 @@ const Admin: React.FC = () => {
             <h1 className="text-2xl font-semibold text-foreground">Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground">Manage support tickets and VPS plans</p>
           </div>
-          <Settings className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+          <Settings className="h-6 w-6 text-gray-400 " />
         </div>
 
         <div className="mb-6 border-b border">
@@ -988,7 +988,7 @@ const Admin: React.FC = () => {
           <div className="bg-card shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <ClipboardList className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <ClipboardList className="h-5 w-5 text-gray-400 " />
                 <h2 className="text-lg font-medium text-foreground">Support Tickets</h2>
               </div>
               <div>
@@ -1015,7 +1015,7 @@ const Admin: React.FC = () => {
                       filteredTickets.map(t => (
                         <li key={t.id}>
                           <button
-                            className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            className="w-full text-left px-4 py-3 hover:bg-secondary/80"
                             onClick={() => openTicket(t)}
                           >
                             <div className="flex items-center justify-between">
@@ -1148,7 +1148,7 @@ const Admin: React.FC = () => {
           <div className="bg-card shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <DollarSign className="h-5 w-5 text-gray-400 " />
                 <h2 className="text-lg font-medium text-foreground">VPS Plans</h2>
               </div>
               <button
@@ -1399,7 +1399,7 @@ const Admin: React.FC = () => {
           <div className="bg-card shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <FileCode className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <FileCode className="h-5 w-5 text-gray-400 " />
                 <h2 className="text-lg font-medium text-foreground">Manage StackScripts</h2>
               </div>
               <button
@@ -1518,7 +1518,7 @@ const Admin: React.FC = () => {
                               className={`px-3 py-1.5 text-sm font-medium rounded-md ${
                                 hasChanges || isNew
                                   ? 'text-white bg-primary hover:bg-primary/90'
-                                  : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
+                                  : 'text-gray-400 bg-muted cursor-not-allowed'
                               }`}
                             >
                               {savingStackscriptId === script.id ? 'Saving...' : 'Save'}
@@ -1537,7 +1537,7 @@ const Admin: React.FC = () => {
           <div className="bg-card shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Server className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <Server className="h-5 w-5 text-gray-400 " />
                 <h2 className="text-lg font-medium text-foreground">Container Pricing & Plans</h2>
               </div>
             </div>
@@ -1608,7 +1608,7 @@ const Admin: React.FC = () => {
                         onChange={e => setNewContainerPlan(p => ({ ...p, network_mbps: Number(e.target.value) }))} />
                     </div>
                     <div className="flex items-end">
-                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700" onClick={createContainerPlan}>
+                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border border bg-card text-foreground hover:bg-secondary/80" onClick={createContainerPlan}>
                         <Plus className="h-4 w-4 mr-1" /> Add Plan
                       </button>
                     </div>
@@ -1644,13 +1644,13 @@ const Admin: React.FC = () => {
                             <td className="px-4 py-2 text-sm text-muted-foreground">{p.network_mbps} Mbps</td>
                             <td className="px-4 py-2 text-sm text-muted-foreground">${computeContainerPlanPrice(p).toFixed(2)}</td>
                             <td className="px-4 py-2 text-sm">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{p.active ? 'Active' : 'Inactive'}</span>
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground'}`}>{p.active ? 'Active' : 'Inactive'}</span>
                             </td>
                             <td className="px-4 py-2 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => { setEditContainerPlanId(p.id); setEditContainerPlan(p); }}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700"
+                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-secondary/80"
                                 >
                                   <Edit className="h-3 w-3 mr-1" /> Edit
                                 </button>
@@ -1677,7 +1677,7 @@ const Admin: React.FC = () => {
           <div className="bg-card shadow sm:rounded-lg">
             <div className="px-6 py-4 border-b border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Globe className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <Globe className="h-5 w-5 text-gray-400 " />
                 <h2 className="text-lg font-medium text-foreground">Networking</h2>
               </div>
             </div>
@@ -1775,7 +1775,7 @@ const Admin: React.FC = () => {
                           <td className="px-4 py-2 text-sm text-foreground">{provider.name}</td>
                           <td className="px-4 py-2 text-sm text-muted-foreground">{provider.type}</td>
                           <td className="px-4 py-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${provider.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${provider.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground'}`}>
                               {provider.active ? 'Active' : 'Inactive'}
                             </span>
                           </td>
@@ -1783,7 +1783,7 @@ const Admin: React.FC = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => { setEditProviderId(provider.id); setEditProvider(provider); }}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-gray-50 dark:hover:bg-gray-700"
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-secondary/80"
                               >
                                 <Edit className="h-3 w-3 mr-1" /> Edit
                               </button>
@@ -1893,7 +1893,7 @@ const Admin: React.FC = () => {
 
         {/* Edit Container Plan Modal */}
         {editContainerPlanId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border w-[500px] shadow-lg rounded-md bg-card">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-foreground mb-4">Edit Container Plan</h3>

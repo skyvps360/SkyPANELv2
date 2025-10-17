@@ -158,7 +158,7 @@ const TransactionDetail: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center text-gray-600 dark:text-gray-300">
+        <div className="flex flex-col items-center text-gray-600 ">
           <Loader2 className="h-8 w-8 animate-spin mb-4" />
           <p>Loading transaction details...</p>
         </div>
@@ -177,7 +177,7 @@ const TransactionDetail: React.FC = () => {
           <p className="text-muted-foreground mb-6">{error || 'We could not find the requested transaction.'}</p>
           <button
             onClick={() => navigate('/billing')}
-            className="inline-flex items-center px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+            className="inline-flex items-center px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Billing
@@ -215,7 +215,7 @@ const TransactionDetail: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate('/billing')}
-            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-card text-sm font-medium text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+            className="inline-flex items-center px-3 py-2 rounded-md border border bg-card text-sm font-medium text-muted-foreground hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Billing
@@ -223,7 +223,7 @@ const TransactionDetail: React.FC = () => {
           <button
             onClick={handleDownloadInvoice}
             disabled={invoiceLoading}
-            className="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+            className="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
           >
             {invoiceLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

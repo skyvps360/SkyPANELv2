@@ -208,7 +208,7 @@ const Containers: React.FC = () => {
       case 'running':
         return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
       case 'stopped':
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
       case 'paused':
         return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
       case 'restarting':
@@ -216,7 +216,7 @@ const Containers: React.FC = () => {
       case 'error':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
     }
   };
 
@@ -276,7 +276,7 @@ const Containers: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
                 <input
                   type="text"
                   placeholder="Search containers..."
@@ -397,11 +397,11 @@ const Containers: React.FC = () => {
               </thead>
               <tbody className="bg-card divide-y divide-border">
                 {filteredContainers.map((container) => (
-                  <tr key={container.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={container.id} className="hover:bg-secondary/80">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <Container className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                          <Container className="h-8 w-8 text-gray-400 " />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-foreground">{container.name}</div>
@@ -417,11 +417,11 @@ const Containers: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       <div className="space-y-1">
                         <div className="flex items-center">
-                          <Cpu className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
+                          <Cpu className="h-3 w-3 text-gray-400  mr-1" />
                           <span>{container.stats.cpu}%</span>
                         </div>
                         <div className="flex items-center">
-                          <MemoryStick className="h-3 w-3 text-gray-400 dark:text-gray-500 mr-1" />
+                          <MemoryStick className="h-3 w-3 text-gray-400  mr-1" />
                           <span>{container.stats.memory}%</span>
                         </div>
                       </div>
@@ -438,7 +438,7 @@ const Containers: React.FC = () => {
                           <>
                             <button
                               onClick={() => handleContainerAction(container.id, 'stop')}
-                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                              className="text-gray-600 hover:text-gray-900 text-muted-foreground dark:hover:text-gray-200"
                               title="Stop"
                             >
                               <Square className="h-4 w-4" />
@@ -485,7 +485,7 @@ const Containers: React.FC = () => {
 
         {/* Create Container Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border w-full max-w-2xl shadow-lg rounded-md bg-card">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-foreground mb-4">Create New Container</h3>
