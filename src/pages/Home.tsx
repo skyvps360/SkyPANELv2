@@ -35,7 +35,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <Container className="h-8 w-8 text-primary" />
+              <Server className="h-8 w-8 text-primary" />
               <span className="ml-2 text-xl font-bold">{BRAND_NAME}</span>
             </div>
             <div className="flex items-center space-x-4">
@@ -55,7 +55,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Modern VPS &amp; Container
+              Modern Cloud &amp; Container
               <span className="text-primary"> Management</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
@@ -65,7 +65,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
                 <Link to="/register">
-                  Start Free Trial
+                  Sign Up Today
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -122,7 +122,7 @@ export default function Home() {
             </p>
             <Button size="lg" variant="secondary" asChild>
               <Link to="/register">
-                Start Your Free Trial
+                Sign Up Today
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -135,7 +135,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Container className="h-6 w-6 text-primary" />
+              <Server className="h-6 w-6 text-primary" />
               <span className="ml-2 text-lg font-bold">{BRAND_NAME}</span>
             </div>
             <p className="text-muted-foreground text-sm">
