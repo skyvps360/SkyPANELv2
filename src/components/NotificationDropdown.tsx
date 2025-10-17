@@ -142,7 +142,12 @@ const NotificationDropdown: React.FC = () => {
         eventSource.close();
       }
 
-      eventSource = new EventSource("/api/notifications/stream");
+      // EventSource doesn't support custom headers, so we pass the token as a query parameter
+      const url = token 
+        ? buildApiUrl(`/api/notifications/stream?token=${encodeURIComponent(token)}`)
+        : buildApiUrl("/api/notifications/stream");
+
+      eventSource = new EventSource(url);
 
       eventSource.onmessage = (event) => {
         try {
@@ -175,16 +180,24 @@ const NotificationDropdown: React.FC = () => {
       };
     };
 
-    connectEventSource();
+    if (token) {
+      connectEventSource();
+    }
 
     return () => {
       if (eventSource) {
         eventSource.close();
       }
     };
-  }, []);
+  }, [token]);
 
   const hasNotifications = notifications.length > 0;
+
+  useEffect(() => {
+    if (open && notifications.length === 0) {
+      loadNotifications();
+    }
+  }, [open, notifications.length, loadNotifications]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
