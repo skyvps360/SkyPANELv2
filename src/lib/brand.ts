@@ -1,7 +1,6 @@
 // Frontend brand name sourced from environment variables
-// Prefer COMPANY-NAME, fallback to COMPANY_NAME, then VITE_COMPANY_NAME
+// Prefer COMPANY_NAME, fallback to VITE_COMPANY_NAME
 const candidates = [
-  import.meta.env['COMPANY-NAME'],
   import.meta.env.COMPANY_NAME,
   import.meta.env.VITE_COMPANY_NAME,
 ];

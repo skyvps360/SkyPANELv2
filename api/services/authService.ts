@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto-js';
 import { query, transaction } from '../lib/database.js';
 import { config } from '../config/index.js';
@@ -96,8 +96,8 @@ export class AuthService {
       // Generate JWT token
       const token = jwt.sign(
         { userId: result.user.id, email: result.user.email },
-        config.JWT_SECRET,
-        { expiresIn: config.JWT_EXPIRES_IN }
+        config.JWT_SECRET as Secret,
+        { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
 
       return {
@@ -154,8 +154,8 @@ export class AuthService {
       // Generate JWT token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
-        config.JWT_SECRET,
-        { expiresIn: config.JWT_EXPIRES_IN }
+        config.JWT_SECRET as Secret,
+        { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
 
       return {
@@ -252,8 +252,8 @@ export class AuthService {
       // Generate new JWT token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
-        config.JWT_SECRET,
-        { expiresIn: config.JWT_EXPIRES_IN }
+        config.JWT_SECRET as Secret,
+        { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
 
       return { 

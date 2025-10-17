@@ -130,26 +130,21 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
         // Debounce resize to avoid excessive calls
         setTimeout(() => {
           fitAddon.fit();
-          const dims = term._core?._renderService?.dimensions;
-          if (dims && containerRef.current) {
-            const padding = 16;
-            const availableWidth = containerRef.current.clientWidth - padding;
-            const availableHeight = containerRef.current.clientHeight - padding;
-            
-            const newCols = Math.max(40, Math.floor(availableWidth / (dims.actualCellWidth || 9)));
-            const newRows = Math.max(10, Math.floor(availableHeight / (dims.actualCellHeight || 18)));
-            
+          const newCols = term.cols;
+          const newRows = term.rows;
+
+          if (newCols && newRows) {
             // Only update if dimensions actually changed
             if (newCols !== cols || newRows !== rows) {
               setCols(newCols);
               setRows(newRows);
-              
+
               // Notify backend of size change
               if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ 
-                  type: 'resize', 
-                  rows: newRows, 
-                  cols: newCols 
+                wsRef.current.send(JSON.stringify({
+                  type: 'resize',
+                  rows: newRows,
+                  cols: newCols
                 }));
               }
             }

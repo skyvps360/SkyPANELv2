@@ -1418,7 +1418,7 @@ const VPSDetail: React.FC = () => {
                 <div className="xl:hidden">
                   <select
                     value={activeTab}
-                    onChange={(e) => setActiveTab(e.target.value)}
+                    onChange={(e) => setActiveTab(e.target.value as TabId)}
                     className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-gray-900 "
                   >
                     {tabDefinitions.map(tab => (

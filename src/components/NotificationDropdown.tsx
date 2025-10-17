@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildApiUrl } from "@/lib/api";
@@ -281,7 +281,7 @@ const NotificationDropdown: React.FC = () => {
             You are all caught up.
           </div>
         ) : (
-          <ScrollArea className="max-h-[320px]">
+          <ScrollArea type="always" className="max-h-[360px]">
             <div className="divide-y">
               {notifications.map((notification) => (
                 <div
