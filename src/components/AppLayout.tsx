@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import { useTheme } from "@/hooks/useTheme";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -38,29 +39,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     [location.pathname]
   );
 
-  // Toggle dark mode by updating document class
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof document === "undefined") return false;
-    return document.documentElement.classList.contains("dark");
-  });
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const target = document.documentElement;
-    const observer = new MutationObserver(() => {
-      setIsDark(target.classList.contains("dark"));
-    });
-
-    observer.observe(target, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-
-  const toggleTheme = () => {
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark");
-      setIsDark(document.documentElement.classList.contains("dark"));
-    }
-  };
+  // Use the proper theme hook for persistence
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen}>
