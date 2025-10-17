@@ -7,10 +7,11 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe } from 'lucide-react';
+import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe, Palette } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTheme } from '@/contexts/ThemeContext';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -133,7 +134,8 @@ const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking'>('tickets');
+  const { themeId, setTheme, themes } = useTheme();
+  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme'>('tickets');
   const [, setLoading] = useState(false);
 
   // Tickets state
@@ -272,6 +274,8 @@ const Admin: React.FC = () => {
         break;
       case 'networking':
         fetchNetworkingRdns();
+        break;
+      case 'theme':
         break;
       case 'containers':
       default:
@@ -932,57 +936,132 @@ const Admin: React.FC = () => {
         </div>
 
         <div className="mb-6 border-b border">
-          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+          <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-2" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('tickets')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'tickets' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'tickets' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <Ticket className="h-4 w-4 inline mr-2" /> Tickets
             </button>
             <button
               onClick={() => setActiveTab('plans')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'plans' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'plans' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <DollarSign className="h-4 w-4 inline mr-2" /> VPS Plans
             </button>
             <button
               onClick={() => setActiveTab('stackscripts')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'stackscripts' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'stackscripts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <FileCode className="h-4 w-4 inline mr-2" /> StackScripts
             </button>
             <button
               onClick={() => setActiveTab('containers')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'containers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'containers' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <Server className="h-4 w-4 inline mr-2" /> Container Plans
             </button>
             <button
               onClick={() => setActiveTab('networking')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'networking' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'networking' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <Globe className="h-4 w-4 inline mr-2" /> Networking
             </button>
             <button
               onClick={() => setActiveTab('providers')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'providers' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'providers' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <Settings className="h-4 w-4 inline mr-2" /> Providers
             </button>
+            <button
+              onClick={() => setActiveTab('theme')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === 'theme' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              <Palette className="h-4 w-4 inline mr-2" /> Theme
+            </button>
           </nav>
         </div>
+
+        {activeTab === 'theme' && (
+          <div className="bg-card shadow sm:rounded-lg">
+            <div className="px-6 py-4 border-b border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Palette className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
+                  <p className="text-sm text-muted-foreground">Switch between shadcn presets and preview brand colors.</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {themes.map((preset) => {
+                  const isActive = preset.id === themeId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setTheme(preset.id)}
+                      className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                        isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
+                        </div>
+                        <Badge variant={isActive ? 'default' : 'outline'}>
+                          {isActive ? 'Active' : 'Preview'}
+                        </Badge>
+                      </div>
+                      <div className="mt-4 flex gap-4">
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span>Primary</span>
+                          <span
+                            className="h-10 w-10 rounded-md border shadow-sm"
+                            style={{ backgroundColor: `hsl(${preset.light.primary})` }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span>Surface</span>
+                          <span
+                            className="h-10 w-10 rounded-md border shadow-sm"
+                            style={{ backgroundColor: `hsl(${preset.light.background})` }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span>Dark Primary</span>
+                          <span
+                            className="h-10 w-10 rounded-md border shadow-sm"
+                            style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
+                          />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-6 text-sm text-muted-foreground">
+                Theme changes apply instantly on this device. Additional presets can be added later to extend the open-source theme system.
+              </p>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'tickets' && (
           <div className="bg-card shadow sm:rounded-lg">

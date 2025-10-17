@@ -1,11 +1,12 @@
 import tailwindcssAnimate from "tailwindcss-animate";
 import { fontFamily } from "tailwindcss/defaultTheme";
+import colors from "tailwindcss/colors";
 
 /** @type {import('tailwindcss').Config} */
 const config = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  theme: {
+	theme: {
   	container: {
   		center: true,
   		padding: '2rem',
@@ -15,6 +16,7 @@ const config = {
   	},
   	extend: {
   		colors: {
+			blue: colors.teal,
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
