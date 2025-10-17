@@ -3,8 +3,18 @@
  * Reusable pagination UI for tables and lists
  */
 
-import React from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import React from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export interface PaginationProps {
   currentPage: number;
@@ -25,7 +35,7 @@ const Pagination: React.FC<PaginationProps> = ({
   onItemsPerPageChange,
   showItemsPerPage = true,
   itemsPerPageOptions = [10, 25, 50, 100],
-  className = '',
+  className = "",
 }) => {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
@@ -82,112 +92,101 @@ const Pagination: React.FC<PaginationProps> = ({
   }
 
   return (
-    <div className={`flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6 ${className}`}>
-      <div className="flex flex-1 items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Showing <span className="font-medium">{startItem}</span> to{' '}
-            <span className="font-medium">{endItem}</span> of{' '}
-            <span className="font-medium">{totalItems}</span> results
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          {showItemsPerPage && onItemsPerPageChange && (
-            <div className="flex items-center space-x-2 mr-4">
-              <label htmlFor="items-per-page" className="text-sm text-gray-700 dark:text-gray-300">
-                Show
-              </label>
-              <select
-                id="items-per-page"
-                value={itemsPerPage}
-                onChange={(e) => onItemsPerPageChange(parseInt(e.target.value))}
-                className="block rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white py-1 pl-3 pr-8 text-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
-              >
+    <div
+      className={cn(
+        "flex flex-col gap-4 border-t border-border bg-card px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
+        className
+      )}
+    >
+      <p>
+        Showing <span className="font-medium text-foreground">{startItem}</span> to
+        <span className="font-medium text-foreground"> {endItem}</span> of
+        <span className="font-medium text-foreground"> {totalItems}</span>
+      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        {showItemsPerPage && onItemsPerPageChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide">Rows</span>
+            <Select
+              value={String(itemsPerPage)}
+              onValueChange={(value) => onItemsPerPageChange(Number(value))}
+            >
+              <SelectTrigger className="h-8 w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 {itemsPerPageOptions.map((option) => (
-                  <option key={option} value={option}>
+                  <SelectItem key={option} value={String(option)}>
                     {option}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
-          )}
-          <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-            {/* First page button */}
-            <button
-              onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="First page"
-            >
-              <span className="sr-only">First page</span>
-              <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
-            </button>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-            {/* Previous page button */}
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Previous page"
-            >
-              <span className="sr-only">Previous</span>
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </button>
-
-            {/* Page numbers */}
-            {getPageNumbers().map((page, index) => {
-              if (page === '...') {
-                return (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 ring-1 ring-inset ring-gray-300 dark:ring-gray-600"
-                  >
-                    ...
-                  </span>
-                );
-              }
-
-              const pageNumber = page as number;
-              const isCurrentPage = pageNumber === currentPage;
-
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            aria-label="First page"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {getPageNumbers().map((page, index) => {
+            if (page === "...") {
               return (
-                <button
-                  key={pageNumber}
-                  onClick={() => handlePageChange(pageNumber)}
-                  className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                    isCurrentPage
-                      ? 'z-10 bg-blue-600 dark:bg-blue-500 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-                      : 'text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0'
-                  }`}
-                  aria-current={isCurrentPage ? 'page' : undefined}
-                >
-                  {pageNumber}
-                </button>
+                <span key={`ellipsis-${index}`} className="px-2 text-xs text-muted-foreground">
+                  …
+                </span>
               );
-            })}
+            }
 
-            {/* Next page button */}
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Next page"
-            >
-              <span className="sr-only">Next</span>
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
+            const pageNumber = page as number;
+            const isCurrentPage = pageNumber === currentPage;
 
-            {/* Last page button */}
-            <button
-              onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Last page"
-            >
-              <span className="sr-only">Last page</span>
-              <ChevronsRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </nav>
+            return (
+              <Button
+                key={pageNumber}
+                variant={isCurrentPage ? "secondary" : "ghost"}
+                size="icon"
+                className={cn("h-8 w-8", isCurrentPage && "pointer-events-none")}
+                onClick={() => handlePageChange(pageNumber)}
+                aria-current={isCurrentPage ? "page" : undefined}
+              >
+                {pageNumber}
+              </Button>
+            );
+          })}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            aria-label="Last page"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
