@@ -2,12 +2,10 @@ import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Activity,
-  Container,
   CreditCard,
   HelpCircle,
   LayoutDashboard,
   Server,
-  Settings,
   Command,
 } from "lucide-react";
 
@@ -31,42 +29,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
 
   // Main navigation items
+  const pathname = location.pathname;
+  const isDashboardActive = pathname === "/dashboard";
+  const isVpsActive = pathname.startsWith("/vps");
+  const isContainersActive = pathname.startsWith("/containers");
+  const isActivityActive = pathname.startsWith("/activity");
+  const isBillingActive = pathname.startsWith("/billing");
+
   const navMainItems = [
     {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
-      isActive: location.pathname === "/dashboard",
+      isActive: isDashboardActive,
     },
     {
-      title: "VPS",
-      url: "/vps",
+      title: "Compute",
+      url: isVpsActive ? "/vps" : isContainersActive ? "/containers" : "/vps",
       icon: Server,
-      isActive: location.pathname === "/vps",
-    },
-    {
-      title: "Containers",
-      url: "/containers",
-      icon: Container,
-      isActive: location.pathname === "/containers",
+      isActive: isVpsActive || isContainersActive,
+      items: [
+        {
+          title: "VPS",
+          url: "/vps",
+          isActive: isVpsActive,
+        },
+        {
+          title: "Containers",
+          url: "/containers",
+          isActive: isContainersActive,
+        },
+      ],
     },
     {
       title: "Activity",
       url: "/activity",
       icon: Activity,
-      isActive: location.pathname === "/activity",
+      isActive: isActivityActive,
     },
     {
       title: "Billing",
       url: "/billing",
       icon: CreditCard,
-      isActive: location.pathname === "/billing",
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-      isActive: location.pathname === "/settings",
+      isActive: isBillingActive,
     },
   ];
 
@@ -80,8 +85,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ];
 
   // User data for the footer
+  const displayName = user
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email
+    : "User";
+
   const userData = {
-    name: user?.name || "User",
+    name: displayName,
     email: user?.email || "user@example.com",
     avatar: "/avatars/user.jpg", // You can add user avatar support later
     role: user?.role,

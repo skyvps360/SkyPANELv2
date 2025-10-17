@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -38,15 +39,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   );
 
   // Toggle dark mode by updating document class
-  const isDark = useMemo(() => {
-    if (typeof window === "undefined") return false;
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document === "undefined") return false;
     return document.documentElement.classList.contains("dark");
+  });
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const target = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDark(target.classList.contains("dark"));
+    });
+
+    observer.observe(target, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
 
   const toggleTheme = () => {
     if (typeof document !== "undefined") {
       document.documentElement.classList.toggle("dark");
-      // Update theme ID if needed - for now we just toggle the dark class
+      setIsDark(document.documentElement.classList.contains("dark"));
     }
   };
 
@@ -78,6 +90,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             </Breadcrumb>
           </div>
           <div className="mr-4 flex items-center gap-2">
+            <NotificationDropdown />
             <Button
               variant="ghost"
               size="icon"
