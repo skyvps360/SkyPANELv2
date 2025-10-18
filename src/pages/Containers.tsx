@@ -6,39 +6,32 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Container, 
   Plus, 
+  Search, 
+  RefreshCw, 
   Play, 
-  Pause, 
   Square, 
+  Eye, 
   Trash2, 
-  Settings, 
-  Terminal, 
-  Eye,
-  RefreshCw,
-  Search,
-  Filter,
-  Download,
-  Upload,
-  Activity,
-  Cpu,
-  MemoryStick,
-  HardDrive,
-  Network,
-  Clock
+  Container, 
+  Activity, 
+  Cpu, 
+  MemoryStick 
 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Status } from '@/components/ui/status';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ContainerInfo {
   id: string;
   name: string;
   image: string;
-  status: 'running' | 'stopped' | 'paused' | 'restarting' | 'error';
+  status: 'running' | 'stopped' | 'paused' | 'restarting' | 'starting' | 'stopping' | 'error';
   created: string;
   ports: string[];
   volumes: string[];
@@ -118,8 +111,23 @@ const Containers: React.FC = () => {
 
   const handleContainerAction = async (containerId: string, action: 'start' | 'stop' | 'restart' | 'remove') => {
     try {
+      // Set intermediate status for progress indication
+      if (action === 'start') {
+        setContainers(prev => prev.map(container => 
+          container.id === containerId ? { ...container, status: 'starting' } : container
+        ));
+      } else if (action === 'stop') {
+        setContainers(prev => prev.map(container => 
+          container.id === containerId ? { ...container, status: 'stopping' } : container
+        ));
+      } else if (action === 'restart') {
+        setContainers(prev => prev.map(container => 
+          container.id === containerId ? { ...container, status: 'restarting' } : container
+        ));
+      }
+
       // Mock API call - replace with actual Docker API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       setContainers(prev => prev.map(container => {
         if (container.id === containerId) {
@@ -148,6 +156,8 @@ const Containers: React.FC = () => {
     } catch (error) {
       console.error(`Failed to ${action} container:`, error);
       toast.error(`Failed to ${action} container`);
+      // Revert status on error
+      loadContainers();
     }
   };
 
@@ -217,6 +227,40 @@ const Containers: React.FC = () => {
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       default:
         return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
+    }
+  };
+
+  const getContainerStatusVariant = (status: string) => {
+    switch (status) {
+      case 'running':
+        return 'running';
+      case 'stopped':
+        return 'stopped';
+      case 'paused':
+        return 'warning';
+      case 'restarting':
+        return 'loading';
+      case 'starting':
+        return 'provisioning';
+      case 'stopping':
+        return 'warning';
+      case 'error':
+        return 'error';
+      default:
+        return 'offline';
+    }
+  };
+
+  const getContainerProgressValue = (status: string) => {
+    switch (status) {
+      case 'starting':
+        return 30;
+      case 'stopping':
+        return 70;
+      case 'restarting':
+        return 50;
+      default:
+        return null;
     }
   };
 
@@ -421,9 +465,23 @@ const Containers: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(container.status)}`}>
-                        {container.status}
-                      </span>
+                      <div className="space-y-2">
+                        <Status 
+                          variant={getContainerStatusVariant(container.status)}
+                          label={container.status.charAt(0).toUpperCase() + container.status.slice(1)}
+                          showPing={['running', 'starting', 'stopping', 'restarting'].includes(container.status)}
+                          animated={['starting', 'stopping', 'restarting'].includes(container.status)}
+                        />
+                        {getContainerProgressValue(container.status) !== null && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>{container.status}...</span>
+                              <span>{getContainerProgressValue(container.status)}%</span>
+                            </div>
+                            <Progress value={getContainerProgressValue(container.status)} className="h-1.5" />
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       <div className="space-y-1">

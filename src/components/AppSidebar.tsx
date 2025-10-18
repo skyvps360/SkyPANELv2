@@ -3,10 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Activity,
   CreditCard,
-  HelpCircle,
   LayoutDashboard,
   Server,
   Command,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,13 +76,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ];
 
   // Secondary navigation items
-  const navSecondaryItems = [
-    {
-      title: "Support",
-      url: "/support",
-      icon: HelpCircle,
-    },
-  ];
+  const navSecondaryItems: Array<{
+    title: string;
+    url: string;
+    icon: LucideIcon;
+  }> = [];
 
   // User data for the footer
   const displayName = user

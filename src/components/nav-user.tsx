@@ -2,7 +2,7 @@ import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
-  CreditCard,
+  HelpCircle,
   LogOut,
   Settings,
   Shield,
@@ -115,9 +115,9 @@ export function NavUser({
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/billing">
-                  <CreditCard />
-                  Billing
+                <Link to="/support">
+                  <HelpCircle />
+                  Support
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>

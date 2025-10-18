@@ -12,18 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle } from 'lucide-react';
-
-interface VpsInstance {
-  id: number;
-  label: string;
-  status: string;
-}
+import { VPSInstance } from '@/types/vps';
 
 interface BulkDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (password: string) => Promise<void>;
-  selectedInstances: VpsInstance[];
+  selectedInstances: VPSInstance[];
   isLoading?: boolean;
 }
 
@@ -120,7 +115,7 @@ export const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
               <Checkbox
                 id="confirm"
                 checked={isConfirmed}
-                onCheckedChange={setIsConfirmed}
+                onCheckedChange={(checked) => setIsConfirmed(checked === true)}
                 disabled={isLoading}
               />
               <Label

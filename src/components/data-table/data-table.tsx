@@ -88,13 +88,22 @@ export function DataTable<TData, TValue>({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="rounded-lg border border-border bg-card">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id} className="whitespace-nowrap">
+        {/* Mobile-friendly horizontal scroll wrapper */}
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <div className="min-w-full" style={{ touchAction: 'pan-x' }}>
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead 
+                      key={header.id} 
+                      className={cn(
+                        "whitespace-nowrap",
+                        header.column.columnDef.meta?.className
+                      )}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -102,43 +111,50 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                     </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <DataTableSkeleton columns={columnCount} />
-            ) : hasRows ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <DataTableSkeleton columns={columnCount} />
+                ) : hasRows ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() ? "selected" : undefined}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell 
+                          key={cell.id}
+                          className={cn(
+                            cell.column.columnDef.meta?.className
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columnCount} className="h-24 text-center">
+                      {emptyState ?? (
+                        <div className="text-sm text-muted-foreground">
+                          No data available.
+                        </div>
                       )}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="h-24 text-center">
-                  {emptyState ?? (
-                    <div className="text-sm text-muted-foreground">
-                      No data available.
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
       <DataTablePagination table={table} />
     </div>

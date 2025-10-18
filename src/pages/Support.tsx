@@ -26,11 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  InputGroup, 
-  InputGroupAddon, 
-  InputGroupInput 
-} from '@/components/ui/input-group';
+
 
 interface TicketMessage {
   id: string;
@@ -368,47 +364,45 @@ const Support: React.FC = () => {
                 New Ticket
               </Button>
 
-              <div className="flex-1 flex gap-4">
-                <div className="flex-1">
-                  <InputGroup className="h-12">
-                    <InputGroupAddon align="inline-start">
-                      <Search className="h-5 w-5" />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      type="text"
-                      placeholder="Search tickets by subject, description, or ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="text-base py-3"
-                    />
-                  </InputGroup>
+              <div className="flex-1 flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type="text"
+                    placeholder="Search tickets by subject, description, or ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-14 sm:h-12 min-h-[56px] pl-10 sm:pl-9 pr-4 text-base sm:text-sm font-medium placeholder:font-normal touch-manipulation"
+                  />
                 </div>
 
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
-                  <SelectTrigger className="min-w-[150px]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="resolved">Resolved</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
+                    <SelectTrigger className="min-w-[150px] h-14 sm:h-10 min-h-[56px] sm:min-h-[40px] touch-manipulation text-base sm:text-sm">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value)}>
-                  <SelectTrigger className="min-w-[150px]">
-                    <SelectValue placeholder="All Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priority</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value)}>
+                    <SelectTrigger className="min-w-[150px] h-14 sm:h-10 min-h-[56px] sm:min-h-[40px] touch-manipulation text-base sm:text-sm">
+                      <SelectValue placeholder="All Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priority</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 

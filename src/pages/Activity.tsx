@@ -56,8 +56,8 @@ const ActivityPage: React.FC = () => {
       const params = new URLSearchParams();
       if (type) params.set('type', type);
       if (status && status !== 'all') params.set('status', status);
-      if (from) params.set('from', from.toISOString());
-      if (to) params.set('to', to.toISOString());
+      if (from instanceof Date) params.set('from', from.toISOString());
+      if (to instanceof Date) params.set('to', to.toISOString());
       params.set('limit', String(limit));
       params.set('offset', String((page - 1) * limit));
       const res = await fetch(`/api/activity?${params.toString()}`, {
@@ -156,8 +156,8 @@ const ActivityPage: React.FC = () => {
 
   const exportCsv = () => {
     const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    if (from instanceof Date) params.set('from', from.toISOString());
+    if (to instanceof Date) params.set('to', to.toISOString());
     const url = `/api/activity/export?${params.toString()}`;
     // Open in new tab/window to trigger download; include auth header via fetch for blob
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })

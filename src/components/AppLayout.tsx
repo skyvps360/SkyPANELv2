@@ -218,7 +218,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     {
       icon: CreditCard,
       label: "Invoices",
-      href: "/billing",
+      href: "/billing/invoices",
       shortcut: "⌘I",
     },
     {

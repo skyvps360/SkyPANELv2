@@ -367,7 +367,7 @@ const VPS: React.FC = () => {
         // Normalize status: treat provider 'offline' as 'stopped' for UI/actions
         const normalizedStatus = ((i.status as any) || 'provisioning') === 'offline' ? 'stopped' : ((i.status as any) || 'provisioning');
         return ({
-        id: i.id,
+        id: String(i.id),
         label: i.label,
         status: normalizedStatus,
         type: i.configuration?.type || '',
@@ -970,54 +970,61 @@ const VPS: React.FC = () => {
         {selectedInstances.length > 0 && (
           <Card className="mb-4">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">
                     {selectedInstances.length} instance{selectedInstances.length > 1 ? 's' : ''} selected
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2">
                   <Button
                     onClick={() => handleBulkAction('boot')}
                     variant="secondary"
                     size="sm"
-                    className="text-green-700 bg-green-100 border-green-300 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
+                    className="text-green-700 bg-green-100 border-green-300 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30 min-h-[44px] touch-manipulation flex-1 sm:flex-none"
                     disabled={selectedInstances.every(instance => instance.status === 'running')}
                   >
                     <Power className="h-4 w-4 mr-1" />
-                    Start
+                    <span className="hidden xs:inline">Start</span>
+                    <span className="xs:hidden">▶️</span>
                   </Button>
                   <Button
                     onClick={() => handleBulkAction('shutdown')}
                     variant="secondary"
                     size="sm"
-                    className="text-orange-700 bg-orange-100 border-orange-300 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
+                    className="text-orange-700 bg-orange-100 border-orange-300 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30 min-h-[44px] touch-manipulation flex-1 sm:flex-none"
                     disabled={selectedInstances.every(instance => instance.status === 'stopped')}
                   >
                     <PowerOff className="h-4 w-4 mr-1" />
-                    Stop
+                    <span className="hidden xs:inline">Stop</span>
+                    <span className="xs:hidden">⏹️</span>
                   </Button>
                   <Button
                     onClick={() => handleBulkAction('reboot')}
                     variant="default"
                     size="sm"
+                    className="min-h-[44px] touch-manipulation flex-1 sm:flex-none"
                     disabled={selectedInstances.every(instance => instance.status !== 'running')}
                   >
                     <RotateCcw className="h-4 w-4 mr-1" />
-                    Restart
+                    <span className="hidden xs:inline">Restart</span>
+                    <span className="xs:hidden">🔄</span>
                   </Button>
                   <Button
                     onClick={() => handleBulkAction('delete')}
                     variant="destructive"
                     size="sm"
+                    className="min-h-[44px] touch-manipulation flex-1 sm:flex-none"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
+                    <span className="hidden xs:inline">Delete</span>
+                    <span className="xs:hidden">🗑️</span>
                   </Button>
                   <Button
                     onClick={() => setSelectedInstances([])}
                     variant="outline"
                     size="sm"
+                    className="min-h-[44px] touch-manipulation w-full sm:w-auto mt-2 sm:mt-0"
                   >
                     Clear Selection
                   </Button>
