@@ -1404,61 +1404,57 @@ const VPSDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Three-column layout: Tabs Sidebar | Main Content | Provider Telemetry */}
-        <div className="flex flex-col xl:flex-row xl:items-start gap-4 sm:gap-6 xl:gap-8">
-          {/* Left Sidebar - Instance Feature Views Tabs */}
-          <aside className="w-full xl:w-72 flex-shrink-0">
-            <div className="rounded-2xl border border bg-card shadow-sm">
-              <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6">
-                <p className="text-sm sm:text-base font-semibold text-foreground  mb-6 sm:mb-8">Instance Feature Views</p>
-                
-                {/* Tab Navigation - Responsive: Dropdown on mobile, Vertical on desktop */}
-                
-                {/* Mobile Dropdown (below xl breakpoint) */}
-                <div className="xl:hidden">
-                  <select
-                    value={activeTab}
-                    onChange={(e) => setActiveTab(e.target.value as TabId)}
-                    className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:focus:ring-primary dark:focus:border-primary text-foreground "
-                  >
-                    {tabDefinitions.map(tab => (
-                      <option key={tab.id} value={tab.id}>
-                        {tab.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Desktop Vertical Layout (xl and above) */}
-                <div className="hidden xl:block space-y-3">
-                  {tabDefinitions.map(tab => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`w-full flex items-center gap-4 px-4 py-3.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg ${
-                          isActive
-                            ? 'text-primary-foreground bg-primary border border-primary'
-                            : 'text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 hover:bg-muted/50 dark:hover:bg-gray-800/50'
-                        }`}
-                      >
-                        <tab.icon className={`h-4 w-4 transition-colors duration-200 flex-shrink-0 ${
-                          isActive 
-                            ? 'text-primary-foreground' 
-                            : 'text-gray-500 group-hover:text-foreground  dark:group-hover:text-gray-300'
-                        }`} />
-                        <span className="font-medium text-left">{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+        {/* Horizontal Tab Navigation */}
+        <div className="rounded-2xl border border bg-card shadow-sm mb-6">
+          <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6">
+            <p className="text-sm sm:text-base font-semibold text-foreground mb-6 sm:mb-8">Instance Feature Views</p>
+            
+            {/* Mobile Dropdown (below lg breakpoint) */}
+            <div className="lg:hidden">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as TabId)}
+                className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:focus:ring-primary dark:focus:border-primary text-foreground"
+              >
+                {tabDefinitions.map(tab => (
+                  <option key={tab.id} value={tab.id}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          </aside>
 
-          {/* Center Column - Main Content */}
+            {/* Desktop Horizontal Layout (lg and above) */}
+            <div className="hidden lg:flex flex-wrap gap-2">
+              {tabDefinitions.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg ${
+                      isActive
+                        ? 'text-primary-foreground bg-primary border border-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <tab.icon className={`h-4 w-4 transition-colors duration-200 flex-shrink-0 ${
+                      isActive 
+                        ? 'text-primary-foreground' 
+                        : 'text-gray-500 group-hover:text-foreground'
+                    }`} />
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Two-column layout: Main Content | Provider Telemetry */}
+        <div className="flex flex-col xl:flex-row xl:items-start gap-4 sm:gap-6 xl:gap-8">
+          {/* Main Content */}
           <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
 
             {activeTab === 'overview' && (
@@ -1602,14 +1598,14 @@ const VPSDetail: React.FC = () => {
                           className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary border bg-background  dark:placeholder:text-muted-foreground"
                           disabled={snapshotBusy}
                         />
-                        <button
+                        <Button
                           type="button"
                           onClick={() => handleBackupAction('snapshot')}
                           disabled={snapshotBusy || !backupsEnabled}
                           className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${snapshotBusy || !backupsEnabled ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
                         >
                           {snapshotBusy ? 'Requesting…' : 'Capture snapshot'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     {!backupsEnabled && (
@@ -1667,14 +1663,15 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
                         onClick={handleBackupScheduleSave}
                         disabled={!backupsEnabled || scheduleBusy || !scheduleDirty}
-                        className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-primary ${!backupsEnabled || scheduleBusy || !scheduleDirty ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary'}`}
+                        variant="default"
+                        size="sm"
                       >
                         {scheduleBusy ? 'Saving…' : 'Save schedule'}
-                      </button>
+                      </Button>
                       <button
                         type="button"
                         onClick={handleBackupScheduleReset}
@@ -1751,7 +1748,7 @@ const VPSDetail: React.FC = () => {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                      <div className="rounded-xl border border-dashed border-input bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
                         No automatic backups captured yet.
                       </div>
                     )}
