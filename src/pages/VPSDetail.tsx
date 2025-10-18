@@ -35,6 +35,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Area, AreaChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 
 interface MetricPoint {
   timestamp: number;
@@ -2081,15 +2083,16 @@ const VPSDetail: React.FC = () => {
                                           >
                                             {slaacSaving ? 'Saving…' : 'Save'}
                                           </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => cancelEditRdns(slaacAddress)}
-                                            disabled={slaacSaving}
-                                            className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-gray-300 border  dark:hover:bg-gray-800"
-                                            aria-label="Cancel rDNS edit"
-                                          >
-                                            Cancel
-                                          </button>
+                                          <Button
+                            type="button"
+                            onClick={() => cancelEditRdns(slaacAddress)}
+                            disabled={slaacSaving}
+                            variant="outline"
+                            size="sm"
+                            aria-label="Cancel rDNS edit"
+                          >
+                            Cancel
+                          </Button>
                                         </div>
                                       </>
                                     ) : (
@@ -2344,7 +2347,7 @@ const VPSDetail: React.FC = () => {
                       );
                     })
                   ) : (
-                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
                       No firewalls are currently attached to this instance.
                     </div>
                   )}
@@ -2391,88 +2394,278 @@ const VPSDetail: React.FC = () => {
                       </div>
 
                       <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
-                          <h3 className="text-sm font-semibold text-foreground">CPU timeline</h3>
-                          {cpuSeries.length > 0 ? (
-                            <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
-                              {cpuSeries.slice(-20).reverse().map(point => (
-                                <li key={`cpu-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-cyan-50 px-3 py-2 dark:bg-cyan-900/40">
-                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-cyan-600 dark:text-cyan-200">{formatPercent(point.value)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-muted-foreground">No CPU samples recorded.</p>
-                          )}
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
-                          <h3 className="text-sm font-semibold text-foreground">Network throughput</h3>
-                          {inboundSeries.length + outboundSeries.length > 0 ? (
-                            <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
-                              {inboundSeries.slice(-6).reverse().map(point => (
-                                <li key={`in-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/40">
-                                  <span>Inbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-emerald-600 dark:text-emerald-200">{formatNetworkRate(point.value)}</span>
-                                </li>
-                              ))}
-                              {outboundSeries.slice(-6).reverse().map(point => (
-                                <li key={`out-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-orange-50 px-3 py-2 dark:bg-orange-900/40">
-                                  <span>Outbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-orange-600 dark:text-orange-200">{formatNetworkRate(point.value)}</span>
-                                </li>
-                              ))}
-                              {privateInSeries.slice(-4).reverse().map(point => (
-                                <li key={`pin-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-purple-50 px-3 py-2 dark:bg-purple-900/40">
-                                  <span>Private inbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-purple-600 dark:text-purple-200">{formatNetworkRate(point.value)}</span>
-                                </li>
-                              ))}
-                              {privateOutSeries.slice(-4).reverse().map(point => (
-                                <li key={`pout-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 dark:bg-sky-900/40">
-                                  <span>Private outbound · {formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-sky-600 dark:text-sky-200">{formatNetworkRate(point.value)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-muted-foreground">No network samples recorded.</p>
-                          )}
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
-                          <h3 className="text-sm font-semibold text-foreground">Disk reads</h3>
-                          {ioSeries.length > 0 ? (
-                            <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
-                              {ioSeries.slice(-8).reverse().map(point => (
-                                <li key={`io-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 dark:bg-indigo-900/40">
-                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-indigo-600 dark:text-indigo-200">{formatBlocks(point.value)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-muted-foreground">No disk samples recorded.</p>
-                          )}
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
-                          <h3 className="text-sm font-semibold text-foreground">Swap activity</h3>
-                          {swapSeries.length > 0 ? (
-                            <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
-                              {swapSeries.slice(-8).reverse().map(point => (
-                                <li key={`swap-${point.timestamp}`} className="flex items-center justify-between rounded-lg bg-rose-50 px-3 py-2 dark:bg-rose-900/40">
-                                  <span>{formatDateTime(new Date(point.timestamp).toISOString())}</span>
-                                  <span className="font-semibold text-rose-600 dark:text-rose-200">{formatBlocks(point.value)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-muted-foreground">No swap samples recorded.</p>
-                          )}
-                        </div>
+                        <Card className="border bg-background/60">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-semibold text-foreground">CPU Usage Over Time</CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              {cpuSeries.length > 0 ? `${cpuSeries.length} data points` : 'No data available'}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            {cpuSeries.length > 0 ? (
+                              <ChartContainer
+                                config={{
+                                  cpu: {
+                                    label: "CPU Usage",
+                                    color: "hsl(var(--chart-1))",
+                                  },
+                                }}
+                                className="h-[200px]"
+                              >
+                                <AreaChart
+                                  data={cpuSeries.map(point => ({
+                                    timestamp: point.timestamp,
+                                    cpu: point.value,
+                                    time: new Date(point.timestamp).toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })
+                                  }))}
+                                >
+                                  <XAxis 
+                                    dataKey="time" 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    domain={[0, 100]}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent 
+                                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU Usage']}
+                                    />} 
+                                  />
+                                  <Area
+                                    type="monotone"
+                                    dataKey="cpu"
+                                    stroke="hsl(180, 100%, 50%)"
+                                    fill="hsl(180, 100%, 50%)"
+                                    fillOpacity={0.2}
+                                    strokeWidth={2}
+                                  />
+                                </AreaChart>
+                              </ChartContainer>
+                            ) : (
+                              <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+                                No CPU samples recorded.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border bg-background/60">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-semibold text-foreground">Network Throughput</CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              Inbound and outbound traffic over time
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            {(inboundSeries.length > 0 || outboundSeries.length > 0) ? (
+                              <ChartContainer
+                                config={{
+                                  inbound: {
+                                    label: "Inbound",
+                                    color: "hsl(var(--chart-2))",
+                                  },
+                                  outbound: {
+                                    label: "Outbound", 
+                                    color: "hsl(var(--chart-3))",
+                                  },
+                                }}
+                                className="h-[200px]"
+                              >
+                                <LineChart
+                                  data={(() => {
+                                    const timestamps = new Set([
+                                      ...inboundSeries.map(p => p.timestamp),
+                                      ...outboundSeries.map(p => p.timestamp)
+                                    ]);
+                                    return Array.from(timestamps).sort().map(timestamp => ({
+                                      timestamp,
+                                      time: new Date(timestamp).toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit' 
+                                      }),
+                                      inbound: inboundSeries.find(p => p.timestamp === timestamp)?.value || 0,
+                                      outbound: outboundSeries.find(p => p.timestamp === timestamp)?.value || 0,
+                                    }));
+                                  })()}
+                                >
+                                  <XAxis 
+                                    dataKey="time" 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent 
+                                      formatter={(value, name) => [
+                                        formatNetworkRate(Number(value)), 
+                                        name === 'inbound' ? 'Inbound' : 'Outbound'
+                                      ]}
+                                    />} 
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="inbound"
+                                    stroke="hsl(160, 100%, 50%)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="outbound"
+                                    stroke="hsl(25, 100%, 50%)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                  />
+                                </LineChart>
+                              </ChartContainer>
+                            ) : (
+                              <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+                                No network samples recorded.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border bg-background/60">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-semibold text-foreground">Disk I/O Activity</CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              {ioSeries.length > 0 ? `${ioSeries.length} data points` : 'No data available'}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            {ioSeries.length > 0 ? (
+                              <ChartContainer
+                                config={{
+                                  io: {
+                                    label: "Disk Reads",
+                                    color: "hsl(var(--chart-4))",
+                                  },
+                                }}
+                                className="h-[200px]"
+                              >
+                                <AreaChart
+                                  data={ioSeries.map(point => ({
+                                    timestamp: point.timestamp,
+                                    io: point.value,
+                                    time: new Date(point.timestamp).toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })
+                                  }))}
+                                >
+                                  <XAxis 
+                                    dataKey="time" 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent 
+                                      formatter={(value) => [formatBlocks(Number(value)), 'Disk Reads']}
+                                    />} 
+                                  />
+                                  <Area
+                                    type="monotone"
+                                    dataKey="io"
+                                    stroke="hsl(240, 100%, 50%)"
+                                    fill="hsl(240, 100%, 50%)"
+                                    fillOpacity={0.2}
+                                    strokeWidth={2}
+                                  />
+                                </AreaChart>
+                              </ChartContainer>
+                            ) : (
+                              <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+                                No disk samples recorded.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border bg-background/60">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-semibold text-foreground">Swap Activity</CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              {swapSeries.length > 0 ? `${swapSeries.length} data points` : 'No data available'}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            {swapSeries.length > 0 ? (
+                              <ChartContainer
+                                config={{
+                                  swap: {
+                                    label: "Swap Usage",
+                                    color: "hsl(var(--chart-5))",
+                                  },
+                                }}
+                                className="h-[200px]"
+                              >
+                                <AreaChart
+                                  data={swapSeries.map(point => ({
+                                    timestamp: point.timestamp,
+                                    swap: point.value,
+                                    time: new Date(point.timestamp).toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })
+                                  }))}
+                                >
+                                  <XAxis 
+                                    dataKey="time" 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <ChartTooltip 
+                                    content={<ChartTooltipContent 
+                                      formatter={(value) => [formatBlocks(Number(value)), 'Swap Usage']}
+                                    />} 
+                                  />
+                                  <Area
+                                    type="monotone"
+                                    dataKey="swap"
+                                    stroke="hsl(330, 100%, 50%)"
+                                    fill="hsl(330, 100%, 50%)"
+                                    fillOpacity={0.2}
+                                    strokeWidth={2}
+                                  />
+                                </AreaChart>
+                              </ChartContainer>
+                            ) : (
+                              <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+                                No swap samples recorded.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       </div>
                     </>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
                       Metrics have not been reported for this instance yet.
                     </div>
                   )}
