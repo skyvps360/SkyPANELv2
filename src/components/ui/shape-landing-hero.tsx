@@ -58,7 +58,7 @@ export function HeroGeometric({
   return (
     // Reduce the min-height and vertically center the content to avoid
     // large empty space below the hero (screenshots showed a big gap).
-    <div className={cn("relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-background py-16", className)}>
+    <div className={cn("relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-background py-32", className)}>
       {/* Floating geometric shapes */}
       <ElegantShape delay={0} className="top-20 left-20 w-16 h-16 opacity-20">
         <div className="w-full h-full bg-gradient-to-br from-primary/40 to-primary/20 rounded-full blur-sm" />
@@ -85,7 +85,7 @@ export function HeroGeometric({
       </ElegantShape>
 
       {/* Main content */}
-      <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
         {/* Badge */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
