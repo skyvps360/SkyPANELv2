@@ -1604,7 +1604,7 @@ const VPSDetail: React.FC = () => {
                           type="button"
                           onClick={() => handleBackupAction('snapshot')}
                           disabled={snapshotBusy || !backupsEnabled}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${snapshotBusy || !backupsEnabled ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${snapshotBusy || !backupsEnabled ? 'bg-primary/40 text-primary-foreground/60 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90'}`}
                         >
                           {snapshotBusy ? 'Requesting…' : 'Capture snapshot'}
                         </Button>
@@ -1738,7 +1738,7 @@ const VPSDetail: React.FC = () => {
                                       if (backupId !== null) handleBackupRestore(backupId);
                                     }}
                                     disabled={restoreDisabled}
-                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreDisabled ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreDisabled ? 'bg-primary/40 text-primary-foreground/60 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90'}`}
                                   >
                                     <RotateCcw className={`h-4 w-4 ${automaticRestoreBusy ? 'animate-spin' : ''}`} />
                                     {automaticRestoreBusy ? 'Restoring…' : 'Restore'}
@@ -1767,7 +1767,7 @@ const VPSDetail: React.FC = () => {
                               type="button"
                               onClick={() => handleBackupRestore(snapshotId)}
                               disabled={restoreBusyId !== null}
-                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreBusyId !== null ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
+                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreBusyId !== null ? 'bg-primary/40 text-primary-foreground/60 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90'}`}
                             >
                               <RotateCcw className={`h-4 w-4 ${snapshotRestoreBusy ? 'animate-spin' : ''}`} />
                               {snapshotRestoreBusy ? 'Restoring…' : 'Restore snapshot'}
@@ -2078,7 +2078,7 @@ const VPSDetail: React.FC = () => {
                                             type="button"
                                             onClick={() => saveRdns(slaacAddress)}
                                             disabled={slaacSaving}
-                                            className={`inline-flex items-center rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary ${slaacSaving ? 'opacity-75' : ''}`}
+                                            className={`inline-flex items-center rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ${slaacSaving ? 'opacity-75' : ''}`}
                                             aria-label="Save rDNS"
                                           >
                                             {slaacSaving ? 'Saving…' : 'Save'}
@@ -2204,7 +2204,7 @@ const VPSDetail: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground">
                       No provider events recorded in the last 90 days.
                     </div>
                   )}
@@ -2698,7 +2698,7 @@ const VPSDetail: React.FC = () => {
                     <span className="text-xs text-muted-foreground">Sessions auto-authenticate using your current account token.</span>
                   </div>
                   {!detail?.id && (
-                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground">
                       Instance ID unavailable. Please refresh and try again.
                     </div>
                   )}
@@ -2899,7 +2899,7 @@ const VPSDetail: React.FC = () => {
                 {detail?.id ? (
                   <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
                 ) : (
-                  <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-input bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground">
                     Instance ID unavailable. Please refresh and try again.
                   </div>
                 )}
