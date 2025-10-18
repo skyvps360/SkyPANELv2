@@ -338,4 +338,4 @@ export const themePresets: ThemePreset[] = [
   },
 ];
 
-export const DEFAULT_THEME_ID: ThemeId = "teal";
+export const DEFAULT_THEME_ID: ThemeId = "mono";

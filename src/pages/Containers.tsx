@@ -208,7 +208,7 @@ const Containers: React.FC = () => {
       case 'running':
         return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
       case 'stopped':
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
+        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
       case 'paused':
         return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
       case 'restarting':
@@ -216,7 +216,7 @@ const Containers: React.FC = () => {
       case 'error':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       default:
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
+        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
     }
   };
 
@@ -263,7 +263,7 @@ const Containers: React.FC = () => {
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
             >
               <Plus className="h-4 w-4 mr-2" />
               New Container
@@ -276,7 +276,7 @@ const Containers: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
                 <input
                   type="text"
                   placeholder="Search containers..."
@@ -401,7 +401,7 @@ const Containers: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <Container className="h-8 w-8 text-gray-400 " />
+                          <Container className="h-8 w-8 text-muted-foreground " />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-foreground">{container.name}</div>
@@ -417,11 +417,11 @@ const Containers: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       <div className="space-y-1">
                         <div className="flex items-center">
-                          <Cpu className="h-3 w-3 text-gray-400  mr-1" />
+                          <Cpu className="h-3 w-3 text-muted-foreground  mr-1" />
                           <span>{container.stats.cpu}%</span>
                         </div>
                         <div className="flex items-center">
-                          <MemoryStick className="h-3 w-3 text-gray-400  mr-1" />
+                          <MemoryStick className="h-3 w-3 text-muted-foreground  mr-1" />
                           <span>{container.stats.memory}%</span>
                         </div>
                       </div>
@@ -438,7 +438,7 @@ const Containers: React.FC = () => {
                           <>
                             <button
                               onClick={() => handleContainerAction(container.id, 'stop')}
-                              className="text-gray-600 hover:text-gray-900 text-muted-foreground dark:hover:text-gray-200"
+                              className="text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200"
                               title="Stop"
                             >
                               <Square className="h-4 w-4" />

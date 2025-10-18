@@ -194,8 +194,8 @@ const Support: React.FC = () => {
       case 'open': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'closed': return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
-      default: return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
+      case 'closed': return 'bg-gray-100 text-foreground bg-muted text-muted-foreground';
+      default: return 'bg-gray-100 text-foreground bg-muted text-muted-foreground';
     }
   };
 
@@ -205,7 +205,7 @@ const Support: React.FC = () => {
       case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
       case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground';
+      default: return 'bg-gray-100 text-foreground bg-muted text-muted-foreground';
     }
   };
 
@@ -363,7 +363,7 @@ const Support: React.FC = () => {
 
               <div className="flex-1 flex gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
                   <input
                     type="text"
                     placeholder="Search tickets..."
@@ -404,7 +404,7 @@ const Support: React.FC = () => {
               <ul className="divide-y divide-border">
                 {filteredTickets.length === 0 ? (
                   <li className="px-6 py-12 text-center">
-                    <HelpCircle className="mx-auto h-12 w-12 text-gray-400 " />
+                    <HelpCircle className="mx-auto h-12 w-12 text-muted-foreground " />
                     <h3 className="mt-2 text-sm font-medium text-foreground">No tickets found</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
@@ -435,7 +435,7 @@ const Support: React.FC = () => {
                             <p className="text-sm text-muted-foreground truncate">
                               {ticket.description}
                             </p>
-                            <div className="mt-2 flex items-center text-xs text-gray-400  gap-4">
+                            <div className="mt-2 flex items-center text-xs text-muted-foreground  gap-4">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 {formatDate(ticket.created_at)}
@@ -537,7 +537,7 @@ const Support: React.FC = () => {
             <div className="px-6 py-4 border-t border bg-card">
               {selectedTicket.status === 'closed' ? (
                 <div className="text-center py-4">
-                  <CheckCircle className="h-12 w-12 text-gray-400  mx-auto mb-2" />
+                  <CheckCircle className="h-12 w-12 text-muted-foreground  mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">This ticket has been closed</p>
                 </div>
               ) : (
@@ -578,7 +578,7 @@ const Support: React.FC = () => {
                 <h3 className="text-lg font-medium text-foreground">Create Support Ticket</h3>
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="text-gray-400  hover:text-gray-600 dark:hover:text-gray-400"
+                  className="text-muted-foreground  hover:text-foreground dark:hover:text-muted-foreground"
                 >
                   <X className="h-5 w-5" />
                 </button>

@@ -1276,7 +1276,7 @@ export default function ApiDocs() {
       case 'PUT': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200';
       case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200';
       case 'PATCH': return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200';
-      default: return 'bg-gray-100 text-gray-700 bg-background ';
+      default: return 'bg-muted text-foreground bg-background ';
     }
   };
 
@@ -1284,7 +1284,7 @@ export default function ApiDocs() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">API Documentation</h1>
-        <p className="mt-2 text-sm text-gray-600 ">
+        <p className="mt-2 text-sm text-muted-foreground ">
           Base URL: <code className="px-2 py-1 bg-muted rounded text-xs">{apiBase}</code>
         </p>
       </div>
@@ -1315,12 +1315,12 @@ export default function ApiDocs() {
                   <div>
                     <h2 className="text-lg font-medium text-foreground">{section.title}</h2>
                     {section.description && (
-                      <p className="text-sm text-gray-500 ">{section.description}</p>
+                      <p className="text-sm text-muted-foreground ">{section.description}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <code className="text-xs text-gray-500 ">{section.base}</code>
+                  <code className="text-xs text-muted-foreground ">{section.base}</code>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1334,16 +1334,16 @@ export default function ApiDocs() {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-gray-200 border p-4">
+                <div className="border-t border-border border p-4">
                   <div className="space-y-4">
                     {section.endpoints.map((endpoint, index) => (
-                      <div key={index} className="border border-gray-200 border rounded-lg p-4">
+                      <div key={index} className="border border-border border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <span className={`text-xs font-semibold px-2 py-1 rounded ${getMethodColor(endpoint.method)}`}>
                               {endpoint.method}
                             </span>
-                            <code className="text-sm font-mono text-gray-700 ">
+                            <code className="text-sm font-mono text-foreground ">
                               {section.base}{endpoint.path}
                             </code>
                             <button
@@ -1364,13 +1364,13 @@ export default function ApiDocs() {
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-600  mb-3">{endpoint.description}</p>
+                        <p className="text-sm text-muted-foreground  mb-3">{endpoint.description}</p>
 
                         {endpoint.body && (
                           <div className="mb-3">
                             <h4 className="text-sm font-medium text-foreground mb-2">Request Body:</h4>
-                            <pre className="bg-gray-100 bg-background p-3 rounded text-xs overflow-x-auto">
-                              <code className="text-gray-800 ">{JSON.stringify(endpoint.body, null, 2)}</code>
+                            <pre className="bg-muted bg-background p-3 rounded text-xs overflow-x-auto">
+                              <code className="text-foreground ">{JSON.stringify(endpoint.body, null, 2)}</code>
                             </pre>
                           </div>
                         )}
@@ -1378,8 +1378,8 @@ export default function ApiDocs() {
                         {endpoint.response && (
                           <div className="mb-3">
                             <h4 className="text-sm font-medium text-foreground mb-2">Response:</h4>
-                            <pre className="bg-gray-100 bg-background p-3 rounded text-xs overflow-x-auto">
-                              <code className="text-gray-800 ">{JSON.stringify(endpoint.response, null, 2)}</code>
+                            <pre className="bg-muted bg-background p-3 rounded text-xs overflow-x-auto">
+                              <code className="text-foreground ">{JSON.stringify(endpoint.response, null, 2)}</code>
                             </pre>
                           </div>
                         )}

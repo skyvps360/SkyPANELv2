@@ -249,13 +249,13 @@ const Dashboard: React.FC = () => {
       case 'running':
         return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20';
       case 'stopped':
-        return 'text-gray-600 text-muted-foreground bg-muted';
+        return 'text-muted-foreground text-muted-foreground bg-muted';
       case 'error':
         return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
       case 'provisioning':
         return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20';
       default:
-        return 'text-gray-600 text-muted-foreground bg-muted';
+        return 'text-muted-foreground text-muted-foreground bg-muted';
     }
   };
 
@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
       case 'info':
         return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20';
       default:
-        return 'text-gray-600 text-muted-foreground bg-muted';
+        return 'text-muted-foreground text-muted-foreground bg-muted';
     }
   };
 

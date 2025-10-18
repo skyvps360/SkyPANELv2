@@ -284,11 +284,11 @@ const Billing: React.FC = () => {
       case 'failed':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       case 'cancelled':
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
+        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
       case 'refunded':
         return 'text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/20';
       default:
-        return 'text-gray-600 bg-gray-100 text-muted-foreground bg-card';
+        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
     }
   };
 
@@ -454,7 +454,7 @@ const Billing: React.FC = () => {
               <label htmlFor="amount" className="sr-only">Amount</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign className="h-5 w-5 text-gray-400 " />
+                  <DollarSign className="h-5 w-5 text-muted-foreground " />
                 </div>
                 <input
                   type="number"
@@ -471,10 +471,10 @@ const Billing: React.FC = () => {
             <button
               onClick={handleAddFunds}
               disabled={addFundsLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addFundsLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
@@ -495,7 +495,7 @@ const Billing: React.FC = () => {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'overview'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
                 Overview
@@ -505,7 +505,7 @@ const Billing: React.FC = () => {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'transactions'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
                 Wallet Transactions
@@ -515,7 +515,7 @@ const Billing: React.FC = () => {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'history'
                     ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
                 Payment History
@@ -533,7 +533,7 @@ const Billing: React.FC = () => {
                       <div 
                         key={transaction.id} 
                         onClick={() => navigate(`/billing/transaction/${transaction.id}`)}
-                        className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-gray-100 border last:border-b-0 rounded-md cursor-pointer hover:bg-secondary/80/50 transition-colors"
+                        className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-border border last:border-b-0 rounded-md cursor-pointer hover:bg-secondary/80/50 transition-colors"
                       >
                         <div className="flex items-center">
                           <div className={`p-2 rounded-lg ${transaction.type === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
@@ -690,7 +690,7 @@ const Billing: React.FC = () => {
                       <h4 className="text-sm font-medium text-foreground">Filter Options</h4>
                       <button
                         onClick={() => setShowFilter(false)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="text-muted-foreground hover:text-muted-foreground dark:hover:text-gray-300"
                       >
                         <X className="h-4 w-4" />
                       </button>

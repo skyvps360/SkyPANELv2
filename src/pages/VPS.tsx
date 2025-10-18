@@ -684,7 +684,7 @@ const VPS: React.FC = () => {
             </div>
             <button
               onClick={() => { setCreateStep(1); setShowCreateModal(true); }}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create VPS
@@ -698,7 +698,7 @@ const VPS: React.FC = () => {
             {/* Search Row */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 " />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
                 <input
                   type="text"
                   placeholder="Search instances..."
@@ -947,7 +947,7 @@ const VPS: React.FC = () => {
                               (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
                             ))
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                              : 'border hover:border-gray-300 dark:hover:border-gray-500'
+                              : 'border hover:border-input dark:hover:border-gray-500'
                           }`}
                         >
                           <div className="flex flex-col space-y-2">
@@ -987,7 +987,7 @@ const VPS: React.FC = () => {
                               className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
                                 selectedStackScript?.id === script.id
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                                  : 'border hover:border-gray-300 dark:hover:border-gray-500'
+                                  : 'border hover:border-input dark:hover:border-gray-500'
                               }`}
                             >
                               <div className="flex flex-col space-y-2">
@@ -1117,7 +1117,7 @@ const VPS: React.FC = () => {
                           return (
                             <div
                               key={key}
-                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400' : 'border hover:border-gray-300 dark:hover:border-gray-500'}`}
+                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400' : 'border hover:border-input dark:hover:border-gray-500'}`}
                               onClick={() => {
                                 setSelectedOSGroup(key);
                                 const idToUse = selectedVersionId || group.versions[0]?.id;
@@ -1306,7 +1306,7 @@ const VPS: React.FC = () => {
                   <p className="text-sm font-mono px-2 py-1 bg-secondary text-foreground rounded">{deleteModal.label}</p>
                   <button
                     onClick={() => copyToClipboard(deleteModal.label)}
-                    className="p-1 text-gray-500 hover:text-gray-700 text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                    className="p-1 text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                     title="Copy server name"
                   >
                     <Copy className="h-4 w-4" />

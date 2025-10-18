@@ -309,8 +309,8 @@ interface VpsDetailResponse {
 
 const statusStyles: Record<string, string> = {
   running: 'border border-green-200 text-green-700 bg-green-100 dark:border-green-900/60 dark:text-green-200 dark:bg-green-900/30',
-  stopped: 'border border-gray-200 text-gray-700 bg-gray-100 border text-muted-foreground bg-card/60',
-  provisioning: 'border border-blue-200 text-blue-700 bg-blue-100 dark:border-blue-900/60 dark:text-blue-200 dark:bg-blue-900/30',
+  stopped: 'border border-border text-foreground bg-muted border text-muted-foreground bg-card/60',
+  provisioning: 'border border-primary/20 text-primary bg-primary/10 dark:border-primary/60 dark:text-primary dark:bg-primary/30',
   rebooting: 'border border-amber-200 text-amber-700 bg-amber-100 dark:border-amber-900/60 dark:text-amber-200 dark:bg-amber-900/30',
   error: 'border border-red-200 text-red-700 bg-red-100 dark:border-red-900/60 dark:text-red-200 dark:bg-red-900/30',
   unknown: 'border border-slate-200 text-slate-700 bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:bg-slate-800/60',
@@ -602,9 +602,9 @@ const VPSDetail: React.FC = () => {
       case 'started':
         return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200';
       case 'scheduled':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200';
+        return 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary';
       default:
-        return 'bg-gray-100 text-gray-700 bg-card/60 text-muted-foreground';
+        return 'bg-muted text-foreground bg-card/60 text-muted-foreground';
     }
   };
 
@@ -1253,14 +1253,14 @@ const VPSDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => loadData()}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <RefreshCw className="h-4 w-4" />
                 Retry
               </button>
               <Link
                 to="/vps"
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border text-muted-foreground dark:hover:bg-gray-800"
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50 border text-muted-foreground dark:hover:bg-gray-800"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to instances
@@ -1277,17 +1277,17 @@ const VPSDetail: React.FC = () => {
       <div className="max-w-full xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
         <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-primary dark:text-primary">
               <Link to="/vps" className="inline-flex items-center gap-1 hover:underline">
                 <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden xs:inline">Back to VPS</span>
                 <span className="xs:hidden">Back</span>
               </Link>
-              <span className="text-gray-400 ">/</span>
+              <span className="text-muted-foreground ">/</span>
               <span className="text-gray-600 text-muted-foreground truncate">{detail?.id}</span>
             </div>
             <div className="mt-2 flex items-start gap-2 sm:gap-3">
-              <Server className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0 mt-1" />
+              <Server className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0 mt-1" />
               {hostnameEditing ? (
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -1302,7 +1302,7 @@ const VPSDetail: React.FC = () => {
                           cancelEditingHostname();
                         }
                       }}
-                      className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 min-w-0 flex-1"
+                      className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground bg-transparent border-b-2 border-primary focus:outline-none focus:border-primary min-w-0 flex-1"
                       placeholder="Enter hostname"
                       autoFocus
                       disabled={hostnameSaving}
@@ -1323,7 +1323,7 @@ const VPSDetail: React.FC = () => {
                       type="button"
                       onClick={cancelEditingHostname}
                       disabled={hostnameSaving}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-600 text-white hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-600 text-white hover:bg-muted/500 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1335,12 +1335,12 @@ const VPSDetail: React.FC = () => {
               ) : (
                 <div className="flex-1 min-w-0">
                   <h1 
-                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors group flex items-center gap-2 break-words"
+                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground cursor-pointer hover:text-primary dark:hover:text-primary transition-colors group flex items-center gap-2 break-words"
                     onClick={startEditingHostname}
                     title="Click to edit hostname"
                   >
                     <span className="break-words">{detail?.label || 'Cloud Instance'}</span>
-                    <Edit2 className="h-4 w-4 sm:h-5 sm:w-5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 flex-shrink-0" />
+                    <Edit2 className="h-4 w-4 sm:h-5 sm:w-5 opacity-0 group-hover:opacity-100 transition-opacity text-primary flex-shrink-0" />
                   </h1>
                 </div>
               )}
@@ -1384,7 +1384,7 @@ const VPSDetail: React.FC = () => {
                 type="button"
                 disabled={!allowReboot || actionLoading === 'reboot'}
                 onClick={() => performAction('reboot')}
-                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 border  dark:hover:bg-gray-800 dark:active:bg-gray-700 min-h-[40px] touch-manipulation ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/50 active:bg-muted focus:outline-none focus:ring-2 focus:ring-primary border  dark:hover:bg-gray-800 dark:active:bg-gray-700 min-h-[40px] touch-manipulation ${(!allowReboot || actionLoading === 'reboot') ? 'opacity-75' : ''}`}
               >
                 <RotateCcw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 ${actionLoading === 'reboot' ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">{actionLoading === 'reboot' ? 'Rebooting…' : 'Reboot'}</span>
@@ -1395,10 +1395,10 @@ const VPSDetail: React.FC = () => {
             <button
               type="button"
               onClick={() => loadData({ silent: true })}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 border text-muted-foreground dark:hover:bg-gray-800 min-h-[40px] touch-manipulation"
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/50 border text-muted-foreground dark:hover:bg-gray-800 min-h-[40px] touch-manipulation"
               disabled={refreshing}
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-blue-500' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-primary' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -1410,7 +1410,7 @@ const VPSDetail: React.FC = () => {
           <aside className="w-full xl:w-72 flex-shrink-0">
             <div className="rounded-2xl border border bg-card shadow-sm">
               <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6">
-                <p className="text-sm sm:text-base font-semibold text-gray-700  mb-6 sm:mb-8">Instance Feature Views</p>
+                <p className="text-sm sm:text-base font-semibold text-foreground  mb-6 sm:mb-8">Instance Feature Views</p>
                 
                 {/* Tab Navigation - Responsive: Dropdown on mobile, Vertical on desktop */}
                 
@@ -1419,7 +1419,7 @@ const VPSDetail: React.FC = () => {
                   <select
                     value={activeTab}
                     onChange={(e) => setActiveTab(e.target.value as TabId)}
-                    className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-gray-900 "
+                    className="w-full px-4 py-3.5 text-sm font-medium bg-card border border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:focus:ring-primary dark:focus:border-primary text-foreground "
                   >
                     {tabDefinitions.map(tab => (
                       <option key={tab.id} value={tab.id}>
@@ -1438,16 +1438,16 @@ const VPSDetail: React.FC = () => {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
-                        className={`w-full flex items-center gap-4 px-4 py-3.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 rounded-lg ${
+                        className={`w-full flex items-center gap-4 px-4 py-3.5 text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg ${
                           isActive
-                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                            : 'text-gray-600 hover:text-gray-900 text-muted-foreground dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            ? 'text-primary-foreground bg-primary border border-primary'
+                            : 'text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 hover:bg-muted/50 dark:hover:bg-gray-800/50'
                         }`}
                       >
                         <tab.icon className={`h-4 w-4 transition-colors duration-200 flex-shrink-0 ${
                           isActive 
-                            ? 'text-blue-600 dark:text-blue-400' 
-                            : 'text-gray-500 group-hover:text-gray-700  dark:group-hover:text-gray-300'
+                            ? 'text-primary-foreground' 
+                            : 'text-gray-500 group-hover:text-foreground  dark:group-hover:text-gray-300'
                         }`} />
                         <span className="font-medium text-left">{tab.label}</span>
                       </button>
@@ -1464,11 +1464,11 @@ const VPSDetail: React.FC = () => {
             {activeTab === 'overview' && (
               <>
                 <section className="rounded-2xl border border bg-card shadow-sm">
-                  <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 border">
+                  <div className="border-b border-border px-6 sm:px-8 py-4 sm:py-6 border">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
-                          <LayoutDashboard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
+                          <LayoutDashboard className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                           <span>Instance Overview</span>
                         </h2>
                         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Metadata and quick actions for this server.</p>
@@ -1479,28 +1479,28 @@ const VPSDetail: React.FC = () => {
                   <div className="px-6 sm:px-8 py-6 sm:py-8">
                     <div className="space-y-6 sm:space-y-8">
                         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                           <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>vCPUs</span>
-                            <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                            <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                           </div>
                           <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{detail?.plan.specs.vcpus ?? 0}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                           <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Memory</span>
                             <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
                           </div>
                           <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{formatMemory(detail?.plan.specs.memory ?? 0)}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                           <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Storage</span>
                             <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
                           </div>
                           <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold text-foreground">{formatStorage(detail?.plan.specs.disk ?? 0)}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                           <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                             <span>Transfer</span>
                             <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
@@ -1525,29 +1525,29 @@ const VPSDetail: React.FC = () => {
                     <dl className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Instance ID</dt>
-                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900  break-all">{detail?.id}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground  break-all">{detail?.id}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Provider Reference</dt>
-                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900  break-all">{detail?.providerInstanceId}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground  break-all">{detail?.providerInstanceId}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Public IPv4</dt>
-                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 ">{detail?.ipAddress || 'Not yet assigned'}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground ">{detail?.ipAddress || 'Not yet assigned'}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Region</dt>
-                        <dd className="mt-1 text-xs sm:text-sm font-medium text-gray-900 ">
+                        <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground ">
                           {detail?.regionLabel || detail?.region || 'Unknown'}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Created</dt>
-                        <dd className="mt-1 text-xs sm:text-sm text-gray-800 text-muted-foreground">{formatDateTime(detail?.createdAt || null)}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{formatDateTime(detail?.createdAt || null)}</dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last Updated</dt>
-                        <dd className="mt-1 text-xs sm:text-sm text-gray-800 text-muted-foreground">{formatDateTime(detail?.updatedAt || null)}</dd>
+                        <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{formatDateTime(detail?.updatedAt || null)}</dd>
                       </div>
                     </dl>
 
@@ -1560,9 +1560,9 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'backups' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 border">
+                <div className="border-b border-border px-3 sm:px-6 py-3 sm:py-4 border">
                   <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
-                    <ShieldCheck className="h-5 w-5 text-blue-500" />
+                    <ShieldCheck className="h-5 w-5 text-primary" />
                     Backup Protection
                   </h2>
                   <p className="text-sm text-muted-foreground">Automatic snapshots captured by the underlying platform.</p>
@@ -1570,7 +1570,7 @@ const VPSDetail: React.FC = () => {
                 <div className="px-6 py-5 space-y-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-sm">
-                      <ShieldCheck className={`h-4 w-4 ${detail?.backups?.enabled ? 'text-green-500' : 'text-gray-400'}`} />
+                      <ShieldCheck className={`h-4 w-4 ${detail?.backups?.enabled ? 'text-green-500' : 'text-muted-foreground'}`} />
                       <span className="font-medium ">{detail?.backups?.enabled ? 'Backups Enabled' : 'Backups Disabled'}</span>
                     </div>
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1580,14 +1580,14 @@ const VPSDetail: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                  <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleBackupAction(backupsEnabled ? 'disable' : 'enable')}
                           disabled={backupToggleBusy}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${backupsEnabled ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-900/30' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${backupsEnabled ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-900/30' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
                         >
                           {backupToggleBusy ? 'Applying…' : backupsEnabled ? 'Disable backups' : 'Enable backups'}
                         </button>
@@ -1599,14 +1599,14 @@ const VPSDetail: React.FC = () => {
                           value={snapshotLabel}
                           onChange={event => setSnapshotLabel(event.target.value)}
                           placeholder="Optional description"
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border bg-background  dark:placeholder:text-gray-400"
+                          className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary border bg-background  dark:placeholder:text-muted-foreground"
                           disabled={snapshotBusy}
                         />
                         <button
                           type="button"
                           onClick={() => handleBackupAction('snapshot')}
                           disabled={snapshotBusy || !backupsEnabled}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${snapshotBusy || !backupsEnabled ? 'bg-blue-600/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${snapshotBusy || !backupsEnabled ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
                         >
                           {snapshotBusy ? 'Requesting…' : 'Capture snapshot'}
                         </button>
@@ -1619,11 +1619,11 @@ const VPSDetail: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                  <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
                         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <CalendarClock className="h-4 w-4 text-blue-500" />
+                          <CalendarClock className="h-4 w-4 text-primary" />
                           Automated backup schedule
                         </h3>
                         <p className="text-xs text-muted-foreground">
@@ -1640,7 +1640,7 @@ const VPSDetail: React.FC = () => {
                             value={scheduleDay}
                             onChange={event => setScheduleDay(event.target.value)}
                             disabled={!backupsEnabled || scheduleBusy}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:bg-gray-100 border bg-background  disabled:bg-card"
+                            className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted border bg-background  disabled:bg-card"
                           >
                             {BACKUP_DAY_CHOICES.map(option => (
                               <option key={option.value || 'auto'} value={option.value}>
@@ -1655,7 +1655,7 @@ const VPSDetail: React.FC = () => {
                             value={scheduleWindow}
                             onChange={event => setScheduleWindow(event.target.value)}
                             disabled={!backupsEnabled || scheduleBusy}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:bg-gray-100 border bg-background  disabled:bg-card"
+                            className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted border bg-background  disabled:bg-card"
                           >
                             {BACKUP_WINDOW_CHOICES.map(option => (
                               <option key={option.value || 'auto'} value={option.value}>
@@ -1671,7 +1671,7 @@ const VPSDetail: React.FC = () => {
                         type="button"
                         onClick={handleBackupScheduleSave}
                         disabled={!backupsEnabled || scheduleBusy || !scheduleDirty}
-                        className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-blue-400 ${!backupsEnabled || scheduleBusy || !scheduleDirty ? 'bg-blue-600/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'}`}
+                        className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-primary ${!backupsEnabled || scheduleBusy || !scheduleDirty ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary'}`}
                       >
                         {scheduleBusy ? 'Saving…' : 'Save schedule'}
                       </button>
@@ -1679,7 +1679,7 @@ const VPSDetail: React.FC = () => {
                         type="button"
                         onClick={handleBackupScheduleReset}
                         disabled={!scheduleDirty || scheduleBusy}
-                        className={`inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 border  ${!scheduleDirty || scheduleBusy ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`inline-flex items-center rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-gray-300 border  ${!scheduleDirty || scheduleBusy ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted dark:hover:bg-gray-800'}`}
                       >
                         Reset
                       </button>
@@ -1692,7 +1692,7 @@ const VPSDetail: React.FC = () => {
                   </div>
 
                   {backupPricing && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
+                    <div className="rounded-xl border border-primary bg-primary px-4 py-4 text-sm text-primary dark:border-primary/40 dark:bg-primary/30 dark:text-primary">
                       <p className="font-semibold">Plan add-on pricing</p>
                       <p className="mt-1 text-xs">
                         Enabling backups adds {formatCurrency(backupPricing.monthly)} / month ({formatCurrency(backupPricing.hourly)} hourly) — 40% of your selected plan.
@@ -1700,7 +1700,7 @@ const VPSDetail: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                  <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Last successful backup</p>
                     <p className="mt-1 text-sm font-medium text-foreground">{detail?.backups?.lastSuccessful ? `${formatDateTime(detail.backups.lastSuccessful)} (${formatRelativeTime(detail.backups.lastSuccessful)})` : 'No successful backups recorded yet'}</p>
                   </div>
@@ -1708,13 +1708,13 @@ const VPSDetail: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                        <Cloud className="h-4 w-4 text-blue-500" />
+                        <Cloud className="h-4 w-4 text-primary" />
                         Automatic backups
                       </h3>
                       <p className="text-xs text-muted-foreground">Most recent restore points (up to 5 shown).</p>
                     </div>
                     {detail?.backups?.automatic && detail.backups.automatic.length > 0 ? (
-                      <div className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 dark:divide-gray-800 border">
+                      <div className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-border dark:divide-gray-800 border">
                         {detail.backups.automatic.slice(0, 5).map(backup => {
                           const backupId = typeof backup.id === 'number' ? backup.id : null;
                           const restoreAvailable = Boolean(backup.available && backupId !== null);
@@ -1739,7 +1739,7 @@ const VPSDetail: React.FC = () => {
                                       if (backupId !== null) handleBackupRestore(backupId);
                                     }}
                                     disabled={restoreDisabled}
-                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200 ${restoreDisabled ? 'bg-blue-500/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreDisabled ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
                                   >
                                     <RotateCcw className={`h-4 w-4 ${automaticRestoreBusy ? 'animate-spin' : ''}`} />
                                     {automaticRestoreBusy ? 'Restoring…' : 'Restore'}
@@ -1751,16 +1751,16 @@ const VPSDetail: React.FC = () => {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                      <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                         No automatic backups captured yet.
                       </div>
                     )}
 
                     {detail?.backups?.snapshot || detail?.backups?.snapshotInProgress ? (
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900/60 dark:bg-blue-900/30 dark:text-blue-200">
+                      <div className="rounded-xl border border-primary bg-primary px-4 py-4 text-sm text-primary dark:border-primary/60 dark:bg-primary/30 dark:text-primary">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-2 font-semibold">
-                            <Sparkles className="h-4 w-4 text-blue-500" />
+                            <Sparkles className="h-4 w-4 text-primary" />
                             <span>Manual snapshots</span>
                           </div>
                           {snapshotId !== null && (
@@ -1768,7 +1768,7 @@ const VPSDetail: React.FC = () => {
                               type="button"
                               onClick={() => handleBackupRestore(snapshotId)}
                               disabled={restoreBusyId !== null}
-                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200 ${restoreBusyId !== null ? 'bg-blue-500/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${restoreBusyId !== null ? 'bg-primary/40 text-white/60 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary'}`}
                             >
                               <RotateCcw className={`h-4 w-4 ${snapshotRestoreBusy ? 'animate-spin' : ''}`} />
                               {snapshotRestoreBusy ? 'Restoring…' : 'Restore snapshot'}
@@ -1794,9 +1794,9 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'networking' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 border">
+                <div className="border-b border-border px-6 py-4 border">
                   <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Globe2 className="h-5 w-5 text-blue-500" />
+                    <Globe2 className="h-5 w-5 text-primary" />
                     Networking
                   </h2>
                   <p className="text-sm text-muted-foreground">Current IPv4/IPv6 assignments and routing details.</p>
@@ -1804,12 +1804,12 @@ const VPSDetail: React.FC = () => {
                 <div className="px-6 py-5 space-y-8">
                   <div className="space-y-8">
                     {/* Transfer Utilisation Section */}
-                    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm border bg-background/60">
+                    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm border bg-background/60">
                       <div className="flex flex-col gap-6">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex items-start gap-3 min-w-0">
-                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                              <Gauge className="h-5 w-5 text-blue-500" />
+                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-primary dark:bg-primary/30">
+                              <Gauge className="h-5 w-5 text-primary" />
                             </div>
                             <div>
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Transfer utilisation</p>
@@ -1817,7 +1817,7 @@ const VPSDetail: React.FC = () => {
                             </div>
                           </div>
                           {hasTransferData && (
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200" aria-live="polite">
+                            <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/40 dark:text-primary" aria-live="polite">
                               {transferUsagePercent.toFixed(0)}%
                             </span>
                           )}
@@ -1832,7 +1832,7 @@ const VPSDetail: React.FC = () => {
                           </div>
                           <div className="mt-2 h-2 w-full rounded-full bg-muted" role="progressbar" aria-valuenow={transferUsagePercent} aria-valuemin={0} aria-valuemax={100} aria-label="Transfer utilisation">
                             <div
-                              className="h-2 rounded-full bg-blue-500 transition-all"
+                              className="h-2 rounded-full bg-primary transition-all"
                               style={{ width: `${transferUsagePercent}%` }}
                             />
                           </div>
@@ -1840,23 +1840,23 @@ const VPSDetail: React.FC = () => {
                         {hasTransferData ? (
                           <>
                             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                              <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">{accountTransferInfo ? 'Instance used' : 'Used'}</dt>
                                 <dd className="mt-1 text-base font-semibold text-foreground">{transferUsedGb.toFixed(2)} GB</dd>
                               </div>
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                              <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">{accountTransferInfo ? 'Instance remaining' : 'Remaining'}</dt>
                                 <dd className="mt-1 text-base font-semibold text-foreground">{transferRemainingGb !== null ? `${transferRemainingGb.toFixed(2)} GB` : '—'}</dd>
                               </div>
                               {!accountTransferInfo && (
                                 <>
-                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                                  <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                     <dt className="text-xs uppercase tracking-wide text-muted-foreground">Available quota</dt>
                                     <dd className="mt-1 text-base font-semibold text-foreground">
                                       {usageRemainingGb !== null ? `${usageRemainingGb.toFixed(2)} GB` : '—'}
                                     </dd>
                                   </div>
-                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                                  <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                     <dt className="text-xs uppercase tracking-wide text-muted-foreground">Billable</dt>
                                     <dd className="mt-1 text-base font-semibold text-foreground">{effectiveBillableGb.toFixed(2)} GB</dd>
                                   </div>
@@ -1877,11 +1877,11 @@ const VPSDetail: React.FC = () => {
                     </div>
 
                     {/* Connectivity Overview Section */}
-                    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm border bg-background/60">
+                    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm border bg-background/60">
                       <div className="flex flex-col gap-6">
                         <div>
                           <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                            <Network className="h-4 w-4 text-blue-500" />
+                            <Network className="h-4 w-4 text-primary" />
                             Connectivity overview
                           </h3>
                           <p className="mt-1 text-sm text-muted-foreground">
@@ -1889,17 +1889,17 @@ const VPSDetail: React.FC = () => {
                           </p>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
+                          <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Public IPv4</p>
                             <p className="mt-2 text-2xl font-semibold text-foreground">{publicIpv4Count}</p>
                             <p className="mt-1 text-xs text-muted-foreground">rDNS {rdnsEditable ? 'editable' : 'locked'}</p>
                           </div>
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
+                          <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Private IPv4</p>
                             <p className="mt-2 text-2xl font-semibold text-foreground">{privateIpv4Count}</p>
                             <p className="mt-1 text-xs text-muted-foreground">Internal networking</p>
                           </div>
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
+                          <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm min-h-[120px] flex flex-col justify-center border bg-background/60">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">IPv6 SLAAC</p>
                             <p className="mt-2 text-xl font-semibold text-foreground">
                               {hasSlaacIpv6 ? 'Available' : 'Not provisioned'}
@@ -1913,25 +1913,25 @@ const VPSDetail: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm border bg-background/60">
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm border bg-background/60">
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-foreground">IPv4 assignments</h3>
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">Public and private allocations</p>
                         </div>
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 bg-card/60 text-muted-foreground">
+                        <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground bg-card/60 text-muted-foreground">
                           {totalIpv4Count} {totalIpv4Count === 1 ? 'address' : 'addresses'}
                         </span>
                       </div>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         {ipv4Categories.map(category => (
-                          <div key={category.label} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                          <div key={category.label} className="flex flex-col gap-3 rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">{category.label}</p>
                               <span className="text-xs font-semibold text-muted-foreground">{category.addresses.length}</span>
                             </div>
                             {category.addresses.length > 0 ? (
-                              <ul className="space-y-3 text-sm text-gray-700 ">
+                              <ul className="space-y-3 text-sm text-foreground ">
                                 {category.addresses.map(addr => {
                                   const editorState = rdnsEditor[addr.address];
                                   const editing = editorState?.editing ?? false;
@@ -1941,7 +1941,7 @@ const VPSDetail: React.FC = () => {
                                   const showRdnsInfo = !isPrivate;
                                   const canEditAddress = showRdnsInfo && rdnsEditable && addr.rdnsEditable;
                                   return (
-                                    <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-white px-3 py-2 shadow-sm bg-background/60">
+                                    <li key={`${category.label}-${addr.address}`} className="rounded-lg bg-card px-3 py-2 shadow-sm bg-background/60">
                                       <div className="flex items-center justify-between gap-2">
                                         <span className="font-semibold text-foreground truncate" title={addr.address}>{addr.address}</span>
                                         {addr.prefix !== null && (
@@ -1964,7 +1964,7 @@ const VPSDetail: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => handleCopy(currentValue, `rDNS for ${addr.address}`)}
-                                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                                               aria-label={`Copy rDNS for ${addr.address}`}
                                             >
                                               <Copy className="h-3.5 w-3.5" />
@@ -1979,7 +1979,7 @@ const VPSDetail: React.FC = () => {
                                               <input
                                                 value={currentValue}
                                                 onChange={event => updateRdnsValue(addr.address, event.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border bg-background  dark:placeholder:text-gray-400"
+                                                className="w-full rounded-lg border border-input px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary border bg-background  dark:placeholder:text-muted-foreground"
                                                 placeholder="reverse.example.com"
                                                 disabled={saving}
                                               />
@@ -1988,7 +1988,7 @@ const VPSDetail: React.FC = () => {
                                                   type="button"
                                                   onClick={() => saveRdns(addr.address)}
                                                   disabled={saving}
-                                                  className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${saving ? 'opacity-75' : ''}`}
+                                                  className={`inline-flex items-center rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary ${saving ? 'opacity-75' : ''}`}
                                                 >
                                                   {saving ? 'Saving…' : 'Save'}
                                                 </button>
@@ -1996,7 +1996,7 @@ const VPSDetail: React.FC = () => {
                                                   type="button"
                                                   onClick={() => cancelEditRdns(addr.address)}
                                                   disabled={saving}
-                                                  className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 border  dark:hover:bg-gray-800"
+                                                  className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-gray-300 border  dark:hover:bg-gray-800"
                                                 >
                                                   Cancel
                                                 </button>
@@ -2006,7 +2006,7 @@ const VPSDetail: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => beginEditRdns(addr.address)}
-                                              className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                                              className="inline-flex w-fit items-center rounded-lg border border-dashed border-input px-3 py-1 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                                             >
                                               Edit rDNS
                                             </button>
@@ -2024,7 +2024,7 @@ const VPSDetail: React.FC = () => {
                         ))}
                       </div>
 
-                      <div className="my-6 border-t border-gray-200 border" />
+                      <div className="my-6 border-t border-border border" />
 
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div>
@@ -2041,7 +2041,7 @@ const VPSDetail: React.FC = () => {
                         <div className="mt-4 space-y-5">
                           <div className="grid gap-4 md:grid-cols-2">
                             {ipv6Info.slaac && (
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                              <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                 <p className="text-xs uppercase tracking-wide text-muted-foreground">SLAAC</p>
                                 <p className="mt-1 text-sm font-semibold text-foreground truncate" title={ipv6Info.slaac.address ?? ''}>{ipv6Info.slaac.address}</p>
                                 <p className="text-xs text-muted-foreground">Prefix /{ipv6Info.slaac.prefix ?? '—'}</p>
@@ -2055,7 +2055,7 @@ const VPSDetail: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => handleCopy(slaacCurrentValue, 'SLAAC rDNS')}
-                                        className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                                        className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                                         aria-label="Copy SLAAC rDNS"
                                       >
                                         <Copy className="h-3.5 w-3.5" />
@@ -2070,7 +2070,7 @@ const VPSDetail: React.FC = () => {
                                         <input
                                           value={slaacCurrentValue}
                                           onChange={event => updateRdnsValue(slaacAddress, event.target.value)}
-                                          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border bg-background  dark:placeholder:text-gray-400"
+                                          className="w-full rounded-lg border border-input px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary border bg-background  dark:placeholder:text-muted-foreground"
                                           placeholder="reverse.example.com"
                                           disabled={slaacSaving}
                                         />
@@ -2079,7 +2079,7 @@ const VPSDetail: React.FC = () => {
                                             type="button"
                                             onClick={() => saveRdns(slaacAddress)}
                                             disabled={slaacSaving}
-                                            className={`inline-flex items-center rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 ${slaacSaving ? 'opacity-75' : ''}`}
+                                            className={`inline-flex items-center rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary ${slaacSaving ? 'opacity-75' : ''}`}
                                             aria-label="Save rDNS"
                                           >
                                             {slaacSaving ? 'Saving…' : 'Save'}
@@ -2088,7 +2088,7 @@ const VPSDetail: React.FC = () => {
                                             type="button"
                                             onClick={() => cancelEditRdns(slaacAddress)}
                                             disabled={slaacSaving}
-                                            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 border  dark:hover:bg-gray-800"
+                                            className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-gray-300 border  dark:hover:bg-gray-800"
                                             aria-label="Cancel rDNS edit"
                                           >
                                             Cancel
@@ -2099,7 +2099,7 @@ const VPSDetail: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => beginEditRdns(slaacAddress)}
-                                        className="inline-flex w-fit items-center rounded-lg border border-dashed border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                                        className="inline-flex w-fit items-center rounded-lg border border-dashed border-input px-3 py-1 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                                         aria-label="Edit rDNS"
                                       >
                                         Edit rDNS
@@ -2110,7 +2110,7 @@ const VPSDetail: React.FC = () => {
                               </div>
                             )}
                             {ipv6Info.linkLocal && (
-                              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                              <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Link-local</p>
                                 <p className="mt-1 text-sm font-semibold text-foreground truncate" title={ipv6Info.linkLocal.address ?? ''}>{ipv6Info.linkLocal.address}</p>
                                 <p className="text-xs text-muted-foreground">Prefix /{ipv6Info.linkLocal.prefix ?? '—'}</p>
@@ -2121,12 +2121,12 @@ const VPSDetail: React.FC = () => {
                             )}
                           </div>
                           {(ipv6Info.global ?? []).length > 0 && (
-                            <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                            <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Global prefixes</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 text-muted-foreground">
                                 {(ipv6Info.global ?? []).map((range, index) => (
-                                  <li key={`global-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 bg-background/60">
-                                    <span className="font-semibold text-gray-800 ">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
+                                  <li key={`global-${index}`} className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2 bg-background/60">
+                                    <span className="font-semibold text-foreground ">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
                                     <span>{range.region ?? 'Region unknown'}</span>
                                     {range.routeTarget && <span>Route: {range.routeTarget}</span>}
                                   </li>
@@ -2135,12 +2135,12 @@ const VPSDetail: React.FC = () => {
                             </div>
                           )}
                           {(ipv6Info.ranges ?? []).length > 0 && (
-                            <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                            <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Ranged allocations</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 text-muted-foreground">
                                 {(ipv6Info.ranges ?? []).map((range, index) => (
-                                  <li key={`range-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 bg-background/60">
-                                    <span className="font-semibold text-gray-800 ">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
+                                  <li key={`range-${index}`} className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2 bg-background/60">
+                                    <span className="font-semibold text-foreground ">{range.range ?? '—'}/{range.prefix ?? '—'}</span>
                                     <span>{range.region ?? 'Region unknown'}</span>
                                     {range.routeTarget && <span>Route: {range.routeTarget}</span>}
                                   </li>
@@ -2149,12 +2149,12 @@ const VPSDetail: React.FC = () => {
                             </div>
                           )}
                           {(ipv6Info.pools ?? []).length > 0 && (
-                            <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                            <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Pool assignments</p>
                               <ul className="mt-2 space-y-2 text-xs text-gray-600 text-muted-foreground">
                                 {(ipv6Info.pools ?? []).map((pool, index) => (
-                                  <li key={`pool-${index}`} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 bg-background/60">
-                                    <span className="font-semibold text-gray-800 ">{pool.range ?? '—'}/{pool.prefix ?? '—'}</span>
+                                  <li key={`pool-${index}`} className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2 bg-background/60">
+                                    <span className="font-semibold text-foreground ">{pool.range ?? '—'}/{pool.prefix ?? '—'}</span>
                                     <span>{pool.region ?? 'Region unknown'}</span>
                                     {pool.routeTarget && <span>Route: {pool.routeTarget}</span>}
                                   </li>
@@ -2174,7 +2174,7 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'activity' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 border">
+                <div className="border-b border-border px-6 py-4 border">
                   <h2 className="text-lg font-semibold text-foreground">Provider Activity Feed</h2>
                   <p className="text-sm text-muted-foreground">Recent VPS events for this instance.</p>
                 </div>
@@ -2204,7 +2204,7 @@ const VPSDetail: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                       No provider events recorded in the last 90 days.
                     </div>
                   )}
@@ -2214,12 +2214,12 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'firewall' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 border">
+                <div className="border-b border-border px-6 py-4 border">
                   <h2 className="text-lg font-semibold text-foreground">Firewall Management</h2>
                   <p className="text-sm text-muted-foreground">Firewalls attached to this instance and their rule summaries.</p>
                 </div>
                 <div className="px-6 py-5 space-y-4">
-                  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm border bg-background/60">
+                  <div className="rounded-2xl border border-border bg-card p-4 shadow-sm border bg-background/60">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-foreground">Attach existing firewall</h3>
@@ -2227,7 +2227,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <select
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border bg-background "
+                          className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary border bg-background "
                           value={selectedFirewallId === '' ? '' : String(selectedFirewallId)}
                           onChange={event => {
                             const value = event.target.value;
@@ -2244,7 +2244,7 @@ const VPSDetail: React.FC = () => {
                           type="button"
                           onClick={handleAttachFirewall}
                           disabled={firewallAction === 'attach' || selectedFirewallId === ''}
-                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 ${firewallAction === 'attach' || selectedFirewallId === '' ? 'bg-blue-600/40 text-white/60 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary ${firewallAction === 'attach' || selectedFirewallId === '' ? 'bg-primary/40 text-primary-foreground/60 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
                         >
                           {firewallAction === 'attach' ? 'Attaching…' : 'Attach firewall'}
                         </button>
@@ -2261,7 +2261,7 @@ const VPSDetail: React.FC = () => {
                       const outbound = firewall.rules?.outbound ?? [];
                       const detachBusy = firewallAction === `detach-${firewall.id}`;
                       return (
-                        <div key={firewall.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm border bg-background/60">
+                        <div key={firewall.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm border bg-background/60">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <p className="text-base font-semibold text-foreground">{firewall.label || `Firewall ${firewall.id}`}</p>
@@ -2271,7 +2271,7 @@ const VPSDetail: React.FC = () => {
                               {firewall.tags.length > 0 && (
                                 <div className="mt-2 flex flex-wrap gap-1">
                                   {firewall.tags.map(tag => (
-                                    <span key={tag} className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                    <span key={tag} className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary dark:bg-primary/40 dark:text-primary">
                                       #{tag}
                                     </span>
                                   ))}
@@ -2294,7 +2294,7 @@ const VPSDetail: React.FC = () => {
                                   type="button"
                                   onClick={() => handleDetachFirewall(firewall.id, firewall.attachment?.id ?? null)}
                                   disabled={detachBusy}
-                                  className={`mt-2 inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 border  dark:hover:bg-gray-800 ${detachBusy ? 'opacity-70' : ''}`}
+                                  className={`mt-2 inline-flex items-center gap-1 rounded-lg border border-input px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary border  dark:hover:bg-gray-800 ${detachBusy ? 'opacity-70' : ''}`}
                                 >
                                   {detachBusy ? 'Detaching…' : 'Detach firewall'}
                                 </button>
@@ -2307,8 +2307,8 @@ const VPSDetail: React.FC = () => {
                               {inbound.length > 0 ? (
                                 <ul className="mt-2 space-y-2 text-xs text-gray-600 text-muted-foreground">
                                   {inbound.slice(0, 5).map((rule, index) => (
-                                    <li key={`inbound-${firewall.id}-${index}`} className="rounded-lg bg-gray-50 px-3 py-2 bg-background/60">
-                                      <p className="font-semibold text-gray-800 ">{summarizeFirewallRule(rule)}</p>
+                                    <li key={`inbound-${firewall.id}-${index}`} className="rounded-lg bg-muted/50 px-3 py-2 bg-background/60">
+                                      <p className="font-semibold text-foreground ">{summarizeFirewallRule(rule)}</p>
                                       {rule.addresses?.ipv4 && rule.addresses.ipv4.length > 0 && (
                                         <p>IPv4: {rule.addresses.ipv4.join(', ')}</p>
                                       )}
@@ -2327,8 +2327,8 @@ const VPSDetail: React.FC = () => {
                               {outbound.length > 0 ? (
                                 <ul className="mt-2 space-y-2 text-xs text-gray-600 text-muted-foreground">
                                   {outbound.slice(0, 5).map((rule, index) => (
-                                    <li key={`outbound-${firewall.id}-${index}`} className="rounded-lg bg-gray-50 px-3 py-2 bg-background/60">
-                                      <p className="font-semibold text-gray-800 ">{summarizeFirewallRule(rule)}</p>
+                                    <li key={`outbound-${firewall.id}-${index}`} className="rounded-lg bg-muted/50 px-3 py-2 bg-background/60">
+                                      <p className="font-semibold text-foreground ">{summarizeFirewallRule(rule)}</p>
                                       {rule.addresses?.ipv4 && rule.addresses.ipv4.length > 0 && (
                                         <p>IPv4: {rule.addresses.ipv4.join(', ')}</p>
                                       )}
@@ -2347,7 +2347,7 @@ const VPSDetail: React.FC = () => {
                       );
                     })
                   ) : (
-                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                       No firewalls are currently attached to this instance.
                     </div>
                   )}
@@ -2357,7 +2357,7 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'metrics' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 border">
+                <div className="border-b border-border px-6 py-4 border">
                   <h2 className="text-lg font-semibold text-foreground">Detailed Metrics</h2>
                   <p className="text-sm text-muted-foreground">Last reported utilisation from the infrastructure provider.</p>
                 </div>
@@ -2365,28 +2365,28 @@ const VPSDetail: React.FC = () => {
                   {detail?.metrics ? (
                     <>
                       {timeframeLabel && (
-                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-200">
+                        <div className="rounded-xl border border-primary bg-primary px-4 py-3 text-xs text-primary dark:border-primary/40 dark:bg-primary/30 dark:text-primary">
                           Observation window: {timeframeLabel}
                         </div>
                       )}
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">CPU</p>
                           <p className="mt-1 text-2xl font-semibold text-foreground">{cpuSummary ? formatPercent(cpuSummary.last) : '—'}</p>
                           <p className="text-xs text-muted-foreground">Avg {cpuSummary ? formatPercent(cpuSummary.average) : '—'} · Peak {cpuSummary ? formatPercent(cpuSummary.peak) : '—'}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">Network (inbound)</p>
                           <p className="mt-1 text-2xl font-semibold text-foreground">{inboundSummary ? formatNetworkRate(inboundSummary.last) : '—'}</p>
                           <p className="text-xs text-muted-foreground">Avg {inboundSummary ? formatNetworkRate(inboundSummary.average) : '—'} · Peak {inboundSummary ? formatNetworkRate(inboundSummary.peak) : '—'}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">Network (outbound)</p>
                           <p className="mt-1 text-2xl font-semibold text-foreground">{outboundSummary ? formatNetworkRate(outboundSummary.last) : '—'}</p>
                           <p className="text-xs text-muted-foreground">Avg {outboundSummary ? formatNetworkRate(outboundSummary.average) : '—'} · Peak {outboundSummary ? formatNetworkRate(outboundSummary.peak) : '—'}</p>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 border bg-background">
+                        <div className="rounded-xl border border-border bg-muted/50 p-4 border bg-background">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">Disk I/O</p>
                           <p className="mt-1 text-2xl font-semibold text-foreground">{ioSummary ? formatBlocks(ioSummary.last) : '—'}</p>
                           <p className="text-xs text-muted-foreground">Avg {ioSummary ? formatBlocks(ioSummary.average) : '—'} · Swap {swapSummary ? formatBlocks(swapSummary.last) : '—'}</p>
@@ -2394,7 +2394,7 @@ const VPSDetail: React.FC = () => {
                       </div>
 
                       <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                           <h3 className="text-sm font-semibold text-foreground">CPU timeline</h3>
                           {cpuSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
@@ -2409,7 +2409,7 @@ const VPSDetail: React.FC = () => {
                             <p className="mt-2 text-xs text-muted-foreground">No CPU samples recorded.</p>
                           )}
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                           <h3 className="text-sm font-semibold text-foreground">Network throughput</h3>
                           {inboundSeries.length + outboundSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
@@ -2442,7 +2442,7 @@ const VPSDetail: React.FC = () => {
                             <p className="mt-2 text-xs text-muted-foreground">No network samples recorded.</p>
                           )}
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                           <h3 className="text-sm font-semibold text-foreground">Disk reads</h3>
                           {ioSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
@@ -2457,7 +2457,7 @@ const VPSDetail: React.FC = () => {
                             <p className="mt-2 text-xs text-muted-foreground">No disk samples recorded.</p>
                           )}
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 border bg-background/60">
+                        <div className="rounded-xl border border-border bg-card p-4 border bg-background/60">
                           <h3 className="text-sm font-semibold text-foreground">Swap activity</h3>
                           {swapSeries.length > 0 ? (
                             <ul className="mt-3 space-y-2 text-xs text-gray-600 text-muted-foreground">
@@ -2475,7 +2475,7 @@ const VPSDetail: React.FC = () => {
                       </div>
                     </>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                       Metrics have not been reported for this instance yet.
                     </div>
                   )}
@@ -2485,9 +2485,9 @@ const VPSDetail: React.FC = () => {
 
             {activeTab === 'ssh' && (
               <section className="rounded-2xl border border bg-card shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 border">
+                <div className="border-b border-border px-6 py-4 border">
                   <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <TerminalIcon className="h-5 w-5 text-blue-500" />
+                    <TerminalIcon className="h-5 w-5 text-primary" />
                     SSH Console
                   </h2>
                   <p className="text-sm text-muted-foreground">Single sign-on web shell into this VPS instance.</p>
@@ -2500,7 +2500,7 @@ const VPSDetail: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSshModalOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-blue-500 dark:hover:bg-blue-400"
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <TerminalIcon className="h-4 w-4" />
                       Open SSH Console
@@ -2508,7 +2508,7 @@ const VPSDetail: React.FC = () => {
                     <span className="text-xs text-muted-foreground">Sessions auto-authenticate using your current account token.</span>
                   </div>
                   {!detail?.id && (
-                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                       Instance ID unavailable. Please refresh and try again.
                     </div>
                   )}
@@ -2520,14 +2520,14 @@ const VPSDetail: React.FC = () => {
           {/* Right Column - Provider Telemetry */}
           <aside className="w-full xl:w-80 2xl:w-96 flex-shrink-0">
             <section className="rounded-2xl border border bg-card shadow-sm">
-              <div className="border-b border-gray-200 px-6 sm:px-8 py-4 sm:py-6 border">
+              <div className="border-b border-border px-6 sm:px-8 py-4 sm:py-6 border">
                 <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
-                  <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                  <SatelliteDish className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   Provider Telemetry
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-foreground">Details reported by the infrastructure provider.</p>
               </div>
-              <div className="px-6 sm:px-8 py-6 sm:py-8 space-y-6 text-xs sm:text-sm text-gray-700 ">
+              <div className="px-6 sm:px-8 py-6 sm:py-8 space-y-6 text-xs sm:text-sm text-foreground ">
                 <p className="text-xs text-muted-foreground">
                   The following IP details are reported directly by the cloud provider and may include public and private reachability.
                 </p>
@@ -2570,7 +2570,7 @@ const VPSDetail: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCopy(primaryIpv4Rdns!, 'IPv4 rDNS')}
-                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                             aria-label="Copy IPv4 rDNS"
                           >
                             <Copy className="h-3.5 w-3.5" />
@@ -2595,7 +2595,7 @@ const VPSDetail: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCopy(slaacCurrentValue, 'IPv6 rDNS')}
-                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                             aria-label="Copy IPv6 rDNS"
                           >
                             <Copy className="h-3.5 w-3.5" />
@@ -2608,7 +2608,7 @@ const VPSDetail: React.FC = () => {
                 {detail?.provider?.ipv4?.length || providerIpv6Address ? (
                   <div className="space-y-2">
                     <span className="block text-xs uppercase tracking-wide text-muted-foreground">Provider IP addresses</span>
-                    <ul className="space-y-2 text-xs text-gray-600 ">
+                    <ul className="space-y-2 text-xs text-muted-foreground ">
                       {(detail.provider?.ipv4 ?? []).map(ip => {
                         const classification = classifyProviderIpv4(ip);
                         const descriptor = classification === 'private'
@@ -2617,15 +2617,15 @@ const VPSDetail: React.FC = () => {
                             ? 'public network'
                             : 'unclassified';
                         return (
-                          <li key={ip} className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between bg-card">
+                          <li key={ip} className="flex flex-col gap-2 rounded bg-muted px-3 py-2 sm:flex-row sm:items-center sm:justify-between bg-card">
                             <div className="min-w-0">
-                              <p className="truncate font-semibold text-gray-700 " title={ip}>{ip}</p>
+                              <p className="truncate font-semibold text-foreground " title={ip}>{ip}</p>
                               <p className="text-xs text-muted-foreground">({descriptor}, provider assigned)</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleCopy(ip, 'Provider IPv4')}
-                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                               aria-label={`Copy provider IPv4 ${ip}`}
                             >
                               <Copy className="h-3.5 w-3.5" />
@@ -2634,15 +2634,15 @@ const VPSDetail: React.FC = () => {
                         );
                       })}
                       {providerIpv6Address && (
-                        <li className="flex flex-col gap-2 rounded bg-gray-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between bg-card">
+                        <li className="flex flex-col gap-2 rounded bg-muted px-3 py-2 sm:flex-row sm:items-center sm:justify-between bg-card">
                           <div className="min-w-0">
-                            <p className="break-all font-semibold text-gray-700 " title={providerIpv6Address}>{providerIpv6Address}</p>
+                            <p className="break-all font-semibold text-foreground " title={providerIpv6Address}>{providerIpv6Address}</p>
                             <p className="text-xs text-muted-foreground">(ipv6 slaac, provider assigned)</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleCopy(providerIpv6Address, 'Provider IPv6')}
-                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-blue-300 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 border text-muted-foreground dark:hover:border-blue-500"
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center self-start rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary border text-muted-foreground dark:hover:border-primary"
                             aria-label="Copy provider IPv6"
                           >
                             <Copy className="h-3.5 w-3.5" />
@@ -2665,24 +2665,24 @@ const VPSDetail: React.FC = () => {
             onClick={() => setSshModalOpen(false)}
           >
             <div
-              className={`relative w-full rounded-2xl border border-gray-200 bg-white shadow-2xl border bg-background transition-all duration-300 ${
+              className={`relative w-full rounded-2xl border border-border bg-card shadow-2xl border bg-background transition-all duration-300 ${
                 sshFullScreen 
                   ? 'h-full max-w-none' 
                   : 'max-w-6xl max-h-[90vh]'
               }`}
               onClick={event => event.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 border">
+              <div className="flex items-center justify-between border-b border-border px-6 py-4 border">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <TerminalIcon className="h-5 w-5 text-blue-500" />
+                  <TerminalIcon className="h-5 w-5 text-primary" />
                   SSH Console
-                  {sshFullScreen && <span className="text-sm font-normal text-gray-500">(Full Screen)</span>}
+                  {sshFullScreen && <span className="text-sm font-normal text-muted-foreground">(Full Screen)</span>}
                 </h3>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSshFullScreen(!sshFullScreen)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-muted-foreground dark:hover:bg-gray-800"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground dark:hover:bg-gray-800"
                     aria-label={sshFullScreen ? "Exit full screen" : "Enter full screen"}
                   >
                     {sshFullScreen ? (
@@ -2698,7 +2698,7 @@ const VPSDetail: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSshModalOpen(false)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-muted-foreground dark:hover:bg-gray-800"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground dark:hover:bg-gray-800"
                     aria-label="Close SSH console"
                   >
                     <X className="h-4 w-4" />
@@ -2709,7 +2709,7 @@ const VPSDetail: React.FC = () => {
                 {detail?.id ? (
                   <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
                 ) : (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 border bg-background/30 text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-input bg-white px-4 py-6 text-center text-sm text-muted-foreground border bg-background/30 text-muted-foreground">
                     Instance ID unavailable. Please refresh and try again.
                   </div>
                 )}

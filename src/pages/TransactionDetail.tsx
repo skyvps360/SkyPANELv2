@@ -158,7 +158,7 @@ const TransactionDetail: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center text-gray-600 ">
+        <div className="flex flex-col items-center text-muted-foreground ">
           <Loader2 className="h-8 w-8 animate-spin mb-4" />
           <p>Loading transaction details...</p>
         </div>

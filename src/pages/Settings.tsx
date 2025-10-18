@@ -312,7 +312,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={profileData.firstName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -323,7 +323,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={profileData.lastName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -346,7 +346,7 @@ const Settings: React.FC = () => {
                     type="tel"
                     value={profileData.phone}
                     onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -356,7 +356,7 @@ const Settings: React.FC = () => {
                   <select
                     value={profileData.timezone}
                     onChange={(e) => setProfileData(prev => ({ ...prev, timezone: e.target.value }))}
-                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                   >
                     <option value="America/New_York">Eastern Time (ET)</option>
                     <option value="America/Chicago">Central Time (CT)</option>
@@ -370,7 +370,7 @@ const Settings: React.FC = () => {
                 <button
                   onClick={handleSaveProfile}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Changes'}
@@ -394,7 +394,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={orgData.name}
                     onChange={(e) => setOrgData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -405,7 +405,7 @@ const Settings: React.FC = () => {
                     type="url"
                     value={orgData.website}
                     onChange={(e) => setOrgData(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -416,7 +416,7 @@ const Settings: React.FC = () => {
                     value={orgData.address}
                     onChange={(e) => setOrgData(prev => ({ ...prev, address: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -427,7 +427,7 @@ const Settings: React.FC = () => {
                     type="text"
                     value={orgData.taxId}
                     onChange={(e) => setOrgData(prev => ({ ...prev, taxId: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
               </div>
@@ -435,7 +435,7 @@ const Settings: React.FC = () => {
                 <button
                   onClick={handleSaveOrganization}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Changes'}
@@ -459,7 +459,7 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.currentPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -470,7 +470,7 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.newPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -481,13 +481,13 @@ const Settings: React.FC = () => {
                     type="password"
                     value={securityData.confirmPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
                 <button
                   onClick={handleChangePassword}
                   disabled={loading || !securityData.currentPassword || !securityData.newPassword || !securityData.confirmPassword}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
                   {loading ? 'Changing...' : 'Change Password'}
                 </button>
@@ -586,7 +586,7 @@ const Settings: React.FC = () => {
                 <button
                   onClick={handleSaveNotifications}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Preferences'}
@@ -601,16 +601,16 @@ const Settings: React.FC = () => {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-medium text-foreground mb-4">API Keys</h3>
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4 mb-6">
+              <div className="bg-warning/10 border border-warning/20 rounded-md p-4 mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <Shield className="h-5 w-5 text-yellow-400" />
+                    <Shield className="h-5 w-5 text-warning" />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                    <h3 className="text-sm font-medium text-warning">
                       Keep your API keys secure
                     </h3>
-                    <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                    <div className="mt-2 text-sm text-warning">
                       <p>
                         API keys provide access to your account. Keep them secure and never share them publicly.
                       </p>
@@ -628,12 +628,12 @@ const Settings: React.FC = () => {
                     placeholder="Enter API key name"
                     value={newApiKeyName}
                     onChange={(e) => setNewApiKeyName(e.target.value)}
-                    className="flex-1 rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="flex-1 rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                   <button
                     onClick={handleCreateApiKey}
                     disabled={loading || !newApiKeyName.trim()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:opacity-50"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                   >
                     <Key className="h-4 w-4 mr-2" />
                     {loading ? 'Creating...' : 'Create'}
@@ -645,7 +645,7 @@ const Settings: React.FC = () => {
               <div className="space-y-4">
                 {apiKeys.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Key className="h-12 w-12 mx-auto mb-4 text-gray-300 " />
+                    <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground " />
                     <p>No API keys found. Create your first API key above.</p>
                   </div>
                 ) : (
@@ -658,7 +658,7 @@ const Settings: React.FC = () => {
                             Created {new Date(key.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
                           Active
                         </span>
                       </div>
@@ -669,19 +669,19 @@ const Settings: React.FC = () => {
                             type="text"
                             value={getDisplayKey(key)}
                             readOnly
-                            className="w-full rounded-md border bg-muted  shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                            className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary font-mono text-sm"
                           />
                         </div>
                         <button
                           onClick={() => toggleApiKeyVisibility(key.id)}
-                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
+                          className="p-2 text-muted-foreground hover:text-foreground"
                           title={showApiKey[key.id] ? 'Hide API key' : 'Show API key'}
                         >
                           {showApiKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                         <button
                           onClick={() => handleCopyApiKey(key.id, key.key_preview || key.key)}
-                          className="p-2 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
+                          className="p-2 text-muted-foreground hover:text-foreground"
                           title="Copy API key"
                         >
                           <Copy className="h-4 w-4" />
@@ -690,10 +690,10 @@ const Settings: React.FC = () => {
 
                       {/* Security notice for existing keys */}
                       {!newlyCreatedKeys[key.id] && showApiKey[key.id] && (
-                        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                        <div className="mb-4 p-3 bg-info/10 border border-info/20 rounded-md">
                           <div className="flex">
-                            <Shield className="h-4 w-4 text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
-                            <div className="text-sm text-blue-700 dark:text-blue-300">
+                            <Shield className="h-4 w-4 text-info mt-0.5 mr-2 flex-shrink-0" />
+                            <div className="text-sm text-info">
                               <p className="font-medium">Security Notice</p>
                               <p>For security reasons, only the prefix of existing API keys can be displayed. The full key was only shown when it was first created.</p>
                             </div>
@@ -705,7 +705,7 @@ const Settings: React.FC = () => {
                         <button
                           onClick={() => openRevokeModal(key.id, key.name)}
                           disabled={loading}
-                          className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-red-500 disabled:opacity-50"
+                          className="inline-flex items-center px-3 py-2 border border-destructive shadow-sm text-sm leading-4 font-medium rounded-md text-destructive bg-card hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           {loading ? 'Revoking...' : 'Revoke'}
@@ -719,12 +719,12 @@ const Settings: React.FC = () => {
 
             {/* Revocation Confirmation Modal */}
             {revokeModal.isOpen && (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                 <div className="relative bg-card rounded-lg shadow-xl max-w-md w-full mx-4">
                   <div className="p-6">
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0">
-                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
                       </div>
                       <div className="ml-3">
                         <h3 className="text-lg font-medium text-foreground">
@@ -733,7 +733,7 @@ const Settings: React.FC = () => {
                       </div>
                       <button
                         onClick={closeRevokeModal}
-                        className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-gray-600  dark:hover:text-gray-300"
+                        className="ml-auto flex-shrink-0 p-1 text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-5 w-5" />
                       </button>
@@ -746,7 +746,7 @@ const Settings: React.FC = () => {
                       <p className="text-sm font-medium text-foreground bg-muted px-3 py-2 rounded border">
                         {revokeModal.keyName}
                       </p>
-                      <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                      <p className="text-sm text-destructive mt-2">
                         This action cannot be undone. Any applications using this key will lose access immediately.
                       </p>
                     </div>
@@ -755,14 +755,14 @@ const Settings: React.FC = () => {
                       <button
                         onClick={closeRevokeModal}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleRevokeApiKey(revokeModal.keyId)}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-primary-foreground bg-destructive border border-transparent rounded-md hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive disabled:opacity-50"
                       >
                         {loading ? 'Revoking...' : 'Revoke API Key'}
                       </button>
@@ -803,8 +803,8 @@ const Settings: React.FC = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
                       activeTab === tab.id
-                        ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                     }`}
                   >
                     <Icon className="h-5 w-5 mr-3" />

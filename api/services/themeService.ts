@@ -1,7 +1,7 @@
 import { query } from '../lib/database.js';
 
 const THEME_KEY = 'theme';
-const DEFAULT_THEME_ID = 'teal';
+const DEFAULT_THEME_ID = 'mono';
 const CUSTOM_THEME_ID = 'custom';
 
 export interface ThemeVariablesMap {
