@@ -14,6 +14,10 @@
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "prestart": "npm run kill-ports",
     "start": "concurrently \"node --import tsx api/server.ts\" \"vite preview --port 5173 --strictPort\"",
+    "pm2:start": "npm run build && pm2 start ecosystem.config.cjs --env production",
+    "pm2:reload": "pm2 reload ecosystem.config.cjs --env production",
+    "pm2:stop": "pm2 stop containerstacks-api containerstacks-ui && pm2 delete containerstacks-api containerstacks-ui",
+    "pm2:list": "pm2 ls",
     "seed:admin": "node scripts/seed-admin.js"
   },
   "dependencies": {
@@ -41,7 +45,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.2.8",
-  "@tanstack/react-table": "^8.20.4",
+    "@tanstack/react-table": "^8.20.4",
     "@types/pg": "^8.15.5",
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.0",
@@ -103,6 +107,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "nodemon": "^3.1.10",
+    "pm2": "^6.0.13",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.3",
