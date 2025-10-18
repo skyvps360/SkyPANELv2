@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -74,13 +74,23 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Read sidebar state from cookie on initialization
-  const defaultSidebarOpen = useMemo(() => {
-    if (typeof window === "undefined") return true;
+  const getSidebarPreference = useCallback(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
     const cookie = document.cookie
       .split("; ")
       .find((row) => row.startsWith("sidebar_state="));
+
     return cookie ? cookie.split("=")[1] !== "false" : true;
   }, []);
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => getSidebarPreference());
+
+  useEffect(() => {
+    setIsSidebarOpen(getSidebarPreference());
+  }, [getSidebarPreference]);
 
   // Generate breadcrumbs from current route
   const breadcrumbs = useMemo(
@@ -283,22 +293,30 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   };
 
   return (
-    <SidebarProvider defaultOpen={defaultSidebarOpen}>
+    <SidebarProvider
+      defaultOpen={isSidebarOpen}
+      open={isSidebarOpen}
+      onOpenChange={setIsSidebarOpen}
+    >
       <AppSidebar />
       <SidebarInset>
         {/* Two-Tier Navigation Header */}
-        <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-          <CardContent className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 py-0 group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+        <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-[[data-state=collapsed]]/sidebar-wrapper:h-12">
+          <CardContent className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 py-0 group-has-[[data-state=collapsed]]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               
               {/* Logo and Brand Name - Only visible when sidebar is collapsed */}
-              <div className="hidden group-has-[[data-collapsible=icon]]/sidebar-wrapper:flex items-center gap-2">
-                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-                  <rect width="32" height="32" fill="currentColor" className="text-primary"/>
-                  <path d="M26.6677 23.7149H8.38057V20.6496H5.33301V8.38159H26.6677V23.7149ZM8.38057 20.6496H23.6201V11.4482H8.38057V20.6496ZM16.0011 16.0021L13.8461 18.1705L11.6913 16.0021L13.8461 13.8337L16.0011 16.0021ZM22.0963 16.0008L19.9414 18.1691L17.7865 16.0008L19.9414 13.8324L22.0963 16.0008Z" fill="#32F08C"/>
-                </svg>
-                <span className="font-semibold text-foreground">{BRAND_NAME}</span>
+              <div className="hidden group-has-[[data-state=collapsed]]/sidebar-wrapper:flex items-center gap-2">
+                <Link to="/dashboard" className="flex items-center gap-2">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                    <Server className="size-4" />
+                  </div>
+                  <div className="flex flex-col leading-tight">
+                    <span className="font-semibold text-foreground">{BRAND_NAME}</span>
+                    <span className="text-xs text-muted-foreground">Cloud Platform</span>
+                  </div>
+                </Link>
               </div>
               
               <Separator orientation="vertical" className="mr-2 h-4" />
