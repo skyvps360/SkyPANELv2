@@ -33,6 +33,7 @@ interface DataTableProps<TData, TValue> {
   emptyState?: React.ReactNode;
   isLoading?: boolean;
   pageSize?: number;
+  onSelectionChange?: (selectedRows: TData[]) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -42,6 +43,7 @@ export function DataTable<TData, TValue>({
   emptyState,
   isLoading = false,
   pageSize = 10,
+  onSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -72,6 +74,13 @@ export function DataTable<TData, TValue>({
   useEffect(() => {
     table.setPageSize(pageSize);
   }, [table, pageSize]);
+
+  useEffect(() => {
+    if (onSelectionChange) {
+      const selectedRows = table.getFilteredSelectedRowModel().rows.map(row => row.original);
+      onSelectionChange(selectedRows);
+    }
+  }, [rowSelection, onSelectionChange, table]);
 
   const columnCount = columns.length || 1;
   const hasRows = table.getRowModel().rows.length > 0;

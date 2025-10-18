@@ -14,13 +14,16 @@ import {
   DollarSign,
   Power,
   PowerOff,
-  Copy
+  Copy,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService } from '../services/paymentService';
 import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
+import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
 import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
@@ -60,6 +63,9 @@ const VPS: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
+  const [selectedInstances, setSelectedInstances] = useState<VPSInstance[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState<number>(1);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; password: string; confirmCheckbox: boolean; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
@@ -439,6 +445,140 @@ const VPS: React.FC = () => {
     }
   };
 
+  const handleBulkAction = async (action: 'boot' | 'shutdown' | 'reboot' | 'delete') => {
+    if (selectedInstances.length === 0) return;
+
+    // For delete action, show modal instead of window.confirm
+    if (action === 'delete') {
+      setShowBulkDeleteModal(true);
+      return;
+    }
+
+    // For restart action, show confirmation dialog
+    if (action === 'reboot') {
+      const confirmed = window.confirm(
+        `Are you sure you want to restart ${selectedInstances.length} instance${selectedInstances.length > 1 ? 's' : ''}?\n\n` +
+        `The following instances will be restarted:\n` +
+        selectedInstances.map(instance => `• ${instance.label}`).join('\n')
+      );
+      if (!confirmed) return;
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    // Process each instance
+    for (const instance of selectedInstances) {
+      try {
+        // Skip if action doesn't make sense for current status
+        if (action === 'boot' && instance.status === 'running') continue;
+        if (action === 'shutdown' && instance.status === 'stopped') continue;
+        if (action === 'reboot' && instance.status !== 'running') continue;
+
+        let url = `/api/vps/${instance.id}`;
+        let method: 'POST' | 'DELETE' = 'POST';
+        
+        if (action === 'boot') url += '/boot';
+        else if (action === 'shutdown') url += '/shutdown';
+        else if (action === 'reboot') url += '/reboot';
+        else if (action === 'delete') method = 'DELETE';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}` 
+          },
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Failed to ${action} ${instance.label}`);
+
+        results.success++;
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push(`${instance.label}: ${error.message}`);
+        console.error(`Failed to ${action} instance ${instance.label}:`, error);
+      }
+    }
+
+    // Clear selection
+    setSelectedInstances([]);
+
+    // Refresh instances
+    await loadInstances();
+
+    // Show results
+    if (results.success > 0 && results.failed === 0) {
+      toast.success(`Successfully ${action === 'boot' ? 'started' : action === 'shutdown' ? 'stopped' : action === 'reboot' ? 'restarted' : 'deleted'} ${results.success} instance${results.success > 1 ? 's' : ''}`);
+    } else if (results.success > 0 && results.failed > 0) {
+      toast.warning(`${results.success} instance${results.success > 1 ? 's' : ''} ${action === 'boot' ? 'started' : action === 'shutdown' ? 'stopped' : action === 'reboot' ? 'restarted' : 'deleted'} successfully, ${results.failed} failed`);
+    } else if (results.failed > 0) {
+      toast.error(`Failed to ${action} ${results.failed} instance${results.failed > 1 ? 's' : ''}${results.errors.length > 0 ? ':\n' + results.errors.join('\n') : ''}`);
+    }
+  };
+
+  const handleBulkDelete = async (password: string) => {
+    if (selectedInstances.length === 0) return;
+
+    setBulkDeleteLoading(true);
+
+    try {
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[]
+      };
+
+      // Process each instance
+      for (const instance of selectedInstances) {
+        try {
+          const res = await fetch(`/api/vps/${instance.id}`, {
+            method: 'DELETE',
+            headers: { 
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify({ password })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `Failed to delete ${instance.label}`);
+
+          results.success++;
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push(`${instance.label}: ${error.message}`);
+          console.error(`Failed to delete instance ${instance.label}:`, error);
+        }
+      }
+
+      // Clear selection and close modal
+      setSelectedInstances([]);
+      setShowBulkDeleteModal(false);
+
+      // Refresh instances
+      await loadInstances();
+
+      // Show results
+      if (results.success > 0 && results.failed === 0) {
+        toast.success(`Successfully deleted ${results.success} instance${results.success > 1 ? 's' : ''}`);
+      } else if (results.success > 0 && results.failed > 0) {
+        toast.warning(`${results.success} instance${results.success > 1 ? 's' : ''} deleted successfully, ${results.failed} failed`);
+      } else if (results.failed > 0) {
+        toast.error(`Failed to delete ${results.failed} instance${results.failed > 1 ? 's' : ''}${results.errors.length > 0 ? ':\n' + results.errors.join('\n') : ''}`);
+      }
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      throw error; // Re-throw to let modal handle the error
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -814,6 +954,58 @@ const VPS: React.FC = () => {
           </div>
         </div>
 
+        {/* Bulk Actions Toolbar */}
+        {selectedInstances.length > 0 && (
+          <div className="bg-card border border-border rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedInstances.length} instance{selectedInstances.length > 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleBulkAction('boot')}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
+                  disabled={selectedInstances.every(instance => instance.status === 'running')}
+                >
+                  <Power className="h-4 w-4 mr-1" />
+                  Start
+                </button>
+                <button
+                  onClick={() => handleBulkAction('shutdown')}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-100 border border-orange-300 rounded-md hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
+                  disabled={selectedInstances.every(instance => instance.status === 'stopped')}
+                >
+                  <PowerOff className="h-4 w-4 mr-1" />
+                  Stop
+                </button>
+                <button
+                  onClick={() => handleBulkAction('reboot')}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/30"
+                  disabled={selectedInstances.every(instance => instance.status !== 'running')}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Restart
+                </button>
+                <button
+                  onClick={() => handleBulkAction('delete')}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </button>
+                <button
+                  onClick={() => setSelectedInstances([])}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* VPS List */}
         <div className="bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -826,6 +1018,7 @@ const VPS: React.FC = () => {
             allowedRegions={allowedRegions}
             onAction={handleInstanceAction}
             onCopy={copyToClipboard}
+            onSelectionChange={setSelectedInstances}
             isLoading={loading && instances.length > 0}
           />
         </div>
@@ -1374,6 +1567,15 @@ const VPS: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Bulk Delete Modal */}
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          selectedInstances={selectedInstances}
+          isLoading={bulkDeleteLoading}
+        />
       </div>
     </div>
   );

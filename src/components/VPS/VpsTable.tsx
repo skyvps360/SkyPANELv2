@@ -29,6 +29,7 @@ interface VpsInstancesTableProps {
   allowedRegions: RegionShape[];
   onAction: (instanceId: string, action: "boot" | "shutdown" | "reboot" | "delete") => void;
   onCopy: (value: string) => void;
+  onSelectionChange?: (selectedInstances: VPSInstance[]) => void;
 }
 
 const STATUS_STYLES: Record<VPSInstance["status"], string> = {
@@ -87,6 +88,7 @@ export function VpsInstancesTable({
   allowedRegions,
   onAction,
   onCopy,
+  onSelectionChange,
 }: VpsInstancesTableProps) {
   const regionLookup = useMemo(() => {
     const map = new Map<string, string>();
@@ -283,6 +285,7 @@ export function VpsInstancesTable({
       columns={columns}
       data={instances}
       isLoading={isLoading}
+      onSelectionChange={onSelectionChange}
       emptyState={
         <div className="py-10 text-center">
           <p className="text-base font-medium text-foreground">No VPS instances found</p>
