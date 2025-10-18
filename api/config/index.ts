@@ -8,12 +8,17 @@ export interface Config {
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
   DATABASE_URL: string;
+  CLIENT_URL: string;
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX_REQUESTS: number;
   PAYPAL_CLIENT_ID: string;
   PAYPAL_CLIENT_SECRET: string;
   PAYPAL_MODE: string;
   SMTP2GO_API_KEY?: string;
+  SMTP2GO_USERNAME?: string;
+  SMTP2GO_PASSWORD?: string;
+  FROM_EMAIL?: string;
+  FROM_NAME?: string;
   LINODE_API_TOKEN?: string;
   SSH_CRED_SECRET?: string;
 }
@@ -26,12 +31,17 @@ function getConfig(): Config {
     JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
     DATABASE_URL: process.env.DATABASE_URL || '',
+    CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
     RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
     RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
     PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID || '',
     PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET || '',
     PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox',
     SMTP2GO_API_KEY: process.env.SMTP2GO_API_KEY,
+    SMTP2GO_USERNAME: process.env.SMTP2GO_USERNAME,
+    SMTP2GO_PASSWORD: process.env.SMTP2GO_PASSWORD,
+    FROM_EMAIL: process.env.FROM_EMAIL,
+    FROM_NAME: process.env.FROM_NAME,
     LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
     SSH_CRED_SECRET: process.env.SSH_CRED_SECRET,
   };
@@ -40,7 +50,9 @@ function getConfig(): Config {
   console.log('Config loaded:', {
     hasPayPalClientId: !!config.PAYPAL_CLIENT_ID,
     hasPayPalClientSecret: !!config.PAYPAL_CLIENT_SECRET,
-    paypalMode: config.PAYPAL_MODE
+    paypalMode: config.PAYPAL_MODE,
+    hasSmtpCredentials: !!config.SMTP2GO_USERNAME && !!config.SMTP2GO_PASSWORD,
+    hasFromEmail: !!config.FROM_EMAIL
   });
 
   return config;

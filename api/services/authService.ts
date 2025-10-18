@@ -1,9 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
-import crypto from 'crypto-js';
+import { randomBytes } from 'crypto';
 import { query, transaction } from '../lib/database.js';
 import { config } from '../config/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  sendLoginNotificationEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail
+} from './emailService.js';
 
 export interface RegisterData {
   email: string;
@@ -17,6 +22,8 @@ export interface LoginData {
   email: string;
   password: string;
 }
+
+const RESET_TOKEN_LENGTH = 8;
 
 export class AuthService {
   static async register(data: RegisterData) {
@@ -74,7 +81,7 @@ export class AuthService {
             );
           } catch (err) {
             // Table might not exist yet, continue without error
-            console.warn('organization_members table not found, skipping member creation');
+            console.warn('organization_members table not found, skipping member creation', err);
           }
 
           // Create wallet for organization
@@ -86,7 +93,7 @@ export class AuthService {
             );
           } catch (err) {
             // Table might not exist yet, continue without error
-            console.warn('wallets table not found, skipping wallet creation');
+            console.warn('wallets table not found, skipping wallet creation', err);
           }
         }
 
@@ -99,6 +106,17 @@ export class AuthService {
         config.JWT_SECRET as Secret,
         { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
+
+      const fullName = `${data.firstName} ${data.lastName}`.trim();
+
+      try {
+        await sendWelcomeEmail(
+          result.user.email,
+          fullName.length > 0 ? fullName : undefined
+        );
+      } catch (emailError) {
+        console.error('Welcome email send failed:', emailError);
+      }
 
       return {
         user: {
@@ -148,7 +166,7 @@ export class AuthService {
         orgMember = orgResult.rows[0] || null;
       } catch (err) {
         // Table might not exist yet, continue without error
-        console.warn('organization_members table not found, skipping organization lookup');
+        console.warn('organization_members table not found, skipping organization lookup', err);
       }
 
       // Generate JWT token
@@ -157,6 +175,15 @@ export class AuthService {
         config.JWT_SECRET as Secret,
         { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
+
+      try {
+        await sendLoginNotificationEmail(
+          user.email,
+          user.name || undefined
+        );
+      } catch (emailError) {
+        console.error('Login email send failed:', emailError);
+      }
 
       return {
         user: {
@@ -181,6 +208,7 @@ export class AuthService {
 
   static async verifyEmail(token: string) {
     try {
+      void token;
       // Since we don't have email verification in the current schema,
       // we'll just return success for now
       return { message: 'Email verification not implemented in current schema' };
@@ -193,20 +221,51 @@ export class AuthService {
   static async requestPasswordReset(email: string) {
     try {
       const result = await query(
-        'SELECT id FROM users WHERE email = $1',
+        'SELECT id, name FROM users WHERE email = $1',
         [email]
       );
 
       if (result.rows.length === 0) {
-        // Don't reveal if email exists
+        // Don't reveal if email exists (security best practice)
         return { message: 'If the email exists, a reset link has been sent' };
       }
 
-      // Since we don't have reset_token and reset_expires fields in the current schema,
-      // we'll just return a message for now
-      return { 
-        message: 'Password reset not implemented in current schema'
+      const user = result.rows[0];
+
+      // Generate a secure, short reset token suitable for OTP entry
+      const resetToken = randomBytes(RESET_TOKEN_LENGTH)
+        .toString('hex')
+        .slice(0, RESET_TOKEN_LENGTH)
+        .toUpperCase();
+      const resetExpires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour from now
+
+      // Store reset token in database
+      await query(
+        'UPDATE users SET reset_token = $1, reset_expires = $2 WHERE id = $3',
+        [resetToken, resetExpires.toISOString(), user.id]
+      );
+
+      try {
+        await sendPasswordResetEmail(
+          email,
+          resetToken,
+          user.name || undefined
+        );
+      } catch (emailError) {
+        console.error('Password reset email send failed:', emailError);
+      }
+
+      const response: { message: string; token?: string } = {
+        message: 'If the email exists, a reset link has been sent'
       };
+
+      // In development, return the token to allow frontend to redirect and pre-fill
+      // In production, never leak the token - user must check email
+      if (process.env.NODE_ENV === 'development') {
+        response.token = resetToken;
+      }
+
+      return response;
     } catch (error) {
       console.error('Password reset request error:', error);
       throw error;
@@ -215,9 +274,30 @@ export class AuthService {
 
   static async resetPassword(token: string, newPassword: string) {
     try {
-      // Since we don't have reset_token and reset_expires fields in the current schema,
-      // we'll just return an error for now
-      throw new Error('Password reset not implemented in current schema');
+      const normalizedToken = token.toUpperCase();
+      // Find user with valid reset token
+      const userResult = await query(
+        'SELECT id FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
+        [normalizedToken]
+      );
+
+      if (userResult.rows.length === 0) {
+        throw new Error('Invalid or expired reset token');
+      }
+
+      const user = userResult.rows[0];
+
+      // Hash the new password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password and clear reset token
+      await query(
+        'UPDATE users SET password_hash = $1, reset_token = NULL, reset_expires = NULL, updated_at = $2 WHERE id = $3',
+        [hashedPassword, new Date().toISOString(), user.id]
+      );
+
+      return { message: 'Password reset successfully' };
     } catch (error) {
       console.error('Password reset error:', error);
       throw error;
@@ -246,7 +326,7 @@ export class AuthService {
         );
         orgMember = orgResult.rows[0] || null;
       } catch (err) {
-        console.warn('organization_members table not found, skipping organization lookup');
+        console.warn('organization_members table not found, skipping organization lookup', err);
       }
 
       // Generate new JWT token

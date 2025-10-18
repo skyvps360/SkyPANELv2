@@ -64,6 +64,7 @@
     "express-validator": "^7.0.1",
     "framer-motion": "^12.23.24",
     "helmet": "^7.1.0",
+    "input-otp": "^1.4.2",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.511.0",

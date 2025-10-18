@@ -39,6 +39,11 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 px-4 py-12">
       <div className="w-full max-w-md">
+        <div className="mb-4 text-sm">
+          <Link to="/" className="text-muted-foreground hover:text-primary/80">
+            ← Back to home
+          </Link>
+        </div>
         <Card className="shadow-lg">
           <CardHeader className="space-y-4 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
