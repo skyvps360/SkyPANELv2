@@ -24,7 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { paymentService } from '../services/paymentService';
 import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
 import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { VPSInstance } from '@/types/vps';
 
@@ -341,6 +341,15 @@ const VPS: React.FC = () => {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || 'Failed to load VPS instances');
 
+      const clampPercent = (value: unknown): number | null => {
+        if (value === null || typeof value === 'undefined') return null;
+        const numeric = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(numeric)) return null;
+        if (numeric < 0) return 0;
+        if (numeric > 100) return 100;
+        return numeric;
+      };
+
       const mapped: VPSInstance[] = (payload.instances || []).map((i: any) => {
         // Prefer API-provided plan specs/pricing; fallback to loaded plans; else zeros
         const apiSpecs = i.plan_specs || null;
@@ -364,23 +373,37 @@ const VPS: React.FC = () => {
           hourly: planForType.price.hourly,
           monthly: planForType.price.monthly,
         } : { hourly: 0, monthly: 0 };
+        const rawProgress = i && typeof i.provider_progress === 'object' && i.provider_progress !== null
+          ? i.provider_progress
+          : null;
+        const percentFromEvent = rawProgress ? clampPercent(rawProgress.percent) : null;
+        const percentFromRow = clampPercent(i?.progress_percent);
+        const progress = rawProgress || percentFromRow !== null ? {
+          percent: percentFromEvent ?? percentFromRow,
+          action: rawProgress?.action ?? null,
+          status: rawProgress?.status ?? null,
+          message: rawProgress?.message ?? null,
+          created: rawProgress?.created ?? null,
+        } : undefined;
         // Normalize status: treat provider 'offline' as 'stopped' for UI/actions
         const normalizedStatus = ((i.status as any) || 'provisioning') === 'offline' ? 'stopped' : ((i.status as any) || 'provisioning');
-        return ({
-        id: String(i.id),
-        label: i.label,
-        status: normalizedStatus,
-        type: i.configuration?.type || '',
-        region: i.configuration?.region || '',
-        regionLabel: i.region_label || undefined,
-        image: i.configuration?.image || '',
-        ipv4: i.ip_address ? [i.ip_address] : [],
-        ipv6: '',
-        created: i.created_at,
-        specs,
-        stats: { cpu: 0, memory: 0, disk: 0, network: { in: 0, out: 0 }, uptime: '' },
-        pricing
-      });
+        const instance: VPSInstance = {
+          id: String(i.id),
+          label: i.label,
+          status: normalizedStatus,
+          type: i.configuration?.type || '',
+          region: i.configuration?.region || '',
+          regionLabel: i.region_label || undefined,
+          image: i.configuration?.image || '',
+          ipv4: i.ip_address ? [i.ip_address] : [],
+          ipv6: '',
+          created: i.created_at,
+          specs,
+          stats: { cpu: 0, memory: 0, disk: 0, network: { in: 0, out: 0 }, uptime: '' },
+          pricing,
+          progress: progress ?? undefined,
+        };
+        return instance;
       });
 
       setInstances(mapped);
@@ -1068,7 +1091,6 @@ const VPS: React.FC = () => {
                         const stepNumber = i + 1;
                         const isCompleted = stepNumber < createStep;
                         const isCurrent = stepNumber === createStep;
-                        const isUpcoming = stepNumber > createStep;
                         
                         return (
                           <React.Fragment key={i}>

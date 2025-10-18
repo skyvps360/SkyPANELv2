@@ -16,8 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import type { VPSInstance } from "@/types/vps";
 
 interface RegionShape {
@@ -33,16 +31,6 @@ interface VpsInstancesTableProps {
   onCopy: (value: string) => void;
   onSelectionChange?: (selectedInstances: VPSInstance[]) => void;
 }
-
-const STATUS_STYLES: Record<VPSInstance["status"], string> = {
-  running: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-  stopped: "bg-muted text-muted-foreground",
-  provisioning: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
-  rebooting: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-  error: "bg-red-500/15 text-red-600 dark:text-red-300",
-  restoring: "bg-primary/10 text-primary",
-  backing_up: "bg-primary/10 text-primary",
-};
 
 const statusLabel = (status: VPSInstance["status"]): string => {
   switch (status) {
@@ -105,21 +93,39 @@ const getStatusVariant = (status: VPSInstance["status"]) => {
   }
 };
 
-const getProgressValue = (status: VPSInstance["status"], created?: string) => {
-  if (status === "provisioning") {
-    // Simulate progress based on time elapsed since creation
-    if (created) {
-      const createdTime = new Date(created).getTime();
-      const now = Date.now();
-      const elapsed = now - createdTime;
-      const estimatedTotal = 5 * 60 * 1000; // 5 minutes
-      return Math.min(90, (elapsed / estimatedTotal) * 100);
+const clampPercent = (value: number | null | undefined): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  if (value < 0) return 0;
+  if (value > 100) return 100;
+  return value;
+};
+
+const getProgressValue = (instance: VPSInstance) => {
+  const providerPercent = clampPercent(instance.progress?.percent ?? null);
+  if (providerPercent !== null) {
+    if (providerPercent >= 100 && (instance.status === "running" || instance.status === "stopped")) {
+      return null;
+    }
+    return providerPercent;
+  }
+
+  if (instance.status === "provisioning") {
+    if (instance.created) {
+      const createdTime = new Date(instance.created).getTime();
+      if (!Number.isNaN(createdTime)) {
+        const now = Date.now();
+        const elapsed = now - createdTime;
+        const estimatedTotal = 5 * 60 * 1000; // 5 minutes fallback heuristic
+        return Math.min(90, (elapsed / estimatedTotal) * 100);
+      }
     }
     return 25;
   }
-  if (status === "rebooting") return 60;
-  if (status === "restoring") return 40;
-  if (status === "backing_up") return 70;
+  if (instance.status === "rebooting") return 60;
+  if (instance.status === "restoring") return 40;
+  if (instance.status === "backing_up") return 70;
   return null;
 };
 
@@ -179,7 +185,9 @@ export function VpsInstancesTable({
           const instance = row.original;
           const regionLabel =
             instance.regionLabel || regionLookup.get(instance.region) || instance.region;
-          const progressValue = getProgressValue(instance.status, instance.created);
+          const progressValue = getProgressValue(instance);
+          const providerMessage = typeof instance.progress?.message === "string" ? instance.progress.message.trim() : "";
+          const progressLabel = providerMessage.length > 0 ? providerMessage : statusLabel(instance.status);
           const showPing = ["running", "provisioning", "rebooting", "restoring", "backing_up"].includes(instance.status);
           
           return (
@@ -198,7 +206,7 @@ export function VpsInstancesTable({
               {progressValue !== null && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{statusLabel(instance.status)}...</span>
+                    <span>{progressLabel}</span>
                     <span>{Math.round(progressValue)}%</span>
                   </div>
                   <Progress value={progressValue} className="h-1.5" />

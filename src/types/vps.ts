@@ -29,4 +29,11 @@ export interface VPSInstance {
     hourly: number;
     monthly: number;
   };
+  progress?: {
+    percent: number | null;
+    action: string | null;
+    status: string | null;
+    message: string | null;
+    created: string | null;
+  };
 }

@@ -1,0 +1,57 @@
+# Dialog Stack
+URL: /components/layout/dialog-stack
+Composable stacked dialog component for React and Next.js applications. Built with TypeScript support, Tailwind CSS styling, and shadcn/ui design featuring multi-step wizards, navigation controls, and Radix UI portal integration.
+
+***
+
+title: Dialog Stack
+description: Composable stacked dialog component for React and Next.js applications. Built with TypeScript support, Tailwind CSS styling, and shadcn/ui design featuring multi-step wizards, navigation controls, and Radix UI portal integration.
+icon: Layers
+------------
+
+<PoweredBy
+  packages={[
+{ name: 'Radix UI Portal', url: 'https://www.radix-ui.com/primitives/docs/components/portal' },
+]}
+/>
+
+<Preview path="dialog-stack" />
+
+## Installation
+
+<Installer packageName="dialog-stack" />
+
+## Features
+
+* **Stacked dialogs** - Multiple dialog layers with proper z-index management using Radix UI Portal
+* **Wizard navigation** - Step-by-step flow controls with next/previous functionality using React state
+* **Consistent styling** - Uniform layout and appearance across all dialog instances using Tailwind CSS
+* **Navigation components** - Built-in controls for moving between dialog steps using TypeScript handlers
+* **Controlled mode** - External state management with programmatic navigation for Next.js applications
+* **Portal rendering** - Proper modal stacking with escape key and overlay handling using shadcn/ui patterns
+* **Open source** - Free dialog stack component with customizable appearance and behavior
+
+## Examples
+
+### With six dialogs
+
+<Preview path="dialog-stack-six" />
+
+### With clickable navigation
+
+<Preview path="dialog-stack-navigation" />
+
+### Controlled
+
+<Preview path="dialog-stack-controlled" />
+
+## Use Cases
+
+* **Multi-step forms** - User registration and onboarding wizard interfaces
+* **Checkout processes** - E-commerce payment and shipping information collection
+* **Settings panels** - Nested configuration dialogs with category navigation
+* **Data entry workflows** - Complex form splitting across multiple dialog steps
+
+## Implementation
+
+Built with Radix UI Portal for proper stacking. Uses controlled state for navigation. Supports both linear and non-linear wizard flows. Includes escape key handling and overlay management.

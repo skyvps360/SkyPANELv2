@@ -492,6 +492,96 @@ const mapEventSummary = (entry: any): any | null => {
   };
 };
 
+const clampPercent = (value: number | null | undefined): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  if (value < 0) return 0;
+  if (value > 100) return 100;
+  return value;
+};
+
+const PROGRESS_ACTION_MAP: Record<string, string[]> = {
+  provisioning: ['linode_create', 'linode_clone', 'linode_migrate', 'linode_migration_begin'],
+  rebooting: ['linode_reboot', 'linode_shutdown', 'linode_boot'],
+  restoring: ['linode_snapshot_clone', 'linode_snapshot_restore', 'linode_migrate'],
+  backing_up: ['linode_snapshot', 'linode_snapshot_create'],
+};
+
+const pickProgressEvent = (events: Array<Record<string, any>>, instanceStatus: string): Record<string, any> | null => {
+  if (!Array.isArray(events) || events.length === 0) {
+    return null;
+  }
+
+  const normalizedStatus = (instanceStatus || '').toLowerCase();
+  const actionCandidates = PROGRESS_ACTION_MAP[normalizedStatus];
+
+  if (Array.isArray(actionCandidates) && actionCandidates.length > 0) {
+    const actionSet = new Set(actionCandidates.map(action => action.toLowerCase()));
+    const byAction = events.find(event => {
+      const action = typeof event?.action === 'string' ? event.action.toLowerCase() : '';
+      return actionSet.has(action);
+    });
+    if (byAction) {
+      return byAction;
+    }
+  }
+
+  const activeByPercent = events.find(event => {
+    const percent = clampPercent(event?.percentComplete ?? null);
+    return percent !== null && percent < 100;
+  });
+  if (activeByPercent) {
+    return activeByPercent;
+  }
+
+  const activeByStatus = events.find(event => {
+    const status = typeof event?.status === 'string' ? event.status.toLowerCase() : '';
+    return status && status !== 'finished' && status !== 'notification';
+  });
+  if (activeByStatus) {
+    return activeByStatus;
+  }
+
+  const anyWithPercent = events.find(event => clampPercent(event?.percentComplete ?? null) !== null);
+  return anyWithPercent || null;
+};
+
+const deriveProgressFromEvents = (
+  instanceStatus: string,
+  events: Array<Record<string, any>>
+): { percent: number | null; action: string | null; status: string | null; message: string | null; created: string | null } | null => {
+  if (!Array.isArray(events) || events.length === 0) {
+    return null;
+  }
+
+  const bestEvent = pickProgressEvent(events, instanceStatus);
+  if (!bestEvent) {
+    return null;
+  }
+
+  const rawPercent = clampPercent(bestEvent?.percentComplete ?? null);
+  let percent = rawPercent;
+  if (percent === null) {
+    const status = typeof bestEvent?.status === 'string' ? bestEvent.status.toLowerCase() : '';
+    if (status === 'finished' || status === 'completed' || status === 'success') {
+      percent = 100;
+    } else if (status === 'failed' || status === 'error') {
+      percent = 100;
+    } else if (status === 'started' || status === 'running') {
+      percent = 10;
+    }
+  }
+
+  return {
+    percent,
+    action: typeof bestEvent?.action === 'string' ? bestEvent.action : null,
+    status: typeof bestEvent?.status === 'string' ? bestEvent.status : null,
+    message: typeof bestEvent?.message === 'string' ? bestEvent.message : null,
+    created: typeof bestEvent?.created === 'string' ? bestEvent.created : null,
+  };
+};
+
 let regionLabelCache: Map<string, string> | null = null;
 
 const ensureRegionLabelCache = async (): Promise<Map<string, string>> => {
@@ -853,6 +943,24 @@ router.get('/', async (req: Request, res: Response) => {
 
         (row as any).plan_specs = planSpecs;
         (row as any).plan_pricing = planPricing;
+
+        const normalizedStatus = typeof row.status === 'string' ? row.status.toLowerCase() : '';
+        if (['provisioning', 'rebooting', 'restoring', 'backing_up'].includes(normalizedStatus)) {
+          try {
+            const eventsData = await linodeService.getLinodeInstanceEvents(instanceId, { pageSize: 50 });
+            const events = Array.isArray((eventsData as any)?.data)
+              ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
+              : [];
+            const progress = deriveProgressFromEvents(normalizedStatus, events);
+            (row as any).provider_progress = progress;
+            (row as any).progress_percent = progress?.percent ?? null;
+          } catch (eventError) {
+            console.warn('Failed to fetch instance events for progress:', eventError);
+          }
+        } else {
+          (row as any).provider_progress = null;
+          (row as any).progress_percent = null;
+        }
       } catch (e) {
         console.warn('Failed to enrich instance with Linode details:', e);
       }
@@ -2089,7 +2197,7 @@ router.put('/:id/hostname', async (req: Request, res: Response) => {
     }
 
     // Update hostname via Linode API
-    const updatedInstance = await linodeService.updateLinodeInstance(providerInstanceId, { label: normalizedHostname });
+  await linodeService.updateLinodeInstance(providerInstanceId, { label: normalizedHostname });
 
     // Update local database
     await query(
@@ -2139,7 +2247,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     
     try {
       await AuthService.login({ email: user.email, password });
-    } catch (error) {
+    } catch {
       return res.status(400).json({ error: 'Invalid password' });
     }
     
