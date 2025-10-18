@@ -12,6 +12,8 @@
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "prestart": "npm run kill-ports",
+    "start": "concurrently \"node --import tsx api/server.ts\" \"vite preview --port 5173 --strictPort\"",
     "seed:admin": "node scripts/seed-admin.js"
   },
   "dependencies": {
