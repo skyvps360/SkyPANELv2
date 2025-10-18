@@ -26,6 +26,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+  InputGroup, 
+  InputGroupAddon, 
+  InputGroupInput 
+} from '@/components/ui/input-group';
 
 interface TicketMessage {
   id: string;
@@ -364,15 +369,19 @@ const Support: React.FC = () => {
               </Button>
 
               <div className="flex-1 flex gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
-                  <Input
-                    type="text"
-                    placeholder="Search tickets..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full"
-                  />
+                <div className="flex-1">
+                  <InputGroup className="h-12">
+                    <InputGroupAddon align="inline-start">
+                      <Search className="h-5 w-5" />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      type="text"
+                      placeholder="Search tickets by subject, description, or ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="text-base py-3"
+                    />
+                  </InputGroup>
                 </div>
 
                 <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>

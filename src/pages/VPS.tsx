@@ -1518,29 +1518,29 @@ const VPS: React.FC = () => {
                   </button>
                   <div className="flex items-center space-x-3">
                     {createStep > 1 && (
-                      <button
+                      <Button
                         onClick={handleBack}
-                        className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none"
+                        variant="secondary"
                       >
                         Back
-                      </button>
+                      </Button>
                     )}
                     {createStep < totalSteps && (
-                      <button
+                      <Button
                         onClick={handleNext}
                         disabled={!canProceed}
-                        className={`px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${canProceed ? 'text-white bg-primary hover:bg-primary/90 border-transparent' : 'text-muted-foreground bg-secondary border-border cursor-not-allowed'}`}
+                        variant={canProceed ? "default" : "secondary"}
                       >
                         Next
-                      </button>
+                      </Button>
                     )}
                     {createStep === totalSteps && (
-                      <button
+                      <Button
                         onClick={handleCreateInstance}
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                        variant="default"
                       >
                         Create VPS
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>

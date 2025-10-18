@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface ActivityRecord {
   id: string;
@@ -35,9 +36,9 @@ const ActivityPage: React.FC = () => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<string>('');
-  const [status, setStatus] = useState<string>('');
-  const [from, setFrom] = useState<string>('');
-  const [to, setTo] = useState<string>('');
+  const [status, setStatus] = useState<string>('all');
+  const [from, setFrom] = useState<Date | undefined>(undefined);
+  const [to, setTo] = useState<Date | undefined>(undefined);
   const [limit, setLimit] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -54,9 +55,9 @@ const ActivityPage: React.FC = () => {
     try {
       const params = new URLSearchParams();
       if (type) params.set('type', type);
-      if (status) params.set('status', status);
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
+      if (status && status !== 'all') params.set('status', status);
+      if (from) params.set('from', from.toISOString());
+      if (to) params.set('to', to.toISOString());
       params.set('limit', String(limit));
       params.set('offset', String((page - 1) * limit));
       const res = await fetch(`/api/activity?${params.toString()}`, {
@@ -198,41 +199,66 @@ const ActivityPage: React.FC = () => {
 
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex items-end gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Type</label>
-              <input value={type} onChange={e => setType(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" placeholder="vps, container, billing" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground">
-                <option value="">Any</option>
-                <option value="success">Success</option>
-                <option value="warning">Warning</option>
-                <option value="error">Error</option>
-                <option value="info">Info</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">From</label>
-              <input type="datetime-local" value={from} onChange={e => setFrom(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">To</label>
-              <input type="datetime-local" value={to} onChange={e => setTo(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Items per page</label>
-              <select value={limit} onChange={e => handleLimitChange(Number(e.target.value))} className="px-3 py-2 border rounded-md bg-background text-foreground">
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-              <button onClick={() => fetchActivities(1)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-foreground">
-                <Filter className="h-4 w-4" /> Apply
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="type" className="text-sm text-muted-foreground">Type</Label>
+                <Input 
+                  id="type"
+                  value={type} 
+                  onChange={e => setType(e.target.value)} 
+                  placeholder="vps, container, billing" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm text-muted-foreground">Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Any status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="warning">Warning</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                    <SelectItem value="info">Info</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">From Date</Label>
+                <DatePicker 
+                  date={from} 
+                  onDateChange={setFrom} 
+                  placeholder="Select start date" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">To Date</Label>
+                <DatePicker 
+                  date={to} 
+                  onDateChange={setTo} 
+                  placeholder="Select end date" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="limit" className="text-sm text-muted-foreground">Items per page</Label>
+                <Select value={limit.toString()} onValueChange={(value) => handleLimitChange(Number(value))}>
+                  <SelectTrigger id="limit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2 lg:col-span-1">
+                <Button onClick={() => fetchActivities(1)} className="w-full">
+                  <Filter className="h-4 w-4 mr-2" /> Apply Filters
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

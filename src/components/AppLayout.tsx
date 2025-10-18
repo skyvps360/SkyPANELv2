@@ -24,7 +24,9 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2 } from "lucide-react";
+import { Kbd } from "@/components/ui/kbd";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle, Keyboard } from "lucide-react";
 import { BRAND_NAME } from "@/lib/brand";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -62,6 +64,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { token } = useAuth();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   
   // State for VPS and Container search
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);
@@ -336,6 +339,41 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
               
               <NotificationDropdown />
+              
+              {/* Keyboard Help Menu */}
+              <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    <span className="sr-only">Keyboard shortcuts</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Keyboard Shortcuts</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Quick access to common actions
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Toggle sidebar</span>
+                        <Kbd>Ctrl+B</Kbd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Open command palette</span>
+                        <Kbd>Ctrl+K</Kbd>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
               <Button
                 variant="ghost"
                 size="icon"
@@ -364,7 +402,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
         {/* Command Dialog */}
          <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
-           <CommandInput placeholder="Type a command or search..." />
+           <CommandInput placeholder="Type a command or search for a server..." />
            <CommandList>
              <CommandEmpty>No results found.</CommandEmpty>
              <CommandGroup heading="Navigation">
