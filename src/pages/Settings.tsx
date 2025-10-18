@@ -26,6 +26,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const Settings: React.FC = () => {
   const { 
@@ -308,7 +313,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     First Name
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={profileData.firstName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
@@ -319,7 +324,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Last Name
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={profileData.lastName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
@@ -330,7 +335,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Email
                   </label>
-                  <input
+                  <Input
                     type="email"
                     value={profileData.email}
                     disabled
@@ -342,7 +347,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Phone
                   </label>
-                  <input
+                  <Input
                     type="tel"
                     value={profileData.phone}
                     onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
@@ -353,28 +358,32 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Timezone
                   </label>
-                  <select
+                  <Select
                     value={profileData.timezone}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, timezone: e.target.value }))}
-                    className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
+                    onValueChange={(value) => setProfileData(prev => ({ ...prev, timezone: value }))}
                   >
-                    <option value="America/New_York">Eastern Time (ET)</option>
-                    <option value="America/Chicago">Central Time (CT)</option>
-                    <option value="America/Denver">Mountain Time (MT)</option>
-                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                    <option value="UTC">UTC</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="mt-6">
-                <button
+                <Button
                   onClick={handleSaveProfile}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  className="inline-flex items-center"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -390,7 +399,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Organization Name
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={orgData.name}
                     onChange={(e) => setOrgData(prev => ({ ...prev, name: e.target.value }))}
@@ -401,7 +410,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Website
                   </label>
-                  <input
+                  <Input
                     type="url"
                     value={orgData.website}
                     onChange={(e) => setOrgData(prev => ({ ...prev, website: e.target.value }))}
@@ -412,18 +421,18 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Address
                   </label>
-                  <textarea
+                  <Textarea
                     value={orgData.address}
                     onChange={(e) => setOrgData(prev => ({ ...prev, address: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Tax ID
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={orgData.taxId}
                     onChange={(e) => setOrgData(prev => ({ ...prev, taxId: e.target.value }))}
@@ -432,14 +441,14 @@ const Settings: React.FC = () => {
                 </div>
               </div>
               <div className="mt-6">
-                <button
+                <Button
                   onClick={handleSaveOrganization}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  className="inline-flex items-center"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -455,7 +464,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Current Password
                   </label>
-                  <input
+                  <Input
                     type="password"
                     value={securityData.currentPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, currentPassword: e.target.value }))}
@@ -466,7 +475,7 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     New Password
                   </label>
-                  <input
+                  <Input
                     type="password"
                     value={securityData.newPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, newPassword: e.target.value }))}
@@ -477,20 +486,20 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Confirm New Password
                   </label>
-                  <input
+                  <Input
                     type="password"
                     value={securityData.confirmPassword}
                     onChange={(e) => setSecurityData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                     className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
-                <button
+                <Button
                   onClick={handleChangePassword}
                   disabled={loading || !securityData.currentPassword || !securityData.newPassword || !securityData.confirmPassword}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  className="inline-flex items-center"
                 >
                   {loading ? 'Changing...' : 'Change Password'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -502,15 +511,10 @@ const Settings: React.FC = () => {
                     Add an extra layer of security to your account
                   </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={securityData.twoFactorEnabled}
-                    onChange={(e) => setSecurityData(prev => ({ ...prev, twoFactorEnabled: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
+                <Switch
+                  checked={securityData.twoFactorEnabled}
+                  onCheckedChange={(checked) => setSecurityData(prev => ({ ...prev, twoFactorEnabled: checked }))}
+                />
               </div>
             </div>
           </div>
@@ -527,15 +531,10 @@ const Settings: React.FC = () => {
                     <h4 className="text-sm font-medium text-foreground">Email Notifications</h4>
                     <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notificationData.emailNotifications}
-                      onChange={(e) => setNotificationData(prev => ({ ...prev, emailNotifications: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
+                  <Switch
+                    checked={notificationData.emailNotifications}
+                    onCheckedChange={(checked) => setNotificationData(prev => ({ ...prev, emailNotifications: checked }))}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -543,15 +542,10 @@ const Settings: React.FC = () => {
                     <h4 className="text-sm font-medium text-foreground">SMS Notifications</h4>
                     <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notificationData.smsNotifications}
-                      onChange={(e) => setNotificationData(prev => ({ ...prev, smsNotifications: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
+                  <Switch
+                    checked={notificationData.smsNotifications}
+                    onCheckedChange={(checked) => setNotificationData(prev => ({ ...prev, smsNotifications: checked }))}
+                  />
                 </div>
 
                 <div className="border-t border pt-4">
@@ -568,29 +562,24 @@ const Settings: React.FC = () => {
                           <h5 className="text-sm font-medium text-foreground">{alert.label}</h5>
                           <p className="text-sm text-muted-foreground">{alert.description}</p>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={notificationData[alert.key as keyof typeof notificationData] as boolean}
-                            onChange={(e) => setNotificationData(prev => ({ ...prev, [alert.key]: e.target.checked }))}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-input peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
+                        <Switch
+                          checked={notificationData[alert.key as keyof typeof notificationData] as boolean}
+                          onCheckedChange={(checked) => setNotificationData(prev => ({ ...prev, [alert.key]: checked }))}
+                        />
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
               <div className="mt-6">
-                <button
+                <Button
                   onClick={handleSaveNotifications}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  className="inline-flex items-center"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Preferences'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -623,21 +612,21 @@ const Settings: React.FC = () => {
               <div className="border border rounded-lg p-4 mb-6">
                 <h4 className="text-sm font-medium text-foreground mb-4">Create New API Key</h4>
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     type="text"
                     placeholder="Enter API key name"
                     value={newApiKeyName}
                     onChange={(e) => setNewApiKeyName(e.target.value)}
                     className="flex-1 rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary"
                   />
-                  <button
+                  <Button
                     onClick={handleCreateApiKey}
                     disabled={loading || !newApiKeyName.trim()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                    className="inline-flex items-center"
                   >
                     <Key className="h-4 w-4 mr-2" />
                     {loading ? 'Creating...' : 'Create'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -665,27 +654,29 @@ const Settings: React.FC = () => {
 
                       <div className="flex items-center gap-2 mb-4">
                         <div className="flex-1 relative">
-                          <input
+                          <Input
                             type="text"
                             value={getDisplayKey(key)}
                             readOnly
                             className="w-full rounded-md border bg-muted shadow-sm focus:border-primary focus:ring-primary font-mono text-sm"
                           />
                         </div>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => toggleApiKeyVisibility(key.id)}
-                          className="p-2 text-muted-foreground hover:text-foreground"
                           title={showApiKey[key.id] ? 'Hide API key' : 'Show API key'}
                         >
                           {showApiKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleCopyApiKey(key.id, key.key_preview || key.key)}
-                          className="p-2 text-muted-foreground hover:text-foreground"
                           title="Copy API key"
                         >
                           <Copy className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Security notice for existing keys */}
@@ -702,14 +693,16 @@ const Settings: React.FC = () => {
                       )}
 
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => openRevokeModal(key.id, key.name)}
                           disabled={loading}
-                          className="inline-flex items-center px-3 py-2 border border-destructive shadow-sm text-sm leading-4 font-medium rounded-md text-destructive bg-card hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive disabled:opacity-50"
+                          className="inline-flex items-center"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           {loading ? 'Revoking...' : 'Revoke'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))
@@ -718,59 +711,43 @@ const Settings: React.FC = () => {
             </div>
 
             {/* Revocation Confirmation Modal */}
-            {revokeModal.isOpen && (
-              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                <div className="relative bg-card rounded-lg shadow-xl max-w-md w-full mx-4">
-                  <div className="p-6">
-                    <div className="flex items-center mb-4">
-                      <div className="flex-shrink-0">
-                        <AlertTriangle className="h-6 w-6 text-destructive" />
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-lg font-medium text-foreground">
-                          Revoke API Key
-                        </h3>
-                      </div>
-                      <button
-                        onClick={closeRevokeModal}
-                        className="ml-auto flex-shrink-0 p-1 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                    
-                    <div className="mb-6">
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Are you sure you want to revoke the API key:
-                      </p>
-                      <p className="text-sm font-medium text-foreground bg-muted px-3 py-2 rounded border">
-                        {revokeModal.keyName}
-                      </p>
-                      <p className="text-sm text-destructive mt-2">
-                        This action cannot be undone. Any applications using this key will lose access immediately.
-                      </p>
-                    </div>
-
-                    <div className="flex gap-3 justify-end">
-                      <button
-                        onClick={closeRevokeModal}
-                        disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleRevokeApiKey(revokeModal.keyId)}
-                        disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-primary-foreground bg-destructive border border-transparent rounded-md hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive disabled:opacity-50"
-                      >
-                        {loading ? 'Revoking...' : 'Revoke API Key'}
-                      </button>
-                    </div>
+            <Dialog open={revokeModal.isOpen} onOpenChange={closeRevokeModal}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <div className="flex items-center">
+                    <AlertTriangle className="h-6 w-6 text-destructive mr-3" />
+                    <DialogTitle>Revoke API Key</DialogTitle>
                   </div>
-                </div>
-              </div>
-            )}
+                  <DialogDescription className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Are you sure you want to revoke the API key:
+                    </p>
+                    <p className="text-sm font-medium text-foreground bg-muted px-3 py-2 rounded border">
+                      {revokeModal.keyName}
+                    </p>
+                    <p className="text-sm text-destructive mt-2">
+                      This action cannot be undone. Any applications using this key will lose access immediately.
+                    </p>
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={closeRevokeModal}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleRevokeApiKey(revokeModal.keyId)}
+                    disabled={loading}
+                  >
+                    {loading ? 'Revoking...' : 'Revoke API Key'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         );
 
@@ -798,18 +775,15 @@ const Settings: React.FC = () => {
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
-                  <button
+                  <Button
                     key={tab.id}
+                    variant={activeTab === tab.id ? "secondary" : "ghost"}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                      activeTab === tab.id
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                    }`}
+                    className="w-full justify-start"
                   >
                     <Icon className="h-5 w-5 mr-3" />
                     {tab.name}
-                  </button>
+                  </Button>
                 );
               })}
             </nav>

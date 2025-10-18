@@ -196,8 +196,9 @@ const ActivityPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="bg-card rounded-lg p-4 mb-6">
-          <div className="flex items-end gap-4">
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-end gap-4">
             <div>
               <label className="block text-sm text-gray-600 text-muted-foreground mb-1">Type</label>
               <input value={type} onChange={e => setType(e.target.value)} className="px-3 py-2 border rounded-md bg-background text-foreground" placeholder="vps, container, billing" />
@@ -229,28 +230,30 @@ const ActivityPage: React.FC = () => {
                 <option value={100}>100</option>
               </select>
             </div>
-            <button onClick={() => fetchActivities(1)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-foreground">
-              <Filter className="h-4 w-4" /> Apply
-            </button>
-          </div>
-        </div>
+              <button onClick={() => fetchActivities(1)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-foreground">
+                <Filter className="h-4 w-4" /> Apply
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card rounded-lg overflow-hidden">
-          {loading ? (
-            <div className="p-6">Loading...</div>
-          ) : (
-            <>
-              <table className="min-w-full divide-y divide-border">
-                <thead className="bg-background">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Event</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Message</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-card divide-y divide-border">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-6">Loading...</div>
+            ) : (
+              <>
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-background">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Event</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Message</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-card divide-y divide-border">
                   {activities.map(a => (
                     <tr key={a.id}>
                       <td className="px-6 py-4 text-sm text-foreground">{new Date(a.created_at).toLocaleString()}</td>
@@ -387,12 +390,13 @@ const ActivityPage: React.FC = () => {
                         </form>
                       </div>
                     </div>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

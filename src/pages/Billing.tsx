@@ -395,60 +395,69 @@ const Billing: React.FC = () => {
 
         {/* Wallet Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
-                <Wallet className="h-6 w-6 text-primary" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                  <Wallet className="h-6 w-6 text-primary" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {formatCurrency(walletBalance)}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(walletBalance)}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <ArrowUpRight className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <ArrowUpRight className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {formatCurrency(
+                      transactions
+                        .filter(tx => tx.type === 'credit')
+                        .reduce((sum, tx) => sum + tx.amount, 0)
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(
-                    transactions
-                      .filter(tx => tx.type === 'credit')
-                      .reduce((sum, tx) => sum + tx.amount, 0)
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                <ArrowDownLeft className="h-6 w-6 text-red-600 dark:text-red-400" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <ArrowDownLeft className="h-6 w-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Spent This Month</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {formatCurrency(
+                      transactions
+                        .filter(tx => tx.type === 'debit')
+                        .reduce((sum, tx) => sum + tx.amount, 0)
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Spent This Month</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(
-                    transactions
-                      .filter(tx => tx.type === 'debit')
-                      .reduce((sum, tx) => sum + tx.amount, 0)
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Add Funds Section */}
-        <div className="bg-card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Add Funds to Wallet</h2>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Add Funds to Wallet</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="flex items-center space-x-4">
             <div className="flex-1 max-w-xs">
               <label htmlFor="amount" className="sr-only">Amount</label>
@@ -480,16 +489,17 @@ const Billing: React.FC = () => {
               )}
               Add Funds via PayPal
             </button>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Funds will be added to your wallet after successful PayPal payment
-          </p>
-        </div>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Funds will be added to your wallet after successful PayPal payment
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Tabs */}
-        <div className="bg-card">
-          <div className="border-b border">
-            <nav className="-mb-px flex space-x-8 px-6">
+        <Card>
+          <CardHeader className="border-b border">
+            <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -521,9 +531,9 @@ const Billing: React.FC = () => {
                 Payment History
               </button>
             </nav>
-          </div>
+          </CardHeader>
 
-          <div className="p-6">
+          <CardContent>
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <div>
@@ -810,8 +820,8 @@ const Billing: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

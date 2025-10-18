@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { paymentService } from '../services/paymentService';
 import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
 import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
@@ -833,195 +834,209 @@ const VPS: React.FC = () => {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-card p-6 mb-6">
-          <div className="space-y-4">
-            {/* Search Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
-                <input
-                  type="text"
-                  placeholder="Search instances..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div className="flex items-center">
-                <button
-                  onClick={loadInstances}
-                  className="inline-flex items-center px-4 py-2.5 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </button>
-              </div>
-            </div>
-            
-            {/* Filters Row */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                <div className="flex-1 min-w-0">
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="running">Running</option>
-                    <option value="stopped">Stopped</option>
-                    <option value="provisioning">Provisioning</option>
-                    <option value="rebooting">Rebooting</option>
-                  </select>
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {/* Search Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
+                  <input
+                    type="text"
+                    placeholder="Search instances..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">
-                    Region
-                  </label>
-                  <select
-                    value={regionFilter}
-                    onChange={(e) => setRegionFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                <div className="flex items-center">
+                  <button
+                    onClick={loadInstances}
+                    className="inline-flex items-center px-4 py-2.5 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                   >
-                    <option value="all">All Regions</option>
-                    {allowedRegions.map(region => (
-                      <option key={region.id} value={region.id}>{region.label}</option>
-                    ))}
-                  </select>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </button>
                 </div>
               </div>
+              
+              {/* Filters Row */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="running">Running</option>
+                      <option value="stopped">Stopped</option>
+                      <option value="provisioning">Provisioning</option>
+                      <option value="rebooting">Rebooting</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Region
+                    </label>
+                    <select
+                      value={regionFilter}
+                      onChange={(e) => setRegionFilter(e.target.value)}
+                      className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="all">All Regions</option>
+                      {allowedRegions.map(region => (
+                        <option key={region.id} value={region.id}>{region.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* VPS Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <Power className="h-6 w-6 text-green-600 dark:text-green-400" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <Power className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Running</p>
+                  <p className="text-2xl font-bold">
+                    {instances.filter(i => i.status === 'running').length}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Running</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {instances.filter(i => i.status === 'running').length}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-secondary rounded-lg">
-                <PowerOff className="h-6 w-6 text-muted-foreground" />
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-secondary rounded-lg">
+                  <PowerOff className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Stopped</p>
+                  <p className="text-2xl font-bold">
+                    {instances.filter(i => i.status === 'stopped').length}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Stopped</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {instances.filter(i => i.status === 'stopped').length}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
-                <Server className="h-6 w-6 text-primary" />
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                  <Server className="h-6 w-6 text-primary" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Total</p>
+                  <p className="text-2xl font-bold">{instances.length}</p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-foreground">{instances.length}</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Monthly Cost</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(instances.reduce((sum, i) => sum + i.pricing.monthly, 0))}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Monthly Cost</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(instances.reduce((sum, i) => sum + i.pricing.monthly, 0))}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Bulk Actions Toolbar */}
         {selectedInstances.length > 0 && (
-          <div className="bg-card border border-border rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {selectedInstances.length} instance{selectedInstances.length > 1 ? 's' : ''} selected
-                </span>
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {selectedInstances.length} instance{selectedInstances.length > 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleBulkAction('boot')}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
+                    disabled={selectedInstances.every(instance => instance.status === 'running')}
+                  >
+                    <Power className="h-4 w-4 mr-1" />
+                    Start
+                  </button>
+                  <button
+                    onClick={() => handleBulkAction('shutdown')}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-100 border border-orange-300 rounded-md hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
+                    disabled={selectedInstances.every(instance => instance.status === 'stopped')}
+                  >
+                    <PowerOff className="h-4 w-4 mr-1" />
+                    Stop
+                  </button>
+                  <button
+                    onClick={() => handleBulkAction('reboot')}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded-md hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:border-primary/30 dark:hover:bg-primary/30"
+                    disabled={selectedInstances.every(instance => instance.status !== 'running')}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Restart
+                  </button>
+                  <button
+                    onClick={() => handleBulkAction('delete')}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setSelectedInstances([])}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleBulkAction('boot')}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
-                  disabled={selectedInstances.every(instance => instance.status === 'running')}
-                >
-                  <Power className="h-4 w-4 mr-1" />
-                  Start
-                </button>
-                <button
-                  onClick={() => handleBulkAction('shutdown')}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-100 border border-orange-300 rounded-md hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
-                  disabled={selectedInstances.every(instance => instance.status === 'stopped')}
-                >
-                  <PowerOff className="h-4 w-4 mr-1" />
-                  Stop
-                </button>
-                <button
-                  onClick={() => handleBulkAction('reboot')}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded-md hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:border-primary/30 dark:hover:bg-primary/30"
-                  disabled={selectedInstances.every(instance => instance.status !== 'running')}
-                >
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  Restart
-                </button>
-                <button
-                  onClick={() => handleBulkAction('delete')}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete
-                </button>
-                <button
-                  onClick={() => setSelectedInstances([])}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
-                >
-                  Clear Selection
-                </button>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* VPS List */}
-        <div className="bg-card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">
+        <Card>
+          <CardHeader>
+            <CardTitle>
               VPS Instances ({filteredInstances.length})
-            </h2>
-          </div>
-          <VpsInstancesTable
-            instances={filteredInstances}
-            allowedRegions={allowedRegions}
-            onAction={handleInstanceAction}
-            onCopy={copyToClipboard}
-            onSelectionChange={setSelectedInstances}
-            isLoading={loading && instances.length > 0}
-          />
-        </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VpsInstancesTable
+              instances={filteredInstances}
+              allowedRegions={allowedRegions}
+              onAction={handleInstanceAction}
+              onCopy={copyToClipboard}
+              onSelectionChange={setSelectedInstances}
+              isLoading={loading && instances.length > 0}
+            />
+          </CardContent>
+        </Card>
 
         {/* Create VPS Modal */}
         {showCreateModal && (
