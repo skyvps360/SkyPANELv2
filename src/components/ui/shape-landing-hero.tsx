@@ -56,7 +56,9 @@ export function HeroGeometric({
   className = ""
 }: HeroGeometricProps) {
   return (
-    <div className={cn("relative min-h-[80vh] flex items-start justify-center overflow-hidden bg-background pt-16", className)}>
+    // Reduce the min-height and vertically center the content to avoid
+    // large empty space below the hero (screenshots showed a big gap).
+    <div className={cn("relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-background py-16", className)}>
       {/* Floating geometric shapes */}
       <ElegantShape delay={0} className="top-20 left-20 w-16 h-16 opacity-20">
         <div className="w-full h-full bg-gradient-to-br from-primary/40 to-primary/20 rounded-full blur-sm" />
