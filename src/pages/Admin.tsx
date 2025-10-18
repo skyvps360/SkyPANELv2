@@ -12,10 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useTheme } from '@/contexts/ThemeContext';
 import { buildApiUrl } from '@/lib/api';
-import { hexToHslString, hslStringToHex } from '@/lib/color';
 import type { ThemePreset } from '@/theme/presets';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
@@ -135,43 +133,11 @@ interface LinodeRegion {
   status: string;
 }
 
-type ThemeMode = 'light' | 'dark';
-
-interface ThemeColorField {
-  mode: ThemeMode;
-  key: string;
-  label: string;
-}
-
-const LIGHT_THEME_FIELDS: ThemeColorField[] = [
-  { mode: 'light', key: 'background', label: 'Background' },
-  { mode: 'light', key: 'foreground', label: 'Foreground' },
-  { mode: 'light', key: 'primary', label: 'Primary' },
-  { mode: 'light', key: 'primary-foreground', label: 'Primary Text' },
-  { mode: 'light', key: 'accent', label: 'Accent' },
-  { mode: 'light', key: 'accent-foreground', label: 'Accent Text' },
-  { mode: 'light', key: 'sidebar-background', label: 'Sidebar Background' },
-  { mode: 'light', key: 'sidebar-primary', label: 'Sidebar Primary' },
-  { mode: 'light', key: 'sidebar-primary-foreground', label: 'Sidebar Primary Text' },
-];
-
-const DARK_THEME_FIELDS: ThemeColorField[] = [
-  { mode: 'dark', key: 'background', label: 'Background (Dark)' },
-  { mode: 'dark', key: 'foreground', label: 'Foreground (Dark)' },
-  { mode: 'dark', key: 'primary', label: 'Primary (Dark)' },
-  { mode: 'dark', key: 'primary-foreground', label: 'Primary Text (Dark)' },
-  { mode: 'dark', key: 'accent', label: 'Accent (Dark)' },
-  { mode: 'dark', key: 'accent-foreground', label: 'Accent Text (Dark)' },
-  { mode: 'dark', key: 'sidebar-background', label: 'Sidebar Background (Dark)' },
-  { mode: 'dark', key: 'sidebar-primary', label: 'Sidebar Primary (Dark)' },
-  { mode: 'dark', key: 'sidebar-primary-foreground', label: 'Sidebar Primary Text (Dark)' },
-];
-
 const API_BASE_URL = '/api';
 
 const Admin: React.FC = () => {
   const { token } = useAuth();
-  const { themeId, setTheme, themes, reloadTheme, customPreset } = useTheme();
+  const { themeId, setTheme, themes, reloadTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme'>('tickets');
   const [, setLoading] = useState(false);
 
@@ -241,19 +207,7 @@ const Admin: React.FC = () => {
   const [themeConfigLoading, setThemeConfigLoading] = useState(false);
   const [themeConfigLoaded, setThemeConfigLoaded] = useState(false);
   const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
-  const [savingCustomTheme, setSavingCustomTheme] = useState(false);
   const [themeUpdatedAt, setThemeUpdatedAt] = useState<string | null>(null);
-  const [customThemeDraft, setCustomThemeDraft] = useState<ThemePreset>(() => {
-    const activePreset = customPreset ?? themes.find((preset) => preset.id === themeId) ?? themes[0];
-    return {
-      ...activePreset,
-      id: 'custom',
-      label: activePreset?.label ?? 'Custom Theme',
-      description: activePreset?.description ?? 'Organization-defined theme preset.',
-      light: { ...activePreset.light },
-      dark: { ...activePreset.dark },
-    };
-  });
 
   // Networking rDNS state
   const [networkingTab, setNetworkingTab] = useState<'rdns'>('rdns');
@@ -301,80 +255,6 @@ const Admin: React.FC = () => {
     return parsed.toLocaleString();
   }, [themeUpdatedAt]);
 
-  const getPaletteValue = useCallback(
-    (mode: ThemeMode, key: string) => {
-      const palette = customThemeDraft[mode];
-      return palette?.[key];
-    },
-    [customThemeDraft]
-  );
-
-  const getHexValue = useCallback(
-    (mode: ThemeMode, key: string) => {
-      const hsl = getPaletteValue(mode, key);
-      if (!hsl) {
-        return mode === 'light' ? '#ffffff' : '#000000';
-      }
-      return hslStringToHex(hsl, mode === 'light' ? '#ffffff' : '#000000');
-    },
-    [getPaletteValue]
-  );
-
-  const handleColorChange = useCallback(
-    (mode: ThemeMode, key: string, hex: string) => {
-      const nextHsl = hexToHslString(hex);
-      setCustomThemeDraft((prev) => ({
-        ...prev,
-        [mode]: {
-          ...prev[mode],
-          [key]: nextHsl,
-        },
-      }));
-    },
-    []
-  );
-
-  const handleCustomMetaChange = useCallback((field: 'label' | 'description', value: string) => {
-    setCustomThemeDraft((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  }, []);
-
-  const handleResetCustomTheme = useCallback(() => {
-    const basePreset = themes.find((preset) => preset.id === themeId) ?? themes[0];
-    if (!basePreset) {
-      return;
-    }
-    setCustomThemeDraft({
-      ...basePreset,
-      id: 'custom',
-      label: 'Custom Theme',
-      description: 'Organization-defined theme preset.',
-      light: { ...basePreset.light },
-      dark: { ...basePreset.dark },
-    });
-  }, [themes, themeId]);
-
-  useEffect(() => {
-    if (!customPreset) {
-      return;
-    }
-    setCustomThemeDraft({
-      ...customPreset,
-      id: 'custom',
-      light: { ...customPreset.light },
-      dark: { ...customPreset.dark },
-    });
-  }, [customPreset]);
-
-  const buildCustomPayload = useCallback(() => ({
-    ...customThemeDraft,
-    id: 'custom',
-    light: { ...customThemeDraft.light },
-    dark: { ...customThemeDraft.dark },
-  }), [customThemeDraft]);
-
   const fetchThemeConfiguration = useCallback(async () => {
     if (!token) {
       return;
@@ -393,16 +273,7 @@ const Admin: React.FC = () => {
       }
 
       const payload = await response.json();
-      const theme = payload?.theme as { updatedAt?: string; customPreset?: ThemePreset } | undefined;
-
-      if (theme?.customPreset) {
-        setCustomThemeDraft({
-          ...theme.customPreset,
-          id: 'custom',
-          light: { ...theme.customPreset.light },
-          dark: { ...theme.customPreset.dark },
-        });
-      }
+      const theme = payload?.theme as { updatedAt?: string } | undefined;
 
       setThemeUpdatedAt(typeof theme?.updatedAt === 'string' ? theme.updatedAt : null);
       setThemeConfigLoaded(true);
@@ -460,47 +331,6 @@ const Admin: React.FC = () => {
       setSavingPresetId(null);
     }
   }, [token, setTheme, reloadTheme, fetchThemeConfiguration]);
-
-  const handleSaveCustomTheme = useCallback(async () => {
-    if (!token) {
-      toast.error('Authentication required');
-      return;
-    }
-
-    try {
-      setSavingCustomTheme(true);
-      const customPayload = buildCustomPayload();
-
-      const response = await fetch(buildApiUrl('/api/admin/theme'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ presetId: 'custom', customPreset: customPayload }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save custom theme: ${response.status}`);
-      }
-
-      const payload = await response.json();
-      const theme = payload?.theme as { updatedAt?: string } | undefined;
-      setThemeUpdatedAt(typeof theme?.updatedAt === 'string' ? theme.updatedAt : null);
-
-      setTheme('custom');
-      await reloadTheme();
-      setThemeConfigLoaded(false);
-      await fetchThemeConfiguration();
-
-      toast.success('Custom theme saved and applied for all users.');
-    } catch (error) {
-      console.error('Custom theme save failed:', error);
-      toast.error('Failed to save custom theme');
-    } finally {
-      setSavingCustomTheme(false);
-    }
-  }, [token, buildCustomPayload, fetchThemeConfiguration, reloadTheme, setTheme]);
 
   useEffect(() => {
     if (!token) {
@@ -1181,7 +1011,7 @@ const Admin: React.FC = () => {
                 <div>
                   <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
                   <p className="text-sm text-muted-foreground">
-                    Switch between presets or fine-tune a custom palette. Updates roll out to every user instantly.
+                    Choose a theme preset. Updates roll out to every user instantly.
                   </p>
                 </div>
               </div>
@@ -1199,7 +1029,7 @@ const Admin: React.FC = () => {
                   {themes.map((preset) => {
                     const isActive = preset.id === themeId;
                     const isSaving = savingPresetId === preset.id;
-                    const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || savingCustomTheme || themeConfigLoading;
+                    const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || themeConfigLoading;
 
                     return (
                       <button
@@ -1246,180 +1076,6 @@ const Admin: React.FC = () => {
                       </button>
                     );
                   })}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground">Custom Theme Builder</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Adjust brand colors to match your identity. Saving applies the palette instantly across the platform.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResetCustomTheme}
-                    disabled={savingCustomTheme || savingPresetId !== null || themeConfigLoading}
-                  >
-                    Reset to Active Preset
-                  </Button>
-                </div>
-
-                {themeConfigLoading && !themeConfigLoaded ? (
-                  <div className="text-sm text-muted-foreground">Loading theme configuration...</div>
-                ) : (
-                  <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="space-y-6">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                          <Label htmlFor="custom-theme-name">Display name</Label>
-                          <Input
-                            id="custom-theme-name"
-                            value={customThemeDraft.label}
-                            onChange={(event) => handleCustomMetaChange('label', event.target.value)}
-                            placeholder="Custom Theme"
-                            disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Label htmlFor="custom-theme-description">Description</Label>
-                          <Input
-                            id="custom-theme-description"
-                            value={customThemeDraft.description}
-                            onChange={(event) => handleCustomMetaChange('description', event.target.value)}
-                            placeholder="Organization-defined theme preset."
-                            disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Light palette</p>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {LIGHT_THEME_FIELDS.map((field) => (
-                            <div key={field.key} className="flex flex-col gap-2">
-                              <Label>{field.label}</Label>
-                              <input
-                                type="color"
-                                className="h-10 w-full cursor-pointer rounded-md border border-border bg-background p-1"
-                                value={getHexValue(field.mode, field.key)}
-                                onChange={(event) => handleColorChange(field.mode, field.key, event.target.value)}
-                                disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
-                                aria-label={`${field.label} color`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dark palette</p>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {DARK_THEME_FIELDS.map((field) => (
-                            <div key={field.key} className="flex flex-col gap-2">
-                              <Label>{field.label}</Label>
-                              <input
-                                type="color"
-                                className="h-10 w-full cursor-pointer rounded-md border border-border bg-background p-1"
-                                value={getHexValue(field.mode, field.key)}
-                                onChange={(event) => handleColorChange(field.mode, field.key, event.target.value)}
-                                disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
-                                aria-label={`${field.label} color`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-background p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Light preview</p>
-                        <div
-                          className="mt-4 rounded-md border p-4"
-                          style={{
-                            backgroundColor: `hsl(${customThemeDraft.light.background ?? '0 0% 100%'})`,
-                            color: `hsl(${customThemeDraft.light.foreground ?? '0 0% 0%'})`,
-                          }}
-                        >
-                          <p className="text-sm font-medium">Dashboard Header</p>
-                          <div className="mt-3 flex flex-wrap items-center gap-3">
-                            <span
-                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                              style={{
-                                backgroundColor: `hsl(${customThemeDraft.light.primary ?? '0 0% 0%'})`,
-                                color: `hsl(${customThemeDraft.light['primary-foreground'] ?? '0 0% 100%'})`,
-                              }}
-                            >
-                              Primary
-                            </span>
-                            <span
-                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                              style={{
-                                backgroundColor: `hsl(${customThemeDraft.light.accent ?? '0 0% 100%'})`,
-                                color: `hsl(${customThemeDraft.light['accent-foreground'] ?? '0 0% 0%'})`,
-                              }}
-                            >
-                              Accent
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border bg-background p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dark preview</p>
-                        <div
-                          className="mt-4 rounded-md border p-4"
-                          style={{
-                            backgroundColor: `hsl(${customThemeDraft.dark.background ?? '0 0% 0%'})`,
-                            color: `hsl(${customThemeDraft.dark.foreground ?? '0 0% 100%'})`,
-                          }}
-                        >
-                          <p className="text-sm font-medium">Navigation Drawer</p>
-                          <div className="mt-3 flex flex-wrap items-center gap-3">
-                            <span
-                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                              style={{
-                                backgroundColor: `hsl(${customThemeDraft.dark.primary ?? '0 0% 100%'})`,
-                                color: `hsl(${customThemeDraft.dark['primary-foreground'] ?? '0 0% 0%'})`,
-                              }}
-                            >
-                              Primary
-                            </span>
-                            <span
-                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                              style={{
-                                backgroundColor: `hsl(${customThemeDraft.dark.accent ?? '0 0% 0%'})`,
-                                color: `hsl(${customThemeDraft.dark['accent-foreground'] ?? '0 0% 100%'})`,
-                              }}
-                            >
-                              Accent
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <Button
-                    variant="secondary"
-                    onClick={handleResetCustomTheme}
-                    disabled={savingCustomTheme || savingPresetId !== null || themeConfigLoading}
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    onClick={handleSaveCustomTheme}
-                    disabled={savingCustomTheme || themeConfigLoading || savingPresetId !== null}
-                  >
-                    {savingCustomTheme ? 'Saving...' : 'Save & Apply Custom Theme'}
-                  </Button>
                 </div>
               </div>
             </div>

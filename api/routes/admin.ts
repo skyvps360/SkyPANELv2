@@ -25,7 +25,7 @@ const isMissingTableError = (err: any): boolean => {
   );
 };
 
-const allowedThemePresetIds = new Set(['teal', 'mono', 'violet', 'emerald', 'amber', 'custom']);
+const allowedThemePresetIds = new Set(['teal', 'mono', 'violet', 'emerald', 'amber', 'rose', 'blue', 'slate', 'orange', 'zinc', 'stone', 'custom']);
 
 const mergeCustomPreset = (
   incoming: unknown,
