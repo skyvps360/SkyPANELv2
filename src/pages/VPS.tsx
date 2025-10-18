@@ -25,6 +25,7 @@ import { paymentService } from '../services/paymentService';
 import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
 import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
@@ -976,43 +977,50 @@ const VPS: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     onClick={() => handleBulkAction('boot')}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
+                    variant="secondary"
+                    size="sm"
+                    className="text-green-700 bg-green-100 border-green-300 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
                     disabled={selectedInstances.every(instance => instance.status === 'running')}
                   >
                     <Power className="h-4 w-4 mr-1" />
                     Start
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleBulkAction('shutdown')}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-100 border border-orange-300 rounded-md hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
+                    variant="secondary"
+                    size="sm"
+                    className="text-orange-700 bg-orange-100 border-orange-300 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/30"
                     disabled={selectedInstances.every(instance => instance.status === 'stopped')}
                   >
                     <PowerOff className="h-4 w-4 mr-1" />
                     Stop
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleBulkAction('reboot')}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded-md hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:border-primary/30 dark:hover:bg-primary/30"
+                    variant="default"
+                    size="sm"
                     disabled={selectedInstances.every(instance => instance.status !== 'running')}
                   >
                     <RotateCcw className="h-4 w-4 mr-1" />
                     Restart
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleBulkAction('delete')}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+                    variant="destructive"
+                    size="sm"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
                     Delete
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setSelectedInstances([])}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                    variant="outline"
+                    size="sm"
                   >
                     Clear Selection
-                  </button>
+                  </Button>
                 </div>
               </div>
             </CardContent>
