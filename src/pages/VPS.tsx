@@ -1031,12 +1031,49 @@ const VPS: React.FC = () => {
                 <h3 className="text-lg font-medium text-foreground mb-4">Create New VPS Instance</h3>
                 <div className="space-y-4">
                   {/* Step indicator */}
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">Step {createStep} of {totalSteps}</div>
-                    <div className="flex items-center space-x-1">
-                      {[...Array(totalSteps)].map((_, i) => (
-                        <span key={i} className={`w-2 h-2 rounded-full ${i + 1 <= createStep ? 'bg-primary' : 'bg-muted'}`}></span>
-                      ))}
+                  <div className="mb-6">
+                    <div className="text-xs text-muted-foreground mb-3">Step {createStep} of {totalSteps}</div>
+                    <div className="flex items-center justify-between">
+                      {[...Array(totalSteps)].map((_, i) => {
+                        const stepNumber = i + 1;
+                        const isCompleted = stepNumber < createStep;
+                        const isCurrent = stepNumber === createStep;
+                        const isUpcoming = stepNumber > createStep;
+                        
+                        return (
+                          <React.Fragment key={i}>
+                            <div className="flex flex-col items-center">
+                              <div
+                                className={`
+                                  w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-all duration-200
+                                  ${isCompleted 
+                                    ? 'bg-primary border-primary text-primary-foreground' 
+                                    : isCurrent 
+                                    ? 'bg-primary border-primary text-primary-foreground ring-2 ring-primary/20' 
+                                    : 'bg-background border-muted text-muted-foreground'
+                                  }
+                                `}
+                              >
+                                {isCompleted ? '✓' : stepNumber}
+                              </div>
+                              <div className={`mt-1 text-xs ${isCurrent ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                                {stepNumber === 1 && 'Region'}
+                                {stepNumber === 2 && 'Deployments'}
+                                {stepNumber === 3 && 'OS'}
+                                {stepNumber === 4 && 'Finalize'}
+                              </div>
+                            </div>
+                            {i < totalSteps - 1 && (
+                              <div 
+                                className={`
+                                  flex-1 h-0.5 mx-2 transition-all duration-200
+                                  ${stepNumber < createStep ? 'bg-primary' : 'bg-muted'}
+                                `}
+                              />
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
                   </div>
                   {createStep === 1 && (<>
@@ -1296,7 +1333,7 @@ const VPS: React.FC = () => {
                           const colorMap: Record<string, string> = {
                             ubuntu: 'from-orange-500 to-red-600',
                             debian: 'from-red-500 to-gray-600',
-                            centos: 'from-emerald-500 to-teal-600',
+                            centos: 'from-emerald-500 to-emerald-600',
                             rockylinux: 'from-green-600 to-emerald-700',
                             almalinux: 'from-rose-500 to-pink-600',
                             fedora: 'from-blue-600 to-indigo-700',
@@ -1310,7 +1347,7 @@ const VPS: React.FC = () => {
                           return (
                             <div
                               key={key}
-                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400' : 'border hover:border-input dark:hover:border-gray-500'}`}
+                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary' : 'border hover:border-input dark:hover:border-gray-500'}`}
                               onClick={() => {
                                 setSelectedOSGroup(key);
                                 const idToUse = selectedVersionId || group.versions[0]?.id;
@@ -1325,7 +1362,7 @@ const VPS: React.FC = () => {
                                   <h3 className="font-medium text-foreground text-sm lowercase">{group.name}</h3>
                                 </div>
                                 {isSelected && (
-                                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
                                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                     </svg>
@@ -1469,7 +1506,7 @@ const VPS: React.FC = () => {
                       <button
                         onClick={handleNext}
                         disabled={!canProceed}
-                        className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${canProceed ? 'bg-primary hover:bg-primary/90' : 'bg-blue-300 cursor-not-allowed'}`}
+                        className={`px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${canProceed ? 'text-white bg-primary hover:bg-primary/90 border-transparent' : 'text-muted-foreground bg-secondary border-border cursor-not-allowed'}`}
                       >
                         Next
                       </button>
