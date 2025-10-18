@@ -114,7 +114,7 @@ const InvoiceDetail: React.FC = () => {
       <AppLayout>
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <Loader className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <Loader className="h-12 w-12 animate-spin text-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Loading invoice...</p>
           </div>
         </div>

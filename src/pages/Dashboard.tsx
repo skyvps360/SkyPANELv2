@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
       case 'error':
         return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
       case 'info':
-        return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-primary bg-primary/10 dark:bg-primary/20';
       default:
         return 'text-muted-foreground text-muted-foreground bg-muted';
     }
@@ -330,8 +330,8 @@ const Dashboard: React.FC = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Container className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                    <Container className="h-6 w-6 text-primary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Active Containers</p>

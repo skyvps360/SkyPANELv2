@@ -223,7 +223,7 @@ const TransactionDetail: React.FC = () => {
           <button
             onClick={handleDownloadInvoice}
             disabled={invoiceLoading}
-            className="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
+            className="inline-flex items-center px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
           >
             {invoiceLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

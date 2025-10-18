@@ -50,7 +50,7 @@ const BillingPaymentSuccess: React.FC = () => {
       <Card className="max-w-lg w-full">
         <CardContent className="p-8 text-center">
           <div className="flex justify-center mb-4">
-            {status === 'processing' && <Loader2 className="h-12 w-12 text-primary animate-spin" />}
+            {status === 'processing' && <Loader2 className="h-12 w-12 text-foreground animate-spin" />}
             {status === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
             {status === 'error' && <XCircle className="h-12 w-12 text-destructive" />}
           </div>

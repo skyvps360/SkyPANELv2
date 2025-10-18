@@ -803,7 +803,7 @@ const VPS: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading VPS instances...</p>
         </div>
       </div>
@@ -824,7 +824,7 @@ const VPS: React.FC = () => {
             </div>
             <button
               onClick={() => { setCreateStep(1); setShowCreateModal(true); }}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create VPS
@@ -844,13 +844,13 @@ const VPS: React.FC = () => {
                   placeholder="Search instances..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
               <div className="flex items-center">
                 <button
                   onClick={loadInstances}
-                  className="inline-flex items-center px-4 py-2.5 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                  className="inline-flex items-center px-4 py-2.5 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh
@@ -868,7 +868,7 @@ const VPS: React.FC = () => {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="all">All Status</option>
                     <option value="running">Running</option>
@@ -884,7 +884,7 @@ const VPS: React.FC = () => {
                   <select
                     value={regionFilter}
                     onChange={(e) => setRegionFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="all">All Regions</option>
                     {allowedRegions.map(region => (
@@ -929,8 +929,8 @@ const VPS: React.FC = () => {
 
           <div className="bg-card p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Server className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                <Server className="h-6 w-6 text-primary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
@@ -982,7 +982,7 @@ const VPS: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleBulkAction('reboot')}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/30"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded-md hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:border-primary/30 dark:hover:bg-primary/30"
                   disabled={selectedInstances.every(instance => instance.status !== 'running')}
                 >
                   <RotateCcw className="h-4 w-4 mr-1" />
@@ -1048,7 +1048,7 @@ const VPS: React.FC = () => {
                       type="text"
                       value={createForm.label}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, label: e.target.value }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       placeholder="my-server"
                     />
                   </div>
@@ -1073,7 +1073,7 @@ const VPS: React.FC = () => {
                         }));
                         // Gracefully handle plans without a preset region without logging
                       }}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="">Click to choose plan</option>
                       {linodeTypes.map(type => (
@@ -1139,7 +1139,7 @@ const VPS: React.FC = () => {
                               selectedStackScript.id === 'ssh-key' ||
                               (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
                             ))
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                              ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
                               : 'border hover:border-input dark:hover:border-gray-500'
                           }`}
                         >
@@ -1156,7 +1156,7 @@ const VPS: React.FC = () => {
                               selectedStackScript.id === 'ssh-key' ||
                               (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
                             ))) && (
-                            <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                               <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
@@ -1179,7 +1179,7 @@ const VPS: React.FC = () => {
                               onClick={() => setSelectedStackScript(script)}
                               className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
                                 selectedStackScript?.id === script.id
-                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                  ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
                                   : 'border hover:border-input dark:hover:border-gray-500'
                               }`}
                             >
@@ -1195,7 +1195,7 @@ const VPS: React.FC = () => {
                                 </p>
                               </div>
                               {selectedStackScript?.id === script.id && (
-                                <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                                   <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
@@ -1235,7 +1235,7 @@ const VPS: React.FC = () => {
                                       <select
                                         value={value}
                                         onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                                        className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                        className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                                       >
                                         <option value="">Select</option>
                                         {options.map((opt: string) => (
@@ -1248,7 +1248,7 @@ const VPS: React.FC = () => {
                                         value={value}
                                         onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
                                         placeholder={f.example || f.default || ''}
-                                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                                         autoComplete={inputType === 'password' ? 'new-password' : 'off'}
                                       />
                                     )}
@@ -1272,14 +1272,14 @@ const VPS: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setOsTab('templates')}
-                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border text-muted-foreground bg-secondary'}`}
+                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
                       >
                         Templates
                       </button>
                       <button
                         type="button"
                         onClick={() => setOsTab('iso')}
-                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border text-muted-foreground bg-secondary'}`}
+                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
                       >
                         ISO
                       </button>
@@ -1342,7 +1342,7 @@ const VPS: React.FC = () => {
                                     setCreateForm(prev => ({ ...prev, image: val }));
                                     setSelectedOSGroup(key);
                                   }}
-                                  className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                                  className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
                                 >
                                   <option value="" disabled>SELECT VERSION</option>
                                   {group.versions.map(v => (
@@ -1374,7 +1374,7 @@ const VPS: React.FC = () => {
                         type="password"
                         value={createForm.rootPassword}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
-                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="Enter a strong password"
                         autoComplete="new-password"
                       />
@@ -1387,7 +1387,7 @@ const VPS: React.FC = () => {
                         type="checkbox"
                         checked={createForm.backups}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, backups: e.target.checked }))}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400 border rounded bg-secondary"
+                        className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
                       />
                       <span className="ml-2 text-sm text-muted-foreground">Enable Backups (+40%)</span>
                     </label>
@@ -1396,7 +1396,7 @@ const VPS: React.FC = () => {
                         type="checkbox"
                         checked={createForm.privateIP}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, privateIP: e.target.checked }))}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400 border rounded bg-secondary"
+                        className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
                       />
                       <span className="ml-2 text-sm text-muted-foreground">Private IP</span>
                     </label>
@@ -1452,7 +1452,7 @@ const VPS: React.FC = () => {
                 <div className="flex items-center justify-between mt-6">
                   <button
                     onClick={() => { setShowCreateModal(false); setCreateStep(1); }}
-                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                   >
                     Cancel
                   </button>
@@ -1477,7 +1477,7 @@ const VPS: React.FC = () => {
                     {createStep === totalSteps && (
                       <button
                         onClick={handleCreateInstance}
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                       >
                         Create VPS
                       </button>
@@ -1499,7 +1499,7 @@ const VPS: React.FC = () => {
                   <p className="text-sm font-mono px-2 py-1 bg-secondary text-foreground rounded">{deleteModal.label}</p>
                   <button
                     onClick={() => copyToClipboard(deleteModal.label)}
-                    className="p-1 text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                    className="p-1 text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary rounded"
                     title="Copy server name"
                   >
                     <Copy className="h-4 w-4" />
@@ -1550,7 +1550,7 @@ const VPS: React.FC = () => {
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setDeleteModal({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' })}
-                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                     disabled={deleteModal.loading}
                   >
                     Cancel

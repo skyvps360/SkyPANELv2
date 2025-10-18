@@ -375,7 +375,7 @@ const Billing: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading billing information...</p>
         </div>
       </div>
@@ -397,8 +397,8 @@ const Billing: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-card p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                <Wallet className="h-6 w-6 text-primary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
@@ -464,14 +464,14 @@ const Billing: React.FC = () => {
                   placeholder="0.00"
                   min="1"
                   step="0.01"
-                  className="block w-full pl-10 pr-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="block w-full pl-10 pr-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
             <button
               onClick={handleAddFunds}
               disabled={addFundsLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addFundsLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
@@ -494,7 +494,7 @@ const Billing: React.FC = () => {
                 onClick={() => setActiveTab('overview')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'overview'
-                    ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
@@ -504,7 +504,7 @@ const Billing: React.FC = () => {
                 onClick={() => setActiveTab('transactions')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'transactions'
-                    ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
@@ -514,7 +514,7 @@ const Billing: React.FC = () => {
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'history'
-                    ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground dark:hover:text-gray-300 hover:border-input dark:hover:border-gray-600'
                 }`}
               >
@@ -581,7 +581,7 @@ const Billing: React.FC = () => {
                   <h3 className="text-lg font-medium text-foreground">Wallet Transactions</h3>
                   <button 
                     onClick={handleExportTransactions}
-                    className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export
@@ -659,23 +659,23 @@ const Billing: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => setShowFilter(!showFilter)}
-                      className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 ${
+                      className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${
                         hasActiveFilters 
-                          ? 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:bg-blue-900/20' 
+                          ? 'border-primary text-primary bg-primary/10 dark:border-primary dark:text-primary dark:bg-primary/20' 
                           : 'border text-muted-foreground bg-secondary hover:bg-secondary/80'
                       }`}
                     >
                       <Filter className="h-4 w-4 mr-2" />
                       Filter
                       {hasActiveFilters && (
-                        <span className="ml-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full">
+                        <span className="ml-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-primary-foreground bg-primary rounded-full">
                           {[filters.status, filters.dateFrom, filters.dateTo].filter(Boolean).length}
                         </span>
                       )}
                     </button>
                     <button 
                       onClick={handleExportPaymentHistory}
-                      className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                      className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Export as CSV
@@ -704,7 +704,7 @@ const Billing: React.FC = () => {
                           id="status-filter"
                           value={filters.status}
                           onChange={(e) => handleFilterChange('status', e.target.value)}
-                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         >
                           <option value="">All Statuses</option>
                           <option value="completed">Completed</option>
@@ -723,7 +723,7 @@ const Billing: React.FC = () => {
                           id="date-from"
                           value={filters.dateFrom}
                           onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         />
                       </div>
                       <div>
@@ -735,7 +735,7 @@ const Billing: React.FC = () => {
                           id="date-to"
                           value={filters.dateTo}
                           onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                          className="block w-full px-3 py-2 border border rounded-md bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         />
                       </div>
                     </div>
@@ -743,7 +743,7 @@ const Billing: React.FC = () => {
                       <div className="mt-3 flex justify-end">
                         <button
                           onClick={clearFilters}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded text-primary hover:text-primary/80"
                         >
                           Clear Filters
                         </button>

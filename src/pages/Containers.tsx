@@ -212,7 +212,7 @@ const Containers: React.FC = () => {
       case 'paused':
         return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
       case 'restarting':
-        return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
+        return 'text-primary bg-primary/10 dark:text-primary dark:bg-primary/20';
       case 'error':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
       default:
@@ -242,7 +242,7 @@ const Containers: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading containers...</p>
         </div>
       </div>
@@ -263,7 +263,7 @@ const Containers: React.FC = () => {
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             >
               <Plus className="h-4 w-4 mr-2" />
               New Container
@@ -282,13 +282,13 @@ const Containers: React.FC = () => {
                   placeholder="Search containers..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="pl-10 pr-4 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                className="px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="all">All Status</option>
                 <option value="running">Running</option>
@@ -300,7 +300,7 @@ const Containers: React.FC = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={loadContainers}
-                className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                className="inline-flex items-center px-3 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -341,8 +341,8 @@ const Containers: React.FC = () => {
 
           <div className="bg-card p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Container className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                  <Container className="h-6 w-6 text-primary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
@@ -445,7 +445,7 @@ const Containers: React.FC = () => {
                             </button>
                             <button
                               onClick={() => handleContainerAction(container.id, 'restart')}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                              className="text-primary hover:text-primary/80"
                               title="Restart"
                             >
                               <RefreshCw className="h-4 w-4" />
@@ -462,7 +462,7 @@ const Containers: React.FC = () => {
                         )}
                         <Link
                           to={`/containers/${container.id}`}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="text-primary hover:text-primary/80"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
@@ -499,7 +499,7 @@ const Containers: React.FC = () => {
                         type="text"
                         value={createForm.name}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="my-container"
                       />
                     </div>
@@ -511,7 +511,7 @@ const Containers: React.FC = () => {
                         type="text"
                         value={createForm.image}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="nginx:latest"
                       />
                     </div>
@@ -525,7 +525,7 @@ const Containers: React.FC = () => {
                       type="text"
                       value={createForm.ports}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, ports: e.target.value }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       placeholder="80:8080, 443:8443"
                     />
                     <p className="text-xs text-muted-foreground mt-1">Comma-separated list (host:container)</p>
@@ -539,7 +539,7 @@ const Containers: React.FC = () => {
                       type="text"
                       value={createForm.volumes}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, volumes: e.target.value }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       placeholder="/host/path:/container/path"
                     />
                     <p className="text-xs text-muted-foreground mt-1">Comma-separated list (host:container)</p>
@@ -552,7 +552,7 @@ const Containers: React.FC = () => {
                     <textarea
                       value={createForm.environment}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, environment: e.target.value }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       rows={3}
                       placeholder='{"NODE_ENV": "production", "PORT": "3000"}'
                     />
@@ -565,7 +565,7 @@ const Containers: React.FC = () => {
                     <select
                       value={createForm.restart}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, restart: e.target.value as any }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="no">No</option>
                       <option value="always">Always</option>
@@ -578,13 +578,13 @@ const Containers: React.FC = () => {
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateContainer}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                   >
                     Create Container
                   </button>

@@ -25,6 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface TicketMessage {
   id: string;
@@ -353,49 +354,52 @@ const Support: React.FC = () => {
 
             {/* Actions and Filters */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
-              <button
+              <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
+                variant="default"
+                className="gap-2"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4" />
                 New Ticket
-              </button>
+              </Button>
 
               <div className="flex-1 flex gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
-                  <input
+                  <Input
                     type="text"
                     placeholder="Search tickets..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full px-3 py-2 border border rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-secondary text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="pl-10 w-full"
                   />
                 </div>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
+                  <SelectTrigger className="min-w-[150px]">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
 
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="all">All Priority</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
+                <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value)}>
+                  <SelectTrigger className="min-w-[150px]">
+                    <SelectValue placeholder="All Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -463,7 +467,7 @@ const Support: React.FC = () => {
                 <div>
                   <button
                     onClick={() => setSelectedTicket(null)}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 mb-2"
+                    className="text-sm text-primary hover:text-primary/80 mb-2"
                   >
                     ← Back to tickets
                   </button>
@@ -508,19 +512,19 @@ const Support: React.FC = () => {
                     <div className="max-w-xs lg:max-w-md">
                       <div className={`rounded-lg px-4 py-3 shadow-sm ${
                         message.sender_type === 'admin' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-card'
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-card text-foreground'
                       }`}>
                         <div className="flex items-center gap-2 mb-2">
-                          <User className={`h-4 w-4 ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-muted-foreground'}`} />
-                          <span className={`text-xs font-medium ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-muted-foreground'}`}>
+                          <User className={`h-4 w-4 ${message.sender_type === 'admin' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`} />
+                          <span className={`text-xs font-medium ${message.sender_type === 'admin' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                             {message.sender_name}
                           </span>
-                          <span className={`text-xs ${message.sender_type === 'admin' ? 'text-blue-100' : 'text-muted-foreground'}`}>
+                          <span className={`text-xs ${message.sender_type === 'admin' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                             {formatDate(message.created_at)}
                           </span>
                         </div>
-                        <p className={`text-sm whitespace-pre-wrap ${message.sender_type === 'admin' ? 'text-white' : 'text-foreground'}`}>
+                        <p className={`text-sm whitespace-pre-wrap ${message.sender_type === 'admin' ? 'text-primary-foreground' : 'text-foreground'}`}>
                           {message.message}
                         </p>
                       </div>
@@ -543,7 +547,7 @@ const Support: React.FC = () => {
               ) : (
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <textarea
+                    <Textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={(e) => {
@@ -554,16 +558,18 @@ const Support: React.FC = () => {
                       }}
                       placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
                       rows={3}
-                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full"
                     />
                   </div>
-                  <button
+                  <Button
                     onClick={handleSendMessage}
                     disabled={loading || !newMessage.trim()}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="default"
+                    size="icon"
+                    aria-label="Send message"
                   >
                     <Send className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -599,12 +605,12 @@ const Support: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Subject *
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newTicket.subject}
                     onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
-                    className="w-full rounded-md border shadow-sm bg-secondary text-foreground placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Brief description of your issue"
+                    className="w-full"
                   />
                 </div>
 
@@ -612,62 +618,71 @@ const Support: React.FC = () => {
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={newTicket.category}
-                    onChange={(e) => setNewTicket(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 focus:ring-blue-500"
+                    onValueChange={(value) => setNewTicket(prev => ({ ...prev, category: value as any }))}
                   >
-                    <option value="general">General</option>
-                    <option value="technical">Technical</option>
-                    <option value="billing">Billing</option>
-                    <option value="feature_request">Feature Request</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="feature_request">Feature Request</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Priority
                   </label>
-                  <select
+                  <Select
                     value={newTicket.priority}
-                    onChange={(e) => setNewTicket(prev => ({ ...prev, priority: e.target.value as any }))}
-                    className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 focus:ring-blue-500"
+                    onValueChange={(value) => setNewTicket(prev => ({ ...prev, priority: value as any }))}
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Description *
                   </label>
-                  <textarea
+                  <Textarea
                     value={newTicket.description}
                     onChange={(e) => setNewTicket(prev => ({ ...prev, description: e.target.value }))}
                     rows={4}
-                    className="w-full rounded-md border shadow-sm bg-secondary text-foreground placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Detailed description of your issue or question"
+                    className="w-full"
                   />
                 </div>
               </div>
 
               <div className="mt-6 flex gap-3">
-                <button
+                <Button
                   onClick={handleCreateTicket}
                   disabled={loading || !newTicket.subject.trim() || !newTicket.description.trim()}
-                  className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                  className="flex-1"
+                  variant="default"
                 >
                   {loading ? 'Creating...' : 'Create Ticket'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 border border rounded-md shadow-sm text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+                  variant="secondary"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </div>

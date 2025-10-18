@@ -179,7 +179,7 @@ const ActivityPage: React.FC = () => {
       case 'success': return 'text-green-600';
       case 'warning': return 'text-yellow-600';
       case 'error': return 'text-red-600';
-      default: return 'text-blue-600';
+      default: return 'text-primary';
     }
   };
 
@@ -188,7 +188,7 @@ const ActivityPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <ActivityIcon className="h-6 w-6 text-blue-600" />
+            <ActivityIcon className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-semibold text-foreground">Activity</h1>
           </div>
           <button onClick={exportCsv} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
@@ -334,7 +334,7 @@ const ActivityPage: React.FC = () => {
                               onClick={() => handlePageChange(pageNum)}
                               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                 pageNum === pagination.page
-                                  ? 'z-10 bg-blue-50 dark:bg-blue-900 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300'
+                                  ? 'z-10 bg-primary/10 border-primary text-primary'
                                   : 'bg-secondary border text-muted-foreground hover:bg-secondary/80'
                               }`}
                             >
@@ -375,11 +375,11 @@ const ActivityPage: React.FC = () => {
                             value={pageInput}
                             onChange={handlePageInputChange}
                             placeholder="Page"
-                            className="w-16 px-2 py-1 text-sm border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-16 px-2 py-1 text-sm border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                           />
                           <button
                             type="submit"
-                            className="px-3 py-1 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={!pageInput || parseInt(pageInput) < 1 || parseInt(pageInput) > pagination.totalPages}
                           >
                             Go
