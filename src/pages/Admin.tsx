@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -2557,7 +2557,7 @@ const Admin: React.FC = () => {
                     void deleteTicket(deleteTicketId);
                   }
                 }}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className={buttonVariants({ variant: 'destructive' })}
               >
                 Delete
               </AlertDialogAction>
@@ -2588,7 +2588,7 @@ const Admin: React.FC = () => {
                     void deleteVPSPlan(deletePlanId);
                   }
                 }}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className={buttonVariants({ variant: 'destructive' })}
               >
                 Delete
               </AlertDialogAction>
@@ -2619,7 +2619,7 @@ const Admin: React.FC = () => {
                     void deleteContainerPlan(deleteContainerPlanId);
                   }
                 }}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className={buttonVariants({ variant: 'destructive' })}
               >
                 Delete
               </AlertDialogAction>
@@ -2650,7 +2650,7 @@ const Admin: React.FC = () => {
                     void deleteProvider(deleteProviderId);
                   }
                 }}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className={buttonVariants({ variant: 'destructive' })}
               >
                 Delete
               </AlertDialogAction>
