@@ -559,8 +559,8 @@ router.put(
              VALUES ($1, $2, $3, $4)`,
             [organizationId, req.user.id, 'owner', now]
           );
-  } catch {
-          console.warn('Failed to create organization_members entry:', err);
+        } catch (error) {
+          console.warn('Failed to create organization_members entry:', error);
         }
 
         // Create wallet for organization
@@ -570,8 +570,8 @@ router.put(
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [uuidv4(), organizationId, 0, 'USD', now, now]
           );
-  } catch {
-          console.warn('Failed to create wallet:', err);
+        } catch (error) {
+          console.warn('Failed to create wallet:', error);
         }
 
         const org = orgResult.rows[0];
