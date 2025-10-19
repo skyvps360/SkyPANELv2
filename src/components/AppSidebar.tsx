@@ -5,7 +5,7 @@ import {
   CreditCard,
   LayoutDashboard,
   Server,
-  Command,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 
@@ -14,6 +14,8 @@ import { BRAND_NAME } from "@/lib/brand";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
+import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +26,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  onOpenCommand?: () => void;
+}
+
+export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
 
@@ -114,6 +120,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        {onOpenCommand ? (
+          <div className="px-2 pt-2 pb-1 md:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-muted-foreground"
+              onClick={onOpenCommand}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Search...
+              <Kbd className="ml-auto">⌘K</Kbd>
+            </Button>
+          </div>
+        ) : null}
         <NavMain items={navMainItems} />
         <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>

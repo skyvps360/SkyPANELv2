@@ -12,9 +12,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -26,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle, Keyboard } from "lucide-react";
+import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle } from "lucide-react";
 import { BRAND_NAME } from "@/lib/brand";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -298,7 +297,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       open={isSidebarOpen}
       onOpenChange={setIsSidebarOpen}
     >
-      <AppSidebar />
+      <AppSidebar onOpenCommand={() => setCommandOpen(true)} />
       <SidebarInset>
         {/* Two-Tier Navigation Header */}
         <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-[[data-state=collapsed]]/sidebar-wrapper:h-12">
@@ -340,17 +339,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              <div className="md:hidden">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-muted-foreground"
-                  onClick={() => setCommandOpen(true)}
-                >
-                  <Search className="h-4 w-4" />
-                  Search
-                </Button>
-              </div>
+
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
