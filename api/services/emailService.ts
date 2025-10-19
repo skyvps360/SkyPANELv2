@@ -10,8 +10,21 @@ function ensureTransporter(): Transporter {
 
   const user = config.SMTP2GO_USERNAME;
   const pass = config.SMTP2GO_PASSWORD || config.SMTP2GO_API_KEY;
+  
+  console.log('Initializing SMTP2GO transporter with config:', {
+    host: process.env.SMTP2GO_HOST || 'mail.smtp2go.com',
+    port: Number(process.env.SMTP2GO_PORT || 587),
+    hasUsername: !!user,
+    hasPassword: !!pass,
+    usernameLength: user?.length,
+    secure: false,
+    requireTLS: true
+  });
+
   if (!user || !pass) {
-    throw new Error('SMTP2GO credentials are not configured');
+    const error = new Error('SMTP2GO credentials are not configured. Please set SMTP2GO_USERNAME and SMTP2GO_PASSWORD environment variables.');
+    console.error('SMTP Configuration Error:', error.message);
+    throw error;
   }
 
   transporter = nodemailer.createTransport({
@@ -22,16 +35,21 @@ function ensureTransporter(): Transporter {
     auth: {
       user,
       pass
-    }
+    },
+    debug: process.env.NODE_ENV !== 'production', // Enable debug in development
+    logger: process.env.NODE_ENV !== 'production' // Enable logging in development
   });
 
+  console.log('SMTP2GO transporter created successfully');
   return transporter;
 }
 
 async function sendEmail(options: SendMailOptions): Promise<void> {
   const senderEmail = config.FROM_EMAIL || config.SMTP2GO_USERNAME;
   if (!senderEmail) {
-    throw new Error('FROM_EMAIL is not configured');
+    const error = new Error('FROM_EMAIL is not configured. Please set FROM_EMAIL environment variable.');
+    console.error('Email Configuration Error:', error.message);
+    throw error;
   }
 
   const senderName = config.FROM_NAME || 'SkyVPS360';
@@ -40,8 +58,31 @@ async function sendEmail(options: SendMailOptions): Promise<void> {
     ...options
   };
 
-  const transport = ensureTransporter();
-  await transport.sendMail(mailOptions);
+  console.log('Attempting to send email:', {
+    to: mailOptions.to,
+    from: mailOptions.from,
+    subject: mailOptions.subject,
+    hasHtml: !!mailOptions.html,
+    hasText: !!mailOptions.text
+  });
+
+  try {
+    const transport = ensureTransporter();
+    const info = await transport.sendMail(mailOptions);
+    console.log('Email sent successfully:', {
+      messageId: info.messageId,
+      response: info.response,
+      to: mailOptions.to
+    });
+  } catch (error) {
+    console.error('Failed to send email:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      to: mailOptions.to,
+      from: mailOptions.from
+    });
+    throw error;
+  }
 }
 
 export async function sendWelcomeEmail(to: string, name?: string): Promise<void> {
@@ -74,19 +115,46 @@ export async function sendLoginNotificationEmail(to: string, name?: string): Pro
 
 export async function sendPasswordResetEmail(to: string, token: string, name?: string): Promise<void> {
   const baseUrl = (config.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
-  const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const resetPageUrl = `${baseUrl}/reset-password`;
   const displayName = name || 'there';
   const subject = 'Reset your SkyVPS360 password';
   const html = `
-    <p>Hi ${displayName},</p>
-    <p>We received a request to reset your SkyVPS360 password.</p>
-    <p>Use the reset code below within the next hour:</p>
-    <p style="font-size:20px;font-weight:600;letter-spacing:0.35em;margin:16px 0;">${token}</p>
-    <p>You can also <a href="${resetUrl}">reset your password using this link</a>.</p>
-    <p>If you did not request this, you can safely ignore this email.</p>
-    <p>Thanks,<br/>The SkyVPS360 Team</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <p>Hi ${displayName},</p>
+      <p>We received a request to reset your SkyVPS360 password.</p>
+      <p>Enter this 8-digit reset code on the password reset page:</p>
+      <div style="background: #f5f5f5; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="font-size: 28px; font-weight: 700; letter-spacing: 0.2em; margin: 0; font-family: 'Courier New', monospace;">${token}</p>
+      </div>
+      <p>This code will expire in <strong>one hour</strong>.</p>
+      <p>Go to <a href="${resetPageUrl}" style="color: #0066cc;">${resetPageUrl}</a> and enter:</p>
+      <ol style="line-height: 1.8;">
+        <li>Your email address: <strong>${to}</strong></li>
+        <li>The 8-digit code above</li>
+        <li>Your new password</li>
+      </ol>
+      <p style="color: #666; font-size: 14px; margin-top: 30px;">If you did not request this password reset, you can safely ignore this email. Your password will not be changed.</p>
+      <p style="margin-top: 30px;">Thanks,<br/><strong>The SkyVPS360 Team</strong></p>
+    </div>
   `;
-  const text = `Hi ${displayName},\n\nWe received a request to reset your SkyVPS360 password.\nYour reset code (valid for 1 hour): ${token}\n\nYou can reset your password by entering this code on the reset page or by visiting the link below:\n${resetUrl}\n\nIf you did not request this, you can safely ignore this email.\n\nThanks,\nThe SkyVPS360 Team`;
+  const text = `Hi ${displayName},
+
+We received a request to reset your SkyVPS360 password.
+
+Your 8-digit reset code (valid for 1 hour):
+
+${token}
+
+To reset your password:
+1. Go to ${resetPageUrl}
+2. Enter your email address: ${to}
+3. Enter the 8-digit code above
+4. Choose your new password
+
+If you did not request this password reset, you can safely ignore this email. Your password will not be changed.
+
+Thanks,
+The SkyVPS360 Team`;
 
   await sendEmail({ to, subject, html, text });
 }

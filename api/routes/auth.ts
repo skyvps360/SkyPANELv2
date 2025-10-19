@@ -206,6 +206,7 @@ router.post('/forgot-password', [
  * POST /api/auth/reset-password
  */
 router.post('/reset-password', [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('token').notEmpty().withMessage('Reset token is required'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
 ], async (req: Request, res: Response): Promise<void> => {
@@ -216,8 +217,8 @@ router.post('/reset-password', [
       return;
     }
 
-    const { token, password } = req.body;
-    const result = await AuthService.resetPassword(token, password);
+    const { email, token, password } = req.body;
+    const result = await AuthService.resetPassword(email, token, password);
 
     res.json(result);
   } catch (error: any) {

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
 
@@ -12,9 +12,9 @@ import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/comp
 const RESET_CODE_LENGTH = 8;
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const [email, setEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,13 +22,6 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
-
-  useEffect(() => {
-    const tokenFromUrl = searchParams.get('token');
-    if (tokenFromUrl) {
-      setResetCode(tokenFromUrl.toUpperCase().slice(0, RESET_CODE_LENGTH));
-    }
-  }, [searchParams]);
 
   const otpGroups = useMemo(() => {
     const slots = Array.from({ length: RESET_CODE_LENGTH }, (_, index) => (
@@ -43,6 +36,11 @@ export default function ResetPassword() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (!email || !email.includes('@')) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
 
     if (resetCode.length !== RESET_CODE_LENGTH) {
       toast.error('Please enter the full reset code.');
@@ -65,7 +63,7 @@ export default function ResetPassword() {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resetCode, password })
+        body: JSON.stringify({ email, token: resetCode, password })
       });
 
       const data = await response.json().catch(() => null);
@@ -76,8 +74,10 @@ export default function ResetPassword() {
 
       toast.success('Password reset successfully. You can now sign in.');
       setCompleted(true);
+      setEmail('');
       setPassword('');
       setConfirmPassword('');
+      setResetCode('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reset password';
       toast.error(message);
@@ -104,7 +104,7 @@ export default function ResetPassword() {
               <CardDescription>
                 {completed
                   ? 'Your password has been updated successfully.'
-                  : 'Enter the reset code from your email and choose a new password.'}
+                  : 'Enter your email address, the 8-digit reset code from your email, and choose a new password.'}
               </CardDescription>
             </div>
           </CardHeader>
@@ -121,6 +121,24 @@ export default function ResetPassword() {
             ) : (
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="email">Email address</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      placeholder="Enter your email address"
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the email where you received the reset code.
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="reset-code">Reset code</Label>
                     <InputOTP

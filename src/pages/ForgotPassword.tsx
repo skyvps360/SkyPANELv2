@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
 
@@ -12,7 +12,6 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,15 +28,9 @@ export default function ForgotPassword() {
         throw new Error('Failed to process password reset request');
       }
 
-      const data = await response.json();
-      toast.success('Reset link has been sent to your email');
-      
-      // In development, redirect to reset page with pre-filled token
-      if (data.token) {
-        navigate(`/reset-password?token=${encodeURIComponent(data.token)}`);
-      } else {
-        setSubmitted(true);
-      }
+      await response.json();
+      toast.success('Reset code has been sent to your email');
+      setSubmitted(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred';
       toast.error(message);
@@ -103,9 +96,14 @@ export default function ForgotPassword() {
             ) : (
               <div className="space-y-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                  We've sent a reset code and link to <strong>{email}</strong>. Please check your email
-                  (including spam folder) and follow the instructions to update your password within one hour.
+                  We've sent an 8-digit reset code to <strong>{email}</strong>. Please check your email
+                  (including spam folder). The code expires in one hour.
                 </p>
+                <Link to="/reset-password">
+                  <Button className="w-full">
+                    Go to reset password page
+                  </Button>
+                </Link>
                 <Button
                   onClick={() => {
                     setSubmitted(false);

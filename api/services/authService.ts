@@ -253,36 +253,33 @@ export class AuthService {
         );
       } catch (emailError) {
         console.error('Password reset email send failed:', emailError);
+        // Still return success to avoid leaking email existence
       }
 
-      const response: { message: string; token?: string } = {
+      // Never return the token - user must check their email
+      // This prevents security issues and ensures proper verification flow
+      return {
         message: 'If the email exists, a reset link has been sent'
       };
-
-      // In development, return the token to allow frontend to redirect and pre-fill
-      // In production, never leak the token - user must check email
-      if (process.env.NODE_ENV === 'development') {
-        response.token = resetToken;
-      }
-
-      return response;
     } catch (error) {
       console.error('Password reset request error:', error);
       throw error;
     }
   }
 
-  static async resetPassword(token: string, newPassword: string) {
+  static async resetPassword(email: string, token: string, newPassword: string) {
     try {
       const normalizedToken = token.toUpperCase();
-      // Find user with valid reset token
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Find user with valid reset token AND matching email
       const userResult = await query(
-        'SELECT id FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
-        [normalizedToken]
+        'SELECT id, email FROM users WHERE reset_token = $1 AND reset_expires > NOW() AND LOWER(email) = $2',
+        [normalizedToken, normalizedEmail]
       );
 
       if (userResult.rows.length === 0) {
-        throw new Error('Invalid or expired reset token');
+        throw new Error('Invalid or expired reset token, or email does not match');
       }
 
       const user = userResult.rows[0];
