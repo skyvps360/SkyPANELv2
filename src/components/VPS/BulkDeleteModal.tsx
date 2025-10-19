@@ -48,7 +48,7 @@ export const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
     try {
       await onConfirm(password);
       handleClose();
-    } catch (error) {
+    } catch {
       setPasswordError('Invalid password');
     }
   };

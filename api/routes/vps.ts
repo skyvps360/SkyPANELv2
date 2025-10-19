@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query } from '../lib/database.js';

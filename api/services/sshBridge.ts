@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
 import jwt from 'jsonwebtoken';

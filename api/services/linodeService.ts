@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Linode API Service for ContainerStacks
  * Handles integration with Linode API for VPS management
  */
 
 import { config } from '../config/index.js';
-import { promises as dns } from 'dns';
 
 export interface LinodeType {
   id: string;
@@ -964,7 +962,7 @@ class LinodeService {
               errorMessage = sanitizedReasons;
             }
           }
-        } catch (parseError) {
+  } catch {
           // If we can't parse the JSON, fall back to sanitizing the raw text
           const sanitizedText = text.replace(/\bLinode\b/gi, 'VPS instance');
           if (sanitizedText.trim()) {
@@ -1008,7 +1006,7 @@ class LinodeService {
               errorMessage = sanitizedReasons;
             }
           }
-        } catch (parseError) {
+  } catch {
           // If we can't parse the JSON, fall back to sanitizing the raw text
           const sanitizedText = text.replace(/\bLinode\b/gi, 'VPS instance');
           if (sanitizedText.trim()) {

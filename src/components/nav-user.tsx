@@ -1,6 +1,4 @@
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
   HelpCircle,
   LogOut,

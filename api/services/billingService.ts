@@ -5,7 +5,6 @@
 
 import { query, transaction } from '../lib/database.js';
 import { PayPalService } from './paypalService.js';
-import { logActivity } from './activityLogger.js';
 
 export interface VPSBillingInfo {
   id: string;

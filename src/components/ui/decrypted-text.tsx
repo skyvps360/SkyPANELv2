@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface DecryptedTextProps {
@@ -33,69 +33,93 @@ export default function DecryptedText({
   const [isHovered, setIsHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  const getRandomChar = () => {
+  const uniqueChars = useMemo(() => {
+    if (!useOriginalCharsOnly) {
+      return [] as string[];
+    }
+
+    return Array.from(new Set(text.split("")));
+  }, [text, useOriginalCharsOnly]);
+
+  const getRandomChar = useCallback(() => {
     if (useOriginalCharsOnly) {
-      const uniqueChars = Array.from(new Set(text.split("")));
-      return uniqueChars[Math.floor(Math.random() * uniqueChars.length)];
-    }
-    return characters[Math.floor(Math.random() * characters.length)];
-  };
-
-  const getRevealOrder = (length: number) => {
-    const indices = Array.from({ length }, (_, i) => i);
-    
-    switch (revealDirection) {
-      case "end":
-        return [...indices].reverse();
-      case "center": {
-        const center = Math.floor(length / 2);
-        const result: number[] = [];
-        if (length > 0) {
-          result.push(center);
-        }
-        for (let i = 1; i < length; i++) {
-          if (center - i >= 0) result.push(center - i);
-          if (center + i < length) result.push(center + i);
-        }
-        return result;
+      if (uniqueChars.length === 0) {
+        return "";
       }
-      default:
-        return indices;
-    }
-  };
 
-  const animate = () => {
-    if (isAnimating) return;
-    
+      return uniqueChars[Math.floor(Math.random() * uniqueChars.length)] ?? "";
+    }
+
+    if (characters.length === 0) {
+      return "";
+    }
+
+    return characters[Math.floor(Math.random() * characters.length)] ?? "";
+  }, [characters, uniqueChars, useOriginalCharsOnly]);
+
+  const getRevealOrder = useCallback(
+    (length: number) => {
+      const indices = Array.from({ length }, (_, i) => i);
+
+      switch (revealDirection) {
+        case "end":
+          return [...indices].reverse();
+        case "center": {
+          const center = Math.floor(length / 2);
+          const result: number[] = [];
+          if (length > 0) {
+            result.push(center);
+          }
+          for (let i = 1; i < length; i++) {
+            if (center - i >= 0) result.push(center - i);
+            if (center + i < length) result.push(center + i);
+          }
+          return result;
+        }
+        default:
+          return indices;
+      }
+    },
+    [revealDirection]
+  );
+
+  const animatingRef = useRef(false);
+
+  const animate = useCallback(() => {
+    if (animatingRef.current) {
+      return;
+    }
+
+    animatingRef.current = true;
     setIsAnimating(true);
     const textArray = text.split("");
-    const revealOrder = sequential ? getRevealOrder(textArray.length) : [];
-  let iterations = 0;
-  const revealedIndices = new Set<number>();
+    const revealOrder = sequential ? getRevealOrder(textArray.length) : undefined;
+    let iterations = 0;
+    const revealedIndices = new Set<number>();
 
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setDisplayText((prev) => {
         return prev
           .split("")
           .map((char, index) => {
-            if (sequential) {
-              // Sequential mode: reveal characters in order
-              const shouldReveal = revealOrder.slice(0, Math.floor(iterations / 2)).includes(index);
+            if (sequential && revealOrder) {
+              const limit = Math.floor(iterations / 2);
+              const shouldReveal = revealOrder
+                .slice(0, limit)
+                .includes(index);
+
               if (shouldReveal) {
                 revealedIndices.add(index);
                 return textArray[index];
               }
+
               if (revealedIndices.has(index)) {
                 return textArray[index];
               }
-            } else {
-              // Simultaneous mode: all characters scramble then reveal
-              if (iterations > maxIterations) {
-                return textArray[index];
-              }
+            } else if (iterations > maxIterations) {
+              return textArray[index];
             }
-            
-            // Show scrambled character
+
             return char === " " ? " " : getRandomChar();
           })
           .join("");
@@ -103,35 +127,43 @@ export default function DecryptedText({
 
       iterations++;
 
-      const shouldStop = sequential 
+      const shouldStop = sequential
         ? revealedIndices.size === textArray.length
         : iterations > maxIterations;
 
       if (shouldStop) {
-        clearInterval(interval);
+        window.clearInterval(interval);
         setDisplayText(text);
         setIsAnimating(false);
+        animatingRef.current = false;
       }
     }, speed);
-  };
+  }, [
+    getRandomChar,
+    getRevealOrder,
+    maxIterations,
+    sequential,
+    speed,
+    text,
+  ]);
 
   useEffect(() => {
     if (animateOn === "load") {
       animate();
     }
-  }, []);
+  }, [animate, animateOn]);
 
   useEffect(() => {
     if (animateOn === "hover" && isHovered) {
       animate();
     }
-  }, [isHovered]);
+  }, [animate, animateOn, isHovered]);
 
   useEffect(() => {
     if (animateOn === "view" && isVisible) {
       animate();
     }
-  }, [isVisible]);
+  }, [animate, animateOn, isVisible]);
 
   // Intersection Observer for "view" trigger
   useEffect(() => {
@@ -146,12 +178,18 @@ export default function DecryptedText({
       { threshold: 0.1 }
     );
 
-    const element = document.getElementById(`decrypted-text-${text.replace(/\s+/g, "-")}`);
+    const elementId = `decrypted-text-${text.replace(/\s+/g, "-")}`;
+    const element = document.getElementById(elementId);
     if (element) {
       observer.observe(element);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (element) {
+        observer.unobserve(element);
+      }
+    };
   }, [animateOn, text]);
 
   const handleMouseEnter = () => {

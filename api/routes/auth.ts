@@ -393,7 +393,7 @@ router.put(
           [req.user.id]
         );
         orgMember = orgResult.rows[0] || null;
-      } catch (err) {
+  } catch {
         console.warn('organization_members table not found, skipping organization lookup');
       }
 
@@ -460,8 +460,8 @@ router.get('/organization', authenticateToken, async (req: AuthenticatedRequest,
            VALUES ($1, $2, $3, $4)`,
           [organizationId, req.user.id, 'owner', now]
         );
-      } catch (err) {
-        console.warn('Failed to create organization_members entry:', err);
+      } catch (creationError) {
+        console.warn('Failed to create organization_members entry:', creationError);
       }
 
       // Create wallet for organization
@@ -471,8 +471,8 @@ router.get('/organization', authenticateToken, async (req: AuthenticatedRequest,
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [uuidv4(), organizationId, 0, 'USD', now, now]
         );
-      } catch (err) {
-        console.warn('Failed to create wallet:', err);
+      } catch (walletError) {
+        console.warn('Failed to create wallet:', walletError);
       }
 
       console.log(`Auto-created organization ${organizationId} for user ${req.user.id}`);
@@ -559,7 +559,7 @@ router.put(
              VALUES ($1, $2, $3, $4)`,
             [organizationId, req.user.id, 'owner', now]
           );
-        } catch (err) {
+  } catch {
           console.warn('Failed to create organization_members entry:', err);
         }
 
@@ -570,7 +570,7 @@ router.put(
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [uuidv4(), organizationId, 0, 'USD', now, now]
           );
-        } catch (err) {
+  } catch {
           console.warn('Failed to create wallet:', err);
         }
 
@@ -653,13 +653,13 @@ router.put(
       // Verify current password using AuthService
       try {
         await AuthService.login({ email: req.user.email, password: currentPassword });
-      } catch (error) {
+  } catch {
         res.status(400).json({ error: 'Current password is incorrect' });
         return;
       }
 
       // Update password
-      const result = await AuthService.changePassword(req.user.id, newPassword);
+  await AuthService.changePassword(req.user.id, newPassword);
       
       res.json({ message: 'Password changed successfully' });
     } catch (error: any) {

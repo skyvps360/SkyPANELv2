@@ -52,12 +52,12 @@ export const authenticateToken = async (
         [user.id]
       );
       orgMember = orgResult.rows[0] || null;
-    } catch (err) {
+  } catch {
       // Table might not exist yet, continue without error
       console.warn('organization_members table not found, skipping organization lookup');
     }
 
-    // Fallback: use organization owned by the user if no membership
+      // Fallback: use organization owned by the user if no membership
     let organizationId = orgMember?.organization_id;
     if (!organizationId) {
       try {
@@ -68,7 +68,7 @@ export const authenticateToken = async (
         if (ownerOrg.rows[0]) {
           organizationId = ownerOrg.rows[0].id;
         }
-      } catch (err) {
+  } catch {
         console.warn('organizations lookup failed for owner fallback');
       }
     }
