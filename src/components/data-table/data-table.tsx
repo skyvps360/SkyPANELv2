@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type {
   ColumnDef,
   ColumnFiltersState,
   SortingState,
   VisibilityState,
+  RowSelectionState,
+  Row,
 } from "@tanstack/react-table";
 import {
   flexRender,
@@ -34,6 +37,9 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   pageSize?: number;
   onSelectionChange?: (selectedRows: TData[]) => void;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: Dispatch<SetStateAction<RowSelectionState>>;
+  getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -44,11 +50,25 @@ export function DataTable<TData, TValue>({
   isLoading = false,
   pageSize = 10,
   onSelectionChange,
+  rowSelection: controlledRowSelection,
+  onRowSelectionChange,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+  const [uncontrolledRowSelection, setUncontrolledRowSelection] = useState<RowSelectionState>({});
+
+  const rowSelection = controlledRowSelection ?? uncontrolledRowSelection;
+
+  const updateRowSelection = (updater: RowSelectionState | ((selection: RowSelectionState) => RowSelectionState)) => {
+    const previous = controlledRowSelection ?? uncontrolledRowSelection;
+    const next = typeof updater === "function" ? (updater as (selection: RowSelectionState) => RowSelectionState)(previous) : updater;
+    if (controlledRowSelection === undefined) {
+      setUncontrolledRowSelection(next);
+    }
+    onRowSelectionChange?.(next);
+  };
 
   const memoData = useMemo(() => data, [data]);
 
@@ -64,11 +84,12 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: updateRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getRowId,
   });
 
   useEffect(() => {

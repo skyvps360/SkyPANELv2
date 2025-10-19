@@ -34,10 +34,12 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import { Area, AreaChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface MetricPoint {
   timestamp: number;
@@ -2885,66 +2887,78 @@ const VPSDetail: React.FC = () => {
           </aside>
         </div>
       </div>
-        {sshModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 px-4 py-6"
-            role="dialog"
-            aria-modal="true"
-            onClick={() => setSshModalOpen(false)}
-          >
-            <div
-              className={`relative w-full rounded-2xl border border-border bg-card shadow-2xl border bg-background transition-all duration-300 ${
-                sshFullScreen 
-                  ? 'h-full max-w-none' 
-                  : 'max-w-6xl max-h-[90vh]'
-              }`}
-              onClick={event => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-border px-6 py-4 border">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <TerminalIcon className="h-5 w-5 text-primary" />
-                  SSH Console
-                  {sshFullScreen && <span className="text-sm font-normal text-muted-foreground">(Full Screen)</span>}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSshFullScreen(!sshFullScreen)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground dark:hover:bg-gray-800"
-                    aria-label={sshFullScreen ? "Exit full screen" : "Enter full screen"}
-                  >
-                    {sshFullScreen ? (
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 15v4.5M15 15h4.5M15 15l5.25 5.25" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15m-5.25 5.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
-                      </svg>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSshModalOpen(false)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground dark:hover:bg-gray-800"
-                    aria-label="Close SSH console"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className={`${sshFullScreen ? 'p-6 h-[calc(100%-80px)]' : 'px-6 py-5'}`}>
-                {detail?.id ? (
-                  <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
-                ) : (
-                  <div className="rounded-xl border border-dashed border-input bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground">
-                    Instance ID unavailable. Please refresh and try again.
-                  </div>
-                )}
-              </div>
+      <Dialog
+        open={sshModalOpen}
+        onOpenChange={(open) => {
+          setSshModalOpen(open);
+          if (!open) {
+            setSshFullScreen(false);
+          }
+        }}
+      >
+        <DialogContent
+          hideCloseButton
+          className={cn(
+            'p-0 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl',
+            sshFullScreen
+              ? 'h-[90vh] w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-[90vw]'
+              : 'max-h-[90vh] w-full sm:max-w-6xl'
+          )}
+        >
+          <DialogHeader className="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <TerminalIcon className="h-5 w-5 text-primary" />
+              <DialogTitle className="text-lg font-semibold text-foreground">SSH Console</DialogTitle>
+              {sshFullScreen && (
+                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-xs font-medium">
+                  Full Screen
+                </Badge>
+              )}
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setSshFullScreen((value) => !value)}
+                aria-label={sshFullScreen ? 'Exit full screen' : 'Enter full screen'}
+              >
+                {sshFullScreen ? (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 15v4.5M15 15h4.5M15 15l5.25 5.25" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15m-5.25 5.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
+                  </svg>
+                )}
+              </Button>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close SSH console"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
+            <DialogDescription className="sr-only">
+              Interactive SSH session for this instance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className={cn('px-6 py-6', sshFullScreen && 'h-[calc(100%-90px)] overflow-y-auto pb-6')}>
+            {detail?.id ? (
+              <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                Instance ID unavailable. Please refresh and try again.
+              </div>
+            )}
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

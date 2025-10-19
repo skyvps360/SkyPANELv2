@@ -5,6 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { RowSelectionState } from '@tanstack/react-table';
 import {
   Server,
   Plus,
@@ -26,6 +27,7 @@ import { VpsInstancesTable } from '@/components/VPS/VpsTable.js';
 import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DialogStack } from '@/components/ui/dialog-stack';
 import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
@@ -66,6 +68,7 @@ const VPS: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [selectedInstances, setSelectedInstances] = useState<VPSInstance[]>([]);
+  const [selectedRowSelection, setSelectedRowSelection] = useState<RowSelectionState>({});
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -532,6 +535,7 @@ const VPS: React.FC = () => {
 
     // Clear selection
     setSelectedInstances([]);
+    setSelectedRowSelection({});
 
     // Refresh instances
     await loadInstances();
@@ -583,6 +587,7 @@ const VPS: React.FC = () => {
 
       // Clear selection and close modal
       setSelectedInstances([]);
+      setSelectedRowSelection({});
       setShowBulkDeleteModal(false);
 
       // Refresh instances
@@ -774,6 +779,7 @@ const VPS: React.FC = () => {
       await loadInstances();
 
       setShowCreateModal(false);
+      setCreateStep(1);
       setCreateForm({
         label: '',
         type: '',
@@ -824,6 +830,454 @@ const VPS: React.FC = () => {
   const handleNext = () => setCreateStep((s) => Math.min(s + 1, totalSteps));
   const handleBack = () => setCreateStep((s) => Math.max(1, s - 1));
 
+  const creationSteps = [
+    {
+      id: 'plan',
+      title: 'Plan & Label',
+      description: 'Configure the server label and pricing plan before provisioning.',
+      content: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Label *
+            </label>
+            <input
+              type="text"
+              value={createForm.label}
+              onChange={(e) => setCreateForm(prev => ({ ...prev, label: e.target.value }))}
+              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              placeholder="my-server"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Plan
+            </label>
+            <select
+              value={createForm.type}
+              onChange={(e) => {
+                const newType = e.target.value;
+                const selectedType = linodeTypes.find(t => t.id === newType);
+                const newRegion = selectedType?.region || '';
+
+                setCreateForm(prev => ({
+                  ...prev,
+                  type: newType,
+                  region: newRegion,
+                }));
+              }}
+              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            >
+              <option value="">Click to choose plan</option>
+              {linodeTypes.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Region
+            </label>
+            <div className="w-full px-3 py-2 border border rounded-md bg-muted text-foreground">
+              {createForm.type && createForm.region ? (
+                (() => {
+                  const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
+                  return (
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
+                      <span className="font-medium">
+                        {selectedRegion ? selectedRegion.label : createForm.region}
+                      </span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        (Auto-selected based on plan)
+                      </span>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="flex items-center text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span>Select a plan to see the region</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'deployments',
+      title: '1-Click Deployments',
+      description: 'Optionally provision with a StackScript or continue without one.',
+      content: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
+              1-Click Deployments (Optional)
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div
+                onClick={() => {
+                  const sshKeyScript = linodeStackScripts.find(script => 
+                    script.label === 'ssh-key' || 
+                    script.id === 'ssh-key' ||
+                    (script.label && script.label.toLowerCase().includes('ssh'))
+                  );
+                  setSelectedStackScript(sshKeyScript || null);
+                }}
+                className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
+                  selectedStackScript === null || 
+                  (selectedStackScript && (
+                    selectedStackScript.label === 'ssh-key' || 
+                    selectedStackScript.id === 'ssh-key' ||
+                    (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
+                  ))
+                    ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
+                    : 'border hover:border-input dark:hover:border-gray-500'
+                }`}
+              >
+                <div className="flex flex-col space-y-2">
+                  <div className="w-8 h-8 bg-gray-400 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">NO</span>
+                  </div>
+                  <h4 className="font-medium text-foreground text-sm">None</h4>
+                  <p className="text-xs text-muted-foreground truncate">Provision base OS without a deployment</p>
+                </div>
+                {(selectedStackScript === null || 
+                  (selectedStackScript && (
+                    selectedStackScript.label === 'ssh-key' || 
+                    selectedStackScript.id === 'ssh-key' ||
+                    (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
+                  ))) && (
+                  <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              {linodeStackScripts.map((script) => {
+                const isSshKeyScript = script.label === 'ssh-key' || 
+                  script.id === 'ssh-key' ||
+                  (script.label && script.label.toLowerCase().includes('ssh'));
+
+                if (isSshKeyScript) return null;
+
+                return (
+                  <div
+                    key={script.id}
+                    onClick={() => setSelectedStackScript(script)}
+                    className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
+                      selectedStackScript?.id === script.id
+                        ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
+                        : 'border hover:border-input dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex flex-col space-y-2">
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">
+                          {String(script.label || '').substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <h4 className="font-medium text-foreground text-sm truncate">{script.label}</h4>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {script.description || 'Automated setup script'}
+                      </p>
+                    </div>
+                    {selectedStackScript?.id === script.id && (
+                      <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields) && selectedStackScript.user_defined_fields.length > 0 && (
+            <div className="mt-4 p-3 border rounded-lg bg-muted/30 border">
+              <h4 className="text-sm font-medium text-foreground mb-2">Deployment Configuration</h4>
+              <p className="text-xs text-muted-foreground mb-2">
+                Allowed base images: {allowedImagesDisplay}
+              </p>
+              <form onSubmit={(e) => e.preventDefault()}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {selectedStackScript.user_defined_fields.map((f: any) => {
+                    const value = stackscriptData[f.name] ?? '';
+                    const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
+                    const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
+                    const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
+                    const options = optionsArr || parsedOptions;
+                    const nameLower = String(f.name || '').toLowerCase();
+                    const inputType: 'text' | 'password' | 'email' = options && options.length > 0
+                      ? 'text'
+                      : nameLower.includes('password') || nameLower.includes('pass')
+                        ? 'password'
+                        : nameLower.includes('email')
+                          ? 'email'
+                          : 'text';
+                    return (
+                      <div key={f.name}>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">{f.label || f.name}</label>
+                        {options && options.length > 0 ? (
+                          <select
+                            value={value}
+                            onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                            className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
+                          >
+                            <option value="">Select</option>
+                            {options.map((opt: string) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={inputType}
+                            value={value}
+                            onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
+                            placeholder={f.example || f.default || ''}
+                            className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            autoComplete={inputType === 'password' ? 'new-password' : 'off'}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'os',
+      title: 'Operating System',
+      description: 'Pick the base operating system for this VPS.',
+      content: (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setOsTab('templates')}
+              className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
+            >
+              Templates
+            </button>
+            <button
+              type="button"
+              onClick={() => setOsTab('iso')}
+              className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
+            >
+              ISO
+            </button>
+          </div>
+
+          {osTab === 'templates' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(
+                ['ubuntu','debian','centos','rockylinux','almalinux','fedora','alpine','arch','opensuse','gentoo','slackware']
+              ).filter(key => effectiveOsGroups[key] && effectiveOsGroups[key].versions.length > 0).map(key => {
+                const group = effectiveOsGroups[key];
+                const selectedVersionId = selectedOSVersion[key] || group.versions[0]?.id;
+                const isSelected = selectedOSGroup === key;
+                const colorMap: Record<string, string> = {
+                  ubuntu: 'from-orange-500 to-red-600',
+                  debian: 'from-red-500 to-gray-600',
+                  centos: 'from-emerald-500 to-emerald-600',
+                  rockylinux: 'from-green-600 to-emerald-700',
+                  almalinux: 'from-rose-500 to-pink-600',
+                  fedora: 'from-blue-600 to-indigo-700',
+                  alpine: 'from-cyan-500 to-sky-600',
+                  arch: 'from-sky-500 to-blue-700',
+                  opensuse: 'from-lime-500 to-green-600',
+                  gentoo: 'from-purple-500 to-violet-600',
+                  slackware: 'from-gray-500 to-gray-700'
+                };
+                const colors = colorMap[key] || 'from-blue-500 to-purple-600';
+                return (
+                  <div
+                    key={key}
+                    className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary' : 'border hover:border-input dark:hover:border-gray-500'}`}
+                    onClick={() => {
+                      setSelectedOSGroup(key);
+                      const idToUse = selectedVersionId || group.versions[0]?.id;
+                      if (idToUse) setCreateForm(prev => ({ ...prev, image: idToUse }));
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors} flex items-center justify-center`}>
+                          <span className="text-white font-bold text-xs">{group.name.slice(0,2).toUpperCase()}</span>
+                        </div>
+                        <h3 className="font-medium text-foreground text-sm lowercase">{group.name}</h3>
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Select Version</label>
+                      <select
+                        value={selectedVersionId || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedOSVersion(prev => ({ ...prev, [key]: val }));
+                          setCreateForm(prev => ({ ...prev, image: val }));
+                          setSelectedOSGroup(key);
+                        }}
+                        className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
+                      >
+                        <option value="" disabled>SELECT VERSION</option>
+                        {group.versions.map(v => (
+                          <option key={v.id} value={v.id}>{v.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-4 border border-dashed border rounded-lg text-sm text-muted-foreground">
+              ISO install support coming soon. Use Templates for now.
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'finalize',
+      title: 'Finalize & Review',
+      description: 'Set credentials and optional add-ons before provisioning.',
+      content: (
+        <div className="space-y-5">
+          <form onSubmit={(e) => e.preventDefault()}>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Root Password *
+            </label>
+            <input
+              type="password"
+              value={createForm.rootPassword}
+              onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
+              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              placeholder="Enter a strong password"
+              autoComplete="new-password"
+            />
+          </form>
+
+          <div className="flex items-center space-x-6">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={createForm.backups}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, backups: e.target.checked }))}
+                className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
+              />
+              <span className="ml-2 text-sm text-muted-foreground">Enable Backups (+40%)</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={createForm.privateIP}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, privateIP: e.target.checked }))}
+                className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
+              />
+              <span className="ml-2 text-sm text-muted-foreground">Private IP</span>
+            </label>
+          </div>
+
+          <div className="bg-muted rounded-lg p-4">
+            <h4 className="text-sm font-medium text-foreground mb-2">Plan Details</h4>
+            {createForm.type && linodeTypes.length > 0 ? (
+              (() => {
+                const selectedType = linodeTypes.find(t => t.id === createForm.type);
+                if (!selectedType) return null;
+                const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
+                return (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">vCPUs:</span>
+                      <span className="ml-2 font-medium text-foreground">{selectedType.vcpus}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Memory:</span>
+                      <span className="ml-2 font-medium text-foreground">{formatBytes(selectedType.memory)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Storage:</span>
+                      <span className="ml-2 font-medium text-foreground">{Math.round(selectedType.disk / 1024)} GB</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Transfer:</span>
+                      <span className="ml-2 font-medium text-foreground">{selectedType.transfer} GB</span>
+                    </div>
+                    {selectedRegion && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Region:</span>
+                        <span className="ml-2 font-medium text-foreground">{selectedRegion.label}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  Select a plan above to view specifications and pricing details
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  const stackFooter = (
+    <div className="flex items-center justify-between">
+      <button
+        onClick={() => { setShowCreateModal(false); setCreateStep(1); }}
+        className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+      >
+        Cancel
+      </button>
+      <div className="flex items-center space-x-3">
+        {createStep > 1 && (
+          <Button onClick={handleBack} variant="secondary">
+            Back
+          </Button>
+        )}
+        {createStep < totalSteps && (
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed}
+            variant={canProceed ? 'default' : 'secondary'}
+          >
+            Next
+          </Button>
+        )}
+        {createStep === totalSteps && (
+          <Button onClick={handleCreateInstance} variant="default">
+            Create VPS
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -840,7 +1294,7 @@ const VPS: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">VPS Management</h1>
               <p className="mt-2 text-muted-foreground">
@@ -849,7 +1303,7 @@ const VPS: React.FC = () => {
             </div>
             <button
               onClick={() => { setCreateStep(1); setShowCreateModal(true); }}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create VPS
@@ -863,7 +1317,7 @@ const VPS: React.FC = () => {
             <div className="space-y-4">
               {/* Search Row */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
+                <div className="relative flex-1 max-w-md w-full">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
                   <input
                     type="text"
@@ -873,15 +1327,13 @@ const VPS: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   />
                 </div>
-                <div className="flex items-center">
-                  <button
-                    onClick={loadInstances}
-                    className="inline-flex items-center px-4 py-2.5 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </button>
-                </div>
+                <button
+                  onClick={loadInstances}
+                  className="inline-flex w-full sm:w-auto items-center justify-center px-4 py-2.5 border border shadow-sm text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </button>
               </div>
               
               {/* Filters Row */}
@@ -1044,7 +1496,10 @@ const VPS: React.FC = () => {
                     <span className="xs:hidden">🗑️</span>
                   </Button>
                   <Button
-                    onClick={() => setSelectedInstances([])}
+                    onClick={() => {
+                      setSelectedInstances([]);
+                      setSelectedRowSelection({});
+                    }}
                     variant="outline"
                     size="sm"
                     className="min-h-[44px] touch-manipulation w-full sm:w-auto mt-2 sm:mt-0"
@@ -1071,512 +1526,26 @@ const VPS: React.FC = () => {
               onAction={handleInstanceAction}
               onCopy={copyToClipboard}
               onSelectionChange={setSelectedInstances}
+              rowSelection={selectedRowSelection}
+              onRowSelectionChange={setSelectedRowSelection}
               isLoading={loading && instances.length > 0}
             />
           </CardContent>
         </Card>
 
-        {/* Create VPS Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-full max-w-2xl shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Create New VPS Instance</h3>
-                <div className="space-y-4">
-                  {/* Step indicator */}
-                  <div className="mb-6">
-                    <div className="text-xs text-muted-foreground mb-3">Step {createStep} of {totalSteps}</div>
-                    <div className="flex items-center justify-between">
-                      {[...Array(totalSteps)].map((_, i) => {
-                        const stepNumber = i + 1;
-                        const isCompleted = stepNumber < createStep;
-                        const isCurrent = stepNumber === createStep;
-                        
-                        return (
-                          <React.Fragment key={i}>
-                            <div className="flex flex-col items-center">
-                              <div
-                                className={`
-                                  w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-all duration-200
-                                  ${isCompleted 
-                                    ? 'bg-primary border-primary text-primary-foreground' 
-                                    : isCurrent 
-                                    ? 'bg-primary border-primary text-primary-foreground ring-2 ring-primary/20' 
-                                    : 'bg-background border-muted text-muted-foreground'
-                                  }
-                                `}
-                              >
-                                {isCompleted ? '✓' : stepNumber}
-                              </div>
-                              <div className={`mt-1 text-xs ${isCurrent ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                                {stepNumber === 1 && 'Region'}
-                                {stepNumber === 2 && 'Deployments'}
-                                {stepNumber === 3 && 'OS'}
-                                {stepNumber === 4 && 'Finalize'}
-                              </div>
-                            </div>
-                            {i < totalSteps - 1 && (
-                              <div 
-                                className={`
-                                  flex-1 h-0.5 mx-2 transition-all duration-200
-                                  ${stepNumber < createStep ? 'bg-primary' : 'bg-muted'}
-                                `}
-                              />
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {createStep === 1 && (<>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Label *
-                    </label>
-                    <input
-                      type="text"
-                      value={createForm.label}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, label: e.target.value }))}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="my-server"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Plan
-                    </label>
-                    <select
-                      value={createForm.type}
-                      onChange={(e) => {
-                        const newType = e.target.value;
-                        const selectedType = linodeTypes.find(t => t.id === newType);
-                        
-                        // Ensure region is properly assigned from the selected plan
-                        const newRegion = selectedType?.region || '';
-                        
-                        setCreateForm(prev => ({
-                          ...prev,
-                          type: newType,
-                          region: newRegion,
-                        }));
-                        // Gracefully handle plans without a preset region without logging
-                      }}
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="">Click to choose plan</option>
-                      {linodeTypes.map(type => (
-                        <option key={type.id} value={type.id}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Region
-                    </label>
-                    <div className="w-full px-3 py-2 border border rounded-md bg-muted text-foreground">
-                      {createForm.type && createForm.region ? (
-                        (() => {
-                          const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
-                          return (
-                            <div className="flex items-center">
-                              <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
-                              <span className="font-medium">
-                                {selectedRegion ? selectedRegion.label : createForm.region}
-                              </span>
-                              <span className="ml-2 text-sm text-muted-foreground">
-                                (Auto-selected based on plan)
-                              </span>
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <div className="flex items-center text-muted-foreground">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          <span>Select a plan to see the region</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  </>) }
-
-                  {/* 1-Click Deployments Section (always visible) */}
-                  {createStep === 2 && (
-                  <div className="mb-4">
-                      <label className="block text-sm font-medium text-muted-foreground mb-2">
-                        1-Click Deployments (Optional)
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {/* None option card */}
-                        <div
-                          onClick={() => {
-                            // Find ssh-key script and select it (but display as "None")
-                            const sshKeyScript = linodeStackScripts.find(script => 
-                              script.label === 'ssh-key' || 
-                              script.id === 'ssh-key' ||
-                              (script.label && script.label.toLowerCase().includes('ssh'))
-                            );
-                            setSelectedStackScript(sshKeyScript || null);
-                          }}
-                          className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                            selectedStackScript === null || 
-                            (selectedStackScript && (
-                              selectedStackScript.label === 'ssh-key' || 
-                              selectedStackScript.id === 'ssh-key' ||
-                              (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
-                            ))
-                              ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
-                              : 'border hover:border-input dark:hover:border-gray-500'
-                          }`}
-                        >
-                          <div className="flex flex-col space-y-2">
-                            <div className="w-8 h-8 bg-gray-400 rounded-lg flex items-center justify-center">
-                              <span className="text-white font-bold text-xs">NO</span>
-                            </div>
-                            <h4 className="font-medium text-foreground text-sm">None</h4>
-                            <p className="text-xs text-muted-foreground truncate">Provision base OS without a deployment</p>
-                          </div>
-                          {(selectedStackScript === null || 
-                            (selectedStackScript && (
-                              selectedStackScript.label === 'ssh-key' || 
-                              selectedStackScript.id === 'ssh-key' ||
-                              (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
-                            ))) && (
-                            <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* StackScript cards */}
-                        {linodeStackScripts.map((script) => {
-                          // Don't show ssh-key script as a separate option since it's the default "None"
-                          const isSshKeyScript = script.label === 'ssh-key' || 
-                                                script.id === 'ssh-key' ||
-                                                (script.label && script.label.toLowerCase().includes('ssh'));
-                          
-                          if (isSshKeyScript) return null;
-                          
-                          return (
-                            <div
-                              key={script.id}
-                              onClick={() => setSelectedStackScript(script)}
-                              className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                                selectedStackScript?.id === script.id
-                                  ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
-                                  : 'border hover:border-input dark:hover:border-gray-500'
-                              }`}
-                            >
-                              <div className="flex flex-col space-y-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                  <span className="text-white font-bold text-xs">
-                                    {String(script.label || '').substring(0, 2).toUpperCase()}
-                                  </span>
-                                </div>
-                                <h4 className="font-medium text-foreground text-sm truncate">{script.label}</h4>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {script.description || 'Automated setup script'}
-                                </p>
-                              </div>
-                              {selectedStackScript?.id === script.id && (
-                                <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields) && selectedStackScript.user_defined_fields.length > 0 && (
-                        <div className="mt-4 p-3 border rounded-lg bg-muted/30 border">
-                          <h4 className="text-sm font-medium text-foreground mb-2">Deployment Configuration</h4>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Allowed base images: {allowedImagesDisplay}
-                          </p>
-                          <form onSubmit={(e) => e.preventDefault()}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {selectedStackScript.user_defined_fields.map((f: any) => {
-                                const value = stackscriptData[f.name] ?? '';
-                                const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
-                                const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
-                                const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
-                                const options = optionsArr || parsedOptions;
-                                const nameLower = String(f.name || '').toLowerCase();
-                                const inputType: 'text' | 'password' | 'email' = options && options.length > 0
-                                  ? 'text'
-                                  : nameLower.includes('password') || nameLower.includes('pass')
-                                    ? 'password'
-                                    : nameLower.includes('email')
-                                      ? 'email'
-                                      : 'text';
-                                return (
-                                  <div key={f.name}>
-                                    <label className="block text-xs font-medium text-muted-foreground mb-1">{f.label || f.name}</label>
-                                    {options && options.length > 0 ? (
-                                      <select
-                                        value={value}
-                                        onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                                        className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
-                                      >
-                                        <option value="">Select</option>
-                                        {options.map((opt: string) => (
-                                          <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                      </select>
-                                    ) : (
-                                      <input
-                                        type={inputType}
-                                        value={value}
-                                        onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                                        placeholder={f.example || f.default || ''}
-                                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                                        autoComplete={inputType === 'password' ? 'new-password' : 'off'}
-                                      />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </form>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {createStep === 3 && (
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-3">
-                      Operating System
-                    </label>
-                    {/* Tabs: Templates | ISO */}
-                    <div className="flex items-center space-x-2 mb-3">
-                      <button
-                        type="button"
-                        onClick={() => setOsTab('templates')}
-                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
-                      >
-                        Templates
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOsTab('iso')}
-                        className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
-                      >
-                        ISO
-                      </button>
-                    </div>
-
-                    {osTab === 'templates' ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                        {(
-                          ['ubuntu','debian','centos','rockylinux','almalinux','fedora','alpine','arch','opensuse','gentoo','slackware']
-                        ).filter(k => effectiveOsGroups[k] && effectiveOsGroups[k].versions.length > 0).map(key => {
-                          const group = effectiveOsGroups[key];
-                          const selectedVersionId = selectedOSVersion[key] || group.versions[0]?.id;
-                          const isSelected = selectedOSGroup === key;
-                          const colorMap: Record<string, string> = {
-                            ubuntu: 'from-orange-500 to-red-600',
-                            debian: 'from-red-500 to-gray-600',
-                            centos: 'from-emerald-500 to-emerald-600',
-                            rockylinux: 'from-green-600 to-emerald-700',
-                            almalinux: 'from-rose-500 to-pink-600',
-                            fedora: 'from-blue-600 to-indigo-700',
-                            alpine: 'from-cyan-500 to-sky-600',
-                            arch: 'from-sky-500 to-blue-700',
-                            opensuse: 'from-lime-500 to-green-600',
-                            gentoo: 'from-purple-500 to-violet-600',
-                            slackware: 'from-gray-500 to-gray-700'
-                          };
-                          const colors = colorMap[key] || 'from-blue-500 to-purple-600';
-                          return (
-                            <div
-                              key={key}
-                              className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary' : 'border hover:border-input dark:hover:border-gray-500'}`}
-                              onClick={() => {
-                                setSelectedOSGroup(key);
-                                const idToUse = selectedVersionId || group.versions[0]?.id;
-                                if (idToUse) setCreateForm(prev => ({ ...prev, image: idToUse }));
-                              }}
-                            >
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-3">
-                                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors} flex items-center justify-center`}>
-                                    <span className="text-white font-bold text-xs">{group.name.slice(0,2).toUpperCase()}</span>
-                                  </div>
-                                  <h3 className="font-medium text-foreground text-sm lowercase">{group.name}</h3>
-                                </div>
-                                {isSelected && (
-                                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-muted-foreground mb-1">Select Version</label>
-                                <select
-                                  value={selectedVersionId || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setSelectedOSVersion(prev => ({ ...prev, [key]: val }));
-                                    setCreateForm(prev => ({ ...prev, image: val }));
-                                    setSelectedOSGroup(key);
-                                  }}
-                                  className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
-                                >
-                                  <option value="" disabled>SELECT VERSION</option>
-                                  {group.versions.map(v => (
-                                    <option key={v.id} value={v.id}>{v.label}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="mb-4 p-4 border border-dashed border rounded-lg text-sm text-muted-foreground">
-                        ISO install support coming soon. Use Templates for now.
-                      </div>
-                    )}
-
-                    
-                  </div>
-                  )}
-
-                  {createStep === 4 && (<>
-                  <form onSubmit={(e) => e.preventDefault()}>
-                    <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">
-                        Root Password *
-                      </label>
-                      <input
-                        type="password"
-                        value={createForm.rootPassword}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
-                        className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                        placeholder="Enter a strong password"
-                        autoComplete="new-password"
-                      />
-                    </div>
-                  </form>
-
-                  <div className="flex items-center space-x-6">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={createForm.backups}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, backups: e.target.checked }))}
-                        className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
-                      />
-                      <span className="ml-2 text-sm text-muted-foreground">Enable Backups (+40%)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={createForm.privateIP}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, privateIP: e.target.checked }))}
-                        className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
-                      />
-                      <span className="ml-2 text-sm text-muted-foreground">Private IP</span>
-                    </label>
-                  </div>
-
-                  {/* Plan Details */}
-                  <div className="bg-muted rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-foreground mb-2">Plan Details</h4>
-                    {createForm.type && linodeTypes.length > 0 ? (
-                      (() => {
-                        const selectedType = linodeTypes.find(t => t.id === createForm.type);
-                        if (!selectedType) return null;
- const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
-                        return (
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">vCPUs:</span>
-                              <span className="ml-2 font-medium text-foreground">{selectedType.vcpus}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Memory:</span>
-                              <span className="ml-2 font-medium text-foreground">{formatBytes(selectedType.memory)}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Storage:</span>
-                              <span className="ml-2 font-medium text-foreground">{Math.round(selectedType.disk / 1024)} GB</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Transfer:</span>
-                              <span className="ml-2 font-medium text-foreground">{selectedType.transfer} GB</span>
-                            </div>
-                            {selectedRegion && (
-                              <div className="col-span-2">
-                                <span className="text-muted-foreground">Region:</span>
-                                <span className="ml-2 font-medium text-foreground">{selectedRegion.label}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-muted-foreground">
-                          Select a plan above to view specifications and pricing details
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  </>
-                )}
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                  <button
-                    onClick={() => { setShowCreateModal(false); setCreateStep(1); }}
-                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                  >
-                    Cancel
-                  </button>
-                  <div className="flex items-center space-x-3">
-                    {createStep > 1 && (
-                      <Button
-                        onClick={handleBack}
-                        variant="secondary"
-                      >
-                        Back
-                      </Button>
-                    )}
-                    {createStep < totalSteps && (
-                      <Button
-                        onClick={handleNext}
-                        disabled={!canProceed}
-                        variant={canProceed ? "default" : "secondary"}
-                      >
-                        Next
-                      </Button>
-                    )}
-                    {createStep === totalSteps && (
-                      <Button
-                        onClick={handleCreateInstance}
-                        variant="default"
-                      >
-                        Create VPS
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <DialogStack
+          open={showCreateModal}
+          onOpenChange={(isOpen) => {
+            setShowCreateModal(isOpen);
+            if (!isOpen) setCreateStep(1);
+          }}
+          steps={creationSteps}
+          activeStep={createStep - 1}
+          onStepChange={(index) => setCreateStep(index + 1)}
+          title="Create New VPS Instance"
+          description="Provision a VPS using our guided setup."
+          footer={stackFooter}
+        />
 
         {deleteModal.open && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">

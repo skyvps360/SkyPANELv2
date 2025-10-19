@@ -4,6 +4,11 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
 import 'xterm/css/xterm.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { API_BASE_URL, buildApiUrl } from '../../lib/api';
 
 interface SSHTerminalProps {
@@ -340,180 +345,172 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
     setSearchVisible(false);
   }, []);
 
+  const statusLabel = status === 'connected'
+    ? `Connected as ${connectedUser}`
+    : status === 'connecting'
+      ? 'Connecting...'
+      : reconnectAttempts > 0
+        ? `Reconnecting... (${reconnectAttempts}/5)`
+        : status.charAt(0).toUpperCase() + status.slice(1);
+
+  const statusBadgeClass = cn(
+    'gap-2 border px-3 py-1 text-sm',
+    {
+      'border-emerald-500/40 bg-emerald-500/10 text-emerald-400': status === 'connected',
+      'border-amber-500/40 bg-amber-500/10 text-amber-400': status === 'connecting',
+      'border-red-500/40 bg-red-500/10 text-red-400': status === 'error',
+      'border-muted bg-muted/30 text-muted-foreground': status === 'disconnected',
+    }
+  );
+
+  const statusDotClass = cn('h-2 w-2 rounded-full', {
+    'bg-emerald-500': status === 'connected',
+    'bg-amber-400 animate-pulse': status === 'connecting',
+    'bg-red-500': status === 'error',
+    'bg-muted-foreground': status === 'disconnected',
+  });
+
   return (
-    <div className="space-y-3">
-      {/* Connection and Status Bar */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="flex items-center gap-3">
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
-            status === 'connected' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-            status === 'connecting' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
-            status === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-            'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
-          }`}>
-            <div className={`h-2 w-2 rounded-full ${
-              status === 'connected' ? 'bg-green-500' :
-              status === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-              status === 'error' ? 'bg-red-500' :
-              'bg-gray-500'
-            }`} />
-            {status === 'connected' ? `Connected as ${connectedUser}` :
-             status === 'connecting' ? 'Connecting...' :
-             reconnectAttempts > 0 ? `Reconnecting... (${reconnectAttempts}/5)` :
-             status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
+    <div className={cn('flex flex-col space-y-4', isFullScreen && 'h-full')}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="outline" className={statusBadgeClass}>
+            <span className={statusDotClass} />
+            {statusLabel}
+          </Badge>
           {status === 'connected' && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-muted-foreground">
               Last activity: {new Date(lastActivity).toLocaleTimeString()}
             </span>
           )}
-          
-          <select
-            value={connectedUser}
-            onChange={(e) => setConnectedUser(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="root">root</option>
-            <option value="ubuntu">ubuntu</option>
-          </select>
+          <Select value={connectedUser} onValueChange={setConnectedUser}>
+            <SelectTrigger className="h-9 w-[140px]">
+              <SelectValue placeholder="SSH user" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="root">root</SelectItem>
+              <SelectItem value="ubuntu">ubuntu</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-          {/* Connection Controls */}
-          <button
+          <Button
+            type="button"
             onClick={() => connect()}
+            size="sm"
+            className="bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
             disabled={status === 'connecting' || status === 'connected'}
-            className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:bg-blue-400"
           >
             Connect
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             onClick={disconnect}
+            size="sm"
+            variant="outline"
             disabled={status !== 'connected'}
-            className="rounded-md bg-gray-600 px-3 py-1 text-sm text-white transition hover:bg-gray-700 disabled:bg-gray-400"
           >
             Disconnect
-          </button>
-          
-          {/* Theme Selector */}
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value as 'dark' | 'light' | 'matrix')}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-            <option value="matrix">Matrix</option>
-          </select>
+          </Button>
+          <Select value={theme} onValueChange={(value) => setTheme(value as 'dark' | 'light' | 'matrix')}>
+            <SelectTrigger className="h-9 w-[150px]">
+              <SelectValue placeholder="Theme" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dark">Dark</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="matrix">Matrix</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Advanced Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Terminal Controls */}
-        <button 
-          onClick={clear} 
-          className="rounded-md bg-slate-600 px-3 py-1 text-sm text-white transition hover:bg-slate-700"
-        >
+        <Button type="button" onClick={clear} size="sm" variant="outline">
           Clear
-        </button>
-        
-        {/* Font Size Controls */}
+        </Button>
         <div className="flex items-center gap-1">
-          <button 
-            onClick={decreaseFont} 
-            className="rounded-md bg-slate-600 px-2 py-1 text-sm text-white transition hover:bg-slate-700"
+          <Button
+            type="button"
+            onClick={decreaseFont}
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
           >
             A-
-          </button>
-          <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{fontSize}px</span>
-          <button 
-            onClick={increaseFont} 
-            className="rounded-md bg-slate-600 px-2 py-1 text-sm text-white transition hover:bg-slate-700"
+          </Button>
+          <span className="px-2 text-xs text-muted-foreground">{fontSize}px</span>
+          <Button
+            type="button"
+            onClick={increaseFont}
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
           >
             A+
-          </button>
+          </Button>
         </div>
-
-        {/* Copy/Paste Controls */}
-        <button 
-          onClick={copyToClipboard} 
-          className="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700"
-          title="Copy selected text"
-        >
+        <Button type="button" onClick={copyToClipboard} size="sm" variant="secondary">
           Copy
-        </button>
-        <button 
-          onClick={pasteFromClipboard} 
+        </Button>
+        <Button
+          type="button"
+          onClick={pasteFromClipboard}
+          size="sm"
+          variant="secondary"
           disabled={status !== 'connected'}
-          className="rounded-md bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700 disabled:bg-indigo-400"
-          title="Paste from clipboard"
+          className="disabled:opacity-60"
         >
           Paste
-        </button>
-
-        {/* Search Toggle */}
-        <button 
-          onClick={() => setSearchVisible(!searchVisible)} 
-          className={`rounded-md px-3 py-1 text-sm text-white transition ${
-            searchVisible ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'
-          }`}
-          title="Toggle search"
+        </Button>
+        <Button
+          type="button"
+          onClick={() => setSearchVisible((value) => !value)}
+          size="sm"
+          variant={searchVisible ? 'default' : 'outline'}
         >
           Search
-        </button>
-
-        {/* Download Session Log */}
-        <button 
-          onClick={downloadSessionLog} 
+        </Button>
+        <Button
+          type="button"
+          onClick={downloadSessionLog}
+          size="sm"
+          className="bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
           disabled={!sessionLog}
-          className="rounded-md bg-green-600 px-3 py-1 text-sm text-white transition hover:bg-green-700 disabled:bg-green-400"
-          title="Download session log"
         >
           Download
-        </button>
+        </Button>
       </div>
 
-      {/* Search Bar */}
       {searchVisible && (
-        <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800">
-          <input
-            type="text"
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 p-3">
+          <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && performSearch()}
             placeholder="Search in terminal..."
-            className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="flex-1 min-w-[200px]"
           />
-          <button 
-            onClick={performSearch}
-            disabled={!searchTerm}
-            className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:bg-blue-400"
-          >
+          <Button type="button" onClick={performSearch} size="sm" disabled={!searchTerm}>
             Find
-          </button>
-          <button 
-            onClick={clearSearch}
-            className="rounded-md bg-gray-600 px-3 py-1 text-sm text-white transition hover:bg-gray-700"
-          >
+          </Button>
+          <Button type="button" onClick={clearSearch} size="sm" variant="outline">
             Clear
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Terminal Container */}
       <div
         ref={containerRef}
-        className={`w-full overflow-hidden rounded-md border border-gray-300 dark:border-gray-700 ${
-          isFullScreen 
-            ? 'h-full min-h-[600px]' 
-            : 'h-[360px] sm:h-[540px]'
-        }`}
+        className={cn(
+          'flex-1 w-full overflow-hidden rounded-xl border border-border',
+          isFullScreen ? 'min-h-[600px]' : 'h-[360px] sm:h-[540px]'
+        )}
         style={{ backgroundColor: themes[theme].background }}
       />
 
-      {/* Tips and Info */}
-      <div className="text-xs text-gray-500 dark:text-gray-400">
+      <div className="text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-4">
           <span>💡 Tips:</span>
           <span>• Select text and click Copy to copy</span>

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { Fragment, useCallback, useMemo } from "react";
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -16,7 +16,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import type { VPSInstance } from "@/types/vps";
+import type { Dispatch, SetStateAction } from "react";
 
 interface RegionShape {
   id: string;
@@ -30,6 +33,8 @@ interface VpsInstancesTableProps {
   onAction: (instanceId: string, action: "boot" | "shutdown" | "reboot" | "delete") => void;
   onCopy: (value: string) => void;
   onSelectionChange?: (selectedInstances: VPSInstance[]) => void;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: Dispatch<SetStateAction<RowSelectionState>>;
 }
 
 const statusLabel = (status: VPSInstance["status"]): string => {
@@ -136,6 +141,8 @@ export function VpsInstancesTable({
   onAction,
   onCopy,
   onSelectionChange,
+  rowSelection,
+  onRowSelectionChange,
 }: VpsInstancesTableProps) {
   const regionLookup = useMemo(() => {
     const map = new Map<string, string>();
@@ -375,20 +382,181 @@ export function VpsInstancesTable({
     [onAction, onCopy, regionLookup]
   );
 
+  const handleMobileSelection = useCallback(
+    (instanceId: string, checked: boolean) => {
+      if (!onRowSelectionChange) return;
+      onRowSelectionChange((prev) => {
+        const next: RowSelectionState = { ...prev };
+        if (checked) {
+          next[instanceId] = true;
+        } else {
+          delete next[instanceId];
+        }
+        return next;
+      });
+    },
+    [onRowSelectionChange]
+  );
+
+  const mobileCards = instances.map((instance) => {
+    const progressValue = getProgressValue(instance);
+    const providerMessage = typeof instance.progress?.message === "string" ? instance.progress.message.trim() : "";
+    const progressLabel = providerMessage.length > 0 ? providerMessage : statusLabel(instance.status);
+    const isTransitioning = ["provisioning", "rebooting", "restoring"].includes(instance.status);
+    const isRunning = instance.status === "running";
+    const isStopped = instance.status === "stopped";
+    const regionLabel = instance.regionLabel || regionLookup.get(instance.region) || instance.region;
+
+    return (
+      <Fragment key={instance.id}>
+        <Card className="border border-border/70 bg-card/95 shadow-sm">
+          <CardHeader className="space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <CardTitle className="text-base font-semibold text-foreground">
+                  {instance.label}
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Created {formatDate(instance.created)}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  aria-label="Select instance"
+                  checked={Boolean(rowSelection?.[instance.id])}
+                  onCheckedChange={(value) => handleMobileSelection(instance.id, Boolean(value))}
+                  className="mt-1"
+                />
+                <Status
+                  variant={getStatusVariant(instance.status)}
+                  label={statusLabel(instance.status)}
+                  showPing={instance.status !== "stopped"}
+                  animated={instance.status === "provisioning"}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              {instance.ipv4[0] && (
+                <Badge variant="secondary" className="font-mono text-[11px]">
+                  {instance.ipv4[0]}
+                </Badge>
+              )}
+              {regionLabel && (
+                <Badge variant="outline" className="text-[11px]">
+                  {regionLabel}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {progressValue !== null && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>{progressLabel}</span>
+                  <span>{Math.round(progressValue)}%</span>
+                </div>
+                <Progress value={progressValue} className="h-1.5" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">CPU</p>
+                <p className="font-medium text-foreground">{instance.specs.vcpus} vCPU</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Memory</p>
+                <p className="font-medium text-foreground">{formatBytes(instance.specs.memory)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Storage</p>
+                <p className="font-medium text-foreground">{formatBytes(instance.specs.disk)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Transfer</p>
+                <p className="font-medium text-foreground">{formatBytes(instance.specs.transfer)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Hourly</p>
+                <p className="font-medium text-foreground">{formatCurrency(instance.pricing.hourly)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Monthly</p>
+                <p className="font-medium text-foreground">{formatCurrency(instance.pricing.monthly)}</p>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button
+              variant={isRunning ? "secondary" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={() => onAction(instance.id, isRunning ? "shutdown" : "boot")}
+              disabled={isTransitioning}
+            >
+              {isRunning ? "Stop" : isStopped ? "Start" : "Action"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => onAction(instance.id, "reboot")}
+              disabled={isTransitioning}
+            >
+              Reboot
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="flex-1">
+              <Link to={`/vps/${instance.id}`}>Details</Link>
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1"
+              onClick={() => onAction(instance.id, "delete")}
+            >
+              Delete
+            </Button>
+          </CardFooter>
+        </Card>
+      </Fragment>
+    );
+  });
+
   return (
-    <DataTable
-      columns={columns}
-      data={instances}
-      isLoading={isLoading}
-      onSelectionChange={onSelectionChange}
-      emptyState={
-        <div className="py-10 text-center">
-          <p className="text-base font-medium text-foreground">No VPS instances found</p>
-          <p className="text-sm text-muted-foreground">
-            Start by provisioning a server to see it appear in this list.
-          </p>
-        </div>
-      }
-    />
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:hidden">
+        {mobileCards.length > 0 ? (
+          mobileCards
+        ) : (
+          <Card className="border border-dashed border-border/60 bg-card/60">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No VPS instances found.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      <div className="hidden lg:block">
+        <DataTable
+          columns={columns}
+          data={instances}
+          isLoading={isLoading}
+          onSelectionChange={onSelectionChange}
+          rowSelection={rowSelection}
+          onRowSelectionChange={onRowSelectionChange}
+          getRowId={(row) => row.id}
+          emptyState={
+            <div className="py-10 text-center">
+              <p className="text-base font-medium text-foreground">No VPS instances found</p>
+              <p className="text-sm text-muted-foreground">
+                Start by provisioning a server to see it appear in this list.
+              </p>
+            </div>
+          }
+        />
+      </div>
+    </div>
   );
 }

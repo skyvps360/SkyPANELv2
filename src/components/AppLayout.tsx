@@ -319,30 +319,43 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 </Link>
               </div>
               
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  {breadcrumbs.map((crumb, index) => (
-                    <React.Fragment key={`${crumb.label}-${index}`}>
-                      {index > 0 && <BreadcrumbSeparator />}
-                      <BreadcrumbItem>
-                        {crumb.isActive || !crumb.href ? (
-                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                        ) : (
-                          <BreadcrumbLink href={crumb.href}>
-                            {crumb.label}
-                          </BreadcrumbLink>
-                        )}
-                      </BreadcrumbItem>
-                    </React.Fragment>
-                  ))}
-                </BreadcrumbList>
-              </Breadcrumb>
+              <Separator orientation="vertical" className="mr-2 h-4 hidden md:block" />
+              <div className="hidden md:block">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    {breadcrumbs.map((crumb, index) => (
+                      <React.Fragment key={`${crumb.label}-${index}`}>
+                        {index > 0 && <BreadcrumbSeparator />}
+                        <BreadcrumbItem>
+                          {crumb.isActive || !crumb.href ? (
+                            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                          ) : (
+                            <BreadcrumbLink href={crumb.href}>
+                              {crumb.label}
+                            </BreadcrumbLink>
+                          )}
+                        </BreadcrumbItem>
+                      </React.Fragment>
+                    ))}
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </div>
+              <div className="md:hidden">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-muted-foreground"
+                  onClick={() => setCommandOpen(true)}
+                >
+                  <Search className="h-4 w-4" />
+                  Search
+                </Button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
-              {/* Search Bar - Moved closer to notifications */}
-              <div className="max-w-md">
+              {/* Search Bar - Desktop-only command palette trigger */}
+              <div className="hidden md:block max-w-md">
                 <Button
                   variant="outline"
                   className="w-full justify-start text-muted-foreground min-w-[200px]"

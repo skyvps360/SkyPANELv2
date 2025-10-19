@@ -1,3 +1,7 @@
+export interface VPSListRowSelection {
+  [id: string]: boolean;
+}
+
 export interface VPSInstance {
   id: string;
   label: string;
