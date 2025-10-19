@@ -22,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { buildApiUrl } from '@/lib/api';
 import type { ThemePreset } from '@/theme/presets';
@@ -1277,44 +1278,74 @@ const Admin: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="tickets">
-              <div className="bg-card shadow sm:rounded-lg">
-                <div className="px-6 py-4 border-b border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ClipboardList className="h-5 w-5 text-gray-400 " />
-                    <h2 className="text-lg font-medium text-foreground">Support Tickets</h2>
-                  </div>
-                  <div>
-                    <Select value={statusFilter} onValueChange={value => setStatusFilter(value as typeof statusFilter)}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Filter status" />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="px-6 py-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                      <ul className="divide-y divide-border">
-                        {filteredTickets.length === 0 ? (
-                          <li className="px-4 py-10 text-center text-muted-foreground">No tickets found</li>
-                        ) : (
-                          filteredTickets.map(t => (
-                            <li key={t.id}>
+              <div className="grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
+                <Card className="flex min-h-[26rem] flex-col">
+                  <CardHeader className="space-y-4 border-b border-border pb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-lg font-semibold text-foreground">
+                          Support Tickets
+                        </CardTitle>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={fetchTickets}
+                        className="h-8 w-8"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        <span className="sr-only">Refresh tickets</span>
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Status
+                      </Label>
+                      <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-hidden p-0">
+                    {filteredTickets.length === 0 ? (
+                      <div className="flex h-full items-center justify-center px-6 py-10 text-sm text-muted-foreground">
+                        No tickets match the selected filter.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[32rem]">
+                        <div className="divide-y divide-border">
+                          {filteredTickets.map((t) => {
+                            const isActive = selectedTicket?.id === t.id;
+                            return (
                               <button
-                                className="w-full text-left px-4 py-3 hover:bg-secondary/80"
+                                key={t.id}
+                                type="button"
+                                className={cn(
+                                  'flex w-full flex-col gap-2 px-5 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                  isActive ? 'bg-muted/70' : 'hover:bg-muted/50'
+                                )}
                                 onClick={() => openTicket(t)}
                               >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium text-foreground">{t.subject}</div>
-                                    <div className="text-sm text-muted-foreground">{t.category} • {new Date(t.created_at).toLocaleString()}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-medium leading-5 text-foreground">
+                                      {t.subject}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <span className="capitalize">{t.category}</span>
+                                      <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                                      <span>{new Date(t.created_at).toLocaleString()}</span>
+                                    </div>
                                   </div>
                                   <Badge
                                     variant="outline"
@@ -1323,122 +1354,183 @@ const Admin: React.FC = () => {
                                     {TICKET_STATUS_META[t.status].label}
                                   </Badge>
                                 </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {t.message}
+                                </div>
                               </button>
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                    </div>
-                    <div>
-                      {!selectedTicket ? (
-                        <div className="px-4 py-10 text-center text-muted-foreground">
-                          Select a ticket to view details
+                            );
+                          })}
                         </div>
-                      ) : (
-                        <div className="border border rounded-md">
-                          <div className="px-4 py-3 border-b border">
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-lg font-semibold text-foreground">{selectedTicket.subject}</span>
-                                  <Badge
-                                    variant="outline"
-                                    className={cn('capitalize', TICKET_STATUS_META[selectedTicket.status].className)}
-                                  >
-                                    {TICKET_STATUS_META[selectedTicket.status].label}
-                                  </Badge>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                  <span>{selectedTicket.category}</span>
-                                  <Badge
-                                    variant="outline"
-                                    className={cn('capitalize', TICKET_PRIORITY_META[selectedTicket.priority].className)}
-                                  >
-                                    {TICKET_PRIORITY_META[selectedTicket.priority].label}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {selectedTicket.status !== 'open' && (
-                                  <button
-                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-secondary text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
-                                    onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
-                                  >
-                                    <RefreshCw className="h-4 w-4 mr-1" /> Re-open
-                                  </button>
-                                )}
-                                <button
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                                  onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
-                                >
-                                  <AlertCircle className="h-4 w-4 mr-1" /> In Progress
-                                </button>
-                                <button
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                                  onClick={() => updateTicketStatus(selectedTicket.id, 'resolved')}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" /> Resolve
-                                </button>
-                                <button
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                                  onClick={() => closeTicket(selectedTicket.id)}
-                                >
-                                  <X className="h-4 w-4 mr-1" /> Close
-                                </button>
-                                <button
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-secondary hover:bg-red-50 dark:hover:bg-red-900"
-                                  onClick={() => setDeleteTicketId(selectedTicket.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" /> Delete
-                                </button>
-                              </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card className="flex min-h-[26rem] flex-col">
+                  {!selectedTicket ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center text-muted-foreground">
+                      <Ticket className="h-10 w-10 text-muted-foreground/60" />
+                      <div className="space-y-1">
+                        <p className="text-base font-medium text-foreground">Select a ticket</p>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a conversation to view details and respond.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <CardHeader className="space-y-4 border-b border-border pb-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CardTitle className="text-xl font-semibold leading-tight text-foreground">
+                                {selectedTicket.subject}
+                              </CardTitle>
+                              <Badge
+                                variant="outline"
+                                className={cn('capitalize', TICKET_STATUS_META[selectedTicket.status].className)}
+                              >
+                                {TICKET_STATUS_META[selectedTicket.status].label}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                              <Badge
+                                variant="outline"
+                                className={cn('capitalize', TICKET_PRIORITY_META[selectedTicket.priority].className)}
+                              >
+                                {TICKET_PRIORITY_META[selectedTicket.priority].label}
+                              </Badge>
+                              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                              <span className="capitalize">{selectedTicket.category}</span>
+                              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                              <span>Opened {new Date(selectedTicket.created_at).toLocaleString()}</span>
                             </div>
                           </div>
-                          <div className="px-4 py-3 space-y-3">
-                            <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedTicket.message}</div>
-                            <div className="max-h-96 overflow-y-auto">
-                              <div className="space-y-3">
-                                {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
-                                  selectedTicket.messages.map((m) => (
-                                    <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                      <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-secondary text-foreground'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
-                                        <div className="text-xs opacity-80 mb-1">
-                                          <span className="font-medium mr-2">{m.sender_name}</span>
-                                          <span>{new Date(m.created_at).toLocaleString()}</span>
-                                        </div>
-                                        <div className="text-sm whitespace-pre-wrap">{m.message}</div>
-                                      </div>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {selectedTicket.status !== 'open' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1"
+                                onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                                Re-open
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                              In Progress
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => updateTicketStatus(selectedTicket.id, 'resolved')}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Resolve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="gap-1"
+                              onClick={() => closeTicket(selectedTicket.id)}
+                            >
+                              <X className="h-4 w-4" />
+                              Close
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="gap-1"
+                              onClick={() => setDeleteTicketId(selectedTicket.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex flex-1 flex-col gap-6 p-0">
+                        <div className="space-y-3 border-b border-border px-6 py-4">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Original message
+                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">
+                            {selectedTicket.message}
+                          </p>
+                        </div>
+                        <ScrollArea className="flex-1">
+                          <div className="space-y-4 px-6 pb-6">
+                            {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
+                              selectedTicket.messages.map((m) => (
+                                <div
+                                  key={m.id}
+                                  className={cn('flex', m.sender_type === 'admin' ? 'justify-end' : 'justify-start')}
+                                >
+                                  <div
+                                    className={cn(
+                                      'max-w-xl rounded-2xl border px-4 py-3 text-sm shadow-sm',
+                                      m.sender_type === 'admin'
+                                        ? 'border-primary/30 bg-primary text-primary-foreground'
+                                        : 'border-border bg-muted text-foreground'
+                                    )}
+                                  >
+                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                      <span className="font-medium text-foreground">{m.sender_name}</span>
+                                      <span>{new Date(m.created_at).toLocaleString()}</span>
                                     </div>
-                                  ))
-                                ) : (
-                                  <div className="text-sm text-muted-foreground">No replies yet</div>
-                                )}
-                                <div ref={messagesEndRef} />
+                                    <div className="whitespace-pre-wrap text-sm text-foreground">
+                                      {m.message}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                                No replies yet
                               </div>
-                            </div>
-                            <div className="pt-3 border-t border">
-                              <label className="block text-sm font-medium text-muted-foreground mb-1">Reply</label>
-                              <Textarea
-                                rows={3}
-                                value={replyMessage}
-                                onChange={(e) => setReplyMessage(e.target.value)}
-                                placeholder="Type your response to the client"
-                              />
-                              <div className="mt-2 flex items-center gap-2">
-                                <Button onClick={sendReply} disabled={!replyMessage.trim()}>
-                                  Send Reply
-                                </Button>
-                                <Button variant="ghost" onClick={() => setSelectedTicket(null)}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
+                            )}
+                            <div ref={messagesEndRef} />
                           </div>
+                        </ScrollArea>
+                      </CardContent>
+                      <CardFooter className="flex flex-col gap-3 border-t border-border bg-muted/40 px-6 py-4">
+                        <div className="w-full space-y-2">
+                          <Label className="text-sm font-medium text-foreground">Reply</Label>
+                          <Textarea
+                            rows={3}
+                            value={replyMessage}
+                            onChange={(e) => setReplyMessage(e.target.value)}
+                            placeholder="Type your response to the client"
+                          />
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                        <div className="flex w-full flex-wrap justify-end gap-2">
+                          <Button onClick={sendReply} disabled={!replyMessage.trim()}>
+                            Send Reply
+                          </Button>
+                          <Button variant="outline" disabled={!replyMessage} onClick={() => setReplyMessage('')}>
+                            Clear
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setReplyMessage('');
+                              setSelectedTicket(null);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    </>
+                  )}
+                </Card>
               </div>
             </TabsContent>
 
