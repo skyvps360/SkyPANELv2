@@ -13,7 +13,7 @@ function ensureTransporter(): Transporter {
   
   console.log('Initializing SMTP2GO transporter with config:', {
     host: process.env.SMTP2GO_HOST || 'mail.smtp2go.com',
-    port: Number(process.env.SMTP2GO_PORT || 587),
+    port: Number(process.env.SMTP2GO_PORT || 2525),
     hasUsername: !!user,
     hasPassword: !!pass,
     usernameLength: user?.length,
@@ -29,7 +29,7 @@ function ensureTransporter(): Transporter {
 
   transporter = nodemailer.createTransport({
     host: process.env.SMTP2GO_HOST || 'mail.smtp2go.com',
-    port: Number(process.env.SMTP2GO_PORT || 587),
+    port: Number(process.env.SMTP2GO_PORT || 2525),
     secure: false,
     requireTLS: true,
     auth: {
