@@ -2,21 +2,78 @@
  * Admin Dashboard
  * Manage support tickets and VPS plans
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Server, Settings, Ticket, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner';
-import { Settings, ClipboardList, Ticket, DollarSign, Edit, CheckCircle, AlertCircle, Server, Plus, Trash2, X, FileCode, RefreshCw, Globe, Palette } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useTheme } from '@/contexts/ThemeContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { buildApiUrl } from '@/lib/api';
 import type { ThemePreset } from '@/theme/presets';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+type AdminTab = 'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme';
+type AdminTabItem = {
+  value: AdminTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  counter?: string;
+};
+
+const TICKET_STATUS_META: Record<TicketStatus, { label: string; className: string }> = {
+  open: {
+    label: 'Open',
+    className: 'border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  },
+  in_progress: {
+    label: 'In Progress',
+    className: 'border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  },
+  resolved: {
+    label: 'Resolved',
+    className: 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  },
+  closed: {
+    label: 'Closed',
+    className: 'border border-muted-foreground/15 bg-muted text-muted-foreground',
+  },
+};
+
+const TICKET_PRIORITY_META: Record<TicketPriority, { label: string; className: string }> = {
+  low: {
+    label: 'Low',
+    className: 'border border-muted-foreground/15 bg-muted text-muted-foreground',
+  },
+  medium: {
+    label: 'Medium',
+    className: 'border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  },
+  high: {
+    label: 'High',
+    className: 'border border-orange-500/20 bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  },
+  urgent: {
+    label: 'Urgent',
+    className: 'border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400',
+  },
+};
 
 interface SupportTicket {
   id: string;
@@ -25,7 +82,7 @@ interface SupportTicket {
   subject: string;
   message: string;
   status: TicketStatus;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  priority: TicketPriority;
   category: string;
   created_at: string;
   updated_at: string;
@@ -930,1324 +987,1584 @@ const Admin: React.FC = () => {
   };
 
   const filteredTickets = tickets.filter(t => (statusFilter === 'all' ? true : t.status === statusFilter));
+  const openTicketCount = useMemo(() => tickets.filter(ticket => ticket.status === 'open').length, [tickets]);
+  const enabledStackscriptCount = useMemo(
+    () => stackscriptConfigs.filter(config => config.is_enabled).length,
+    [stackscriptConfigs]
+  );
+  const tabItems = useMemo<AdminTabItem[]>(
+    () => {
+      const totalTickets = tickets.length;
+      const totalPlans = plans.length;
+      const totalContainerPlans = containerPlans.length;
+      const totalProviders = providers.length;
+      const totalStackscripts = availableStackscripts.length;
+
+      return [
+        {
+          value: 'tickets',
+          label: 'Support',
+          description: 'Triage customer conversations',
+          icon: ClipboardList,
+          counter: totalTickets ? `${openTicketCount}/${totalTickets}` : undefined,
+        },
+        {
+          value: 'plans',
+          label: 'VPS Plans',
+          description: 'Curate provider offerings',
+          icon: DollarSign,
+          counter: totalPlans ? totalPlans.toString() : undefined,
+        },
+        {
+          value: 'containers',
+          label: 'Containers',
+          description: 'Managed container blueprints',
+          icon: Server,
+          counter: totalContainerPlans ? totalContainerPlans.toString() : undefined,
+        },
+        {
+          value: 'providers',
+          label: 'Providers',
+          description: 'Infrastructure integrations',
+          icon: Settings,
+          counter: totalProviders ? totalProviders.toString() : undefined,
+        },
+        {
+          value: 'stackscripts',
+          label: 'StackScripts',
+          description: 'Images exposed to users',
+          icon: FileCode,
+          counter: totalStackscripts ? `${enabledStackscriptCount}/${totalStackscripts}` : undefined,
+        },
+        {
+          value: 'networking',
+          label: 'Networking',
+          description: 'Reverse DNS templates',
+          icon: Globe,
+          counter: rdnsBaseDomain ? 'Configured' : undefined,
+        },
+        {
+          value: 'theme',
+          label: 'Theme',
+          description: 'Global visual presets',
+          icon: Palette,
+          counter: themeUpdatedAt ? 'Synced' : undefined,
+        },
+      ];
+    },
+    [
+      availableStackscripts.length,
+      containerPlans.length,
+      enabledStackscriptCount,
+      openTicketCount,
+      plans.length,
+      providers.length,
+      rdnsBaseDomain,
+      themeUpdatedAt,
+      tickets.length,
+    ]
+  );
+  const overviewCards = useMemo(
+    () => [
+      {
+        label: 'Active tickets',
+        value: tickets.length ? openTicketCount.toString() : '—',
+        description: tickets.length ? `of ${tickets.length} conversations` : 'Awaiting new requests',
+        icon: Ticket,
+      },
+      {
+        label: 'VPS plans',
+        value: plans.length ? plans.length.toString() : '—',
+        description: 'Published offerings',
+        icon: DollarSign,
+      },
+      {
+        label: 'Container plans',
+        value: containerPlans.length ? containerPlans.length.toString() : '—',
+        description: 'Managed templates',
+        icon: Server,
+      },
+      {
+        label: 'Providers',
+        value: providers.length ? providers.length.toString() : '—',
+        description: 'Active integrations',
+        icon: Settings,
+      },
+    ],
+    [containerPlans.length, openTicketCount, plans.length, providers.length, tickets.length]
+  );
+  const handleRefresh = () => {
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    switch (activeTab) {
+      case 'tickets':
+        fetchTickets();
+        break;
+      case 'plans':
+        fetchPlans();
+        fetchProviders();
+        fetchLinodeTypes();
+        fetchLinodeRegions();
+        break;
+      case 'containers':
+        fetchPricing();
+        fetchContainerPlans();
+        break;
+      case 'providers':
+        fetchProviders();
+        break;
+      case 'stackscripts':
+        fetchStackscriptsAndConfigs();
+        break;
+      case 'networking':
+        fetchNetworkingRdns();
+        break;
+      case 'theme':
+        fetchThemeConfiguration();
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Manage support tickets and VPS plans</p>
-          </div>
-          <Settings className="h-6 w-6 text-gray-400 " />
+    <div className="mx-auto w-full max-w-7xl space-y-8 px-4 pb-16 pt-10 lg:px-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Admin Control Center</h1>
+          <p className="text-sm text-muted-foreground">
+            Orchestrate support, infrastructure, networking, and account branding from a single workspace.
+          </p>
         </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="h-9 gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
 
-        <div className="mb-6 border-b border">
-          <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-2" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab('tickets')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'tickets' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <Ticket className="h-4 w-4 inline mr-2" /> Tickets
-            </button>
-            <button
-              onClick={() => setActiveTab('plans')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'plans' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <DollarSign className="h-4 w-4 inline mr-2" /> VPS Plans
-            </button>
-            <button
-              onClick={() => setActiveTab('stackscripts')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'stackscripts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <FileCode className="h-4 w-4 inline mr-2" /> StackScripts
-            </button>
-            <button
-              onClick={() => setActiveTab('containers')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'containers' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <Server className="h-4 w-4 inline mr-2" /> Container Plans
-            </button>
-            <button
-              onClick={() => setActiveTab('networking')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'networking' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <Globe className="h-4 w-4 inline mr-2" /> Networking
-            </button>
-            <button
-              onClick={() => setActiveTab('providers')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'providers' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <Settings className="h-4 w-4 inline mr-2" /> Providers
-            </button>
-            <button
-              onClick={() => setActiveTab('theme')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === 'theme' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }`}
-            >
-              <Palette className="h-4 w-4 inline mr-2" /> Theme
-            </button>
-          </nav>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {overviewCards.map((card) => {
+          const Icon = card.icon;
 
-        {activeTab === 'theme' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
-              <div className="flex items-center gap-3">
-                <Palette className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Choose a theme preset. Updates roll out to every user instantly.
-                  </p>
+          return (
+            <Card key={card.label} className="border-border/60">
+              <CardContent className="flex items-center justify-between gap-4 p-5">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{card.label}</p>
+                  <p className="text-2xl font-semibold text-foreground">{card.value}</p>
+                  <p className="text-xs text-muted-foreground">{card.description}</p>
                 </div>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {themeConfigLoading ? 'Syncing...' : `Last updated: ${formattedThemeUpdatedAt}`}
-              </div>
-            </div>
-            <div className="space-y-10 px-6 py-6">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Presets</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Choose a built-in palette. Applying a preset changes the experience for every organization member.
-                </p>
-                <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                  {themes.map((preset) => {
-                    const isActive = preset.id === themeId;
-                    const isSaving = savingPresetId === preset.id;
-                    const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || themeConfigLoading;
+                <span className="rounded-full bg-muted p-2 text-muted-foreground">
+                  <Icon className="h-5 w-5" />
+                </span>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handlePresetSelection(preset)}
-                        disabled={disabled}
-                        className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                          isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
-                        } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
-                          </div>
-                          <Badge variant={isActive ? 'default' : 'outline'}>
-                            {isSaving ? 'Saving...' : isActive ? 'Active' : 'Preview'}
-                          </Badge>
-                        </div>
-                        <div className="mt-4 flex gap-4">
-                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                            <span>Primary</span>
-                            <span
-                              className="h-10 w-10 rounded-md border shadow-sm"
-                              style={{ backgroundColor: `hsl(${preset.light.primary})` }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                            <span>Surface</span>
-                            <span
-                              className="h-10 w-10 rounded-md border shadow-sm"
-                              style={{ backgroundColor: `hsl(${preset.light.background})` }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                            <span>Dark Primary</span>
-                            <span
-                              className="h-10 w-10 rounded-md border shadow-sm"
-                              style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
-                            />
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <Tabs value={activeTab} onValueChange={value => setActiveTab(value as AdminTab)} className="space-y-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <TabsList className="flex h-full w-full flex-wrap gap-2 rounded-xl bg-muted/60 p-2 lg:w-72 lg:flex-col">
+            {tabItems.map(tab => {
+              const Icon = tab.icon;
 
-        {activeTab === 'tickets' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ClipboardList className="h-5 w-5 text-gray-400 " />
-                <h2 className="text-lg font-medium text-foreground">Support Tickets</h2>
-              </div>
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+              return (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className={cn(
+                    'w-full justify-start gap-3 rounded-lg border border-transparent px-4 py-3 text-left',
+                    'data-[state=active]:border-primary data-[state=active]:bg-background'
+                  )}
                 >
-                  <option value="all">All Status</option>
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
-              </div>
-            </div>
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <ul className="divide-y divide-border">
-                    {filteredTickets.length === 0 ? (
-                      <li className="px-4 py-10 text-center text-muted-foreground">No tickets found</li>
-                    ) : (
-                      filteredTickets.map(t => (
-                        <li key={t.id}>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex flex-1 flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-foreground">{tab.label}</span>
+                    <span className="text-xs text-muted-foreground">{tab.description}</span>
+                  </div>
+                  {tab.counter ? (
+                    <Badge variant="secondary" className="ml-auto whitespace-nowrap">
+                      {tab.counter}
+                    </Badge>
+                  ) : null}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          <div className="flex-1 space-y-6">
+
+            <TabsContent value="theme">
+              <div className="bg-card shadow sm:rounded-lg">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <Palette className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Choose a theme preset. Updates roll out to every user instantly.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {themeConfigLoading ? 'Syncing...' : `Last updated: ${formattedThemeUpdatedAt}`}
+                  </div>
+                </div>
+                <div className="space-y-10 px-6 py-6">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Presets</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Choose a built-in palette. Applying a preset changes the experience for every organization member.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                      {themes.map((preset) => {
+                        const isActive = preset.id === themeId;
+                        const isSaving = savingPresetId === preset.id;
+                        const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || themeConfigLoading;
+
+                        return (
                           <button
-                            className="w-full text-left px-4 py-3 hover:bg-secondary/80"
-                            onClick={() => openTicket(t)}
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handlePresetSelection(preset)}
+                            disabled={disabled}
+                            className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                              isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
+                            } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-4">
                               <div>
-                                <div className="font-medium text-foreground">{t.subject}</div>
-                                <div className="text-sm text-muted-foreground">{t.category} • {new Date(t.created_at).toLocaleString()}</div>
+                                <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
                               </div>
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                t.status === 'open' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
-                                t.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                                t.status === 'resolved' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-secondary '
-                              }`}>
-                                {t.status.replace('_', ' ')}
-                              </span>
+                              <Badge variant={isActive ? 'default' : 'outline'}>
+                                {isSaving ? 'Saving...' : isActive ? 'Active' : 'Preview'}
+                              </Badge>
+                            </div>
+                            <div className="mt-4 flex gap-4">
+                              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                <span>Primary</span>
+                                <span
+                                  className="h-10 w-10 rounded-md border shadow-sm"
+                                  style={{ backgroundColor: `hsl(${preset.light.primary})` }}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                <span>Surface</span>
+                                <span
+                                  className="h-10 w-10 rounded-md border shadow-sm"
+                                  style={{ backgroundColor: `hsl(${preset.light.background})` }}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                <span>Dark Primary</span>
+                                <span
+                                  className="h-10 w-10 rounded-md border shadow-sm"
+                                  style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
+                                />
+                              </div>
                             </div>
                           </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  {!selectedTicket ? (
-                    <div className="px-4 py-10 text-center text-muted-foreground">
-                      Select a ticket to view details
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className="border border rounded-md">
-                      <div className="px-4 py-3 border-b border">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-lg font-semibold text-foreground">{selectedTicket.subject}</div>
-                            <div className="text-sm text-muted-foreground">{selectedTicket.category}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {selectedTicket.status !== 'open' && (
-                              <button
-                                className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-secondary text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
-                                onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
-                              >
-                                <RefreshCw className="h-4 w-4 mr-1" /> Re-open
-                              </button>
-                            )}
-                            <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                              onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
-                            >
-                              <AlertCircle className="h-4 w-4 mr-1" /> In Progress
-                            </button>
-                            <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                              onClick={() => updateTicketStatus(selectedTicket.id, 'resolved')}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" /> Resolve
-                            </button>
-                            <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                              onClick={() => closeTicket(selectedTicket.id)}
-                            >
-                              <X className="h-4 w-4 mr-1" /> Close
-                            </button>
-                            <button
-                              className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-secondary hover:bg-red-50 dark:hover:bg-red-900"
-                              onClick={() => setDeleteTicketId(selectedTicket.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" /> Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="px-4 py-3 space-y-3">
-                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedTicket.message}</div>
-                        {/* Replies thread */}
-                        <div className="max-h-96 overflow-y-auto">
-                          <div className="space-y-3">
-                            {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
-                              selectedTicket.messages.map((m) => (
-                                <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-secondary text-foreground'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
-                                    <div className="text-xs opacity-80 mb-1">
-                                      <span className="font-medium mr-2">{m.sender_name}</span>
-                                      <span>{new Date(m.created_at).toLocaleString()}</span>
-                                    </div>
-                                    <div className="text-sm whitespace-pre-wrap">{m.message}</div>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-sm text-muted-foreground">No replies yet</div>
-                            )}
-                            {/* Auto-scroll anchor */}
-                            <div ref={messagesEndRef} />
-                          </div>
-                        </div>
-                        <div className="pt-3 border-t border">
-                          <label className="block text-sm font-medium text-muted-foreground mb-1">Reply</label>
-                          <textarea
-                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                            rows={3}
-                            value={replyMessage}
-                            onChange={(e) => setReplyMessage(e.target.value)}
-                            placeholder="Type your response to the client"
-                          />
-                          <div className="mt-2">
-                            <button
-                              onClick={sendReply}
-                              disabled={!replyMessage.trim()}
-                              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50"
-                            >
-                              Send Reply
-                            </button>
-                            <button
-                              onClick={() => setSelectedTicket(null)}
-                              className="ml-2 inline-flex items-center px-4 py-2 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </TabsContent>
 
-        {activeTab === 'plans' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-gray-400 " />
-                <h2 className="text-lg font-medium text-foreground">VPS Plans</h2>
-              </div>
-              <button
-                onClick={() => setShowAddVPSPlan(true)}
-                className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add New VPS Plan
-              </button>
-            </div>
-            <div className="px-6 py-4">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider Plan ID</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Base Price</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Markup Price</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card divide-y divide-border">
-                    {plans.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No plans available</td>
-                      </tr>
-                    ) : (
-                      plans.map(plan => (
-                        <tr key={plan.id}>
-                          <td className="px-4 py-2">
-                            {editPlanId === plan.id ? (
-                              <input
-                                type="text"
-                                className="w-64 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                value={(editPlan.name as string | undefined) ?? plan.name}
-                                onChange={(e) => setEditPlan(prev => ({ ...prev, name: e.target.value }))}
-                              />
-                            ) : (
-                              <span className="text-sm text-foreground">{plan.name}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-muted-foreground">{plan.provider_plan_id}</td>
-                          <td className="px-4 py-2">
-                            {editPlanId === plan.id ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="w-28 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                value={editPlan.base_price as number | undefined ?? plan.base_price}
-                                onChange={(e) => setEditPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
-                              />
-                            ) : (
-                              <span className="text-sm text-muted-foreground">${Number(plan.base_price).toFixed(2)}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2">
-                            {editPlanId === plan.id ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="w-28 rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                value={editPlan.markup_price as number | undefined ?? plan.markup_price}
-                                onChange={(e) => setEditPlan(prev => ({ ...prev, markup_price: parseFloat(e.target.value) }))}
-                              />
-                            ) : (
-                              <span className="text-sm text-muted-foreground">${Number(plan.markup_price).toFixed(2)}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2">
-                            {editPlanId === plan.id ? (
-                              <select
-                                className="rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                value={(editPlan.active as boolean | undefined ?? plan.active) ? 'true' : 'false'}
-                                onChange={(e) => setEditPlan(prev => ({ ...prev, active: e.target.value === 'true' }))}
+            <TabsContent value="tickets">
+              <div className="bg-card shadow sm:rounded-lg">
+                <div className="px-6 py-4 border-b border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ClipboardList className="h-5 w-5 text-gray-400 " />
+                    <h2 className="text-lg font-medium text-foreground">Support Tickets</h2>
+                  </div>
+                  <div>
+                    <Select value={statusFilter} onValueChange={value => setStatusFilter(value as typeof statusFilter)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Filter status" />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <ul className="divide-y divide-border">
+                        {filteredTickets.length === 0 ? (
+                          <li className="px-4 py-10 text-center text-muted-foreground">No tickets found</li>
+                        ) : (
+                          filteredTickets.map(t => (
+                            <li key={t.id}>
+                              <button
+                                className="w-full text-left px-4 py-3 hover:bg-secondary/80"
+                                onClick={() => openTicket(t)}
                               >
-                                <option value="true">Active</option>
-                                <option value="false">Inactive</option>
-                              </select>
-                            ) : (
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${plan.active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-secondary '}`}>
-                                {plan.active ? 'Active' : 'Inactive'}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            {editPlanId === plan.id ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={savePlan}
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => { setEditPlanId(null); setEditPlan({}); }}
-                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
-                                >
-                                  Cancel
-                                </button>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-foreground">{t.subject}</div>
+                                    <div className="text-sm text-muted-foreground">{t.category} • {new Date(t.created_at).toLocaleString()}</div>
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn('capitalize', TICKET_STATUS_META[t.status].className)}
+                                  >
+                                    {TICKET_STATUS_META[t.status].label}
+                                  </Badge>
+                                </div>
+                              </button>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                    <div>
+                      {!selectedTicket ? (
+                        <div className="px-4 py-10 text-center text-muted-foreground">
+                          Select a ticket to view details
+                        </div>
+                      ) : (
+                        <div className="border border rounded-md">
+                          <div className="px-4 py-3 border-b border">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-lg font-semibold text-foreground">{selectedTicket.subject}</span>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn('capitalize', TICKET_STATUS_META[selectedTicket.status].className)}
+                                  >
+                                    {TICKET_STATUS_META[selectedTicket.status].label}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                  <span>{selectedTicket.category}</span>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn('capitalize', TICKET_PRIORITY_META[selectedTicket.priority].className)}
+                                  >
+                                    {TICKET_PRIORITY_META[selectedTicket.priority].label}
+                                  </Badge>
+                                </div>
                               </div>
-                            ) : (
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center gap-2">
+                                {selectedTicket.status !== 'open' && (
+                                  <button
+                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-green-300 dark:border-green-600 bg-secondary text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900"
+                                    onClick={() => updateTicketStatus(selectedTicket.id, 'open')}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-1" /> Re-open
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => { setEditPlanId(plan.id); setEditPlan({ name: plan.name, base_price: plan.base_price, markup_price: plan.markup_price, active: plan.active }); }}
                                   className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
+                                  onClick={() => updateTicketStatus(selectedTicket.id, 'in_progress')}
                                 >
-                                  <Edit className="h-4 w-4 mr-1" /> Edit
+                                  <AlertCircle className="h-4 w-4 mr-1" /> In Progress
                                 </button>
                                 <button
-                                  onClick={() => setDeletePlanId(plan.id)}
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
+                                  onClick={() => updateTicketStatus(selectedTicket.id, 'resolved')}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" /> Resolve
+                                </button>
+                                <button
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80"
+                                  onClick={() => closeTicket(selectedTicket.id)}
+                                >
+                                  <X className="h-4 w-4 mr-1" /> Close
+                                </button>
+                                <button
                                   className="inline-flex items-center px-3 py-1 rounded-md text-sm border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-secondary hover:bg-red-50 dark:hover:bg-red-900"
+                                  onClick={() => setDeleteTicketId(selectedTicket.id)}
                                 >
                                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                                 </button>
                               </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Add New VPS Plan Modal */}
-              {showAddVPSPlan && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                  <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-                    <div className="mt-3">
-                      <h3 className="text-lg font-medium text-foreground mb-4">Add New VPS Plan</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-muted-foreground mb-1">
-                            Name
-                          </label>
-                          <input
-                            type="text"
-                            value={newVPSPlan.name}
-                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                            placeholder="e.g. US-East 4GB Standard"
-                          />
+                            </div>
+                          </div>
+                          <div className="px-4 py-3 space-y-3">
+                            <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedTicket.message}</div>
+                            <div className="max-h-96 overflow-y-auto">
+                              <div className="space-y-3">
+                                {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
+                                  selectedTicket.messages.map((m) => (
+                                    <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                      <div className={`${m.sender_type === 'admin' ? 'bg-blue-600 text-white' : 'bg-secondary text-foreground'} max-w-xs lg:max-w-md px-3 py-2 rounded-lg`}>
+                                        <div className="text-xs opacity-80 mb-1">
+                                          <span className="font-medium mr-2">{m.sender_name}</span>
+                                          <span>{new Date(m.created_at).toLocaleString()}</span>
+                                        </div>
+                                        <div className="text-sm whitespace-pre-wrap">{m.message}</div>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-sm text-muted-foreground">No replies yet</div>
+                                )}
+                                <div ref={messagesEndRef} />
+                              </div>
+                            </div>
+                            <div className="pt-3 border-t border">
+                              <label className="block text-sm font-medium text-muted-foreground mb-1">Reply</label>
+                              <Textarea
+                                rows={3}
+                                value={replyMessage}
+                                onChange={(e) => setReplyMessage(e.target.value)}
+                                placeholder="Type your response to the client"
+                              />
+                              <div className="mt-2 flex items-center gap-2">
+                                <Button onClick={sendReply} disabled={!replyMessage.trim()}>
+                                  Send Reply
+                                </Button>
+                                <Button variant="ghost" onClick={() => setSelectedTicket(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-muted-foreground mb-1">
-                            Linode Plan Type
-                          </label>
-                          <select
-                            value={newVPSPlan.selectedType}
-                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, selectedType: e.target.value }))}
-                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                          >
-                            <option value="">Select a plan type</option>
-                            {linodeTypes.map(type => (
-                              <option key={type.id} value={type.id}>
-                                {type.label} - {type.vcpus} vCPUs, {type.memory}MB RAM, {Math.round(type.disk / 1024)}GB Storage - ${type.price.monthly}/mo
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-muted-foreground mb-1">
-                            Region
-                          </label>
-                          <select
-                            value={newVPSPlan.selectedRegion}
-                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, selectedRegion: e.target.value }))}
-                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                            disabled={allowedLinodeRegions.length === 0}
-                          >
-                            <option value="">Select a region</option>
-                            {allowedLinodeRegions.map(region => (
-                              <option key={region.id} value={region.id}>
-                                {region.label} ({region.country})
-                              </option>
-                            ))}
-                          </select>
-                          {allowedLinodeRegions.length === 0 && (
-                            <p className="mt-1 text-sm text-muted-foreground">No regions available. Check Linode API token or network.</p>
-                          )}
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-muted-foreground mb-1">
-                            Markup Price (USD)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={newVPSPlan.markupPrice}
-                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, markupPrice: parseFloat(e.target.value) || 0 }))}
-                            className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                            placeholder="0.00"
-                          />
-                        </div>
-                        
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id="active"
-                            checked={newVPSPlan.active}
-                            onChange={(e) => setNewVPSPlan(prev => ({ ...prev, active: e.target.checked }))}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border rounded"
-                          />
-                          <label htmlFor="active" className="ml-2 block text-sm text-foreground">
-                            Active
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-end gap-3 mt-6">
-                        <button
-                          onClick={() => {
-                            setShowAddVPSPlan(false);
-                            setNewVPSPlan({
-                              name: '',
-                              selectedType: '',
-                              selectedRegion: '',
-                              markupPrice: 0,
-                              active: true
-                            });
-                          }}
-                          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={createVPSPlan}
-                          disabled={!newVPSPlan.selectedType || !newVPSPlan.selectedRegion}
-                          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 border border-transparent rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Create Plan
-                        </button>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'stackscripts' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileCode className="h-5 w-5 text-gray-400 " />
-                <h2 className="text-lg font-medium text-foreground">Manage StackScripts</h2>
               </div>
-              <button
-                onClick={fetchStackscriptsAndConfigs}
-                disabled={loadingStackscripts}
-                className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+            </TabsContent>
+
+            <TabsContent value="plans">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-b-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                      <DollarSign className="h-5 w-5 text-muted-foreground" />
+                      VPS Plans
+                    </CardTitle>
+                    <CardDescription>Curate what customers see when provisioning infrastructure.</CardDescription>
+                  </div>
+                  <Button onClick={() => setShowAddVPSPlan(true)} className="gap-2">
+                    <Plus className="h-4 w-4" /> Add VPS Plan
+                  </Button>
+                </CardHeader>
+                <CardContent className="px-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[12rem]">Name</TableHead>
+                          <TableHead className="min-w-[10rem]">Provider Plan ID</TableHead>
+                          <TableHead className="min-w-[8rem]">Base Price</TableHead>
+                          <TableHead className="min-w-[8rem]">Markup</TableHead>
+                          <TableHead className="w-32">Active</TableHead>
+                          <TableHead className="w-36 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {plans.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                              No plans available
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          plans.map(plan => {
+                            const isEditing = editPlanId === plan.id;
+
+                            return (
+                              <TableRow key={plan.id} className="align-top">
+                                <TableCell>
+                                  {isEditing ? (
+                                    <Input
+                                      value={(editPlan.name as string | undefined) ?? plan.name}
+                                      onChange={(e) => setEditPlan(prev => ({ ...prev, name: e.target.value }))}
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    <span className="text-sm text-foreground">{plan.name}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground">{plan.provider_plan_id}</span>
+                                </TableCell>
+                                <TableCell>
+                                  {isEditing ? (
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={editPlan.base_price as number | undefined ?? plan.base_price}
+                                      onChange={(e) => setEditPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
+                                      className="max-w-[8rem]"
+                                    />
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">${Number(plan.base_price).toFixed(2)}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {isEditing ? (
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={editPlan.markup_price as number | undefined ?? plan.markup_price}
+                                      onChange={(e) => setEditPlan(prev => ({ ...prev, markup_price: parseFloat(e.target.value) }))}
+                                      className="max-w-[8rem]"
+                                    />
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">${Number(plan.markup_price).toFixed(2)}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {isEditing ? (
+                                    <div className="flex items-center gap-2">
+                                      <Switch
+                                        checked={(editPlan.active as boolean | undefined) ?? plan.active}
+                                        onCheckedChange={(checked) => setEditPlan(prev => ({ ...prev, active: checked }))}
+                                      />
+                                      <span className="text-xs text-muted-foreground">{((editPlan.active as boolean | undefined) ?? plan.active) ? 'Active' : 'Inactive'}</span>
+                                    </div>
+                                  ) : (
+                                    <Badge variant={plan.active ? 'default' : 'secondary'}>{plan.active ? 'Active' : 'Inactive'}</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {isEditing ? (
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" onClick={savePlan}>
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setEditPlanId(null);
+                                          setEditPlan({});
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setEditPlanId(plan.id);
+                                          setEditPlan({
+                                            name: plan.name,
+                                            base_price: plan.base_price,
+                                            markup_price: plan.markup_price,
+                                            active: plan.active,
+                                          });
+                                        }}
+                                        className="gap-1"
+                                      >
+                                        <Edit className="h-4 w-4" /> Edit
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => setDeletePlanId(plan.id)}
+                                        className="gap-1"
+                                      >
+                                        <Trash2 className="h-4 w-4" /> Delete
+                                      </Button>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Dialog
+                open={showAddVPSPlan}
+                onOpenChange={(open) => {
+                  setShowAddVPSPlan(open);
+                  if (!open) {
+                    setNewVPSPlan({
+                      name: '',
+                      selectedType: '',
+                      selectedRegion: '',
+                      markupPrice: 0,
+                      active: true,
+                    });
+                  }
+                }}
               >
-                <RefreshCw className="h-4 w-4 inline mr-1" />
-                {loadingStackscripts ? 'Refreshing…' : 'Refresh'}
-              </button>
-            </div>
-            <div className="px-6 py-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                Configure which Linode StackScripts appear on the VPS creation page. Only enabled scripts will be shown to users.
-              </p>
-              
-              {/* Search filter */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Search StackScripts..."
-                  value={stackscriptSearch}
-                  onChange={(e) => setStackscriptSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground"
+                <DialogContent className="max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Create VPS Plan</DialogTitle>
+                    <DialogDescription>
+                      Pair your markup with a Linode type and region. Customers will see it instantly once active.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="plan-name">Display name</Label>
+                      <Input
+                        id="plan-name"
+                        placeholder="e.g. Premium 4GB - Newark"
+                        value={newVPSPlan.name}
+                        onChange={(e) => setNewVPSPlan(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Linode plan type</Label>
+                      <Select
+                        value={newVPSPlan.selectedType}
+                        onValueChange={(value) => setNewVPSPlan(prev => ({ ...prev, selectedType: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a plan type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {linodeTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.label} · {type.vcpus} vCPU · {type.memory}MB RAM · {Math.round(type.disk / 1024)}GB Disk · ${type.price.monthly}/mo
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Region</Label>
+                      <Select
+                        value={newVPSPlan.selectedRegion}
+                        onValueChange={(value) => setNewVPSPlan(prev => ({ ...prev, selectedRegion: value }))}
+                      >
+                        <SelectTrigger disabled={allowedLinodeRegions.length === 0}>
+                          <SelectValue placeholder="Select a region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allowedLinodeRegions.map((region) => (
+                            <SelectItem key={region.id} value={region.id}>
+                              {region.label} ({region.country})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {allowedLinodeRegions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No regions available. Check your provider configuration.</p>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="plan-markup">Markup (USD)</Label>
+                      <Input
+                        id="plan-markup"
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={Number.isFinite(newVPSPlan.markupPrice) ? newVPSPlan.markupPrice : 0}
+                        onChange={(e) => setNewVPSPlan(prev => ({ ...prev, markupPrice: Number(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Enabled for customers</p>
+                        <p className="text-xs text-muted-foreground">Toggle off to hide this plan without deleting it.</p>
+                      </div>
+                      <Switch
+                        checked={newVPSPlan.active}
+                        onCheckedChange={(checked) => setNewVPSPlan(prev => ({ ...prev, active: checked }))}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddVPSPlan(false);
+                        setNewVPSPlan({
+                          name: '',
+                          selectedType: '',
+                          selectedRegion: '',
+                          markupPrice: 0,
+                          active: true,
+                        });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={createVPSPlan}
+                      disabled={!newVPSPlan.selectedType || !newVPSPlan.selectedRegion}
+                    >
+                      Create Plan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+
+            <TabsContent value="stackscripts">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-border pb-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <FileCode className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <CardTitle className="text-lg font-semibold text-foreground">Manage StackScripts</CardTitle>
+                        <CardDescription>
+                          Configure which scripts show up when organizations provision new VPS instances.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchStackscriptsAndConfigs}
+                      disabled={loadingStackscripts}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      {loadingStackscripts ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="stackscript-search">Search StackScripts</Label>
+                    <Input
+                      id="stackscript-search"
+                      placeholder="Search StackScripts by name or description"
+                      value={stackscriptSearch}
+                      onChange={(e) => setStackscriptSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    {loadingStackscripts ? (
+                      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                        Loading StackScripts…
+                      </div>
+                    ) : filteredAvailableStackscripts.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                        No StackScripts match your search.
+                      </div>
+                    ) : (
+                      filteredAvailableStackscripts.map((script) => {
+                        const config = stackscriptConfigs.find((c) => c.stackscript_id === script.id);
+                        const draft = stackscriptDrafts[script.id] || {
+                          label: config?.label || script.label,
+                          description: config?.description || script.description || '',
+                          display_order: config?.display_order ?? 0,
+                          is_enabled: config?.is_enabled ?? false,
+                        };
+                        const hasChanges = config && (
+                          draft.label !== (config.label || script.label) ||
+                          draft.description !== (config.description || '') ||
+                          draft.display_order !== config.display_order ||
+                          draft.is_enabled !== config.is_enabled
+                        );
+                        const isNew = !config;
+
+                        return (
+                          <div key={script.id} className="rounded-lg border border-border bg-muted/40 p-4">
+                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                              <div className="flex items-start gap-3 lg:col-span-2">
+                                <Checkbox
+                                  id={`stackscript-${script.id}`}
+                                  checked={draft.is_enabled}
+                                  onCheckedChange={(checked) => {
+                                    const updated = { ...draft, is_enabled: Boolean(checked) };
+                                    setStackscriptDrafts((prev) => ({ ...prev, [script.id]: updated }));
+                                  }}
+                                />
+                                <div className="space-y-2">
+                                  <Label htmlFor={`stackscript-${script.id}`} className="text-sm font-medium text-foreground">
+                                    {script.label}
+                                  </Label>
+                                  <Badge variant={draft.is_enabled ? 'default' : 'secondary'}>
+                                    {draft.is_enabled ? 'Enabled' : 'Hidden'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="space-y-3 lg:col-span-7">
+                                <div className="grid gap-2">
+                                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Display Label</Label>
+                                  <Input
+                                    value={draft.label}
+                                    onChange={(e) => {
+                                      const updated = { ...draft, label: e.target.value };
+                                      setStackscriptDrafts((prev) => ({ ...prev, [script.id]: updated }));
+                                    }}
+                                    placeholder={script.label}
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Description</Label>
+                                  <Textarea
+                                    value={draft.description}
+                                    onChange={(e) => {
+                                      const updated = { ...draft, description: e.target.value };
+                                      setStackscriptDrafts((prev) => ({ ...prev, [script.id]: updated }));
+                                    }}
+                                    placeholder={script.description || 'No description'}
+                                    rows={2}
+                                  />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  ID {script.id} • Images {script.images?.map((img: string) => img.replace(/^linode\//i, '')).join(', ') || 'Any'}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-3 lg:col-span-3">
+                                <div className="grid gap-2">
+                                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Display order</Label>
+                                  <Input
+                                    type="number"
+                                    value={draft.display_order}
+                                    onChange={(e) => {
+                                      const updated = { ...draft, display_order: Number(e.target.value) };
+                                      setStackscriptDrafts((prev) => ({ ...prev, [script.id]: updated }));
+                                    }}
+                                  />
+                                </div>
+                                <Button
+                                  onClick={() => saveStackscriptConfig(script.id, draft)}
+                                  disabled={savingStackscriptId === script.id || (!hasChanges && !isNew)}
+                                >
+                                  {savingStackscriptId === script.id ? 'Saving…' : isNew ? 'Save & Enable' : 'Save changes'}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="containers">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                      <Server className="h-5 w-5 text-muted-foreground" />
+                      Container Pricing
+                    </CardTitle>
+                    <CardDescription>
+                      Tune the smart pricing formula that powers container-based workloads.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="price-per-cpu">Per CPU</Label>
+                        <Input
+                          id="price-per-cpu"
+                          type="number"
+                          step="0.01"
+                          value={pricing.price_per_cpu}
+                          onChange={(e) => setPricing((p) => ({ ...p, price_per_cpu: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price-per-ram">Per RAM GB</Label>
+                        <Input
+                          id="price-per-ram"
+                          type="number"
+                          step="0.01"
+                          value={pricing.price_per_ram_gb}
+                          onChange={(e) => setPricing((p) => ({ ...p, price_per_ram_gb: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price-per-storage">Per Storage GB</Label>
+                        <Input
+                          id="price-per-storage"
+                          type="number"
+                          step="0.01"
+                          value={pricing.price_per_storage_gb}
+                          onChange={(e) => setPricing((p) => ({ ...p, price_per_storage_gb: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price-per-mbps">Per Mbps</Label>
+                        <Input
+                          id="price-per-mbps"
+                          type="number"
+                          step="0.01"
+                          value={pricing.price_per_network_mbps}
+                          onChange={(e) => setPricing((p) => ({ ...p, price_per_network_mbps: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pricing-currency">Currency</Label>
+                        <Input
+                          id="pricing-currency"
+                          value={pricing.currency}
+                          onChange={(e) => setPricing((p) => ({ ...p, currency: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button variant="outline" onClick={savePricing} className="gap-2">
+                      Save Pricing
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                <Card>
+                  <CardHeader className="gap-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg font-semibold text-foreground">Container Plans</CardTitle>
+                        <CardDescription>
+                          Build opinionated presets for lightweight container workloads.
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="rounded-lg border border-border bg-muted/40 p-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="container-plan-name">Name</Label>
+                          <Input
+                            id="container-plan-name"
+                            placeholder="Plan name"
+                            value={newContainerPlan.name as string}
+                            onChange={(e) => setNewContainerPlan((p) => ({ ...p, name: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="container-plan-cpu">CPU Cores</Label>
+                          <Input
+                            id="container-plan-cpu"
+                            type="number"
+                            min={1}
+                            value={newContainerPlan.cpu_cores as number}
+                            onChange={(e) => setNewContainerPlan((p) => ({ ...p, cpu_cores: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="container-plan-ram">RAM (GB)</Label>
+                          <Input
+                            id="container-plan-ram"
+                            type="number"
+                            min={1}
+                            value={newContainerPlan.ram_gb as number}
+                            onChange={(e) => setNewContainerPlan((p) => ({ ...p, ram_gb: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="container-plan-storage">Storage (GB)</Label>
+                          <Input
+                            id="container-plan-storage"
+                            type="number"
+                            min={1}
+                            value={newContainerPlan.storage_gb as number}
+                            onChange={(e) => setNewContainerPlan((p) => ({ ...p, storage_gb: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="container-plan-network">Network (Mbps)</Label>
+                          <Input
+                            id="container-plan-network"
+                            type="number"
+                            min={0}
+                            value={newContainerPlan.network_mbps as number}
+                            onChange={(e) => setNewContainerPlan((p) => ({ ...p, network_mbps: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button className="w-full gap-2" onClick={createContainerPlan}>
+                            <Plus className="h-4 w-4" />
+                            Add Plan
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>CPU</TableHead>
+                            <TableHead>RAM</TableHead>
+                            <TableHead>Storage</TableHead>
+                            <TableHead>Network</TableHead>
+                            <TableHead>Estimated Price</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {containerPlans.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                                No container plans have been created yet.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            containerPlans.map((plan) => (
+                              <TableRow key={plan.id}>
+                                <TableCell className="font-medium text-foreground">{plan.name}</TableCell>
+                                <TableCell>{plan.cpu_cores}</TableCell>
+                                <TableCell>{plan.ram_gb} GB</TableCell>
+                                <TableCell>{plan.storage_gb} GB</TableCell>
+                                <TableCell>{plan.network_mbps} Mbps</TableCell>
+                                <TableCell>${computeContainerPlanPrice(plan).toFixed(2)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={plan.active ? 'default' : 'secondary'}>
+                                    {plan.active ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditContainerPlanId(plan.id);
+                                        setEditContainerPlan(plan);
+                                      }}
+                                      className="gap-1"
+                                    >
+                                      <Edit className="h-4 w-4" /> Edit
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => setDeleteContainerPlanId(plan.id)}
+                                      className="gap-1"
+                                    >
+                                      <Trash2 className="h-4 w-4" /> Delete
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="networking">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    Networking Controls
+                  </CardTitle>
+                  <CardDescription>
+                    Configure reverse DNS defaults and other networking guardrails.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={networkingTab} onValueChange={(value) => setNetworkingTab(value as typeof networkingTab)}>
+                    <TabsList>
+                      <TabsTrigger value="rdns">Reverse DNS</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="rdns" className="space-y-6 pt-6">
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground">Reverse DNS Template</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Define the base domain used when setting custom rDNS for VPS instances. If unset, the system
+                            falls back to <span className="font-mono">ip.rev.skyvps360.xyz</span>.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="rdns-domain">rDNS base domain</Label>
+                            <Input
+                              id="rdns-domain"
+                              value={rdnsBaseDomain}
+                              onChange={(e) => setRdnsBaseDomain(e.target.value)}
+                              placeholder="ip.rev.skyvps360.xyz"
+                              disabled={rdnsLoading}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Example final rDNS: <span className="font-mono">123-45-67-89.{rdnsBaseDomain || 'ip.rev.skyvps360.xyz'}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={saveNetworkingRdns}
+                            disabled={rdnsSaving || rdnsLoading}
+                            className="gap-2"
+                          >
+                            {rdnsSaving ? 'Saving…' : 'Save rDNS Template'}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="providers">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <Settings className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <CardTitle className="text-lg font-semibold text-foreground">Service Providers</CardTitle>
+                      <CardDescription>Bring your own infrastructure credentials and control access centrally.</CardDescription>
+                    </div>
+                  </div>
+                  <Button onClick={() => setShowAddProvider(true)} className="gap-2">
+                    <Plus className="h-4 w-4" /> Add Provider
+                  </Button>
+                </CardHeader>
+                <CardContent className="px-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {providers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                              No providers configured yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          providers.map((provider) => (
+                            <TableRow key={provider.id}>
+                              <TableCell className="font-medium text-foreground">{provider.name}</TableCell>
+                              <TableCell className="capitalize text-muted-foreground">{provider.type}</TableCell>
+                              <TableCell>
+                                <Badge variant={provider.active ? 'default' : 'secondary'}>
+                                  {provider.active ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditProviderId(provider.id);
+                                      setEditProvider(provider);
+                                    }}
+                                    className="gap-1"
+                                  >
+                                    <Edit className="h-4 w-4" /> Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => setDeleteProviderId(provider.id)}
+                                    className="gap-1"
+                                  >
+                                    <Trash2 className="h-4 w-4" /> Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Dialog
+                open={showAddProvider}
+                onOpenChange={(open) => {
+                  setShowAddProvider(open);
+                  if (!open) {
+                    setNewProvider({
+                      name: '',
+                      type: '',
+                      apiKey: '',
+                      active: true,
+                    });
+                  }
+                }}
+              >
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Service Provider</DialogTitle>
+                    <DialogDescription>
+                      Save provider credentials securely. Only active providers can be used for new workloads.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="provider-name">Name</Label>
+                      <Input
+                        id="provider-name"
+                        placeholder="e.g. Linode"
+                        value={newProvider.name}
+                        onChange={(e) => setNewProvider((prev) => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="provider-type">Type</Label>
+                      <Select
+                        value={newProvider.type}
+                        onValueChange={(value) => setNewProvider((prev) => ({ ...prev, type: value }))}
+                      >
+                        <SelectTrigger id="provider-type">
+                          <SelectValue placeholder="Select provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="linode">Linode</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="provider-key">API Key</Label>
+                      <Input
+                        id="provider-key"
+                        type="password"
+                        placeholder="Enter API key"
+                        value={newProvider.apiKey}
+                        onChange={(e) => setNewProvider((prev) => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Active</p>
+                        <p className="text-xs text-muted-foreground">Inactive providers stay stored but hidden from provisioning.</p>
+                      </div>
+                      <Switch
+                        checked={newProvider.active}
+                        onCheckedChange={(checked) => setNewProvider((prev) => ({ ...prev, active: checked }))}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddProvider(false);
+                        setNewProvider({
+                          name: '',
+                          type: '',
+                          apiKey: '',
+                          active: true,
+                        });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={createProvider} disabled={!newProvider.name || !newProvider.type || !newProvider.apiKey}>
+                      Add Provider
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+
+          </div>
+        </div>
+      </Tabs>
+
+        <Dialog
+          open={Boolean(editContainerPlanId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditContainerPlanId(null);
+              setEditContainerPlan({});
+            }
+          }}
+        >
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Edit Container Plan</DialogTitle>
+              <DialogDescription>Adjust resources and visibility for this container preset.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-container-name">Name</Label>
+                <Input
+                  id="edit-container-name"
+                  value={(editContainerPlan.name as string) || ''}
+                  onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, name: e.target.value }))}
                 />
               </div>
-
-              <div className="space-y-3">
-                {loadingStackscripts ? (
-                  <div className="text-sm text-muted-foreground">Loading StackScripts…</div>
-                ) : filteredAvailableStackscripts.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No StackScripts match your search.</div>
-                ) : (
-                  filteredAvailableStackscripts.map(script => {
-                    const config = stackscriptConfigs.find(c => c.stackscript_id === script.id);
-                    const draft = stackscriptDrafts[script.id] || {
-                      label: config?.label || script.label,
-                      description: config?.description || script.description || '',
-                      display_order: config?.display_order ?? 0,
-                      is_enabled: config?.is_enabled ?? false
-                    };
-                    const hasChanges = config && (
-                      draft.label !== (config.label || script.label) ||
-                      draft.description !== (config.description || '') ||
-                      draft.display_order !== config.display_order ||
-                      draft.is_enabled !== config.is_enabled
-                    );
-                    const isNew = !config;
-
-                    return (
-                      <div key={script.id} className="border border rounded-lg p-4">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                          {/* Checkbox and badge */}
-                          <div className="lg:col-span-1 flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={draft.is_enabled}
-                              onChange={(e) => {
-                                const updated = { ...draft, is_enabled: e.target.checked };
-                                setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
-                              }}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            {draft.is_enabled && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                                Enabled
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Script info and inputs */}
-                          <div className="lg:col-span-9 space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-muted-foreground mb-1">Display Label</label>
-                              <input
-                                type="text"
-                                value={draft.label}
-                                onChange={(e) => {
-                                  const updated = { ...draft, label: e.target.value };
-                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
-                                }}
-                                placeholder={script.label}
-                                className="w-full px-3 py-1.5 text-sm border border rounded-md bg-secondary text-foreground"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
-                              <input
-                                type="text"
-                                value={draft.description}
-                                onChange={(e) => {
-                                  const updated = { ...draft, description: e.target.value };
-                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
-                                }}
-                                placeholder={script.description || 'No description'}
-                                className="w-full px-3 py-1.5 text-sm border border rounded-md bg-secondary text-foreground"
-                              />
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              ID: {script.id} • Images: {script.images?.map((img: string) => img.replace(/^linode\//i, '')).join(', ') || 'Any'}
-                            </div>
-                          </div>
-
-                          {/* Display order and save button */}
-                          <div className="lg:col-span-2 flex flex-col gap-2">
-                            <div>
-                              <label className="block text-xs font-medium text-muted-foreground mb-1">Order</label>
-                              <input
-                                type="number"
-                                value={draft.display_order}
-                                onChange={(e) => {
-                                  const updated = { ...draft, display_order: Number(e.target.value) };
-                                  setStackscriptDrafts(prev => ({ ...prev, [script.id]: updated }));
-                                }}
-                                className="w-full px-2 py-1 text-sm border border rounded-md bg-secondary text-foreground"
-                              />
-                            </div>
-                            <button
-                              onClick={() => saveStackscriptConfig(script.id, draft)}
-                              disabled={savingStackscriptId === script.id || (!hasChanges && !isNew)}
-                              className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                                hasChanges || isNew
-                                  ? 'text-white bg-primary hover:bg-primary/90'
-                                  : 'text-gray-400 bg-muted cursor-not-allowed'
-                              }`}
-                            >
-                              {savingStackscriptId === script.id ? 'Saving...' : 'Save'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-container-cpu">CPU Cores</Label>
+                  <Input
+                    id="edit-container-cpu"
+                    type="number"
+                    min={1}
+                    value={editContainerPlan.cpu_cores ?? ''}
+                    onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, cpu_cores: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-container-ram">RAM (GB)</Label>
+                  <Input
+                    id="edit-container-ram"
+                    type="number"
+                    min={1}
+                    value={editContainerPlan.ram_gb ?? ''}
+                    onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, ram_gb: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-container-storage">Storage (GB)</Label>
+                  <Input
+                    id="edit-container-storage"
+                    type="number"
+                    min={1}
+                    value={editContainerPlan.storage_gb ?? ''}
+                    onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, storage_gb: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-container-network">Network (Mbps)</Label>
+                  <Input
+                    id="edit-container-network"
+                    type="number"
+                    min={0}
+                    value={editContainerPlan.network_mbps ?? ''}
+                    onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, network_mbps: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-container-price">Price (USD)</Label>
+                <Input
+                  id="edit-container-price"
+                  type="number"
+                  step="0.01"
+                  value={editContainerPlan.base_price ?? ''}
+                  onChange={(e) => setEditContainerPlan((prev) => ({ ...prev, base_price: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Active</p>
+                  <p className="text-xs text-muted-foreground">Toggle visibility without deleting the plan.</p>
+                </div>
+                <Switch
+                  checked={Boolean(editContainerPlan.active ?? false)}
+                  onCheckedChange={(checked) => setEditContainerPlan((prev) => ({ ...prev, active: checked }))}
+                />
               </div>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'containers' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Server className="h-5 w-5 text-gray-400 " />
-                <h2 className="text-lg font-medium text-foreground">Container Pricing & Plans</h2>
-              </div>
-            </div>
-            <div className="px-6 py-4 space-y-6">
-              <div>
-                <h3 className="text-md font-medium text-foreground mb-3">Pricing Configuration</h3>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per CPU</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_cpu}
-                      onChange={e => setPricing(p => ({ ...p, price_per_cpu: Number(e.target.value) }))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per RAM GB</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_ram_gb}
-                      onChange={e => setPricing(p => ({ ...p, price_per_ram_gb: Number(e.target.value) }))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per Storage GB</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_storage_gb}
-                      onChange={e => setPricing(p => ({ ...p, price_per_storage_gb: Number(e.target.value) }))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Per Mbps</label>
-                    <input type="number" step="0.01" className="w-full rounded-md border bg-secondary text-foreground" value={pricing.price_per_network_mbps}
-                      onChange={e => setPricing(p => ({ ...p, price_per_network_mbps: Number(e.target.value) }))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Currency</label>
-                    <input className="w-full rounded-md border bg-secondary text-foreground" value={pricing.currency}
-                      onChange={e => setPricing(p => ({ ...p, currency: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <button className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80" onClick={savePricing}>Save Pricing</button>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-md font-medium text-foreground">Container Plans</h3>
-                </div>
-                <div className="border border rounded-md p-4 bg-muted mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
-                      <input className="w-full rounded-md border bg-card text-foreground" placeholder="Plan name" value={newContainerPlan.name as string}
-                        onChange={e => setNewContainerPlan(p => ({ ...p, name: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">CPU Cores</label>
-                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="1" value={newContainerPlan.cpu_cores as number}
-                        onChange={e => setNewContainerPlan(p => ({ ...p, cpu_cores: Number(e.target.value) }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">RAM (GB)</label>
-                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="1" value={newContainerPlan.ram_gb as number}
-                        onChange={e => setNewContainerPlan(p => ({ ...p, ram_gb: Number(e.target.value) }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Storage (GB)</label>
-                      <input type="number" min={1} className="w-full rounded-md border bg-card text-foreground" placeholder="10" value={newContainerPlan.storage_gb as number}
-                        onChange={e => setNewContainerPlan(p => ({ ...p, storage_gb: Number(e.target.value) }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Network (Mbps)</label>
-                      <input type="number" min={0} className="w-full rounded-md border bg-card text-foreground" placeholder="0" value={newContainerPlan.network_mbps as number}
-                        onChange={e => setNewContainerPlan(p => ({ ...p, network_mbps: Number(e.target.value) }))} />
-                    </div>
-                    <div className="flex items-end">
-                      <button className="w-full inline-flex items-center justify-center px-3 py-2 rounded-md text-sm border border bg-card text-foreground hover:bg-secondary/80" onClick={createContainerPlan}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Plan
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-border">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">CPU</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RAM</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Storage</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Network</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Price</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
-                        <th className="px-4 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-card divide-y divide-border">
-                      {containerPlans.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No container plans</td>
-                        </tr>
-                      ) : (
-                        containerPlans.map(p => (
-                          <tr key={p.id}>
-                            <td className="px-4 py-2 text-sm text-foreground">{p.name}</td>
-                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.cpu_cores}</td>
-                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.ram_gb} GB</td>
-                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.storage_gb} GB</td>
-                            <td className="px-4 py-2 text-sm text-muted-foreground">{p.network_mbps} Mbps</td>
-                            <td className="px-4 py-2 text-sm text-muted-foreground">${computeContainerPlanPrice(p).toFixed(2)}</td>
-                            <td className="px-4 py-2 text-sm">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground'}`}>{p.active ? 'Active' : 'Inactive'}</span>
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => { setEditContainerPlanId(p.id); setEditContainerPlan(p); }}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-secondary/80"
-                                >
-                                  <Edit className="h-3 w-3 mr-1" /> Edit
-                                </button>
-                                <button
-                                  onClick={() => setDeleteContainerPlanId(p.id)}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20"
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" /> Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'networking' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Globe className="h-5 w-5 text-gray-400 " />
-                <h2 className="text-lg font-medium text-foreground">Networking</h2>
-              </div>
-            </div>
-            <div className="px-6 py-4">
-              {/* Subtabs */}
-              <div className="mb-4 border-b border">
-                <nav className="-mb-px flex space-x-4" aria-label="Networking Tabs">
-                  <button
-                    onClick={() => setNetworkingTab('rdns')}
-                    className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${
-                      networkingTab === 'rdns' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-muted-foreground hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    rDNS
-                  </button>
-                </nav>
-              </div>
-
-              {networkingTab === 'rdns' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-md font-medium text-foreground mb-2">Reverse DNS Template</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Define the base domain used when setting custom rDNS for VPS instances.
-                      If unset, the system uses <span className="font-mono">ip.rev.skyvps360.xyz</span>.
-                      During provisioning we automatically prepend <span className="font-mono">0-0-0-0.</span> and later
-                      set the final rDNS to the hyphenated IPv4, e.g. <span className="font-mono">a-b-c-d.base</span>.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">rDNS base domain</label>
-                        <input
-                          type="text"
-                          value={rdnsBaseDomain}
-                          onChange={(e) => setRdnsBaseDomain(e.target.value)}
-                          placeholder="ip.rev.skyvps360.xyz"
-                          className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                          disabled={rdnsLoading}
-                        />
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Example final rDNS: <span className="font-mono">123-45-67-89.{rdnsBaseDomain || 'ip.rev.skyvps360.xyz'}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <button
-                        onClick={saveNetworkingRdns}
-                        disabled={rdnsSaving || rdnsLoading}
-                        className="inline-flex items-center px-3 py-1 rounded-md text-sm border border bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-50"
-                      >
-                        {rdnsSaving ? 'Saving...' : 'Save rDNS Template'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'providers' && (
-          <div className="bg-card shadow sm:rounded-lg">
-            <div className="px-6 py-4 border-b border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Settings className="h-5 w-5 text-gray-400" />
-                <h2 className="text-lg font-medium text-foreground">Service Providers</h2>
-              </div>
-              <button
-                onClick={() => setShowAddProvider(true)}
-                className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditContainerPlanId(null);
+                  setEditContainerPlan({});
+                }}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Provider
-              </button>
-            </div>
-            <div className="px-6 py-4">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card divide-y divide-border">
-                    {providers.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">No providers configured</td>
-                      </tr>
-                    ) : (
-                      providers.map(provider => (
-                        <tr key={provider.id}>
-                          <td className="px-4 py-2 text-sm text-foreground">{provider.name}</td>
-                          <td className="px-4 py-2 text-sm text-muted-foreground">{provider.type}</td>
-                          <td className="px-4 py-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${provider.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 bg-muted text-muted-foreground'}`}>
-                              {provider.active ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => { setEditProviderId(provider.id); setEditProvider(provider); }}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border bg-card text-foreground hover:bg-secondary/80"
-                              >
-                                <Edit className="h-3 w-3 mr-1" /> Edit
-                              </button>
-                              <button
-                                onClick={() => setDeleteProviderId(provider.id)}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 bg-card hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="h-3 w-3 mr-1" /> Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                Cancel
+              </Button>
+              <Button onClick={updateContainerPlan}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={Boolean(editProviderId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditProviderId(null);
+              setEditProvider({});
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Provider</DialogTitle>
+              <DialogDescription>Update metadata or disable this provider without removing credentials.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-provider-name">Name</Label>
+                <Input
+                  id="edit-provider-name"
+                  value={(editProvider.name as string) || ''}
+                  onChange={(e) => setEditProvider((prev) => ({ ...prev, name: e.target.value }))}
+                />
               </div>
-
-              {/* Add Provider Modal */}
-              {showAddProvider && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                  <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                    <div className="mt-3">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Add Service Provider</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Name
-                          </label>
-                          <input
-                            type="text"
-                            value={newProvider.name}
-                            onChange={(e) => setNewProvider(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="e.g. Linode"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Type
-                          </label>
-                          <select
-                            value={newProvider.type}
-                            onChange={(e) => setNewProvider(prev => ({ ...prev, type: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          >
-                            <option value="">Select type</option>
-                            <option value="linode">Linode</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            API Key
-                          </label>
-                          <input
-                            type="password"
-                            value={newProvider.apiKey}
-                            onChange={(e) => setNewProvider(prev => ({ ...prev, apiKey: e.target.value }))}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="Enter API key"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id="providerActive"
-                            checked={newProvider.active}
-                            onChange={(e) => setNewProvider(prev => ({ ...prev, active: e.target.checked }))}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor="providerActive" className="ml-2 block text-sm text-gray-900">
-                            Active
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-end gap-3 mt-6">
-                        <button
-                          onClick={() => {
-                            setShowAddProvider(false);
-                            setNewProvider({
-                              name: '',
-                              type: '',
-                              apiKey: '',
-                              active: true
-                            });
-                          }}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={createProvider}
-                          disabled={!newProvider.name || !newProvider.type || !newProvider.apiKey}
-                          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Add Provider
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Active</p>
+                  <p className="text-xs text-muted-foreground">Only active providers are available during provisioning.</p>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Edit Container Plan Modal */}
-        {editContainerPlanId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 bg-background dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-[500px] shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Edit Container Plan</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
-                    <input
-                      type="text"
-                      value={editContainerPlan.name || ''}
-                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">CPU Cores</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editContainerPlan.cpu_cores || ''}
-                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, cpu_cores: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">RAM (GB)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editContainerPlan.ram_gb || ''}
-                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, ram_gb: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">Storage (GB)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editContainerPlan.storage_gb || ''}
-                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, storage_gb: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">Network (Mbps)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={editContainerPlan.network_mbps || ''}
-                        onChange={(e) => setEditContainerPlan(prev => ({ ...prev, network_mbps: parseInt(e.target.value) }))}
-                        className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Price</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editContainerPlan.base_price || ''}
-                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, base_price: parseFloat(e.target.value) }))}
-                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      placeholder="Monthly price"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Active</label>
-                    <select
-                      value={editContainerPlan.active ? 'true' : 'false'}
-                      onChange={(e) => setEditContainerPlan(prev => ({ ...prev, active: e.target.value === 'true' }))}
-                      className="w-full rounded-md border shadow-sm bg-secondary text-foreground focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => { setEditContainerPlanId(null); setEditContainerPlan({}); }}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={updateContainerPlan}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 border border-transparent rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800"
-                  >
-                    Save Changes
-                  </button>
-                </div>
+                <Switch
+                  checked={Boolean(editProvider.active ?? false)}
+                  onCheckedChange={(checked) => setEditProvider((prev) => ({ ...prev, active: checked }))}
+                />
               </div>
             </div>
-          </div>
-        )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditProviderId(null);
+                  setEditProvider({});
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={updateProvider}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-        {/* Edit Provider Modal */}
-        {editProviderId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Edit Provider</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
-                    <input
-                      type="text"
-                      value={editProvider.name || ''}
-                      onChange={(e) => setEditProvider(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Active</label>
-                    <select
-                      value={editProvider.active ? 'true' : 'false'}
-                      onChange={(e) => setEditProvider(prev => ({ ...prev, active: e.target.value === 'true' }))}
-                      className="w-full rounded-md border bg-secondary text-foreground shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => { setEditProviderId(null); setEditProvider({}); }}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={updateProvider}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 border border-transparent rounded-md hover:bg-blue-700 dark:hover:bg-blue-800"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AlertDialog
+          open={Boolean(deleteTicketId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTicketId(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete ticket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes the conversation and all replies. You cannot recover this ticket afterwards.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteTicketId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteTicketId) {
+                    void deleteTicket(deleteTicketId);
+                  }
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {/* Delete Ticket Confirmation Modal */}
-        {deleteTicketId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Delete Ticket</h3>
-                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this ticket? This action cannot be undone.</p>
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setDeleteTicketId(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => deleteTicket(deleteTicketId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-700 border border-transparent rounded-md hover:bg-red-700 dark:hover:bg-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AlertDialog
+          open={Boolean(deletePlanId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletePlanId(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete VPS plan?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Removing this plan hides it from customers immediately. You can recreate it later if needed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeletePlanId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deletePlanId) {
+                    void deleteVPSPlan(deletePlanId);
+                  }
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {/* Delete VPS Plan Confirmation Modal */}
-        {deletePlanId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Delete VPS Plan</h3>
-                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this VPS plan? This action cannot be undone.</p>
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setDeletePlanId(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => deleteVPSPlan(deletePlanId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-700 border border-transparent rounded-md hover:bg-red-700 dark:hover:bg-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AlertDialog
+          open={Boolean(deleteContainerPlanId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteContainerPlanId(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete container plan?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Removing this plan takes it out of circulation for new deployments.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteContainerPlanId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteContainerPlanId) {
+                    void deleteContainerPlan(deleteContainerPlanId);
+                  }
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {/* Delete Container Plan Confirmation Modal */}
-        {deleteContainerPlanId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Delete Container Plan</h3>
-                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this container plan? This action cannot be undone.</p>
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setDeleteContainerPlanId(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => deleteContainerPlan(deleteContainerPlanId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-700 border border-transparent rounded-md hover:bg-red-700 dark:hover:bg-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Provider Confirmation Modal */}
-        {deleteProviderId && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border w-96 shadow-lg rounded-md bg-card">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-foreground mb-4">Delete Provider</h3>
-                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete this provider? This action cannot be undone.</p>
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setDeleteProviderId(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary border border rounded-md hover:bg-secondary/80"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => deleteProvider(deleteProviderId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-700 border border-transparent rounded-md hover:bg-red-700 dark:hover:bg-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        <AlertDialog
+          open={Boolean(deleteProviderId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteProviderId(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove provider?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deleting a provider wipes stored credentials. Running workloads remain active but new deployments cannot target this provider.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteProviderId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteProviderId) {
+                    void deleteProvider(deleteProviderId);
+                  }
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 };
