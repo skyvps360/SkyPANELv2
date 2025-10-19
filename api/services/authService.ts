@@ -206,6 +206,16 @@ export class AuthService {
     }
   }
 
+  static async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const result = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+
+    const hash = result.rows[0].password_hash as string;
+    return bcrypt.compare(password, hash);
+  }
+
   static async verifyEmail(token: string) {
     try {
       void token;

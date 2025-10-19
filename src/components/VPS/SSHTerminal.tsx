@@ -9,16 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { Terminal as TerminalIcon } from 'lucide-react';
 import { API_BASE_URL, buildApiUrl } from '../../lib/api';
 
 interface SSHTerminalProps {
   instanceId: string;
   isFullScreen?: boolean;
+  fitContainer?: boolean;
 }
 
 type WSStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
-export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScreen = false }) => {
+export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScreen = false, fitContainer = false }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -168,14 +170,14 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
     }
   }, [theme]);
 
-  // Update terminal size when full screen changes
+  // Update terminal size when layout constraints change
   useEffect(() => {
     if (termRef.current && fitAddonRef.current) {
       setTimeout(() => {
         fitAddonRef.current?.fit();
       }, 100);
     }
-  }, [isFullScreen]);
+  }, [isFullScreen, fitContainer]);
 
   const write = useCallback((data: string) => {
     termRef.current?.write(data);
@@ -345,6 +347,8 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
     setSearchVisible(false);
   }, []);
 
+  const shouldStretch = isFullScreen || fitContainer;
+
   const statusLabel = status === 'connected'
     ? `Connected as ${connectedUser}`
     : status === 'connecting'
@@ -354,7 +358,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
         : status.charAt(0).toUpperCase() + status.slice(1);
 
   const statusBadgeClass = cn(
-    'gap-2 border px-3 py-1 text-sm',
+    'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide',
     {
       'border-emerald-500/40 bg-emerald-500/10 text-emerald-400': status === 'connected',
       'border-amber-500/40 bg-amber-500/10 text-amber-400': status === 'connecting',
@@ -370,153 +374,182 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
     'bg-muted-foreground': status === 'disconnected',
   });
 
+  const terminalSizeClass = fitContainer
+    ? 'h-full min-h-0'
+    : isFullScreen
+      ? 'min-h-[600px]'
+      : 'h-[360px] sm:h-[520px]';
+
   return (
-    <div className={cn('flex flex-col space-y-4', isFullScreen && 'h-full')}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline" className={statusBadgeClass}>
-            <span className={statusDotClass} />
-            {statusLabel}
-          </Badge>
-          {status === 'connected' && (
-            <span className="text-xs text-muted-foreground">
-              Last activity: {new Date(lastActivity).toLocaleTimeString()}
-            </span>
-          )}
-          <Select value={connectedUser} onValueChange={setConnectedUser}>
-            <SelectTrigger className="h-9 w-[140px]">
-              <SelectValue placeholder="SSH user" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="root">root</SelectItem>
-              <SelectItem value="ubuntu">ubuntu</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-          <Button
-            type="button"
-            onClick={() => connect()}
-            size="sm"
-            className="bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
-            disabled={status === 'connecting' || status === 'connected'}
-          >
-            Connect
-          </Button>
-          <Button
-            type="button"
-            onClick={disconnect}
-            size="sm"
-            variant="outline"
-            disabled={status !== 'connected'}
-          >
-            Disconnect
-          </Button>
-          <Select value={theme} onValueChange={(value) => setTheme(value as 'dark' | 'light' | 'matrix')}>
-            <SelectTrigger className="h-9 w-[150px]">
-              <SelectValue placeholder="Theme" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="matrix">Matrix</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={clear} size="sm" variant="outline">
-          Clear
-        </Button>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            onClick={decreaseFont}
-            size="icon"
-            variant="outline"
-            className="h-8 w-8"
-          >
-            A-
-          </Button>
-          <span className="px-2 text-xs text-muted-foreground">{fontSize}px</span>
-          <Button
-            type="button"
-            onClick={increaseFont}
-            size="icon"
-            variant="outline"
-            className="h-8 w-8"
-          >
-            A+
-          </Button>
-        </div>
-        <Button type="button" onClick={copyToClipboard} size="sm" variant="secondary">
-          Copy
-        </Button>
-        <Button
-          type="button"
-          onClick={pasteFromClipboard}
-          size="sm"
-          variant="secondary"
-          disabled={status !== 'connected'}
-          className="disabled:opacity-60"
-        >
-          Paste
-        </Button>
-        <Button
-          type="button"
-          onClick={() => setSearchVisible((value) => !value)}
-          size="sm"
-          variant={searchVisible ? 'default' : 'outline'}
-        >
-          Search
-        </Button>
-        <Button
-          type="button"
-          onClick={downloadSessionLog}
-          size="sm"
-          className="bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
-          disabled={!sessionLog}
-        >
-          Download
-        </Button>
-      </div>
-
-      {searchVisible && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 p-3">
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && performSearch()}
-            placeholder="Search in terminal..."
-            className="flex-1 min-w-[200px]"
-          />
-          <Button type="button" onClick={performSearch} size="sm" disabled={!searchTerm}>
-            Find
-          </Button>
-          <Button type="button" onClick={clearSearch} size="sm" variant="outline">
-            Clear
-          </Button>
-        </div>
-      )}
-
+    <div className={cn('flex flex-col gap-4', shouldStretch && 'flex-1 h-full min-h-0 overflow-hidden')}>
       <div
-        ref={containerRef}
         className={cn(
-          'flex-1 w-full overflow-hidden rounded-xl border border-border',
-          isFullScreen ? 'min-h-[600px]' : 'h-[360px] sm:h-[540px]'
+          'flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-background/95 shadow-xl backdrop-blur',
+          shouldStretch && 'h-full min-h-0'
         )}
-        style={{ backgroundColor: themes[theme].background }}
-      />
+      >
+        <header className="shrink-0 border-b border-border/80 bg-muted/20 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-[#FF5F57]" />
+                <span className="h-3 w-3 rounded-full bg-[#FDBC2F]" />
+                <span className="h-3 w-3 rounded-full bg-[#28C840]" />
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TerminalIcon className="h-4 w-4 text-primary" />
+                <span className="font-medium text-foreground">SSH Console</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => connect()}
+                size="sm"
+                className="rounded-full bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={status === 'connecting' || status === 'connected'}
+              >
+                Connect
+              </Button>
+              <Button
+                type="button"
+                onClick={disconnect}
+                size="sm"
+                variant="outline"
+                className="rounded-full px-4 text-sm"
+                disabled={status !== 'connected'}
+              >
+                Disconnect
+              </Button>
+              <Select value={theme} onValueChange={(value) => setTheme(value as 'dark' | 'light' | 'matrix')}>
+                <SelectTrigger className="h-8 w-[150px] rounded-full border-border/70 bg-background/80 text-xs">
+                  <SelectValue placeholder="Theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="matrix">Matrix</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+            <Badge variant="outline" className={statusBadgeClass}>
+              <span className={statusDotClass} />
+              {statusLabel}
+            </Badge>
+            {status === 'connected' && (
+              <span className="text-xs text-muted-foreground">
+                Last activity: {new Date(lastActivity).toLocaleTimeString()}
+              </span>
+            )}
+            <Select value={connectedUser} onValueChange={setConnectedUser}>
+              <SelectTrigger className="h-8 w-[140px] rounded-full border-border/70 bg-background/80 text-xs">
+                <SelectValue placeholder="SSH user" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">root</SelectItem>
+                <SelectItem value="ubuntu">ubuntu</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </header>
 
-      <div className="text-xs text-muted-foreground">
-        <div className="flex flex-wrap gap-4">
-          <span>💡 Tips:</span>
-          <span>• Select text and click Copy to copy</span>
-          <span>• Use Search button to find text</span>
-          <span>• Download saves your session log</span>
-          <span>• Try different themes for better visibility</span>
+        <div className={cn('flex flex-1 flex-col gap-4 px-6 py-5', shouldStretch && 'min-h-0 overflow-hidden')}>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button type="button" onClick={clear} size="sm" variant="outline" className="rounded-full px-4 text-sm">
+              Clear
+            </Button>
+            <div className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2 py-1">
+              <Button
+                type="button"
+                onClick={decreaseFont}
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-full"
+              >
+                A-
+              </Button>
+              <span className="px-2 text-xs font-medium text-muted-foreground">{fontSize}px</span>
+              <Button
+                type="button"
+                onClick={increaseFont}
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-full"
+              >
+                A+
+              </Button>
+            </div>
+            <Button type="button" onClick={copyToClipboard} size="sm" variant="secondary" className="rounded-full px-4 text-sm">
+              Copy
+            </Button>
+            <Button
+              type="button"
+              onClick={pasteFromClipboard}
+              size="sm"
+              variant="secondary"
+              className="rounded-full px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={status !== 'connected'}
+            >
+              Paste
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setSearchVisible((value) => !value)}
+              size="sm"
+              variant={searchVisible ? 'default' : 'outline'}
+              className="rounded-full px-4 text-sm"
+            >
+              Search
+            </Button>
+            <Button
+              type="button"
+              onClick={downloadSessionLog}
+              size="sm"
+              className="rounded-full bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!sessionLog}
+            >
+              Download
+            </Button>
+          </div>
+
+          {searchVisible && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-muted/30 p-3 shrink-0">
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                placeholder="Search in terminal..."
+                className="flex-1 min-w-[200px] rounded-lg border-border/70 bg-background/80 text-sm"
+              />
+              <Button type="button" onClick={performSearch} size="sm" className="rounded-full px-4 text-sm" disabled={!searchTerm}>
+                Find
+              </Button>
+              <Button type="button" onClick={clearSearch} size="sm" variant="outline" className="rounded-full px-4 text-sm">
+                Clear
+              </Button>
+            </div>
+          )}
+
+          <div
+            ref={containerRef}
+            className={cn(
+              'flex-1 w-full overflow-hidden rounded-2xl border border-border/80 bg-black/90 shadow-inner',
+              terminalSizeClass
+            )}
+            style={{ backgroundColor: themes[theme].background }}
+          />
+
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-5 py-3 text-xs text-muted-foreground shrink-0">
+            <div className="flex flex-wrap gap-4">
+              <span>💡 Tips:</span>
+              <span>• Select text and click Copy to copy</span>
+              <span>• Use Search button to find text</span>
+              <span>• Download saves your session log</span>
+              <span>• Try different themes for better visibility</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

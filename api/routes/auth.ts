@@ -95,6 +95,36 @@ router.post('/login', [
   }
 });
 
+router.post('/verify-password', authenticateToken, [
+  body('password').isString().notEmpty().withMessage('Password is required')
+], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { password } = req.body as { password: string };
+    const isValid = await AuthService.verifyPassword(req.user.id, password);
+
+    if (!isValid) {
+      res.status(401).json({ error: 'Incorrect password' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error: unknown) {
+    console.error('Password verification error:', error);
+    res.status(500).json({ error: 'Failed to verify password' });
+  }
+});
+
 /**
  * User Logout
  * POST /api/auth/logout

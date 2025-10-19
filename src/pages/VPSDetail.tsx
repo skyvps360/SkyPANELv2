@@ -26,20 +26,18 @@ import {
   Copy,
   Edit2,
   Check,
-  X,
   Terminal as TerminalIcon
 } from 'lucide-react';
-import SSHTerminal from '../components/VPS/SSHTerminal';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
-import { Area, AreaChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import { cn } from '@/lib/utils';
+import { Area, AreaChart, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 interface MetricPoint {
   timestamp: number;
@@ -499,8 +497,10 @@ const VPSDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<'boot' | 'shutdown' | 'reboot' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [sshModalOpen, setSshModalOpen] = useState<boolean>(false);
-  const [sshFullScreen, setSshFullScreen] = useState<boolean>(false);
+  const [sshConfirmOpen, setSshConfirmOpen] = useState(false);
+  const [sshConfirmPassword, setSshConfirmPassword] = useState('');
+  const [sshConfirmLoading, setSshConfirmLoading] = useState(false);
+  const [sshConfirmError, setSshConfirmError] = useState<string | null>(null);
   const [backupAction, setBackupAction] = useState<'enable' | 'disable' | 'snapshot' | null>(null);
   const [scheduleDay, setScheduleDay] = useState<string>('');
   const [scheduleWindow, setScheduleWindow] = useState<string>('');
@@ -520,27 +520,6 @@ const VPSDetail: React.FC = () => {
   // rDNS base domain configuration
   const [rdnsBaseDomain, setRdnsBaseDomain] = useState<string>('ip.rev.skyvps360.xyz');
 
-  useEffect(() => {
-    if (activeTab !== 'ssh' && sshModalOpen) {
-      setSshModalOpen(false);
-    }
-  }, [activeTab, sshModalOpen]);
-
-  useEffect(() => {
-    if (!sshModalOpen) {
-      return undefined;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSshModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [sshModalOpen]);
-
   const tabDefinitions = useMemo<TabDefinition[]>(() => [
     { id: 'overview', label: 'Overview', icon: Server },
     { id: 'backups', label: 'Backups', icon: ShieldCheck },
@@ -550,6 +529,107 @@ const VPSDetail: React.FC = () => {
     { id: 'metrics', label: 'Metrics', icon: BarChart3 },
     { id: 'ssh', label: 'SSH', icon: TerminalIcon },
   ], []);
+
+  const openSshConsole = useCallback(() => {
+    if (!detail?.id) {
+      toast.error('Instance ID unavailable. Please refresh and try again.');
+      return;
+    }
+
+    const targetUrl = new URL(`/vps/${detail.id}/ssh`, window.location.origin);
+    if (detail.label) {
+      targetUrl.searchParams.set('label', detail.label);
+    }
+
+    const viewportWidth = window.outerWidth || window.innerWidth || 1280;
+    const viewportHeight = window.outerHeight || window.innerHeight || 800;
+    const width = Math.min(Math.max(viewportWidth * 0.8, 960), 1440);
+    const height = Math.min(Math.max(viewportHeight * 0.85, 720), 960);
+    const baseLeft = window.screenX ?? window.screenLeft ?? 0;
+    const baseTop = window.screenY ?? window.screenTop ?? 0;
+    const left = baseLeft + Math.max((viewportWidth - width) / 2, 0);
+    const top = baseTop + Math.max((viewportHeight - height) / 2, 0);
+    const features = [
+      'popup=yes',
+      'noopener',
+      'noreferrer',
+      'scrollbars=no',
+      'resizable=yes',
+      `width=${Math.round(width)}`,
+      `height=${Math.round(height)}`,
+      `left=${Math.round(left)}`,
+      `top=${Math.round(top)}`,
+    ].join(',');
+
+    const handle = window.open(targetUrl.toString(), '_blank', features);
+    if (!handle) {
+      toast.error('Please allow pop-ups to launch the SSH console.');
+      return;
+    }
+    handle.focus();
+  }, [detail?.id, detail?.label]);
+
+  const resetSshConfirmState = useCallback(() => {
+    setSshConfirmPassword('');
+    setSshConfirmError(null);
+  }, []);
+
+  const handleOpenSshRequest = useCallback(() => {
+    if (!detail?.id) {
+      toast.error('Instance ID unavailable. Please refresh and try again.');
+      return;
+    }
+
+    resetSshConfirmState();
+    setSshConfirmLoading(false);
+    setSshConfirmOpen(true);
+  }, [detail?.id, resetSshConfirmState]);
+
+  const handleConfirmSshAccess = useCallback(async () => {
+    if (!sshConfirmPassword.trim()) {
+      setSshConfirmError('Password is required');
+      return;
+    }
+
+    if (!token) {
+      setSshConfirmError('Your session has expired. Please log in again.');
+      return;
+    }
+
+    setSshConfirmLoading(true);
+    try {
+      const response = await fetch('/api/auth/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password: sshConfirmPassword }),
+      });
+
+      if (!response.ok) {
+        let message = 'Unable to verify password';
+        try {
+          const data = (await response.json()) as { error?: string };
+          if (data?.error) {
+            message = data.error;
+          }
+        } catch (error) {
+          console.warn('Failed to parse password verification response', error);
+        }
+        setSshConfirmError(message);
+        return;
+      }
+
+      setSshConfirmOpen(false);
+      resetSshConfirmState();
+      openSshConsole();
+    } catch {
+      setSshConfirmError('Unable to verify password. Please try again.');
+    } finally {
+      setSshConfirmLoading(false);
+    }
+  }, [openSshConsole, resetSshConfirmState, sshConfirmPassword, token]);
 
   const backupPricing = useMemo<BackupPricing | null>(() => {
     const planMonthlyRaw = detail?.plan?.pricing?.monthly;
@@ -1238,8 +1318,6 @@ const VPSDetail: React.FC = () => {
   const cpuSeries = detail?.metrics?.cpu?.series ?? [];
   const inboundSeries = detail?.metrics?.network?.inbound?.series ?? [];
   const outboundSeries = detail?.metrics?.network?.outbound?.series ?? [];
-  const privateInSeries = detail?.metrics?.network?.privateIn?.series ?? [];
-  const privateOutSeries = detail?.metrics?.network?.privateOut?.series ?? [];
   const ioSeries = detail?.metrics?.io?.read?.series ?? [];
   const swapSeries = detail?.metrics?.io?.swap?.series ?? [];
 
@@ -2729,8 +2807,9 @@ const VPSDetail: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => setSshModalOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary"
+                      onClick={handleOpenSshRequest}
+                      disabled={!detail?.id}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <TerminalIcon className="h-4 w-4" />
                       Open SSH Console
@@ -2888,75 +2967,71 @@ const VPSDetail: React.FC = () => {
         </div>
       </div>
       <Dialog
-        open={sshModalOpen}
+        open={sshConfirmOpen}
         onOpenChange={(open) => {
-          setSshModalOpen(open);
+          setSshConfirmOpen(open);
           if (!open) {
-            setSshFullScreen(false);
+            resetSshConfirmState();
+            setSshConfirmLoading(false);
           }
         }}
       >
-        <DialogContent
-          hideCloseButton
-          className={cn(
-            'p-0 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl',
-            sshFullScreen
-              ? 'h-[90vh] w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-[90vw]'
-              : 'max-h-[90vh] w-full sm:max-w-6xl'
-          )}
-        >
-          <DialogHeader className="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <TerminalIcon className="h-5 w-5 text-primary" />
-              <DialogTitle className="text-lg font-semibold text-foreground">SSH Console</DialogTitle>
-              {sshFullScreen && (
-                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-xs font-medium">
-                  Full Screen
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSshFullScreen((value) => !value)}
-                aria-label={sshFullScreen ? 'Exit full screen' : 'Enter full screen'}
-              >
-                {sshFullScreen ? (
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 15v4.5M15 15h4.5M15 15l5.25 5.25" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15m-5.25 5.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
-                  </svg>
-                )}
-              </Button>
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Close SSH console"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-            <DialogDescription className="sr-only">
-              Interactive SSH session for this instance.
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Password</DialogTitle>
+            <DialogDescription>
+              For security purposes, please confirm your account password before launching the SSH console.
             </DialogDescription>
           </DialogHeader>
-          <div className={cn('px-6 py-6', sshFullScreen && 'h-[calc(100%-90px)] overflow-y-auto pb-6')}>
-            {detail?.id ? (
-              <SSHTerminal instanceId={detail.id} isFullScreen={sshFullScreen} />
-            ) : (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                Instance ID unavailable. Please refresh and try again.
-              </div>
-            )}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ssh-password">Password</Label>
+              <Input
+                id="ssh-password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Enter your account password"
+                value={sshConfirmPassword}
+                onChange={(event) => {
+                  setSshConfirmPassword(event.target.value);
+                  if (sshConfirmError) {
+                    setSshConfirmError(null);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleConfirmSshAccess();
+                  }
+                }}
+                disabled={sshConfirmLoading}
+                autoFocus
+              />
+            </div>
+            {sshConfirmError ? (
+              <p className="text-sm text-destructive">{sshConfirmError}</p>
+            ) : null}
           </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSshConfirmOpen(false);
+                resetSshConfirmState();
+                setSshConfirmLoading(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmSshAccess}
+              disabled={sshConfirmLoading}
+            >
+              {sshConfirmLoading ? 'Verifying...' : 'Confirm & Open'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
