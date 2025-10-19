@@ -1702,7 +1702,7 @@ const Admin: React.FC = () => {
                   <DialogHeader>
                     <DialogTitle>Create VPS Plan</DialogTitle>
                     <DialogDescription>
-                      Pair your markup with a Linode type and region. Customers will see it instantly once active.
+                      Pair your markup with a plan type and region. Customers will see it instantly once active.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -1716,7 +1716,7 @@ const Admin: React.FC = () => {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Linode plan type</Label>
+                      <Label>Plan type</Label>
                       <Select
                         value={newVPSPlan.selectedType}
                         onValueChange={(value) => setNewVPSPlan(prev => ({ ...prev, selectedType: value }))}

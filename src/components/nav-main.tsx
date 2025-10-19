@@ -20,6 +20,7 @@ import {
 
 export function NavMain({
   items,
+  label = "Platform",
 }: {
   items: {
     title: string
@@ -32,10 +33,11 @@ export function NavMain({
       isActive?: boolean
     }[]
   }[]
+  label?: string
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const isItemActive = item.isActive || item.items?.some((sub) => sub.isActive)

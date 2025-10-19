@@ -27,6 +27,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle } from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
+import { cn } from "@/lib/utils";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -302,7 +303,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear">
           <CardContent className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 py-0">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1" />
+              <SidebarTrigger className={cn(isSidebarOpen ? "-ml-1" : "ml-2")} />
               
               <Separator orientation="vertical" className="mr-2 h-4 hidden md:block" />
               <div className="hidden md:block">
