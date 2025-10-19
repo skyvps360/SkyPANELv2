@@ -2,7 +2,6 @@
  * Admin Routes for ContainerStacks
  * Manage support tickets and VPS plans
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { authenticateToken } from '../middleware/auth.js';
@@ -895,6 +894,174 @@ router.delete(
     }
   }
 );
+
+// List all containers across organizations
+router.get('/containers', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT 
+        c.id,
+        c.name,
+        c.image,
+        c.organization_id,
+        c.config,
+        c.status,
+        c.created_by,
+        c.created_at,
+        c.updated_at,
+        org.name AS organization_name,
+        org.slug AS organization_slug,
+        u.email AS creator_email,
+        u.name AS creator_name
+       FROM containers c
+       LEFT JOIN organizations org ON org.id = c.organization_id
+       LEFT JOIN users u ON u.id = c.created_by
+       ORDER BY c.created_at DESC`
+    );
+    res.json({ containers: result.rows || [] });
+  } catch (err: any) {
+    if (isMissingTableError(err)) {
+      return res.json({ containers: [], warning: 'containers table not found. Apply migrations.' });
+    }
+    console.error('Admin containers list error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch containers' });
+  }
+});
+
+// List all VPS servers for admins
+router.get('/servers', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT 
+        v.id,
+        v.organization_id,
+        v.plan_id,
+        v.provider_instance_id,
+        v.label,
+        v.status,
+        v.ip_address,
+        v.configuration,
+        v.created_at,
+        v.updated_at,
+        org.name AS organization_name,
+        org.slug AS organization_slug,
+        u.id AS owner_id,
+        u.name AS owner_name,
+        u.email AS owner_email,
+        plan_data.id AS plan_record_id,
+        plan_data.name AS plan_name,
+        plan_data.provider_plan_id AS plan_provider_plan_id,
+        plan_data.specifications AS plan_specifications,
+        sp.name AS provider_name
+      FROM vps_instances v
+      LEFT JOIN organizations org ON org.id = v.organization_id
+      LEFT JOIN users u ON u.id = org.owner_id
+      LEFT JOIN LATERAL (
+        SELECT p.*
+        FROM vps_plans p
+        WHERE (p.id::text = v.plan_id) OR (p.provider_plan_id = v.plan_id)
+        ORDER BY (p.id::text = v.plan_id)::int DESC
+        LIMIT 1
+      ) AS plan_data ON TRUE
+      LEFT JOIN service_providers sp ON sp.id = plan_data.provider_id
+      ORDER BY v.created_at DESC`
+    );
+
+    const rows = result.rows || [];
+
+    let regionLabelMap: Record<string, string> = {};
+    try {
+      const regions = await linodeService.getLinodeRegions();
+      regionLabelMap = Object.fromEntries(regions.map((r) => [r.id, r.label]));
+    } catch (regionErr) {
+      console.warn('Admin servers: failed to fetch Linode regions', regionErr);
+    }
+
+    const enriched = await Promise.all(rows.map(async (row) => {
+      const configuration = (row.configuration && typeof row.configuration === 'object') ? row.configuration : {};
+      let status = row.status;
+      let ipAddress = row.ip_address;
+      let regionCode = configuration?.region ?? null;
+
+      try {
+        const instanceId = Number(row.provider_instance_id);
+        if (Number.isFinite(instanceId)) {
+          const detail = await linodeService.getLinodeInstance(instanceId);
+          const currentIp = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
+          const normalizedStatus = detail.status === 'offline' ? 'stopped' : detail.status;
+          if (normalizedStatus !== status || currentIp !== ipAddress) {
+            await query(
+              'UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3',
+              [normalizedStatus, currentIp, row.id]
+            );
+            status = normalizedStatus;
+            ipAddress = currentIp;
+          }
+
+          configuration.image = configuration.image || detail.image || null;
+          configuration.region = configuration.region || detail.region || null;
+          configuration.type = configuration.type || detail.type || null;
+          regionCode = configuration.region || regionCode;
+        }
+      } catch (detailErr) {
+        console.warn(`Admin servers: unable to refresh instance ${row.provider_instance_id}`, detailErr);
+      }
+
+      const regionLabel = regionCode ? regionLabelMap[regionCode] || null : null;
+
+      return {
+        ...row,
+        status,
+        ip_address: ipAddress,
+        configuration,
+        region_label: regionLabel,
+      };
+    }));
+
+    res.json({ servers: enriched });
+  } catch (err: any) {
+    if (isMissingTableError(err)) {
+      return res.json({ servers: [], warning: 'vps_instances table not found. Apply migrations.' });
+    }
+    console.error('Admin servers list error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch servers' });
+  }
+});
+
+// List users for admin management view
+router.get('/users', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT 
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.created_at,
+        u.updated_at,
+        COALESCE(
+          jsonb_agg(
+            DISTINCT jsonb_build_object(
+              'organizationId', om.organization_id,
+              'organizationName', org.name,
+              'organizationSlug', org.slug,
+              'role', om.role
+            )
+          ) FILTER (WHERE om.organization_id IS NOT NULL),
+          '[]'::jsonb
+        ) AS organizations
+      FROM users u
+      LEFT JOIN organization_members om ON om.user_id = u.id
+      LEFT JOIN organizations org ON org.id = om.organization_id
+      GROUP BY u.id
+      ORDER BY u.created_at DESC`
+    );
+    res.json({ users: result.rows || [] });
+  } catch (err: any) {
+    console.error('Admin users list error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch users' });
+  }
+});
 
 // Schema check endpoint to report missing tables for quick diagnostics
 router.get('/schema/check', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {

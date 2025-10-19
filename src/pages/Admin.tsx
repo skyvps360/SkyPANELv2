@@ -3,8 +3,8 @@
  * Manage support tickets and VPS plans
  */
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { AlertCircle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Server, Settings, Ticket, Trash2, X } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AlertCircle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Search, Server, ServerCog, Settings, Ticket, Trash2, Users, X, Box, Boxes } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
@@ -29,14 +29,32 @@ import type { ThemePreset } from '@/theme/presets';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
-type AdminTab = 'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme';
-type AdminTabItem = {
-  value: AdminTab;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  counter?: string;
-};
+type AdminSection =
+  | 'support'
+  | 'vps-plans'
+  | 'container-plans'
+  | 'containers'
+  | 'servers'
+  | 'providers'
+  | 'stackscripts'
+  | 'networking'
+  | 'theme'
+  | 'user-management';
+
+const ADMIN_SECTIONS: AdminSection[] = [
+  'support',
+  'vps-plans',
+  'container-plans',
+  'containers',
+  'servers',
+  'providers',
+  'stackscripts',
+  'networking',
+  'theme',
+  'user-management',
+];
+
+const DEFAULT_ADMIN_SECTION: AdminSection = 'support';
 
 const TICKET_STATUS_META: Record<TicketStatus, { label: string; className: string }> = {
   open: {
@@ -146,6 +164,61 @@ interface PricingConfig {
   currency?: string;
 }
 
+interface AdminContainerInstance {
+  id: string;
+  name: string;
+  image: string;
+  organization_id: string;
+  config: Record<string, unknown> | null;
+  status: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  organization_name?: string | null;
+  organization_slug?: string | null;
+  creator_email?: string | null;
+  creator_name?: string | null;
+}
+
+interface AdminServerInstance {
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  provider_instance_id: string;
+  label: string;
+  status: string;
+  ip_address: string | null;
+  configuration: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  organization_name?: string | null;
+  organization_slug?: string | null;
+  owner_id?: string | null;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  plan_record_id?: string | null;
+  plan_name?: string | null;
+  plan_provider_plan_id?: string | null;
+  plan_specifications?: Record<string, unknown> | null;
+  provider_name?: string | null;
+  region_label?: string | null;
+}
+
+interface AdminUserRecord {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at: string;
+  updated_at: string;
+  organizations: Array<{
+    organizationId: string;
+    organizationName: string;
+    organizationSlug: string;
+    role: string;
+  }>;
+}
+
 interface LinodeStackScriptSummary {
   id: number;
   label: string;
@@ -193,10 +266,53 @@ interface LinodeRegion {
 
 const API_BASE_URL = '/api';
 
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) {
+    return '—';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
+};
+
+const formatStatusLabel = (status: string | null | undefined) => {
+  if (!status) {
+    return 'Unknown';
+  }
+  return status
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const statusBadgeClass = (status: string | null | undefined) => {
+  if (!status) {
+    return 'border-muted-foreground/20 bg-muted text-muted-foreground';
+  }
+  const normalized = status.toLowerCase();
+  if (normalized === 'running' || normalized === 'active' || normalized === 'provisioned') {
+    return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500';
+  }
+  if (normalized === 'provisioning' || normalized === 'pending' || normalized === 'in progress') {
+    return 'border-blue-500/20 bg-blue-500/10 text-blue-500';
+  }
+  if (normalized === 'error' || normalized === 'failed') {
+    return 'border-red-500/20 bg-red-500/10 text-red-500';
+  }
+  if (normalized === 'stopped' || normalized === 'offline') {
+    return 'border-slate-400/20 bg-slate-400/10 text-slate-400';
+  }
+  return 'border-muted-foreground/20 bg-muted text-muted-foreground';
+};
+
 const Admin: React.FC = () => {
   const { token } = useAuth();
   const { themeId, setTheme, themes, reloadTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'tickets' | 'plans' | 'containers' | 'providers' | 'stackscripts' | 'networking' | 'theme'>('tickets');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<AdminSection>('support');
   const [, setLoading] = useState(false);
 
   // Tickets state
@@ -224,6 +340,10 @@ const Admin: React.FC = () => {
   const [editContainerPlanId, setEditContainerPlanId] = useState<string | null>(null);
   const [editContainerPlan, setEditContainerPlan] = useState<Partial<ContainerPlan>>({});
   const [deleteContainerPlanId, setDeleteContainerPlanId] = useState<string | null>(null);
+  const [containerInstances, setContainerInstances] = useState<AdminContainerInstance[]>([]);
+  const [containerInstancesLoading, setContainerInstancesLoading] = useState(false);
+  const [containerStatusFilter, setContainerStatusFilter] = useState<string>('all');
+  const [containerSearch, setContainerSearch] = useState('');
   
   // Compute container plan price based on pricing configuration
   const computeContainerPlanPrice = (plan: ContainerPlan) => {
@@ -266,6 +386,14 @@ const Admin: React.FC = () => {
   const [themeConfigLoaded, setThemeConfigLoaded] = useState(false);
   const [savingPresetId, setSavingPresetId] = useState<string | null>(null);
   const [themeUpdatedAt, setThemeUpdatedAt] = useState<string | null>(null);
+  const [servers, setServers] = useState<AdminServerInstance[]>([]);
+  const [serversLoading, setServersLoading] = useState(false);
+  const [serverStatusFilter, setServerStatusFilter] = useState<string>('all');
+  const [serverSearch, setServerSearch] = useState('');
+  const [adminUsers, setAdminUsers] = useState<AdminUserRecord[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
 
   // Networking rDNS state
   const [networkingTab, setNetworkingTab] = useState<'rdns'>('rdns');
@@ -274,6 +402,53 @@ const Admin: React.FC = () => {
   const [rdnsSaving, setRdnsSaving] = useState<boolean>(false);
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+
+  const updateAdminHash = useCallback(
+    (section: AdminSection) => {
+      const expectedHash = `#${section}`;
+      if (location.hash !== expectedHash) {
+        navigate({ pathname: '/admin', hash: expectedHash }, { replace: true });
+      }
+    },
+    [location.hash, navigate]
+  );
+
+  useEffect(() => {
+    const hashValueRaw = location.hash ? location.hash.slice(1) : '';
+
+    if (!hashValueRaw) {
+      if (activeTab !== DEFAULT_ADMIN_SECTION) {
+        setActiveTab(DEFAULT_ADMIN_SECTION);
+      }
+      updateAdminHash(DEFAULT_ADMIN_SECTION);
+      return;
+    }
+
+    const normalized = hashValueRaw.toLowerCase() as AdminSection;
+    if (!ADMIN_SECTIONS.includes(normalized)) {
+      return;
+    }
+
+    if (normalized !== activeTab) {
+      setActiveTab(normalized);
+    }
+  }, [activeTab, location.hash, updateAdminHash]);
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const normalized = value.toLowerCase() as AdminSection;
+      if (!ADMIN_SECTIONS.includes(normalized)) {
+        return;
+      }
+
+      if (normalized !== activeTab) {
+        setActiveTab(normalized);
+      }
+
+      updateAdminHash(normalized);
+    },
+    [activeTab, updateAdminHash]
+  );
 
   // Allowed regions strictly from admin provider configuration
   const allowedRegionIds = useMemo(() => {
@@ -301,6 +476,119 @@ const Admin: React.FC = () => {
       })
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [availableStackscripts, stackscriptSearch]);
+
+  const containerStatusOptions = useMemo(() => {
+    const statuses = new Set<string>();
+    containerInstances.forEach((instance) => {
+      if (instance.status) {
+        statuses.add(instance.status);
+      }
+    });
+    return Array.from(statuses).sort();
+  }, [containerInstances]);
+
+  const filteredContainerInstances = useMemo(() => {
+    const term = containerSearch.trim().toLowerCase();
+    return containerInstances.filter((instance) => {
+      const matchesStatus = containerStatusFilter === 'all' || (instance.status ?? '').toLowerCase() === containerStatusFilter.toLowerCase();
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const haystack = [
+        instance.name,
+        instance.image,
+        instance.organization_name,
+        instance.organization_slug,
+        instance.creator_email,
+        instance.creator_name,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase())
+        .join(' ');
+
+      return haystack.includes(term);
+    });
+  }, [containerInstances, containerSearch, containerStatusFilter]);
+
+  const serverStatusOptions = useMemo(() => {
+    const statuses = new Set<string>();
+    servers.forEach((server) => {
+      if (server.status) {
+        statuses.add(server.status);
+      }
+    });
+    return Array.from(statuses).sort();
+  }, [servers]);
+
+  const filteredServers = useMemo(() => {
+    const term = serverSearch.trim().toLowerCase();
+    return servers.filter((server) => {
+      const matchesStatus = serverStatusFilter === 'all' || (server.status ?? '').toLowerCase() === serverStatusFilter.toLowerCase();
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const haystack = [
+        server.label,
+        server.ip_address,
+        server.organization_name,
+        server.organization_slug,
+        server.owner_email,
+        server.owner_name,
+        server.plan_name,
+        server.provider_name,
+        server.region_label,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase())
+        .join(' ');
+
+      return haystack.includes(term);
+    });
+  }, [serverSearch, serverStatusFilter, servers]);
+
+  const userRoleOptions = useMemo(() => {
+    const roles = new Set<string>();
+    adminUsers.forEach((user) => {
+      if (user.role) {
+        roles.add(user.role);
+      }
+    });
+    return Array.from(roles).sort();
+  }, [adminUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const term = userSearch.trim().toLowerCase();
+    return adminUsers.filter((user) => {
+      const matchesRole = userRoleFilter === 'all' || user.role.toLowerCase() === userRoleFilter.toLowerCase();
+      if (!matchesRole) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const orgText = Array.isArray(user.organizations)
+        ? user.organizations
+            .map((org) => `${org.organizationName} ${org.organizationSlug} ${org.role}`)
+            .join(' ')
+            .toLowerCase()
+        : '';
+
+      const haystack = `${user.name} ${user.email} ${orgText}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [adminUsers, userRoleFilter, userSearch]);
 
   const formattedThemeUpdatedAt = useMemo(() => {
     if (!themeUpdatedAt) {
@@ -396,10 +684,10 @@ const Admin: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'tickets':
+      case 'support':
         fetchTickets();
         break;
-      case 'plans':
+      case 'vps-plans':
         fetchPlans();
         fetchProviders();
         fetchLinodeTypes();
@@ -416,10 +704,21 @@ const Admin: React.FC = () => {
         break;
       case 'theme':
         break;
-      case 'containers':
-      default:
+      case 'container-plans':
         fetchPricing();
         fetchContainerPlans();
+        break;
+      case 'containers':
+        fetchAdminContainers();
+        break;
+      case 'servers':
+        fetchServers();
+        break;
+      case 'user-management':
+        fetchAdminUsers();
+        break;
+      default:
+        fetchTickets();
         break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -720,6 +1019,58 @@ const Admin: React.FC = () => {
     }
   };
 
+  const fetchAdminContainers = async () => {
+    if (!token) return;
+    setContainerInstancesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/containers`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load containers');
+      const items: AdminContainerInstance[] = Array.isArray(data.containers) ? data.containers : [];
+      setContainerInstances(items);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load containers');
+    } finally {
+      setContainerInstancesLoading(false);
+    }
+  };
+
+  const fetchServers = async () => {
+    if (!token) return;
+    setServersLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/servers`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load servers');
+      const rows: AdminServerInstance[] = Array.isArray(data.servers) ? data.servers.map((server: any) => ({
+        ...server,
+        configuration: server.configuration && typeof server.configuration === 'object' ? server.configuration : null,
+        plan_specifications: server.plan_specifications && typeof server.plan_specifications === 'object' ? server.plan_specifications : null,
+      })) : [];
+      setServers(rows);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load servers');
+    } finally {
+      setServersLoading(false);
+    }
+  };
+
+  const fetchAdminUsers = async () => {
+    if (!token) return;
+    setUsersLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load users');
+      const rows: AdminUserRecord[] = Array.isArray(data.users) ? data.users : [];
+      setAdminUsers(rows);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load users');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   const createContainerPlan = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/container/plans`, {
@@ -989,82 +1340,6 @@ const Admin: React.FC = () => {
 
   const filteredTickets = tickets.filter(t => (statusFilter === 'all' ? true : t.status === statusFilter));
   const openTicketCount = useMemo(() => tickets.filter(ticket => ticket.status === 'open').length, [tickets]);
-  const enabledStackscriptCount = useMemo(
-    () => stackscriptConfigs.filter(config => config.is_enabled).length,
-    [stackscriptConfigs]
-  );
-  const tabItems = useMemo<AdminTabItem[]>(
-    () => {
-      const totalTickets = tickets.length;
-      const totalPlans = plans.length;
-      const totalContainerPlans = containerPlans.length;
-      const totalProviders = providers.length;
-      const totalStackscripts = availableStackscripts.length;
-
-      return [
-        {
-          value: 'tickets',
-          label: 'Support',
-          description: 'Triage customer conversations',
-          icon: ClipboardList,
-          counter: totalTickets ? `${openTicketCount}/${totalTickets}` : undefined,
-        },
-        {
-          value: 'plans',
-          label: 'VPS Plans',
-          description: 'Curate provider offerings',
-          icon: DollarSign,
-          counter: totalPlans ? totalPlans.toString() : undefined,
-        },
-        {
-          value: 'containers',
-          label: 'Containers',
-          description: 'Managed container blueprints',
-          icon: Server,
-          counter: totalContainerPlans ? totalContainerPlans.toString() : undefined,
-        },
-        {
-          value: 'providers',
-          label: 'Providers',
-          description: 'Infrastructure integrations',
-          icon: Settings,
-          counter: totalProviders ? totalProviders.toString() : undefined,
-        },
-        {
-          value: 'stackscripts',
-          label: 'StackScripts',
-          description: 'Images exposed to users',
-          icon: FileCode,
-          counter: totalStackscripts ? `${enabledStackscriptCount}/${totalStackscripts}` : undefined,
-        },
-        {
-          value: 'networking',
-          label: 'Networking',
-          description: 'Reverse DNS templates',
-          icon: Globe,
-          counter: rdnsBaseDomain ? 'Configured' : undefined,
-        },
-        {
-          value: 'theme',
-          label: 'Theme',
-          description: 'Global visual presets',
-          icon: Palette,
-          counter: themeUpdatedAt ? 'Synced' : undefined,
-        },
-      ];
-    },
-    [
-      availableStackscripts.length,
-      containerPlans.length,
-      enabledStackscriptCount,
-      openTicketCount,
-      plans.length,
-      providers.length,
-      rdnsBaseDomain,
-      themeUpdatedAt,
-      tickets.length,
-    ]
-  );
   const overviewCards = useMemo(
     () => [
       {
@@ -1083,16 +1358,22 @@ const Admin: React.FC = () => {
         label: 'Container plans',
         value: containerPlans.length ? containerPlans.length.toString() : '—',
         description: 'Managed templates',
-        icon: Server,
+        icon: Boxes,
       },
       {
-        label: 'Providers',
-        value: providers.length ? providers.length.toString() : '—',
-        description: 'Active integrations',
-        icon: Settings,
+        label: 'Servers',
+        value: servers.length ? servers.length.toString() : '—',
+        description: 'Instances under management',
+        icon: ServerCog,
+      },
+      {
+        label: 'Users',
+        value: adminUsers.length ? adminUsers.length.toString() : '—',
+        description: 'Active accounts',
+        icon: Users,
       },
     ],
-    [containerPlans.length, openTicketCount, plans.length, providers.length, tickets.length]
+    [adminUsers.length, containerPlans.length, openTicketCount, plans.length, servers.length, tickets.length]
   );
   const handleRefresh = () => {
     if (!token) {
@@ -1101,18 +1382,24 @@ const Admin: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'tickets':
+      case 'support':
         fetchTickets();
         break;
-      case 'plans':
+      case 'vps-plans':
         fetchPlans();
         fetchProviders();
         fetchLinodeTypes();
         fetchLinodeRegions();
         break;
-      case 'containers':
+      case 'container-plans':
         fetchPricing();
         fetchContainerPlans();
+        break;
+      case 'containers':
+        fetchAdminContainers();
+        break;
+      case 'servers':
+        fetchServers();
         break;
       case 'providers':
         fetchProviders();
@@ -1125,6 +1412,9 @@ const Admin: React.FC = () => {
         break;
       case 'theme':
         fetchThemeConfiguration();
+        break;
+      case 'user-management':
+        fetchAdminUsers();
         break;
       default:
         break;
@@ -1167,38 +1457,10 @@ const Admin: React.FC = () => {
         })}
       </div>
 
-      <Tabs value={activeTab} onValueChange={value => setActiveTab(value as AdminTab)} className="space-y-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <TabsList className="flex h-full w-full flex-wrap gap-2 rounded-xl bg-muted/60 p-2 lg:w-72 lg:flex-col">
-            {tabItems.map(tab => {
-              const Icon = tab.icon;
+  <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <div className="space-y-6">
 
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className={cn(
-                    'w-full justify-start gap-3 rounded-lg border border-transparent px-4 py-3 text-left',
-                    'data-[state=active]:border-primary data-[state=active]:bg-background'
-                  )}
-                >
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-1 flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-foreground">{tab.label}</span>
-                    <span className="text-xs text-muted-foreground">{tab.description}</span>
-                  </div>
-                  {tab.counter ? (
-                    <Badge variant="secondary" className="ml-auto whitespace-nowrap">
-                      {tab.counter}
-                    </Badge>
-                  ) : null}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-          <div className="flex-1 space-y-6">
-
-            <TabsContent value="theme">
+            <TabsContent value="theme" id="theme">
               <div className="bg-card shadow sm:rounded-lg">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -1277,7 +1539,7 @@ const Admin: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="tickets">
+            <TabsContent value="support" id="support">
               <div className="grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
                 <Card className="flex min-h-[26rem] flex-col">
                   <CardHeader className="space-y-4 border-b border-border pb-4">
@@ -1534,7 +1796,7 @@ const Admin: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="plans">
+            <TabsContent value="vps-plans" id="vps-plans">
               <Card>
                 <CardHeader className="flex flex-col gap-4 border-b border-b-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -1804,7 +2066,122 @@ const Admin: React.FC = () => {
               </Dialog>
             </TabsContent>
 
-            <TabsContent value="stackscripts">
+            <TabsContent value="user-management" id="user-management">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                      User Management
+                    </CardTitle>
+                    <CardDescription>Review accounts and their organization memberships.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={fetchAdminUsers} disabled={usersLoading}>
+                    <RefreshCw className="h-4 w-4" />
+                    {usersLoading ? 'Refreshing…' : 'Refresh'}
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="md:col-span-1">
+                      <Label htmlFor="user-search">Search</Label>
+                      <div className="relative mt-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="user-search"
+                          placeholder="Search by name, email, or organization"
+                          value={userSearch}
+                          onChange={(e) => setUserSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="md:col-span-1 xl:col-span-1">
+                      <Label htmlFor="user-role">Role</Label>
+                      <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value)}>
+                        <SelectTrigger id="user-role" className="mt-1">
+                          <SelectValue placeholder="All roles" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Roles</SelectItem>
+                          {userRoleOptions.map((role) => (
+                            <SelectItem key={role} value={role.toLowerCase()}>
+                              {role.charAt(0).toUpperCase() + role.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[16rem]">User</TableHead>
+                          <TableHead className="w-32">Role</TableHead>
+                          <TableHead className="min-w-[18rem]">Organizations</TableHead>
+                          <TableHead className="min-w-[12rem]">Created</TableHead>
+                          <TableHead className="min-w-[12rem]">Updated</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {usersLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                              Loading users…
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredUsers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                              No users match the current filters.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredUsers.map((user) => (
+                            <TableRow key={user.id} className="align-top">
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium text-foreground">{user.name}</p>
+                                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-300">
+                                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {Array.isArray(user.organizations) && user.organizations.length > 0 ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {user.organizations.map((org) => (
+                                      <Badge key={`${user.id}-${org.organizationId}`} variant="secondary" className="gap-1">
+                                        <span>{org.organizationName || org.organizationSlug || org.organizationId}</span>
+                                        <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">{org.role}</span>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground">{formatDateTime(user.created_at)}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground">{formatDateTime(user.updated_at)}</span>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="stackscripts" id="stackscripts">
               <Card>
                 <CardHeader className="flex flex-col gap-4 border-b border-border pb-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1944,7 +2321,7 @@ const Admin: React.FC = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="containers">
+            <TabsContent value="container-plans" id="container-plans">
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -2156,7 +2533,275 @@ const Admin: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="networking">
+            <TabsContent value="containers" id="containers">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                      <Box className="h-5 w-5 text-muted-foreground" />
+                      Containers
+                    </CardTitle>
+                    <CardDescription>Audit container workloads across all organizations.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={fetchAdminContainers} disabled={containerInstancesLoading}>
+                    <RefreshCw className="h-4 w-4" />
+                    {containerInstancesLoading ? 'Refreshing…' : 'Refresh'}
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="w-full md:w-80">
+                      <Label htmlFor="container-search">Search</Label>
+                      <div className="relative mt-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="container-search"
+                          placeholder="Search by name, organization, or creator"
+                          value={containerSearch}
+                          onChange={(e) => setContainerSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="w-full md:w-56">
+                      <Label htmlFor="container-status">Status</Label>
+                      <Select value={containerStatusFilter} onValueChange={(value) => setContainerStatusFilter(value)}>
+                        <SelectTrigger id="container-status" className="mt-1">
+                          <SelectValue placeholder="All status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          {containerStatusOptions.map((status) => (
+                            <SelectItem key={status} value={status.toLowerCase()}>{formatStatusLabel(status)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[14rem]">Name</TableHead>
+                          <TableHead className="min-w-[12rem]">Organization</TableHead>
+                          <TableHead className="w-32">Status</TableHead>
+                          <TableHead className="min-w-[12rem]">Image</TableHead>
+                          <TableHead className="min-w-[12rem]">Created</TableHead>
+                          <TableHead className="min-w-[12rem]">Updated</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {containerInstancesLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                              Loading containers…
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredContainerInstances.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                              No containers match the current filters.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredContainerInstances.map((instance) => (
+                            <TableRow key={instance.id} className="align-top">
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium text-foreground">{instance.name}</p>
+                                  <p className="text-xs text-muted-foreground">Created by {instance.creator_name || instance.creator_email || 'Unknown'}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="text-sm text-foreground">{instance.organization_name || '—'}</p>
+                                  <p className="text-xs text-muted-foreground">{instance.organization_slug || instance.organization_id}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={statusBadgeClass(instance.status)}>
+                                  {formatStatusLabel(instance.status)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{instance.image || '—'}</p>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{formatDateTime(instance.created_at)}</p>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{formatDateTime(instance.updated_at)}</p>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="servers" id="servers">
+              <Card>
+                <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                      <ServerCog className="h-5 w-5 text-muted-foreground" />
+                      Servers
+                    </CardTitle>
+                    <CardDescription>Monitor VPS instances provisioned through the platform.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={fetchServers} disabled={serversLoading}>
+                    <RefreshCw className="h-4 w-4" />
+                    {serversLoading ? 'Refreshing…' : 'Refresh'}
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="w-full xl:w-96">
+                      <Label htmlFor="server-search">Search</Label>
+                      <div className="relative mt-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="server-search"
+                          placeholder="Search by label, IP, organization, or plan"
+                          value={serverSearch}
+                          onChange={(e) => setServerSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="w-full xl:w-56">
+                      <Label htmlFor="server-status">Status</Label>
+                      <Select value={serverStatusFilter} onValueChange={(value) => setServerStatusFilter(value)}>
+                        <SelectTrigger id="server-status" className="mt-1">
+                          <SelectValue placeholder="All status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          {serverStatusOptions.map((status) => (
+                            <SelectItem key={status} value={status.toLowerCase()}>{formatStatusLabel(status)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[14rem]">Label</TableHead>
+                          <TableHead className="min-w-[12rem]">Organization</TableHead>
+                          <TableHead className="w-32">Status</TableHead>
+                          <TableHead className="min-w-[10rem]">IP Address</TableHead>
+                          <TableHead className="min-w-[12rem]">Plan</TableHead>
+                          <TableHead className="min-w-[10rem]">Region</TableHead>
+                          <TableHead className="min-w-[10rem]">Provider</TableHead>
+                          <TableHead className="min-w-[12rem]">Updated</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {serversLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                              Loading servers…
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredServers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                              No servers match the current filters.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredServers.map((server) => {
+                            const specRecord = (server.plan_specifications && typeof server.plan_specifications === 'object')
+                              ? server.plan_specifications as Record<string, unknown>
+                              : null;
+                            const readNumber = (key: string) => {
+                              if (!specRecord) return undefined;
+                              const raw = specRecord[key];
+                              if (typeof raw === 'number') return raw;
+                              if (typeof raw === 'string') {
+                                const parsed = Number(raw);
+                                return Number.isFinite(parsed) ? parsed : undefined;
+                              }
+                              return undefined;
+                            };
+                            const specParts: string[] = [];
+                            const vcpus = readNumber('vcpus') ?? readNumber('cpu') ?? readNumber('cores');
+                            const memory = readNumber('memory') ?? readNumber('memory_mb') ?? readNumber('ram');
+                            const disk = readNumber('disk') ?? readNumber('storage');
+                            const transfer = readNumber('transfer') ?? readNumber('bandwidth');
+                            if (typeof vcpus !== 'undefined') {
+                              specParts.push(`${vcpus} vCPU`);
+                            }
+                            if (typeof memory !== 'undefined') {
+                              specParts.push(`${memory} MB RAM`);
+                            }
+                            if (typeof disk !== 'undefined') {
+                              specParts.push(`${disk} GB Disk`);
+                            }
+                            if (typeof transfer !== 'undefined') {
+                              specParts.push(`${transfer} TB Transfer`);
+                            }
+                            const specSummary = specParts.length > 0 ? specParts.join(' • ') : '—';
+                            const configurationRecord = (server.configuration && typeof server.configuration === 'object')
+                              ? server.configuration as Record<string, unknown>
+                              : null;
+                            const regionValue = configurationRecord ? configurationRecord['region'] : undefined;
+                            const region = typeof regionValue === 'string' ? regionValue : null;
+
+                            return (
+                              <TableRow key={server.id} className="align-top">
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium text-foreground">{server.label}</p>
+                                  <p className="text-xs text-muted-foreground">Provider ID #{server.provider_instance_id}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="text-sm text-foreground">{server.organization_name || '—'}</p>
+                                  <p className="text-xs text-muted-foreground">{server.organization_slug || server.organization_id}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={statusBadgeClass(server.status)}>
+                                  {formatStatusLabel(server.status)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{server.ip_address || '—'}</p>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="text-sm text-foreground">{server.plan_name || server.plan_provider_plan_id || server.plan_id}</p>
+                                    <p className="text-xs text-muted-foreground">{specSummary}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                  <p className="text-sm text-muted-foreground">{server.region_label || region || '—'}</p>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{server.provider_name || '—'}</p>
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{formatDateTime(server.updated_at)}</p>
+                              </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="networking" id="networking">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -2212,7 +2857,7 @@ const Admin: React.FC = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="providers">
+            <TabsContent value="providers" id="providers">
               <Card>
                 <CardHeader className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
@@ -2376,7 +3021,6 @@ const Admin: React.FC = () => {
               </Dialog>
             </TabsContent>
 
-          </div>
         </div>
       </Tabs>
 

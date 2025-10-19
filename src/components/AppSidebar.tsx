@@ -2,6 +2,8 @@ import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Activity,
+  Box,
+  Boxes,
   CreditCard,
   FileCode,
   Globe,
@@ -10,6 +12,7 @@ import {
   Palette,
   Search,
   Server,
+  ServerCog,
   Settings,
   Users,
   type LucideIcon,
@@ -48,7 +51,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
   const isContainersActive = pathname.startsWith("/containers");
   const isActivityActive = pathname.startsWith("/activity");
   const isBillingActive = pathname.startsWith("/billing");
-  const isAdminRoute = pathname === "/admin";
+  const isAdminRoute = pathname.startsWith("/admin");
 
   const navMainItems = React.useMemo(
     () => {
@@ -56,9 +59,10 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
         const activeAnchor = currentHash || "support";
         const adminItems = [
           { title: "Support", anchor: "support", icon: LifeBuoy },
-          { title: "VPS Plans", anchor: "plans", icon: CreditCard },
-          { title: "Container Plans", anchor: "container-plans", icon: Server },
-          { title: "Containers", anchor: "containers", icon: Server },
+          { title: "VPS Plans", anchor: "vps-plans", icon: CreditCard },
+          { title: "Container Plans", anchor: "container-plans", icon: Boxes },
+          { title: "Containers", anchor: "containers", icon: Box },
+          { title: "Servers", anchor: "servers", icon: ServerCog },
           { title: "Providers", anchor: "providers", icon: Settings },
           { title: "StackScripts", anchor: "stackscripts", icon: FileCode },
           { title: "Networking", anchor: "networking", icon: Globe },
