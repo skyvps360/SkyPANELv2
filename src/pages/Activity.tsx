@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Activity as ActivityIcon, Filter, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DatePicker } from '@/components/ui/date-picker';
 
 interface ActivityRecord {
@@ -120,7 +118,7 @@ const ActivityPage: React.FC = () => {
       }
     } else {
       let start = Math.max(1, current - 2);
-      let end = Math.min(total, start + maxVisible - 1);
+      const end = Math.min(total, start + maxVisible - 1);
       
       if (end - start < maxVisible - 1) {
         start = Math.max(1, end - maxVisible + 1);

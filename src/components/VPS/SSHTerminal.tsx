@@ -12,6 +12,78 @@ import { cn } from '@/lib/utils';
 import { Terminal as TerminalIcon } from 'lucide-react';
 import { API_BASE_URL, buildApiUrl } from '../../lib/api';
 
+const DEFAULT_ROWS = 30;
+const DEFAULT_COLS = 120;
+const FULLSCREEN_ROWS = 50;
+const FULLSCREEN_COLS = 150;
+const INITIAL_FONT_SIZE = 14;
+
+const TERMINAL_THEMES: Record<'dark' | 'light' | 'matrix', Terminal['options']['theme']> = {
+  dark: {
+    background: '#111827',
+    foreground: '#e5e7eb',
+    cursor: '#93c5fd',
+    black: '#000000',
+    red: '#ef4444',
+    green: '#10b981',
+    yellow: '#f59e0b',
+    blue: '#3b82f6',
+    magenta: '#8b5cf6',
+    cyan: '#06b6d4',
+    white: '#f3f4f6',
+    brightBlack: '#6b7280',
+    brightRed: '#f87171',
+    brightGreen: '#34d399',
+    brightYellow: '#fbbf24',
+    brightBlue: '#60a5fa',
+    brightMagenta: '#a78bfa',
+    brightCyan: '#22d3ee',
+    brightWhite: '#ffffff',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#1f2937',
+    cursor: '#3b82f6',
+    black: '#000000',
+    red: '#dc2626',
+    green: '#059669',
+    yellow: '#d97706',
+    blue: '#2563eb',
+    magenta: '#7c3aed',
+    cyan: '#0891b2',
+    white: '#f9fafb',
+    brightBlack: '#6b7280',
+    brightRed: '#ef4444',
+    brightGreen: '#10b981',
+    brightYellow: '#f59e0b',
+    brightBlue: '#3b82f6',
+    brightMagenta: '#8b5cf6',
+    brightCyan: '#06b6d4',
+    brightWhite: '#ffffff',
+  },
+  matrix: {
+    background: '#000000',
+    foreground: '#00ff00',
+    cursor: '#00ff00',
+    black: '#000000',
+    red: '#00ff00',
+    green: '#00ff00',
+    yellow: '#00ff00',
+    blue: '#00ff00',
+    magenta: '#00ff00',
+    cyan: '#00ff00',
+    white: '#00ff00',
+    brightBlack: '#006600',
+    brightRed: '#00ff00',
+    brightGreen: '#00ff00',
+    brightYellow: '#00ff00',
+    brightBlue: '#00ff00',
+    brightMagenta: '#00ff00',
+    brightCyan: '#00ff00',
+    brightWhite: '#00ff00',
+  },
+};
+
 interface SSHTerminalProps {
   instanceId: string;
   isFullScreen?: boolean;
@@ -26,10 +98,13 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [status, setStatus] = useState<WSStatus>('disconnected');
-  const [fontSize, setFontSize] = useState<number>(14);
-  const [rows, setRows] = useState<number>(30);
-  const [cols, setCols] = useState<number>(120);
+  const [fontSize, setFontSize] = useState<number>(INITIAL_FONT_SIZE);
+  const initialRows = useRef(isFullScreen ? FULLSCREEN_ROWS : DEFAULT_ROWS);
+  const initialCols = useRef(isFullScreen ? FULLSCREEN_COLS : DEFAULT_COLS);
+  const [rows, setRows] = useState<number>(initialRows.current);
+  const [cols, setCols] = useState<number>(initialCols.current);
   const [connectedUser, setConnectedUser] = useState<string>('root');
   const [sessionLog, setSessionLog] = useState<string>('');
   const [theme, setTheme] = useState<'dark' | 'light' | 'matrix'>('dark');
@@ -38,85 +113,26 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [lastActivity, setLastActivity] = useState(Date.now());
 
-  // Theme configurations
-  const themes = {
-    dark: {
-      background: '#111827',
-      foreground: '#e5e7eb',
-      cursor: '#93c5fd',
-      selection: '#374151',
-      black: '#000000',
-      red: '#ef4444',
-      green: '#10b981',
-      yellow: '#f59e0b',
-      blue: '#3b82f6',
-      magenta: '#8b5cf6',
-      cyan: '#06b6d4',
-      white: '#f3f4f6',
-      brightBlack: '#6b7280',
-      brightRed: '#f87171',
-      brightGreen: '#34d399',
-      brightYellow: '#fbbf24',
-      brightBlue: '#60a5fa',
-      brightMagenta: '#a78bfa',
-      brightCyan: '#22d3ee',
-      brightWhite: '#ffffff',
-    },
-    light: {
-      background: '#ffffff',
-      foreground: '#1f2937',
-      cursor: '#3b82f6',
-      selection: '#e5e7eb',
-      black: '#000000',
-      red: '#dc2626',
-      green: '#059669',
-      yellow: '#d97706',
-      blue: '#2563eb',
-      magenta: '#7c3aed',
-      cyan: '#0891b2',
-      white: '#f9fafb',
-      brightBlack: '#6b7280',
-      brightRed: '#ef4444',
-      brightGreen: '#10b981',
-      brightYellow: '#f59e0b',
-      brightBlue: '#3b82f6',
-      brightMagenta: '#8b5cf6',
-      brightCyan: '#06b6d4',
-      brightWhite: '#ffffff',
-    },
-    matrix: {
-      background: '#000000',
-      foreground: '#00ff00',
-      cursor: '#00ff00',
-      selection: '#003300',
-      black: '#000000',
-      red: '#00ff00',
-      green: '#00ff00',
-      yellow: '#00ff00',
-      blue: '#00ff00',
-      magenta: '#00ff00',
-      cyan: '#00ff00',
-      white: '#00ff00',
-      brightBlack: '#006600',
-      brightRed: '#00ff00',
-      brightGreen: '#00ff00',
-      brightYellow: '#00ff00',
-      brightBlue: '#00ff00',
-      brightMagenta: '#00ff00',
-      brightCyan: '#00ff00',
-      brightWhite: '#00ff00',
-    },
-  };
+  const rowsRef = useRef(rows);
+  const colsRef = useRef(cols);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  useEffect(() => {
+    colsRef.current = cols;
+  }, [cols]);
 
   // Initialize the terminal
   useEffect(() => {
     if (containerRef.current && !termRef.current) {
       const term = new Terminal({
         cursorBlink: true,
-        fontSize,
-        rows: isFullScreen ? 50 : rows,
-        cols: isFullScreen ? 150 : cols,
-        theme: themes[theme],
+  fontSize: INITIAL_FONT_SIZE,
+        rows: initialRows.current,
+        cols: initialCols.current,
+        theme: TERMINAL_THEMES.dark,
         allowTransparency: true,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       });
@@ -142,9 +158,11 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
 
           if (newCols && newRows) {
             // Only update if dimensions actually changed
-            if (newCols !== cols || newRows !== rows) {
+            if (newCols !== colsRef.current || newRows !== rowsRef.current) {
               setCols(newCols);
               setRows(newRows);
+              colsRef.current = newCols;
+              rowsRef.current = newRows;
 
               // Notify backend of size change
               if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -159,14 +177,18 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
         }, 100);
       });
       resizeObserver.observe(containerRef.current);
-      return () => resizeObserver.disconnect();
+      resizeObserverRef.current = resizeObserver;
+      return () => {
+        resizeObserver.disconnect();
+        resizeObserverRef.current = null;
+      };
     }
   }, []);
 
   // Update theme when changed
   useEffect(() => {
     if (termRef.current) {
-      termRef.current.options.theme = themes[theme];
+      termRef.current.options.theme = TERMINAL_THEMES[theme];
     }
   }, [theme]);
 
@@ -283,7 +305,9 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
   const increaseFont = useCallback(() => {
     setFontSize((s) => {
       const next = Math.min(s + 1, 24);
-      termRef.current?.options && (termRef.current.options.fontSize = next);
+      if (termRef.current?.options) {
+        termRef.current.options.fontSize = next;
+      }
       fitAddonRef.current?.fit();
       return next;
     });
@@ -292,7 +316,9 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
   const decreaseFont = useCallback(() => {
     setFontSize((s) => {
       const next = Math.max(s - 1, 10);
-      termRef.current?.options && (termRef.current.options.fontSize = next);
+      if (termRef.current?.options) {
+        termRef.current.options.fontSize = next;
+      }
       fitAddonRef.current?.fit();
       return next;
     });
@@ -538,7 +564,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({ instanceId, isFullScre
               'flex-1 w-full overflow-hidden rounded-2xl border border-border/80 bg-black/90 shadow-inner',
               terminalSizeClass
             )}
-            style={{ backgroundColor: themes[theme].background }}
+            style={{ backgroundColor: TERMINAL_THEMES[theme].background }}
           />
 
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-5 py-3 text-xs text-muted-foreground shrink-0">

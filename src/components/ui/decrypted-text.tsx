@@ -46,16 +46,20 @@ export default function DecryptedText({
     
     switch (revealDirection) {
       case "end":
-        return indices.reverse();
-      case "center":
+        return [...indices].reverse();
+      case "center": {
         const center = Math.floor(length / 2);
-        const result = [center];
+        const result: number[] = [];
+        if (length > 0) {
+          result.push(center);
+        }
         for (let i = 1; i < length; i++) {
           if (center - i >= 0) result.push(center - i);
           if (center + i < length) result.push(center + i);
         }
         return result;
-      default: // "start"
+      }
+      default:
         return indices;
     }
   };
@@ -66,8 +70,8 @@ export default function DecryptedText({
     setIsAnimating(true);
     const textArray = text.split("");
     const revealOrder = sequential ? getRevealOrder(textArray.length) : [];
-    let iterations = 0;
-    let revealedIndices = new Set<number>();
+  let iterations = 0;
+  const revealedIndices = new Set<number>();
 
     const interval = setInterval(() => {
       setDisplayText((prev) => {
