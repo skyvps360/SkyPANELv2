@@ -5,7 +5,6 @@ import { query, transaction } from '../lib/database.js';
 import { config } from '../config/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  sendLoginNotificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail
 } from './emailService.js';
@@ -175,15 +174,6 @@ export class AuthService {
         config.JWT_SECRET as Secret,
         { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
-
-      try {
-        await sendLoginNotificationEmail(
-          user.email,
-          user.name || undefined
-        );
-      } catch (emailError) {
-        console.error('Login email send failed:', emailError);
-      }
 
       return {
         user: {
