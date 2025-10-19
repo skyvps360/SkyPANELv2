@@ -26,6 +26,7 @@ import {
   Copy,
   Edit2,
   Check,
+  X,
   Terminal as TerminalIcon
 } from 'lucide-react';
 import { toast } from 'sonner';

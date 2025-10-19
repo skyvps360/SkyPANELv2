@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +26,6 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle } from "lucide-react";
-import { BRAND_NAME } from "@/lib/brand";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import { useTheme } from "@/hooks/useTheme";
@@ -300,23 +299,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <AppSidebar onOpenCommand={() => setCommandOpen(true)} />
       <SidebarInset>
         {/* Two-Tier Navigation Header */}
-        <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-[[data-state=collapsed]]/sidebar-wrapper:h-12">
-          <CardContent className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 py-0 group-has-[[data-state=collapsed]]/sidebar-wrapper:h-12">
+        <Card className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear">
+          <CardContent className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 py-0">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
-              
-              {/* Logo and Brand Name - Only visible when sidebar is collapsed */}
-              <div className="hidden group-has-[[data-state=collapsed]]/sidebar-wrapper:flex items-center gap-2">
-                <Link to="/dashboard" className="flex items-center gap-2">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Server className="size-4" />
-                  </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-semibold text-foreground">{BRAND_NAME}</span>
-                    <span className="text-xs text-muted-foreground">Cloud Platform</span>
-                  </div>
-                </Link>
-              </div>
               
               <Separator orientation="vertical" className="mr-2 h-4 hidden md:block" />
               <div className="hidden md:block">
