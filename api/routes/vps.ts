@@ -1260,6 +1260,14 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     }
 
+  // Calculate progress information for transitional states
+  let providerProgress: { percent: number | null; action: string | null; status: string | null; message: string | null; created: string | null } | null = null;
+  let progressPercent: number | null = null;
+  if (['provisioning', 'rebooting', 'restoring', 'backing_up'].includes(normalizedStatus)) {
+    providerProgress = deriveProgressFromEvents(normalizedStatus, instanceEvents);
+    progressPercent = providerProgress?.percent ?? null;
+  }
+
   const planBasePrice = planMeta.planRow ? Number(planMeta.planRow.base_price ?? 0) : 0;
   const planMarkupPrice = planMeta.planRow ? Number(planMeta.planRow.markup_price ?? 0) : 0;
   const combinedPlanPrice = planBasePrice + planMarkupPrice;
@@ -1335,6 +1343,8 @@ router.get('/:id', async (req: Request, res: Response) => {
         activity: instanceEvents,
         backupPricing,
         rdnsEditable,
+        providerProgress,
+        progressPercent,
       },
     });
   } catch (err: any) {

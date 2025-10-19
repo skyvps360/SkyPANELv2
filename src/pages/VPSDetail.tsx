@@ -305,6 +305,14 @@ interface VpsInstanceDetail {
   activity: InstanceEventSummary[];
   backupPricing: BackupPricing | null;
   rdnsEditable: boolean;
+  providerProgress?: {
+    percent: number | null;
+    action: string | null;
+    status: string | null;
+    message: string | null;
+    created: string | null;
+  } | null;
+  progressPercent?: number | null;
 }
 
 interface VpsDetailResponse {
@@ -424,7 +432,48 @@ const statusActionLabel: Record<'boot' | 'shutdown' | 'reboot', string> = {
 };
 
 // Progress indicator helpers
-const getProgressText = (status: string): string => {
+const clampPercent = (value: any): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  if (value < 0) return 0;
+  if (value > 100) return 100;
+  return value;
+};
+
+const getProgressValue = (detail: VpsInstanceDetail | null): number | null => {
+  if (!detail) return null;
+
+  const providerPercent = clampPercent(detail.providerProgress?.percent ?? detail.progressPercent ?? null);
+  if (providerPercent !== null) {
+    if (providerPercent >= 100 && (detail.status === 'running' || detail.status === 'stopped')) {
+      return null;
+    }
+    return providerPercent;
+  }
+
+  if (detail.status === 'provisioning') {
+    if (detail.createdAt) {
+      const createdTime = new Date(detail.createdAt).getTime();
+      if (!Number.isNaN(createdTime)) {
+        const now = Date.now();
+        const elapsed = now - createdTime;
+        const estimatedTotal = 5 * 60 * 1000; // 5 minutes fallback heuristic
+        return Math.min(90, (elapsed / estimatedTotal) * 100);
+      }
+    }
+    return 25;
+  }
+  if (detail.status === 'rebooting') return 60;
+  if (detail.status === 'restoring') return 40;
+  if (detail.status === 'backing_up') return 70;
+  return null;
+};
+
+const getProgressText = (status: string, providerMessage?: string | null): string => {
+  if (providerMessage && typeof providerMessage === 'string' && providerMessage.trim().length > 0) {
+    return providerMessage.trim();
+  }
   switch (status) {
     case 'provisioning':
       return 'Provisioning server...';
@@ -1466,10 +1515,15 @@ const VPSDetail: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
-                        {getProgressText(detail.status)}
+                        {getProgressText(detail.status, detail.providerProgress?.message)}
                       </span>
+                      {getProgressValue(detail) !== null && (
+                        <span className="text-sm text-muted-foreground font-medium">
+                          {Math.round(getProgressValue(detail)!)}%
+                        </span>
+                      )}
                     </div>
-                    <Progress value={undefined} className="h-2" />
+                    <Progress value={getProgressValue(detail) ?? undefined} className="h-2" />
                   </div>
                 )}
               </div>
