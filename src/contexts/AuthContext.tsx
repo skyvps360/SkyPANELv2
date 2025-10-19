@@ -18,6 +18,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
+  isImpersonating: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -54,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     // Check for existing token in localStorage
@@ -63,6 +65,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+      
+      // Check if this is an impersonation token
+      try {
+        // Simple JWT decode without verification (client-side)
+        const base64Url = storedToken.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const decoded = JSON.parse(jsonPayload);
+        setIsImpersonating(Boolean(decoded?.isImpersonating));
+      } catch {
+        setIsImpersonating(false);
+      }
     }
 
     setLoading(false);
@@ -129,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
+    setIsImpersonating(false);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
   };
@@ -343,6 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     token,
     loading,
+    isImpersonating,
     login,
     register,
     logout,

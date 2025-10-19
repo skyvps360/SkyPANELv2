@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ImpersonationProvider, useImpersonation } from "./contexts/ImpersonationContext";
+import { ImpersonationBanner } from "./components/admin/ImpersonationBanner";
+import { ImpersonationLoadingOverlay } from "./components/admin/ImpersonationLoadingOverlay";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -25,6 +28,42 @@ import AppLayout from "./components/AppLayout";
 import ActivityPage from "./pages/Activity";
 import ApiDocs from "./pages/ApiDocs";
 
+// Component to handle impersonation banner display
+function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
+  const { 
+    isImpersonating, 
+    impersonatedUser, 
+    exitImpersonation, 
+    isExiting,
+    isStarting,
+    startingProgress,
+    startingMessage,
+    startingTargetUser
+  } = useImpersonation();
+
+  return (
+    <>
+      {isImpersonating && impersonatedUser && (
+        <ImpersonationBanner
+          impersonatedUser={impersonatedUser}
+          onExitImpersonation={exitImpersonation}
+          isExiting={isExiting}
+        />
+      )}
+      {isStarting && (
+        <ImpersonationLoadingOverlay
+          targetUser={startingTargetUser || impersonatedUser || { name: 'User', email: 'Loading...', role: 'user' }}
+          progress={startingProgress}
+          message={startingMessage}
+        />
+      )}
+      <div style={{ paddingTop: isImpersonating ? '60px' : '0' }}>
+        {children}
+      </div>
+    </>
+  );
+}
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -41,7 +80,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <ImpersonationWrapper>
+      <AppLayout>{children}</AppLayout>
+    </ImpersonationWrapper>
+  );
 }
 
 function StandaloneProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -59,7 +102,11 @@ function StandaloneProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <ImpersonationWrapper>
+      {children}
+    </ImpersonationWrapper>
+  );
 }
 
 // Admin Route Component (requires authenticated admin role)
@@ -82,7 +129,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <ImpersonationWrapper>
+      <AppLayout>{children}</AppLayout>
+    </ImpersonationWrapper>
+  );
 }
 
 // Public Route Component (redirect to dashboard if authenticated)
@@ -277,14 +328,16 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <AppRoutes />
-          <Toaster 
-            position="bottom-right"
-            richColors
-            closeButton
-          />
-        </Router>
+        <ImpersonationProvider>
+          <Router>
+            <AppRoutes />
+            <Toaster 
+              position="bottom-right"
+              richColors
+              closeButton
+            />
+          </Router>
+        </ImpersonationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -11,8 +11,21 @@ import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
 import { logActivity } from '../services/activityLogger.js';
 import { themeService, type StoredThemePreset } from '../services/themeService.js';
+import jwt from 'jsonwebtoken';
+import { config } from '../config/index.js';
+import { 
+  auditLogger, 
+  adminSecurityHeaders, 
+  requestSizeLimit, 
+  adminRateLimit 
+} from '../middleware/security.js';
 
 const router = express.Router();
+
+// Apply security middleware to all admin routes
+router.use(adminSecurityHeaders);
+router.use(requestSizeLimit(500)); // 500KB limit for admin operations
+router.use(adminRateLimit(200, 15 * 60 * 1000)); // 200 requests per 15 minutes
 
 // Helper to detect missing-table errors from Supabase
 const isMissingTableError = (err: any): boolean => {
@@ -1029,7 +1042,7 @@ router.get('/servers', authenticateToken, requireAdmin, async (_req: Request, re
 });
 
 // List users for admin management view
-router.get('/users', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+router.get('/users', authenticateToken, requireAdmin, auditLogger('list_users'), async (_req: Request, res: Response) => {
   try {
     const result = await query(
       `SELECT 
@@ -1062,6 +1075,293 @@ router.get('/users', authenticateToken, requireAdmin, async (_req: Request, res:
     res.status(500).json({ error: err.message || 'Failed to fetch users' });
   }
 });
+
+// Get detailed user information by ID
+router.get(
+  '/users/:id',
+  authenticateToken,
+  requireAdmin,
+  auditLogger('view_user_details'),
+  [param('id').isUUID().withMessage('Invalid user id')],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id } = req.params;
+
+      // Get detailed user information with organization memberships
+      const userResult = await query(
+        `SELECT 
+          u.id,
+          u.email,
+          u.name,
+          u.role,
+          u.phone,
+          u.timezone,
+          u.preferences,
+          u.created_at,
+          u.updated_at,
+          COALESCE(
+            jsonb_agg(
+              DISTINCT jsonb_build_object(
+                'organizationId', om.organization_id,
+                'organizationName', org.name,
+                'organizationSlug', org.slug,
+                'role', om.role,
+                'joinedAt', om.created_at
+              )
+            ) FILTER (WHERE om.organization_id IS NOT NULL),
+            '[]'::jsonb
+          ) AS organizations
+        FROM users u
+        LEFT JOIN organization_members om ON om.user_id = u.id
+        LEFT JOIN organizations org ON org.id = om.organization_id
+        WHERE u.id = $1
+        GROUP BY u.id`,
+        [id]
+      );
+
+      if (userResult.rows.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const user = userResult.rows[0];
+
+      // Get activity summary - VPS count
+      const vpsCountResult = await query(
+        `SELECT COUNT(*) as vps_count
+         FROM vps_instances v
+         JOIN organizations org ON org.id = v.organization_id
+         JOIN organization_members om ON om.organization_id = org.id
+         WHERE om.user_id = $1`,
+        [id]
+      );
+
+      // Get activity summary - Container count
+      let containerCount = 0;
+      try {
+        const containerCountResult = await query(
+          `SELECT COUNT(*) as container_count
+           FROM containers c
+           JOIN organizations org ON org.id = c.organization_id
+           JOIN organization_members om ON om.organization_id = org.id
+           WHERE om.user_id = $1`,
+          [id]
+        );
+        containerCount = parseInt(containerCountResult.rows[0]?.container_count || '0');
+      } catch (containerErr: any) {
+        if (!isMissingTableError(containerErr)) {
+          console.warn('Error fetching container count for user:', containerErr);
+        }
+      }
+
+      // Get last activity from activity logs
+      let lastActivity = null;
+      try {
+        const activityResult = await query(
+          `SELECT created_at
+           FROM activity_logs
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [id]
+        );
+        lastActivity = activityResult.rows[0]?.created_at || null;
+      } catch (activityErr: any) {
+        if (!isMissingTableError(activityErr)) {
+          console.warn('Error fetching last activity for user:', activityErr);
+        }
+      }
+
+      // Build detailed user response
+      const detailedUser = {
+        ...user,
+        status: 'active', // Default status - could be enhanced with actual status tracking
+        activity_summary: {
+          vps_count: parseInt(vpsCountResult.rows[0]?.vps_count || '0'),
+          container_count: containerCount,
+          last_activity: lastActivity
+        }
+      };
+
+      res.json({ user: detailedUser });
+    } catch (err: any) {
+      console.error('Admin user detail error:', err);
+      res.status(500).json({ error: err.message || 'Failed to fetch user details' });
+    }
+  }
+);
+
+// Update user information
+router.put(
+  '/users/:id',
+  authenticateToken,
+  requireAdmin,
+  auditLogger('update_user'),
+  [
+    param('id').isUUID().withMessage('Invalid user id'),
+    body('name').optional().isString().trim().isLength({ min: 1 }).withMessage('Name must not be empty'),
+    body('email').optional().isEmail().withMessage('Invalid email format'),
+    body('role').optional().isIn(['admin', 'user']).withMessage('Invalid role'),
+    body('phone').optional().isString().trim(),
+    body('timezone').optional().isString().trim()
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id } = req.params;
+      const rawBody = req.body as {
+        name?: string;
+        email?: string;
+        role?: string;
+        phone?: string;
+        timezone?: string;
+      };
+
+      // Sanitize input data
+      const { sanitizeUserInput } = await import('../lib/security.js');
+      const { name, email, role, phone, timezone } = sanitizeUserInput(rawBody);
+
+      // Check if user exists
+      const userCheck = await query('SELECT id, email, name, role FROM users WHERE id = $1', [id]);
+      if (userCheck.rows.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const existingUser = userCheck.rows[0];
+
+      // Enhanced security validation for user updates
+      const { validateUserUpdateRequest } = await import('../lib/security.js');
+      const securityValidation = validateUserUpdateRequest(
+        req.user!,
+        existingUser,
+        { name, email, role, phone, timezone }
+      );
+
+      if (!securityValidation.isValid) {
+        res.status(403).json({ error: securityValidation.error });
+        return;
+      }
+
+      // Check if email is already taken by another user
+      if (email && email !== existingUser.email) {
+        const emailCheck = await query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, id]);
+        if (emailCheck.rows.length > 0) {
+          res.status(400).json({ error: 'Email is already taken by another user' });
+          return;
+        }
+      }
+
+      // Build update query dynamically
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      if (name !== undefined) {
+        updateFields.push(`name = $${paramCount++}`);
+        values.push(name);
+      }
+      if (email !== undefined) {
+        updateFields.push(`email = $${paramCount++}`);
+        values.push(email);
+      }
+      if (role !== undefined) {
+        updateFields.push(`role = $${paramCount++}`);
+        values.push(role);
+      }
+      if (phone !== undefined) {
+        updateFields.push(`phone = $${paramCount++}`);
+        values.push(phone);
+      }
+      if (timezone !== undefined) {
+        updateFields.push(`timezone = $${paramCount++}`);
+        values.push(timezone);
+      }
+
+      if (updateFields.length === 0) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
+
+      // Add updated_at timestamp
+      updateFields.push(`updated_at = $${paramCount++}`);
+      values.push(new Date().toISOString());
+      values.push(id);
+
+      // Execute update
+      const updateResult = await query(
+        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING id, email, name, role, phone, timezone, created_at, updated_at`,
+        values
+      );
+
+      const updatedUser = updateResult.rows[0];
+
+      // Enhanced audit logging for user modifications
+      if (req.user?.id) {
+        const changes: Record<string, { from: any; to: any }> = {};
+        const changeDescriptions: string[] = [];
+        
+        if (name !== undefined && name !== existingUser.name) {
+          changes.name = { from: existingUser.name, to: name };
+          changeDescriptions.push(`name: "${existingUser.name}" → "${name}"`);
+        }
+        if (email !== undefined && email !== existingUser.email) {
+          changes.email = { from: existingUser.email, to: email };
+          changeDescriptions.push(`email: "${existingUser.email}" → "${email}"`);
+        }
+        if (role !== undefined && role !== existingUser.role) {
+          changes.role = { from: existingUser.role, to: role };
+          changeDescriptions.push(`role: "${existingUser.role}" → "${role}"`);
+        }
+        if (phone !== undefined) {
+          changes.phone = { from: '[hidden]', to: '[updated]' };
+          changeDescriptions.push(`phone updated`);
+        }
+        if (timezone !== undefined) {
+          changes.timezone = { from: '[hidden]', to: timezone };
+          changeDescriptions.push(`timezone updated`);
+        }
+
+        const { generateAuditMetadata } = await import('../lib/security.js');
+        const auditMetadata = generateAuditMetadata(req, 'user_update', existingUser, changes);
+
+        await logActivity({
+          userId: req.user.id,
+          organizationId: req.user.organizationId ?? null,
+          eventType: 'user_update',
+          entityType: 'user',
+          entityId: id,
+          message: `Admin updated user ${existingUser.name || existingUser.email}: ${changeDescriptions.join(', ')}`,
+          status: 'success',
+          metadata: {
+            ...auditMetadata,
+            target_user_id: id,
+            target_user_email: existingUser.email,
+            change_descriptions: changeDescriptions,
+            updated_fields: Object.keys(rawBody),
+            security_validated: true
+          }
+        }, req);
+      }
+
+      res.json({ user: updatedUser });
+    } catch (err: any) {
+      console.error('Admin user update error:', err);
+      res.status(500).json({ error: err.message || 'Failed to update user' });
+    }
+  }
+);
 
 // Schema check endpoint to report missing tables for quick diagnostics
 router.get('/schema/check', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
@@ -1220,5 +1520,292 @@ router.delete('/stackscripts/configs/:id', authenticateToken, requireAdmin, asyn
     res.status(500).json({ error: err.message || 'Failed to delete StackScript config' });
   }
 });
+
+// User Impersonation: Initiate impersonation
+router.post(
+  '/users/:id/impersonate',
+  authenticateToken,
+  requireAdmin,
+  auditLogger('start_impersonation'),
+  [
+    param('id').isUUID().withMessage('Invalid user id'),
+    body('confirmAdminImpersonation').optional().isBoolean()
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { id: targetUserId } = req.params;
+      const { confirmAdminImpersonation = false } = req.body;
+      const adminUser = req.user!;
+
+      // Rate limiting check for impersonation attempts
+      const rateLimitResult = await import('../lib/security.js').then(m => 
+        m.validateRateLimit(req, 'impersonation', 10, 60 * 60 * 1000) // 10 attempts per hour
+      );
+      
+      if (!rateLimitResult.isValid) {
+        res.status(429).json({ error: rateLimitResult.error || 'Too many impersonation attempts' });
+        return;
+      }
+
+      // Check if target user exists
+      const targetUserResult = await query(
+        'SELECT id, email, name, role FROM users WHERE id = $1',
+        [targetUserId]
+      );
+
+      if (targetUserResult.rows.length === 0) {
+        res.status(404).json({ error: 'Target user not found' });
+        return;
+      }
+
+      const targetUser = targetUserResult.rows[0];
+
+      // Enhanced security validation
+      const { validateImpersonationRequest } = await import('../lib/security.js');
+      const securityValidation = validateImpersonationRequest(
+        adminUser,
+        targetUser,
+        confirmAdminImpersonation
+      );
+
+      if (!securityValidation.isValid) {
+        if (securityValidation.requiresConfirmation) {
+          res.status(400).json({
+            error: securityValidation.error,
+            requiresConfirmation: true,
+            targetUser: securityValidation.metadata?.targetUser
+          });
+        } else {
+          res.status(403).json({ error: securityValidation.error });
+        }
+        return;
+      }
+
+      // Get target user's organization (if any)
+      let targetUserOrgId = null;
+      try {
+        const orgResult = await query(
+          'SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1',
+          [targetUserId]
+        );
+        if (orgResult.rows.length > 0) {
+          targetUserOrgId = orgResult.rows[0].organization_id;
+        } else {
+          // Fallback: check if user owns an organization
+          const ownerOrgResult = await query(
+            'SELECT id FROM organizations WHERE owner_id = $1 LIMIT 1',
+            [targetUserId]
+          );
+          if (ownerOrgResult.rows.length > 0) {
+            targetUserOrgId = ownerOrgResult.rows[0].id;
+          }
+        }
+      } catch (orgErr) {
+        console.warn('Error fetching target user organization:', orgErr);
+      }
+
+      // Generate impersonation token with limited scope and expiration (1 hour)
+      const impersonationPayload = {
+        userId: targetUser.id,
+        originalAdminId: adminUser.id,
+        isImpersonating: true,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+      };
+
+      const impersonationToken = jwt.sign(impersonationPayload, config.JWT_SECRET);
+
+      // Enhanced audit logging for impersonation
+      const { generateAuditMetadata } = await import('../lib/security.js');
+      const auditMetadata = generateAuditMetadata(req, 'impersonation_start', targetUser, {
+        admin_confirmation: confirmAdminImpersonation,
+        target_user_role: targetUser.role,
+        impersonation_token_expires: new Date(impersonationPayload.exp * 1000).toISOString()
+      });
+
+      await logActivity({
+        userId: adminUser.id,
+        organizationId: adminUser.organizationId ?? null,
+        eventType: 'impersonation_start',
+        entityType: 'user',
+        entityId: targetUserId,
+        message: `Admin ${adminUser.email} started impersonating user ${targetUser.email}${targetUser.role === 'admin' ? ' (admin-to-admin with confirmation)' : ''}`,
+        status: 'warning', // Changed to warning for security audit
+        metadata: auditMetadata
+      }, req);
+
+      // Also log activity for the target user
+      await logActivity({
+        userId: targetUserId,
+        organizationId: targetUserOrgId,
+        eventType: 'impersonation_target',
+        entityType: 'user',
+        entityId: adminUser.id,
+        message: `Your account is being accessed by admin ${adminUser.email}`,
+        status: 'warning',
+        metadata: {
+          admin_user_id: adminUser.id,
+          admin_user_email: adminUser.email,
+          impersonation_started_at: new Date().toISOString()
+        }
+      }, req);
+
+      res.json({
+        impersonationToken,
+        user: {
+          id: targetUser.id,
+          email: targetUser.email,
+          name: targetUser.name,
+          role: targetUser.role,
+          organizationId: targetUserOrgId
+        },
+        originalAdmin: {
+          id: adminUser.id,
+          email: adminUser.email,
+          name: adminUser.email
+        },
+        expiresAt: new Date(impersonationPayload.exp * 1000).toISOString()
+      });
+    } catch (err: any) {
+      console.error('Admin impersonation initiation error:', err);
+      res.status(500).json({ error: err.message || 'Failed to initiate impersonation' });
+    }
+  }
+);
+
+// User Impersonation: Exit impersonation
+router.post(
+  '/impersonation/exit',
+  authenticateToken,
+  auditLogger('exit_impersonation'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      
+      // Verify this is an impersonation session by checking the token
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      if (!token) {
+        res.status(400).json({ error: 'No token provided' });
+        return;
+      }
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, config.JWT_SECRET);
+      } catch {
+        res.status(400).json({ error: 'Invalid token' });
+        return;
+      }
+
+      // Check if this is actually an impersonation token
+      if (!decoded.isImpersonating || !decoded.originalAdminId) {
+        res.status(400).json({ error: 'Not an impersonation session' });
+        return;
+      }
+
+      // Get original admin user details
+      const adminResult = await query(
+        'SELECT id, email, name, role FROM users WHERE id = $1',
+        [decoded.originalAdminId]
+      );
+
+      if (adminResult.rows.length === 0) {
+        res.status(400).json({ error: 'Original admin user not found' });
+        return;
+      }
+
+      const originalAdmin = adminResult.rows[0];
+
+      // Get admin's organization
+      let adminOrgId = null;
+      try {
+        const orgResult = await query(
+          'SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1',
+          [originalAdmin.id]
+        );
+        if (orgResult.rows.length > 0) {
+          adminOrgId = orgResult.rows[0].organization_id;
+        } else {
+          // Fallback: check if admin owns an organization
+          const ownerOrgResult = await query(
+            'SELECT id FROM organizations WHERE owner_id = $1 LIMIT 1',
+            [originalAdmin.id]
+          );
+          if (ownerOrgResult.rows.length > 0) {
+            adminOrgId = ownerOrgResult.rows[0].id;
+          }
+        }
+      } catch (orgErr) {
+        console.warn('Error fetching admin organization:', orgErr);
+      }
+
+      // Generate new admin token (standard session)
+      const adminTokenPayload = {
+        userId: originalAdmin.id,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+      };
+
+      const adminToken = jwt.sign(adminTokenPayload, config.JWT_SECRET);
+
+      // Enhanced audit logging for impersonation exit
+      const impersonationDuration = Math.floor(Date.now() / 1000) - (decoded.iat || 0);
+      const { generateAuditMetadata } = await import('../lib/security.js');
+      const auditMetadata = generateAuditMetadata(req, 'impersonation_end', user, {
+        impersonation_duration_seconds: impersonationDuration,
+        impersonation_duration_human: `${Math.floor(impersonationDuration / 60)} minutes`,
+        original_admin_restored: true
+      });
+
+      await logActivity({
+        userId: originalAdmin.id,
+        organizationId: adminOrgId,
+        eventType: 'impersonation_end',
+        entityType: 'user',
+        entityId: user.id,
+        message: `Admin ${originalAdmin.email} ended impersonation of user ${user.email} (duration: ${Math.floor(impersonationDuration / 60)} minutes)`,
+        status: 'info',
+        metadata: auditMetadata
+      }, req);
+
+      // Also log for the impersonated user
+      await logActivity({
+        userId: user.id,
+        organizationId: user.organizationId ?? null,
+        eventType: 'impersonation_ended',
+        entityType: 'user',
+        entityId: originalAdmin.id,
+        message: `Admin access to your account by ${originalAdmin.email} has ended`,
+        status: 'info',
+        metadata: {
+          admin_user_id: originalAdmin.id,
+          admin_user_email: originalAdmin.email,
+          impersonation_ended_at: new Date().toISOString()
+        }
+      }, req);
+
+      res.json({
+        adminToken,
+        admin: {
+          id: originalAdmin.id,
+          email: originalAdmin.email,
+          name: originalAdmin.name,
+          role: originalAdmin.role,
+          organizationId: adminOrgId
+        },
+        message: 'Impersonation session ended successfully'
+      });
+    } catch (err: any) {
+      console.error('Admin impersonation exit error:', err);
+      res.status(500).json({ error: err.message || 'Failed to exit impersonation' });
+    }
+  }
+);
 
 export default router;

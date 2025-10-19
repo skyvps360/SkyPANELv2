@@ -4,10 +4,14 @@
  */
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Search, Server, ServerCog, Settings, Ticket, Trash2, Users, X, Box, Boxes } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Search, Server, ServerCog, Settings, Ticket, Trash2, Users, X, Box, Boxes, Shield, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
+import { UserActionMenu } from '@/components/admin/UserActionMenu';
+import { UserProfileModal } from '@/components/admin/UserProfileModal';
+import { UserEditModal } from '@/components/admin/UserEditModal';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -394,6 +398,99 @@ const Admin: React.FC = () => {
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<AdminUserRecord | null>(null);
+  const [userEditModalOpen, setUserEditModalOpen] = useState(false);
+  const [loadingUserDetails, setLoadingUserDetails] = useState(false);
+  const [savingUserUpdate, setSavingUserUpdate] = useState(false);
+
+  // User action handlers
+  const handleViewUser = useCallback(async (user: AdminUserRecord) => {
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    try {
+      setLoadingUserDetails(true);
+      const response = await fetch(buildApiUrl(`/api/admin/users/${user.id}`), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to load user details');
+      }
+
+      const data = await response.json();
+      setSelectedUserForProfile(data.user);
+      setUserProfileModalOpen(true);
+    } catch (error: any) {
+      console.error('Failed to load user details:', error);
+      toast.error(error.message || 'Failed to load user details');
+    } finally {
+      setLoadingUserDetails(false);
+    }
+  }, [token]);
+
+  const handleCloseUserProfileModal = useCallback(() => {
+    setUserProfileModalOpen(false);
+    setSelectedUserForProfile(null);
+  }, []);
+
+  const handleEditUser = useCallback((user: AdminUserRecord) => {
+    setSelectedUserForEdit(user);
+    setUserEditModalOpen(true);
+  }, []);
+
+  const handleCloseUserEditModal = useCallback(() => {
+    setUserEditModalOpen(false);
+    setSelectedUserForEdit(null);
+  }, []);
+
+
+
+  const { startImpersonation } = useImpersonation();
+  const [impersonationConfirmDialog, setImpersonationConfirmDialog] = useState<{
+    isOpen: boolean;
+    targetUser: AdminUserRecord | null;
+  }>({ isOpen: false, targetUser: null });
+
+  const handleImpersonateUser = useCallback(async (user: AdminUserRecord) => {
+    try {
+      await startImpersonation(user.id);
+    } catch (error: any) {
+      if (error.requiresConfirmation) {
+        // Show confirmation dialog for admin-to-admin impersonation
+        setImpersonationConfirmDialog({
+          isOpen: true,
+          targetUser: user,
+        });
+      } else {
+        console.error('Impersonation error:', error);
+        toast.error(error.message || 'Failed to start impersonation');
+      }
+    }
+  }, [startImpersonation]);
+
+  const handleConfirmAdminImpersonation = useCallback(async () => {
+    if (!impersonationConfirmDialog.targetUser) return;
+    
+    try {
+      await startImpersonation(impersonationConfirmDialog.targetUser.id, true);
+      setImpersonationConfirmDialog({ isOpen: false, targetUser: null });
+    } catch (error: any) {
+      console.error('Admin impersonation error:', error);
+      toast.error(error.message || 'Failed to start admin impersonation');
+    }
+  }, [startImpersonation, impersonationConfirmDialog.targetUser]);
+
+  const handleCancelAdminImpersonation = useCallback(() => {
+    setImpersonationConfirmDialog({ isOpen: false, targetUser: null });
+  }, []);
 
   // Networking rDNS state
   const [networkingTab, setNetworkingTab] = useState<'rdns'>('rdns');
@@ -1055,7 +1152,7 @@ const Admin: React.FC = () => {
     }
   };
 
-  const fetchAdminUsers = async () => {
+  const fetchAdminUsers = useCallback(async () => {
     if (!token) return;
     setUsersLoading(true);
     try {
@@ -1069,7 +1166,51 @@ const Admin: React.FC = () => {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [token, authHeader]);
+
+  const handleSaveUserUpdate = useCallback(async (userId: string, updates: any) => {
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      setSavingUserUpdate(true);
+      const response = await fetch(buildApiUrl(`/api/admin/users/${userId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update user');
+      }
+
+      const data = await response.json();
+      
+      // Update the user in the local state with optimistic update
+      setAdminUsers(prev => prev.map(user => 
+        user.id === userId ? { ...user, ...data.user } : user
+      ));
+
+      // If this user is currently selected for profile view, update that too
+      if (selectedUserForProfile && selectedUserForProfile.id === userId) {
+        setSelectedUserForProfile({ ...selectedUserForProfile, ...data.user });
+      }
+
+      toast.success('User updated successfully');
+    } catch (error: any) {
+      console.error('Failed to update user:', error);
+      // Re-fetch users to ensure consistency on error
+      fetchAdminUsers();
+      throw error;
+    } finally {
+      setSavingUserUpdate(false);
+    }
+  }, [token, selectedUserForProfile, fetchAdminUsers]);
 
   const createContainerPlan = async () => {
     try {
@@ -2082,80 +2223,195 @@ const Admin: React.FC = () => {
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 animate-in slide-in-from-top-2 duration-300">
                     <div className="md:col-span-1">
-                      <Label htmlFor="user-search">Search</Label>
+                      <Label htmlFor="user-search" className="text-sm font-medium">
+                        Search Users
+                      </Label>
                       <div className="relative mt-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors duration-200" />
                         <Input
                           id="user-search"
                           placeholder="Search by name, email, or organization"
                           value={userSearch}
                           onChange={(e) => setUserSearch(e.target.value)}
-                          className="pl-9"
+                          className={cn(
+                            "pl-9 transition-all duration-200 focus:scale-[1.02]",
+                            "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          )}
+                          aria-describedby="user-search-help"
+                          autoComplete="off"
                         />
+                        <div id="user-search-help" className="sr-only">
+                          Search users by name, email address, or organization name
+                        </div>
                       </div>
+                      {userSearch && (
+                        <p className="mt-1 text-xs text-muted-foreground animate-in fade-in-0 duration-200">
+                          {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+                        </p>
+                      )}
                     </div>
                     <div className="md:col-span-1 xl:col-span-1">
-                      <Label htmlFor="user-role">Role</Label>
-                      <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value)}>
-                        <SelectTrigger id="user-role" className="mt-1">
+                      <Label htmlFor="user-role" className="text-sm font-medium">
+                        Filter by Role
+                      </Label>
+                      <Select 
+                        value={userRoleFilter} 
+                        onValueChange={(value) => setUserRoleFilter(value)}
+                      >
+                        <SelectTrigger 
+                          id="user-role" 
+                          className={cn(
+                            "mt-1 transition-all duration-200 focus:scale-[1.02]",
+                            "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          )}
+                          aria-describedby="user-role-help"
+                        >
                           <SelectValue placeholder="All roles" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Roles</SelectItem>
+                        <SelectContent className="animate-in fade-in-0 zoom-in-95 duration-200">
+                          <SelectItem value="all" className="transition-colors duration-150 hover:bg-accent">
+                            All Roles
+                          </SelectItem>
                           {userRoleOptions.map((role) => (
-                            <SelectItem key={role} value={role.toLowerCase()}>
+                            <SelectItem 
+                              key={role} 
+                              value={role.toLowerCase()}
+                              className="transition-colors duration-150 hover:bg-accent"
+                            >
                               {role.charAt(0).toUpperCase() + role.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <div id="user-role-help" className="sr-only">
+                        Filter users by their assigned role
+                      </div>
+                      {userRoleFilter !== 'all' && (
+                        <p className="mt-1 text-xs text-muted-foreground animate-in fade-in-0 duration-200">
+                          Showing {userRoleFilter} users only
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto" role="region" aria-label="User management table">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="min-w-[16rem]">User</TableHead>
-                          <TableHead className="w-32">Role</TableHead>
-                          <TableHead className="min-w-[18rem]">Organizations</TableHead>
-                          <TableHead className="min-w-[12rem]">Created</TableHead>
-                          <TableHead className="min-w-[12rem]">Updated</TableHead>
+                          <TableHead className="min-w-[16rem]" scope="col">
+                            <span className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              User
+                            </span>
+                          </TableHead>
+                          <TableHead className="w-32" scope="col">
+                            <span className="flex items-center gap-2">
+                              <Shield className="h-4 w-4" />
+                              Role
+                            </span>
+                          </TableHead>
+                          <TableHead className="min-w-[18rem]" scope="col">Organizations</TableHead>
+                          <TableHead className="min-w-[12rem]" scope="col">
+                            <span className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Created
+                            </span>
+                          </TableHead>
+                          <TableHead className="min-w-[12rem]" scope="col">
+                            <span className="flex items-center gap-2">
+                              <Clock className="h-4 w-4" />
+                              Updated
+                            </span>
+                          </TableHead>
+                          <TableHead className="w-16" scope="col">
+                            <span className="sr-only">Actions</span>
+                            Actions
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {usersLoading ? (
-                          <TableRow>
-                            <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                              Loading users…
-                            </TableCell>
-                          </TableRow>
+                          <>
+                            {Array.from({ length: 5 }).map((_, index) => (
+                              <TableRow key={`skeleton-${index}`} className="animate-in fade-in-0 duration-300" style={{ animationDelay: `${index * 100}ms` }}>
+                                <TableCell>
+                                  <div className="space-y-2">
+                                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                                    <div className="h-3 w-48 bg-muted animate-pulse rounded" />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <div className="h-5 w-20 bg-muted animate-pulse rounded-full" />
+                                    <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
                         ) : filteredUsers.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                              No users match the current filters.
+                            <TableCell colSpan={6} className="py-10 text-center text-muted-foreground animate-in fade-in-0 duration-500">
+                              <div className="flex flex-col items-center gap-2">
+                                <Users className="h-8 w-8 opacity-50" />
+                                <p>No users match the current filters.</p>
+                                <p className="text-xs opacity-75">Try adjusting your search or filter criteria.</p>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredUsers.map((user) => (
-                            <TableRow key={user.id} className="align-top">
+                          filteredUsers.map((user, index) => (
+                            <TableRow 
+                              key={user.id} 
+                              className={cn(
+                                "align-top transition-all duration-200 hover:bg-accent/30",
+                                "animate-in slide-in-from-bottom-2 duration-300"
+                              )}
+                              style={{ animationDelay: `${index * 50}ms` }}
+                            >
                               <TableCell>
                                 <div className="space-y-1">
-                                  <p className="font-medium text-foreground">{user.name}</p>
-                                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                                  <p className="font-medium text-foreground transition-colors duration-200">{user.name}</p>
+                                  <p className="text-sm text-muted-foreground transition-colors duration-200">{user.email}</p>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="border-slate-400/30 bg-slate-400/10 text-slate-300">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "border-slate-400/30 bg-slate-400/10 text-slate-300 transition-all duration-200",
+                                    user.role === 'admin' && "border-red-400/30 bg-red-400/10 text-red-400"
+                                  )}
+                                >
                                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 {Array.isArray(user.organizations) && user.organizations.length > 0 ? (
                                   <div className="flex flex-wrap gap-2">
-                                    {user.organizations.map((org) => (
-                                      <Badge key={`${user.id}-${org.organizationId}`} variant="secondary" className="gap-1">
+                                    {user.organizations.map((org, orgIndex) => (
+                                      <Badge 
+                                        key={`${user.id}-${org.organizationId}`} 
+                                        variant="secondary" 
+                                        className={cn(
+                                          "gap-1 transition-all duration-200 hover:scale-105",
+                                          "animate-in zoom-in-95 duration-200"
+                                        )}
+                                        style={{ animationDelay: `${(index * 50) + (orgIndex * 100)}ms` }}
+                                      >
                                         <span>{org.organizationName || org.organizationSlug || org.organizationId}</span>
                                         <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">{org.role}</span>
                                       </Badge>
@@ -2166,10 +2422,19 @@ const Admin: React.FC = () => {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <span className="text-sm text-muted-foreground">{formatDateTime(user.created_at)}</span>
+                                <span className="text-sm text-muted-foreground transition-colors duration-200">{formatDateTime(user.created_at)}</span>
                               </TableCell>
                               <TableCell>
-                                <span className="text-sm text-muted-foreground">{formatDateTime(user.updated_at)}</span>
+                                <span className="text-sm text-muted-foreground transition-colors duration-200">{formatDateTime(user.updated_at)}</span>
+                              </TableCell>
+                              <TableCell>
+                                <UserActionMenu
+                                  user={user}
+                                  onView={handleViewUser}
+                                  onEdit={handleEditUser}
+                                  onImpersonate={handleImpersonateUser}
+                                  isLoadingDetails={loadingUserDetails}
+                                />
                               </TableCell>
                             </TableRow>
                           ))
@@ -3297,6 +3562,60 @@ const Admin: React.FC = () => {
                 className={buttonVariants({ variant: 'destructive' })}
               >
                 Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* User Profile Modal */}
+        <UserProfileModal
+          user={selectedUserForProfile}
+          isOpen={userProfileModalOpen}
+          onClose={handleCloseUserProfileModal}
+        />
+
+        {/* User Edit Modal */}
+        <UserEditModal
+          user={selectedUserForEdit}
+          isOpen={userEditModalOpen}
+          onClose={handleCloseUserEditModal}
+          onSave={handleSaveUserUpdate}
+          isSaving={savingUserUpdate}
+        />
+
+        {/* Admin Impersonation Confirmation Dialog */}
+        <AlertDialog 
+          open={impersonationConfirmDialog.isOpen} 
+          onOpenChange={(open) => !open && handleCancelAdminImpersonation()}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Confirm Admin Impersonation
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You are about to impersonate another administrator account. This action will:
+                <ul className="mt-2 ml-4 list-disc space-y-1">
+                  <li>Give you full access to their admin privileges</li>
+                  <li>Log this activity for security audit purposes</li>
+                  <li>Allow you to perform actions as this admin user</li>
+                </ul>
+                <div className="mt-3 p-3 bg-muted rounded-md">
+                  <strong>Target Admin:</strong> {impersonationConfirmDialog.targetUser?.name} ({impersonationConfirmDialog.targetUser?.email})
+                </div>
+                Are you sure you want to proceed?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelAdminImpersonation}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmAdminImpersonation}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Yes, Impersonate Admin
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

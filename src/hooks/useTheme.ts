@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 
 type Theme = 'light' | 'dark';
 
+const USER_THEME_KEY = 'user-theme-preference';
+
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
+    const savedTheme = localStorage.getItem(USER_THEME_KEY) as Theme;
     if (savedTheme) {
       return savedTheme;
     }
@@ -14,7 +16,7 @@ export function useTheme() {
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
-    localStorage.setItem('theme', theme);
+    localStorage.setItem(USER_THEME_KEY, theme);
   }, [theme]);
 
   const toggleTheme = () => {
@@ -23,6 +25,7 @@ export function useTheme() {
 
   return {
     theme,
+    setTheme,
     toggleTheme,
     isDark: theme === 'dark'
   };

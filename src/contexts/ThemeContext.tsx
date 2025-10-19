@@ -172,14 +172,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     window.localStorage.setItem(STORAGE_KEY, activePreset.id);
   }, [activePreset.id]);
 
-  // Also persist dark mode separately  
-  useEffect(() => {
-    const savedDarkMode = localStorage.getItem('theme');
-    if (savedDarkMode) {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(savedDarkMode);
-    }
-  }, []);
+  // Note: Light/dark mode is handled by the local useTheme hook
+  // This context only manages theme presets and colors
 
   const handleSetTheme = useCallback((next: ThemeId) => {
     setThemeId(next);
