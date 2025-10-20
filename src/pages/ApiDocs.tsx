@@ -1149,6 +1149,32 @@ export default function ApiDocs() {
       ],
     },
     {
+      title: 'Theme',
+      base: `${apiBase}/theme`,
+      description: 'Theme customization and branding configuration',
+      endpoints: [
+        { 
+          method: 'GET', 
+          path: '/', 
+          description: 'Get current theme configuration',
+          auth: false,
+          response: { 
+            theme: {
+              name: 'default',
+              colors: {
+                primary: '#3b82f6',
+                secondary: '#8b5cf6',
+                accent: '#10b981',
+                background: '#ffffff',
+                foreground: '#1f2937'
+              },
+              isActive: true
+            }
+          }
+        },
+      ],
+    },
+    {
       title: 'Health',
       base: `${apiBase}`,
       description: 'API health monitoring and system status checks',
@@ -1169,6 +1195,59 @@ export default function ApiDocs() {
               containers: 'operational',
               vps: 'operational',
               payments: 'operational'
+            }
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/health/detailed', 
+          description: 'Get detailed health information including memory and CPU usage',
+          auth: false,
+          response: { 
+            status: 'healthy',
+            uptime: 86400,
+            memory: { heapUsed: 45.2, heapTotal: 120.5, rss: 180.3, external: 2.1 },
+            cpu: { user: 12500, system: 3200 },
+            timestamp: '2024-01-01T00:00:00Z'
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/health/rate-limiting', 
+          description: 'Get rate limiting metrics and status',
+          auth: false,
+          response: { 
+            status: 'operational',
+            metrics: {
+              totalRequests: 15420,
+              blockedRequests: 23,
+              limitExceededCount: 5
+            }
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/health/metrics', 
+          description: 'Get performance metrics for monitoring',
+          auth: false,
+          response: { 
+            requestCount: 15420,
+            averageResponseTime: 45.2,
+            errorRate: 0.5,
+            activeConnections: 12
+          }
+        },
+        { 
+          method: 'GET', 
+          path: '/health/config-validation', 
+          description: 'Validate rate limiting configuration',
+          auth: false,
+          response: { 
+            status: 'valid',
+            warnings: [],
+            config: {
+              windowMs: 900000,
+              maxRequests: 100
             }
           }
         },
