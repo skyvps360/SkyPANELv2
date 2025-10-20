@@ -36,6 +36,7 @@ import { useLazyLoading, createMobileLoadingFallback } from '@/hooks/use-lazy-lo
 import { useMobilePerformance } from '@/hooks/use-mobile-performance';
 import { useMobileAssets } from '@/hooks/use-mobile-assets';
 import type { VPSInstance } from '@/types/vps';
+import { generateUniqueVPSLabel } from '@/lib/vpsLabelGenerator';
 
 interface CreateVPSForm {
   label: string;
@@ -105,7 +106,8 @@ const VPS: React.FC = () => {
     autoSave: true,
     clearOnSubmit: true
   });
-  const { token } = useAuth();
+  const { token, getOrganization } = useAuth();
+  const [_organizationName, _setOrganizationName] = useState<string>('vps');
 
   // Mobile navigation handling
   const { setModalOpen, goBack: _goBack } = useMobileNavigation({
@@ -525,6 +527,26 @@ const VPS: React.FC = () => {
       loadLinodeStackScripts();
       setModalOpen(true);
       
+      // Fetch organization name and generate unique label
+      (async () => {
+        try {
+          const org = await getOrganization();
+          const companyName = org?.name || 'vps';
+          _setOrganizationName(companyName);
+          
+          // Generate unique label
+          const existingLabels = instances.map(i => i.label);
+          const uniqueLabel = generateUniqueVPSLabel(companyName, existingLabels);
+          setCreateForm({ label: uniqueLabel });
+        } catch (error) {
+          console.error('Failed to fetch organization or generate label:', error);
+          // Fallback: generate label with default name
+          const existingLabels = instances.map(i => i.label);
+          const uniqueLabel = generateUniqueVPSLabel('vps', existingLabels);
+          setCreateForm({ label: uniqueLabel });
+        }
+      })();
+      
       // Preload critical assets for better UX
       if (!isSlowConnection) {
         preloadAsset('/api/vps/images', 'script');
@@ -533,7 +555,7 @@ const VPS: React.FC = () => {
     } else {
       setModalOpen(false);
     }
-  }, [showCreateModal, loadLinodeImages, loadLinodeStackScripts, setModalOpen, isSlowConnection, preloadAsset]);
+  }, [showCreateModal, loadLinodeImages, loadLinodeStackScripts, setModalOpen, isSlowConnection, preloadAsset, getOrganization, instances, setCreateForm]);
 
   // Performance measurement cleanup - run once on mount
   useEffect(() => {
@@ -961,15 +983,19 @@ const VPS: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Label *
+                Label * <span className="text-xs text-muted-foreground/70">(auto-generated)</span>
               </label>
               <input
                 type="text"
                 value={createForm.label}
-                onChange={(e) => setCreateForm({ label: e.target.value })}
-                className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
-                placeholder="my-server"
+                readOnly
+                disabled
+                className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-muted text-muted-foreground placeholder-gray-500 dark:placeholder-gray-400 cursor-not-allowed text-base"
+                placeholder="Generating unique label..."
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                A unique server name is automatically generated for you
+              </p>
             </div>
 
             <div>
