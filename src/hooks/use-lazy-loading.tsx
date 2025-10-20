@@ -18,14 +18,9 @@ export function useLazyLoading() {
   ) => {
     const {
       fallback = <div className="animate-pulse bg-muted rounded-md h-20 w-full" />,
-      mobileOnly = true,
+      mobileOnly: _mobileOnly = true,
       preload = false
     } = options;
-
-    // Only lazy load on mobile if mobileOnly is true
-    if (mobileOnly && !isMobile) {
-      return lazy(importFn);
-    }
 
     // Preload component if requested
     if (preload && typeof window !== 'undefined') {
@@ -39,6 +34,8 @@ export function useLazyLoading() {
 
     const LazyComponent = lazy(importFn);
 
+    // Always wrap in Suspense to prevent suspension errors
+    // Whether on mobile or desktop
     return (props: any) => (
       <Suspense fallback={fallback}>
         <LazyComponent {...props} />

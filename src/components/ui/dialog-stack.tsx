@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -13,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, startTransition } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrientation } from "@/hooks/use-orientation";
 import { useVirtualKeyboard } from "@/hooks/use-virtual-keyboard";
@@ -111,6 +112,9 @@ export function DialogStack({
           style={contentStyle}
         >
           <DialogTitle className="sr-only">{title || "Dialog"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {description || "Multi-step dialog for guided workflows"}
+          </DialogDescription>
           <div 
             className={cn(
               "h-full w-full bg-background flex flex-col overflow-hidden",
@@ -244,6 +248,9 @@ export function DialogStack({
         style={contentStyle}
       >
         <DialogTitle className="sr-only">{title || "Dialog"}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {description || "Multi-step dialog for guided workflows"}
+        </DialogDescription>
         <div className={cn(
           "rounded-lg border border-border/70 bg-background/95 shadow-xl sm:rounded-[28px]",
           getBackdropClasses(),
@@ -277,7 +284,11 @@ export function DialogStack({
                     <button
                       key={step.id}
                       type="button"
-                      onClick={() => onStepChange?.(index)}
+                      onClick={() => {
+                        startTransition(() => {
+                          onStepChange?.(index);
+                        });
+                      }}
                       className={cn(
                         "relative text-left",
                         getAnimationClasses("transition-all"),
