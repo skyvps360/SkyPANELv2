@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { query } from '../lib/database.js';
+import { getIP } from '../lib/ipDetection.js';
 
 export interface ActivityPayload {
   userId: string;
@@ -12,12 +13,20 @@ export interface ActivityPayload {
   metadata?: any;
 }
 
-const getIp = (req?: Request): string | undefined => {
-  if (!req) return undefined;
-  const fwd = req.headers['x-forwarded-for'];
-  if (typeof fwd === 'string') return fwd.split(',')[0].trim();
-  return (req.socket as any)?.remoteAddress || undefined;
-};
+export interface RateLimitEventPayload {
+  userId?: string;
+  organizationId?: string | null;
+  endpoint: string;
+  userType: 'anonymous' | 'authenticated' | 'admin';
+  limit: number;
+  windowMs: number;
+  currentCount: number;
+  resetTime: number;
+  clientIP: string;
+  userAgent?: string;
+}
+
+// Removed local getIp function - now using unified IP detection service
 
 let ensurePromise: Promise<void> | null = null;
 
@@ -82,7 +91,7 @@ export async function logActivity(payload: ActivityPayload, req?: Request): Prom
       metadata = {}
     } = payload;
 
-    const ip = getIp(req);
+    const ip = req ? getIP(req, { enableLogging: false }) : undefined;
     const ua = req?.headers['user-agent'] || undefined;
 
     await ensureActivityLogsTable();
@@ -95,5 +104,122 @@ export async function logActivity(payload: ActivityPayload, req?: Request): Prom
   } catch (e) {
     // Non-blocking: do not throw, but log to server console
     console.warn('Activity log insert failed:', e);
+  }
+}
+
+/**
+ * Logs rate limiting events with detailed metadata for security monitoring
+ */
+export async function logRateLimitEvent(payload: RateLimitEventPayload, req: Request): Promise<void> {
+  try {
+    const {
+      userId,
+      organizationId = null,
+      endpoint,
+      userType,
+      limit,
+      windowMs,
+      currentCount,
+      resetTime,
+      clientIP,
+      userAgent
+    } = payload;
+
+    // Create detailed metadata for rate limiting event
+    const metadata = {
+      endpoint,
+      userType,
+      limit,
+      windowMs,
+      currentCount,
+      resetTime: new Date(resetTime).toISOString(),
+      rateLimitKey: `${clientIP}:${userType}`,
+      requestMethod: req.method,
+      requestPath: req.path,
+      requestQuery: req.query,
+      violationType: currentCount > limit ? 'exceeded' : 'approaching'
+    };
+
+    // Determine message and status based on violation severity
+    const isExceeded = currentCount > limit;
+    const message = isExceeded 
+      ? `Rate limit exceeded for ${userType} user on ${endpoint} (${currentCount}/${limit} requests)`
+      : `Rate limit approaching for ${userType} user on ${endpoint} (${currentCount}/${limit} requests)`;
+    
+    const status = isExceeded ? 'warning' : 'info';
+
+    await ensureActivityLogsTable();
+
+    // Log as security-relevant activity
+    await query(
+      `INSERT INTO activity_logs (user_id, organization_id, event_type, entity_type, entity_id, message, status, ip_address, user_agent, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        userId || null,
+        organizationId,
+        'rate_limit_violation',
+        'api_request',
+        endpoint,
+        message,
+        status,
+        clientIP,
+        userAgent || req.headers['user-agent'],
+        metadata
+      ]
+    );
+
+    // Also log to console for immediate monitoring
+    if (isExceeded) {
+      console.warn('Rate Limit Exceeded:', {
+        timestamp: new Date().toISOString(),
+        clientIP,
+        userId,
+        userType,
+        endpoint,
+        limit,
+        currentCount,
+        userAgent: userAgent || req.headers['user-agent']
+      });
+    }
+  } catch (e) {
+    // Non-blocking: do not throw, but log to server console
+    console.warn('Rate limit activity log insert failed:', e);
+  }
+}
+
+/**
+ * Logs rate limiting configuration and startup events
+ */
+export async function logRateLimitConfig(config: any): Promise<void> {
+  try {
+    const metadata = {
+      anonymousLimit: config.anonymousMaxRequests,
+      authenticatedLimit: config.authenticatedMaxRequests,
+      adminLimit: config.adminMaxRequests,
+      windowMs: config.anonymousWindowMs,
+      trustProxy: config.trustProxy,
+      configSource: 'environment_variables'
+    };
+
+    await ensureActivityLogsTable();
+
+    await query(
+      `INSERT INTO activity_logs (user_id, organization_id, event_type, entity_type, entity_id, message, status, ip_address, user_agent, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        null, // System event, no specific user
+        null,
+        'rate_limit_config',
+        'system',
+        'rate_limiter',
+        'Rate limiting configuration loaded',
+        'info',
+        null,
+        'system',
+        metadata
+      ]
+    );
+  } catch (e) {
+    console.warn('Rate limit config activity log insert failed:', e);
   }
 }

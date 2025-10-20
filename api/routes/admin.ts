@@ -16,8 +16,7 @@ import { config } from '../config/index.js';
 import { 
   auditLogger, 
   adminSecurityHeaders, 
-  requestSizeLimit, 
-  adminRateLimit 
+  requestSizeLimit
 } from '../middleware/security.js';
 
 const router = express.Router();
@@ -25,7 +24,12 @@ const router = express.Router();
 // Apply security middleware to all admin routes
 router.use(adminSecurityHeaders);
 router.use(requestSizeLimit(500)); // 500KB limit for admin operations
-router.use(adminRateLimit(200, 15 * 60 * 1000)); // 200 requests per 15 minutes
+
+// Enhanced Rate Limiting:
+// Admin routes automatically receive higher rate limits (1000 requests per 15 minutes)
+// through the unified smart rate limiting middleware in app.ts. The middleware detects
+// admin users via JWT token validation and applies appropriate limits based on user type.
+// This provides better usability for admin operations while maintaining security.
 
 // Helper to detect missing-table errors from Supabase
 const isMissingTableError = (err: any): boolean => {
@@ -1543,15 +1547,8 @@ router.post(
       const { confirmAdminImpersonation = false } = req.body;
       const adminUser = req.user!;
 
-      // Rate limiting check for impersonation attempts
-      const rateLimitResult = await import('../lib/security.js').then(m => 
-        m.validateRateLimit(req, 'impersonation', 10, 60 * 60 * 1000) // 10 attempts per hour
-      );
-      
-      if (!rateLimitResult.isValid) {
-        res.status(429).json({ error: rateLimitResult.error || 'Too many impersonation attempts' });
-        return;
-      }
+      // Note: Rate limiting for impersonation is now handled by the unified smart rate limiting middleware
+      // Admin users have higher limits (1000 requests per 15 minutes) which should be sufficient for normal operations
 
       // Check if target user exists
       const targetUserResult = await query(

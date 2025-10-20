@@ -2,6 +2,70 @@
 
 All API endpoints are served from the Express application under `/api`. Unless noted, request and response bodies are JSON. Authentication uses bearer JWT tokens returned by `/api/auth/login` or `/api/auth/register`.
 
+## Rate Limiting
+
+ContainerStacks implements intelligent rate limiting to prevent abuse while maintaining optimal user experience. Rate limits are applied based on user authentication status and role.
+
+### Rate Limit Tiers
+
+| User Type | Requests per 15 minutes | Use Case |
+| --- | --- | --- |
+| **Anonymous** | 200 | Public endpoints, login, registration |
+| **Authenticated** | 500 | Normal application usage with JWT token |
+| **Admin** | 1000 | Administrative operations and bulk actions |
+
+### Rate Limit Headers
+
+All API responses include rate limiting information in headers:
+
+```http
+X-RateLimit-Limit: 500          # Maximum requests allowed in window
+X-RateLimit-Remaining: 487      # Requests remaining in current window
+X-RateLimit-Reset: 1640995200   # Unix timestamp when window resets
+X-RateLimit-Used: 13            # Requests used in current window
+```
+
+### Rate Limit Exceeded Response
+
+When rate limits are exceeded, the API returns HTTP 429 with retry information:
+
+```json
+{
+  "error": "Too many requests. Please try again later.",
+  "retryAfter": 847,              // Seconds until window resets
+  "limit": 500,                   // Current rate limit
+  "remaining": 0,                 // Requests remaining (always 0)
+  "resetTime": 1640995200,        // Unix timestamp when window resets
+  "userType": "authenticated"     // User classification for this request
+}
+```
+
+### Rate Limiting Best Practices
+
+**For Client Applications:**
+- Monitor rate limit headers to avoid hitting limits
+- Implement exponential backoff when receiving 429 responses
+- Cache responses when possible to reduce API calls
+- Use WebSocket connections for real-time features instead of polling
+
+**For Authenticated Users:**
+- Login to access higher rate limits (500 vs 200 requests)
+- Batch operations when possible to reduce API calls
+- Consider the 15-minute window when planning bulk operations
+
+**For Administrators:**
+- Admin accounts have the highest limits (1000 requests per 15 minutes)
+- Use admin endpoints efficiently for bulk operations
+- Monitor rate limiting metrics in the admin dashboard
+
+### IP Detection and Proxy Support
+
+Rate limiting uses accurate IP detection that works behind proxies:
+- Supports X-Forwarded-For headers from trusted proxies
+- Works correctly behind Vite development server
+- Handles multiple proxy hops (Cloudflare, nginx, etc.)
+- Falls back to socket remote address when proxy headers unavailable
+
 ## Auth (`/api/auth`)
 
 | Method | Path | Auth Required | Description | Notes |

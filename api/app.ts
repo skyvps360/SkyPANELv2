@@ -13,7 +13,7 @@ import express, {
 } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+import { smartRateLimit, addRateLimitHeaders } from './middleware/rateLimiting.js'
 import { config, validateConfig } from './config/index.js'
 import authRoutes from './routes/auth.js'
 import paymentRoutes from './routes/payments.js'
@@ -25,12 +25,25 @@ import activityRoutes from './routes/activity.js'
 import invoicesRouter from './routes/invoices.js';
 import notificationsRouter from './routes/notifications.js';
 import themeRoutes from './routes/theme.js';
+import healthRoutes from './routes/health.js';
 import { notificationService } from './services/notificationService.js';
+import { performStartupValidation, initializeConfigurationMonitoring } from './services/rateLimitConfigValidator.js';
+import { initializeMetricsCollection, startMetricsPersistence } from './services/rateLimitMetrics.js';
 
 // for esm mode
 
 // Validate configuration
 validateConfig()
+
+// Perform comprehensive rate limiting configuration validation
+performStartupValidation().catch(err => {
+  console.error('Rate limiting startup validation failed:', err);
+});
+
+// Initialize rate limiting monitoring and metrics
+initializeConfigurationMonitoring();
+initializeMetricsCollection();
+startMetricsPersistence();
 
 // Start notification service for real-time updates
 notificationService.start().catch(err => {
@@ -38,6 +51,10 @@ notificationService.start().catch(err => {
 });
 
 const app: express.Application = express()
+
+// Trust proxy configuration - must be set before other middleware
+// This enables proper IP detection when behind proxies (Vite dev server, reverse proxies, etc.)
+app.set('trust proxy', config.rateLimiting.trustProxy)
 
 // Security middleware
 app.use(helmet({
@@ -51,17 +68,9 @@ app.use(helmet({
   },
 }))
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: config.RATE_LIMIT_WINDOW_MS,
-  max: config.RATE_LIMIT_MAX_REQUESTS,
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-})
-app.use('/api/', limiter)
+// Smart rate limiting with differentiated limits based on user type
+app.use('/api/', addRateLimitHeaders)
+app.use('/api/', smartRateLimit)
 
 // CORS configuration
 // CORS configuration with sensible dev defaults and optional override
@@ -100,20 +109,9 @@ app.use('/api/support', supportRoutes)
 app.use('/api/activity', activityRoutes)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/theme', themeRoutes)
+app.use('/api/health', healthRoutes)
 
-/**
- * health
- */
-app.use(
-  '/api/health',
-  (req: Request, res: Response, _next: NextFunction): void => {
-    void _next;
-    res.status(200).json({
-      success: true,
-      message: 'ok',
-    })
-  },
-)
+// Health check routes are now handled by the dedicated health router
 
 /**
  * error handler middleware

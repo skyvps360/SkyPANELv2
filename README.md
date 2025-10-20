@@ -5,7 +5,7 @@
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-ContainerStacks is an open-source Container-as-a-Service (CaaS) platform that enables service providers to offer comprehensive Docker container hosting, management, and orchestration services. It includes built-in billing, monitoring, collaboration features, and supports multi-tenant environments with white-label capabilities.
+ContainerStacks is an open-source cloud service reseller billing panel that enables service providers to resell cloud infrastructure from multiple providers (Linode, DigitalOcean, dedicated server providers) with custom billing, markup pricing, and white-label branding.
 
 ## 💝 Support Our Work
 If you find my work helpful, consider supporting me:
@@ -14,16 +14,16 @@ If you find my work helpful, consider supporting me:
 
 ## 🚀 Features
 
-- **Container Management**: Deploy, scale, and monitor Docker containers with ease
-- **VPS Hosting**: Integrated VPS management with reseller markup pricing
-- **Multi-Tenancy**: Organization-based access control and resource quotas
-- **Billing & Wallet**: PayPal-integrated billing with account wallets and invoices
-- **Monitoring & Logs**: Real-time metrics, performance insights, and log management
-- **Marketplace**: Pre-built applications and custom image registry
-- **Collaboration**: Team management, permissions, and shared workspaces
-- **Admin Panel**: Platform configuration, user management, and system settings
-- **Support System**: Ticket-based support with email notifications
-- **Backup & Restore**: Automated backups with encryption and point-in-time recovery
+- **Multi-Provider Support**: Resell VPS from Linode, DigitalOcean, and dedicated servers
+- **Custom Markup Pricing**: Set your own profit margins on base provider costs
+- **Billing & Wallet System**: PayPal-integrated prepaid wallet with automatic hourly billing
+- **White-Label Branding**: Fully customizable platform name, theme, and branding
+- **Client Management**: Multi-tenant organization system with team collaboration
+- **Admin Panel**: Manage plans, regions, users, and provider configurations
+- **Real-Time Monitoring**: CPU, network, I/O metrics from provider APIs
+- **Backup Management**: Automated backups, snapshots, and restoration
+- **Support Ticketing**: Built-in ticket system with email notifications
+- **API Access**: RESTful API with client-generated API keys
 
 ## 🛠️ Tech Stack
 

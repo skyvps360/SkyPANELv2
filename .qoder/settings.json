@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "ask": [
+      "Read(!/mnt/c/Users/moran/containerstacks/**)",
+      "Edit(!/mnt/c/Users/moran/containerstacks/**)"
+    ],
+    "allow": [
+      "Read(/mnt/c/Users/moran/containerstacks/**)",
+      "Edit(/mnt/c/Users/moran/containerstacks/**)"
+    ]
+  },
+  "memoryImport": {},
+  "monitoring": {}
+}

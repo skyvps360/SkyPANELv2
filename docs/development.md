@@ -21,6 +21,19 @@ This guide explains how to set up ContainerStacks locally, run both frontend and
    - `SSH_CRED_SECRET` (32-byte random string for encrypting stored passwords)
 2. Restart the dev server when changing environment variables that affect the backend.
 
+### Rate Limiting Configuration
+
+The application includes intelligent rate limiting with different limits for user types:
+
+- **Development**: Set `TRUST_PROXY=true` to work correctly behind Vite's development proxy
+- **Production**: Configure `TRUST_PROXY` based on your deployment (e.g., `1` for single reverse proxy)
+- **Custom Limits**: Adjust rate limits via environment variables:
+  - `RATE_LIMIT_ANONYMOUS_MAX` (default: 200 per 15 minutes)
+  - `RATE_LIMIT_AUTHENTICATED_MAX` (default: 500 per 15 minutes)
+  - `RATE_LIMIT_ADMIN_MAX` (default: 1000 per 15 minutes)
+
+Rate limiting configuration is validated at startup and warnings are logged for invalid values.
+
 ## Install Dependencies
 
 ```bash

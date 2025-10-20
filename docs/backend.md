@@ -5,7 +5,7 @@ The API under `api/` is a TypeScript Express app that exposes authentication, bi
 ## Server Entry Points
 
 - `api/server.ts` boots the HTTP server, spins up the WebSocket SSH bridge (`initSSHBridge`), and starts the hourly billing scheduler (`BillingService.runHourlyBilling`).
-- `api/app.ts` wires middleware and routers. Key middleware includes Helmet (CSP), express-rate-limit, CORS, JSON body parsing, and a request logger.
+- `api/app.ts` wires middleware and routers. Key middleware includes Helmet (CSP), smart rate limiting, CORS, JSON body parsing, trust proxy configuration, and a request logger.
 - Health checks: `GET /api/health` returns `{ success: true }` for readiness probes.
 
 ## Configuration & Environment
@@ -19,6 +19,11 @@ The API under `api/` is a TypeScript Express app that exposes authentication, bi
 - `authenticateToken` verifies bearer JWTs, loads the user from PostgreSQL, and attaches `req.user` with `organizationId` if available.
 - `requireOrganization` rejects requests when no organization is associated with the authenticated user.
 - `requireAdmin` wraps `requireRole(['admin'])` for privileged endpoints.
+- **Smart Rate Limiting**: Intelligent rate limiting middleware that applies different limits based on user authentication status:
+  - Anonymous users: 200 requests per 15 minutes
+  - Authenticated users: 500 requests per 15 minutes  
+  - Admin users: 1000 requests per 15 minutes
+  - Includes proper IP detection behind proxies and comprehensive logging
 - Security warnings (missing tables, etc.) are logged but not fatal to preserve developer ergonomics when migrations lag behind.
 
 ## Routing Modules

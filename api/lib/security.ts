@@ -137,27 +137,7 @@ export const sanitizeUserInput = (input: any): any => {
   return input;
 };
 
-/**
- * Validates request rate limiting for sensitive operations
- */
-export const validateRateLimit = (
-  req: Request,
-  operation: string,
-  _maxAttempts: number = 5,
-  _windowMs: number = 15 * 60 * 1000 // 15 minutes
-): SecurityValidationResult => {
-  // This is a simplified rate limiting check
-  // In production, you'd want to use Redis or a proper rate limiting library
-  
-  const clientId = req.ip || 'unknown';
-  const key = `${operation}:${clientId}`;
-  
-  // For now, we'll just log the attempt and return valid
-  // In a real implementation, you'd check against a rate limit store
-  console.log(`Rate limit check for ${key}: operation=${operation}`);
-  
-  return { isValid: true };
-};
+
 
 /**
  * Generates audit metadata for logging

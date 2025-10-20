@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserActionMenu } from '@/components/admin/UserActionMenu';
 import { UserProfileModal } from '@/components/admin/UserProfileModal';
 import { UserEditModal } from '@/components/admin/UserEditModal';
+import { RateLimitMonitoring } from '@/components/admin/RateLimitMonitoring';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +44,8 @@ type AdminSection =
   | 'stackscripts'
   | 'networking'
   | 'theme'
-  | 'user-management';
+  | 'user-management'
+  | 'rate-limiting';
 
 const ADMIN_SECTIONS: AdminSection[] = [
   'support',
@@ -56,6 +58,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'networking',
   'theme',
   'user-management',
+  'rate-limiting',
 ];
 
 const DEFAULT_ADMIN_SECTION: AdminSection = 'support';
@@ -1513,6 +1516,12 @@ const Admin: React.FC = () => {
         description: 'Active accounts',
         icon: Users,
       },
+      {
+        label: 'Rate Limiting',
+        value: '✓',
+        description: 'Monitoring active',
+        icon: Shield,
+      },
     ],
     [adminUsers.length, containerPlans.length, openTicketCount, plans.length, servers.length, tickets.length]
   );
@@ -1556,6 +1565,9 @@ const Admin: React.FC = () => {
         break;
       case 'user-management':
         fetchAdminUsers();
+        break;
+      case 'rate-limiting':
+        // Rate limiting monitoring handles its own data fetching
         break;
       default:
         break;
@@ -2444,6 +2456,10 @@ const Admin: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="rate-limiting" id="rate-limiting">
+              <RateLimitMonitoring token={token || ''} />
             </TabsContent>
 
             <TabsContent value="stackscripts" id="stackscripts">
