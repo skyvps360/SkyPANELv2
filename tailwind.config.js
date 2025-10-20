@@ -88,11 +88,51 @@ const config = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'mobile-slide-up': {
+  				from: {
+  					opacity: '0',
+  					transform: 'translate3d(0, 100%, 0)'
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'translate3d(0, 0, 0)'
+  				}
+  			},
+  			'mobile-slide-down': {
+  				from: {
+  					opacity: '1',
+  					transform: 'translate3d(0, 0, 0)'
+  				},
+  				to: {
+  					opacity: '0',
+  					transform: 'translate3d(0, 100%, 0)'
+  				}
+  			},
+  			'mobile-fade-in': {
+  				from: {
+  					opacity: '0'
+  				},
+  				to: {
+  					opacity: '1'
+  				}
+  			},
+  			'mobile-fade-out': {
+  				from: {
+  					opacity: '1'
+  				},
+  				to: {
+  					opacity: '0'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'mobile-slide-up': 'mobile-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+  			'mobile-slide-down': 'mobile-slide-down 0.2s cubic-bezier(0.4, 0, 1, 1)',
+  			'mobile-fade-in': 'mobile-fade-in 0.2s ease-out',
+  			'mobile-fade-out': 'mobile-fade-out 0.15s ease-in'
   		}
   	}
   },

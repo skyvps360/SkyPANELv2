@@ -104,4 +104,253 @@
   body {
     @apply bg-background text-foreground;
   }
+}/* Mo
+bile Toast Styles */
+@media (max-width: 767px) {
+  .mobile-toast {
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+    padding: 16px 20px !important;
+    min-height: 60px !important;
+    border-radius: 12px !important;
+    max-width: 90vw !important;
+    margin: 0 auto !important;
+    word-break: break-word !important;
+  }
+
+  .mobile-toast-error {
+    border-left: 4px solid hsl(var(--destructive)) !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .mobile-toast-success {
+    border-left: 4px solid hsl(142 76% 36%) !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .mobile-toast-warning {
+    border-left: 4px solid hsl(38 92% 50%) !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .mobile-toast-info {
+    border-left: 4px solid hsl(221 83% 53%) !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .mobile-toast-loading {
+    border-left: 4px solid hsl(var(--muted-foreground)) !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  /* Ensure toasts are positioned correctly on mobile */
+  [data-sonner-toaster] {
+    top: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    max-width: 90vw !important;
+  }
+
+  /* Mobile form validation styles */
+  .mobile-form-error {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    padding: 12px 16px !important;
+    margin-top: 8px !important;
+    border-radius: 8px !important;
+    background: hsl(var(--destructive) / 0.1) !important;
+    border: 1px solid hsl(var(--destructive) / 0.3) !important;
+    color: hsl(var(--destructive)) !important;
+  }
+
+  .mobile-form-success {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    padding: 12px 16px !important;
+    margin-top: 8px !important;
+    border-radius: 8px !important;
+    background: hsl(142 76% 36% / 0.1) !important;
+    border: 1px solid hsl(142 76% 36% / 0.3) !important;
+    color: hsl(142 76% 36%) !important;
+  }
+}
+
+/* Mobile loading states */
+@media (max-width: 767px) {
+  .mobile-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-loading-content {
+    background: hsl(var(--background));
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    max-width: 280px;
+    margin: 0 20px;
+  }
+
+  .mobile-loading-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 16px;
+  }
+
+  .mobile-loading-text {
+    font-size: 16px;
+    line-height: 1.5;
+    color: hsl(var(--foreground));
+    margin-bottom: 8px;
+  }
+
+  .mobile-loading-subtext {
+    font-size: 14px;
+    line-height: 1.4;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* Mobile-optimized animations and transitions */
+@media (max-width: 767px) {
+  /* Hardware-accelerated modal animations for mobile */
+  .mobile-modal-enter {
+    animation: mobile-modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+    will-change: transform, opacity;
+  }
+
+  .mobile-modal-exit {
+    animation: mobile-modal-slide-down 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+    transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+    will-change: transform, opacity;
+  }
+
+  .mobile-modal-overlay-enter {
+    animation: mobile-overlay-fade-in 0.2s ease-out forwards;
+    will-change: opacity;
+  }
+
+  .mobile-modal-overlay-exit {
+    animation: mobile-overlay-fade-out 0.15s ease-in forwards;
+    will-change: opacity;
+  }
+
+  /* Optimized step transitions for mobile */
+  .mobile-step-transition {
+    transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+    will-change: transform;
+  }
+
+  /* Reduced motion for mobile devices with limited resources */
+  .mobile-reduced-motion {
+    animation-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+  }
+
+  /* Touch feedback animations */
+  .mobile-touch-feedback {
+    transition: transform 0.1s ease-out, background-color 0.1s ease-out;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, background-color;
+  }
+
+  .mobile-touch-feedback:active {
+    transform: translate3d(0, 0, 0) scale(0.98);
+  }
+}
+
+/* Mobile animation keyframes */
+@keyframes mobile-modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes mobile-modal-slide-down {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes mobile-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mobile-overlay-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 767px) {
+  /* Optimize scrolling performance */
+  .mobile-scroll-optimized {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    transform: translate3d(0, 0, 0);
+    will-change: scroll-position;
+  }
+
+  /* Optimize backdrop blur for mobile */
+  .mobile-backdrop-optimized {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Fallback for devices that don't support backdrop-filter */
+  @supports not (backdrop-filter: blur(8px)) {
+    .mobile-backdrop-optimized {
+      background: rgba(0, 0, 0, 0.8);
+    }
+  }
+}
+
+/* Prefers reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-modal-enter,
+  .mobile-modal-exit,
+  .mobile-step-transition,
+  .mobile-touch-feedback {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

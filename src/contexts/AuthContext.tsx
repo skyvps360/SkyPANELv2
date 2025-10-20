@@ -14,7 +14,7 @@ export interface User {
   organizationRole?: string;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
@@ -380,3 +380,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export { AuthContext };

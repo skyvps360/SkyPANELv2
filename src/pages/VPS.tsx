@@ -2,7 +2,7 @@
  * VPS Management Page
  * Handles Linode VPS instance creation, management, and monitoring
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { RowSelectionState } from '@tanstack/react-table';
@@ -28,6 +28,13 @@ import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DialogStack } from '@/components/ui/dialog-stack';
+import { useFormPersistence } from '@/hooks/use-form-persistence';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { useMobileToast } from '@/components/ui/mobile-toast';
+import { MobileLoading, useMobileLoading, MobileLoadingButton } from '@/components/ui/mobile-loading';
+import { useLazyLoading, createMobileLoadingFallback } from '@/hooks/use-lazy-loading';
+import { useMobilePerformance } from '@/hooks/use-mobile-performance';
+import { useMobileAssets } from '@/hooks/use-mobile-assets';
 import type { VPSInstance } from '@/types/vps';
 
 interface CreateVPSForm {
@@ -74,7 +81,16 @@ const VPS: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState<number>(1);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; label: string; input: string; password: string; confirmCheckbox: boolean; loading: boolean; error: string }>({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' });
-  const [createForm, setCreateForm] = useState<CreateVPSForm>({
+  // Form persistence for mobile users
+  const {
+    data: createForm,
+    updateData: setCreateForm,
+    save: saveForm,
+    clear: _clearForm,
+    handleSubmit: handleFormSubmit,
+    isDirty: isFormDirty,
+    lastSaved
+  } = useFormPersistence<CreateVPSForm>({
     label: '',
     type: '',
     region: '',
@@ -83,8 +99,74 @@ const VPS: React.FC = () => {
     sshKeys: [],
     backups: false,
     privateIP: false
+  }, {
+    key: 'vps-creation',
+    debounceMs: 1000,
+    autoSave: true,
+    clearOnSubmit: true
   });
   const { token } = useAuth();
+
+  // Mobile navigation handling
+  const { setModalOpen, goBack: _goBack } = useMobileNavigation({
+    onBackButton: () => {
+      if (showCreateModal) {
+        if (isFormDirty) {
+          const shouldSave = window.confirm(
+            "You have unsaved changes. Would you like to save your progress before going back?"
+          );
+          if (shouldSave) {
+            saveForm();
+          }
+        }
+        setShowCreateModal(false);
+        setCreateStep(1);
+        return true; // Prevent default back navigation
+      }
+      return false; // Allow default back navigation
+    },
+    preventBackOnModal: true,
+    confirmBeforeBack: false
+  });
+
+  // Mobile-optimized hooks
+  const mobileToast = useMobileToast();
+  const mobileLoading = useMobileLoading();
+  const { createLazyComponent } = useLazyLoading();
+  const { measureRenderTime, getOptimizedSettings } = useMobilePerformance();
+  const optimizedSettings = getOptimizedSettings;
+  const { isSlowConnection, preloadAsset } = useMobileAssets();
+
+  // Create lazy-loaded components for mobile performance
+  const LazyOSSelection = createLazyComponent(
+    () => import('@/components/VPS/LazyOSSelection'),
+    {
+      fallback: createMobileLoadingFallback('h-32', 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'),
+      mobileOnly: true,
+      preload: !isSlowConnection
+    }
+  );
+
+  const LazyDeploymentSelection = createLazyComponent(
+    () => import('@/components/VPS/LazyDeploymentSelection'),
+    {
+      fallback: createMobileLoadingFallback('h-24', 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'),
+      mobileOnly: true,
+      preload: !isSlowConnection
+    }
+  );
+
+  const LazyStackScriptConfig = createLazyComponent(
+    () => import('@/components/VPS/LazyStackScriptConfig'),
+    {
+      fallback: createMobileLoadingFallback('h-40'),
+      mobileOnly: true
+    }
+  );
+  
+  // Performance monitoring
+  const endRenderMeasurement = measureRenderTime('VPS');
+
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
   const [linodeImages, setLinodeImages] = useState<any[]>([]);
   const [linodeStackScripts, setLinodeStackScripts] = useState<any[]>([]);
@@ -211,7 +293,7 @@ const VPS: React.FC = () => {
     const isAllowed = current && allowedKnown.includes(current);
     const pick = isAllowed ? current : allowedKnown[0];
     if (pick && pick !== current) {
-      setCreateForm(prev => ({ ...prev, image: pick }));
+      setCreateForm({ image: pick });
       const src = pick.toLowerCase();
       const key = src.includes('ubuntu') ? 'ubuntu'
         : src.includes('centos') ? 'centos'
@@ -230,7 +312,7 @@ const VPS: React.FC = () => {
         setSelectedOSVersion(prev => ({ ...prev, [key]: pick }));
       }
     }
-  }, [selectedStackScript, linodeImages, createForm.image]);
+  }, [selectedStackScript, linodeImages, createForm.image, setCreateForm]);
 
   const loadVPSPlans = useCallback(async () => {
     try {
@@ -441,8 +523,26 @@ const VPS: React.FC = () => {
     if (showCreateModal) {
       loadLinodeImages();
       loadLinodeStackScripts();
+      setModalOpen(true);
+      
+      // Preload critical assets for better UX
+      if (!isSlowConnection) {
+        preloadAsset('/api/vps/images', 'script');
+        preloadAsset('/api/vps/stackscripts', 'script');
+      }
+    } else {
+      setModalOpen(false);
     }
-  }, [showCreateModal, loadLinodeImages, loadLinodeStackScripts]);
+  }, [showCreateModal, loadLinodeImages, loadLinodeStackScripts, setModalOpen, isSlowConnection, preloadAsset]);
+
+  // Performance measurement cleanup - run once on mount
+  useEffect(() => {
+    const cleanup = endRenderMeasurement;
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleInstanceAction = async (instanceId: string, action: 'boot' | 'shutdown' | 'reboot' | 'delete') => {
     try {
@@ -659,24 +759,24 @@ const VPS: React.FC = () => {
 
   const handleCreateInstance = async () => {
     if (!createForm.label || !createForm.rootPassword) {
-      toast.error('Label and root password are required');
+      mobileToast.error('Label and root password are required');
       return;
     }
 
     if (!createForm.type) {
-      toast.error('Please select a plan');
+      mobileToast.error('Please select a plan');
       return;
     }
 
     if (!createForm.region) {
-      toast.error('Region is required. Please select a plan with a configured region.');
+      mobileToast.error('Region is required. Please select a plan with a configured region.');
       return;
     }
 
     // Calculate total cost including backups
     const selectedType = linodeTypes.find(t => t.id === createForm.type);
     if (!selectedType) {
-      toast.error('Selected plan not found');
+      mobileToast.error('Selected plan not found');
       return;
     }
 
@@ -685,16 +785,26 @@ const VPS: React.FC = () => {
       totalHourlyCost += selectedType.price.hourly * 0.4; // 40% additional for backups
     }
 
+    // Show mobile loading state
+    mobileLoading.showLoading(
+      'Verifying wallet balance...',
+      'Please wait while we check your account balance'
+    );
+
     // Check wallet balance
     try {
       const walletBalance = await paymentService.getWalletBalance();
       if (!walletBalance || walletBalance.balance < totalHourlyCost) {
-        toast.error(`Insufficient wallet balance. Required: $${totalHourlyCost.toFixed(4)}/hour, Available: $${walletBalance?.balance.toFixed(2) || '0.00'}`);
+        mobileLoading.hideLoading();
+        mobileToast.error(`Insufficient wallet balance. Required: $${totalHourlyCost.toFixed(4)}/hour, Available: $${walletBalance?.balance.toFixed(2) || '0.00'}`, {
+          duration: 8000 // Longer duration for important financial information
+        });
         return;
       }
     } catch (error) {
       console.error('Failed to check wallet balance:', error);
-      toast.error('Failed to verify wallet balance. Please try again.');
+      mobileLoading.hideLoading();
+      mobileToast.error('Failed to verify wallet balance. Please try again.');
       return;
     }
 
@@ -707,7 +817,8 @@ const VPS: React.FC = () => {
         // If the script is unrestricted (any/all), skip strict enforcement
         if (allowedKnown.length > 0) {
           if (!createForm.image || !allowedKnown.includes(createForm.image)) {
-            toast.error('Selected OS image is not compatible with the selected application. Choose an allowed image.');
+            mobileLoading.hideLoading();
+            mobileToast.error('Selected OS image is not compatible with the selected application. Choose an allowed image.');
             return;
           }
         }
@@ -719,7 +830,8 @@ const VPS: React.FC = () => {
         });
         if (missing.length > 0) {
           const first = missing[0];
-          toast.error(`Please fill required field: ${first.label || first.name}`);
+          mobileLoading.hideLoading();
+          mobileToast.error(`Please fill required field: ${first.label || first.name}`);
           return;
         }
       }
@@ -744,6 +856,9 @@ const VPS: React.FC = () => {
         body.stackscriptData = selectedStackScript ? stackscriptData : undefined;
       }
 
+      // Update loading state for VPS creation
+      mobileLoading.updateProgress(25, 'Creating VPS instance...');
+
       const res = await fetch('/api/vps', {
         method: 'POST',
         headers: {
@@ -753,48 +868,54 @@ const VPS: React.FC = () => {
         body: JSON.stringify(body),
       });
 
+      mobileLoading.updateProgress(75, 'Processing response...');
+
       const payload = await res.json();
       if (!res.ok) {
+        mobileLoading.hideLoading();
         // Handle specific error codes with better user feedback
         if (payload.code === 'INSUFFICIENT_BALANCE') {
-          toast.error(`Insufficient wallet balance. You need $${payload.required?.toFixed(4) || 'unknown'} but only have $${payload.available?.toFixed(2) || 'unknown'}. Please add funds to your wallet.`);
+          mobileToast.error(`Insufficient wallet balance. You need $${payload.required?.toFixed(4) || 'unknown'} but only have $${payload.available?.toFixed(2) || 'unknown'}. Please add funds to your wallet.`, {
+            duration: 8000
+          });
         } else if (payload.code === 'WALLET_NOT_FOUND') {
-          toast.error('No wallet found for your organization. Please contact support.');
+          mobileToast.error('No wallet found for your organization. Please contact support.');
         } else if (payload.code === 'WALLET_CHECK_FAILED') {
-          toast.error('Failed to verify wallet balance. Please try again.');
+          mobileToast.error('Failed to verify wallet balance. Please try again.');
         } else {
-          toast.error(payload.error || 'Failed to create VPS');
+          mobileToast.error(payload.error || 'Failed to create VPS');
         }
         return;
       }
 
+      mobileLoading.updateProgress(100, 'VPS created successfully!');
+      
+      // Brief delay to show completion before hiding loading
+      setTimeout(() => {
+        mobileLoading.hideLoading();
+      }, 1000);
+
       // VPS creation successful - show appropriate message based on billing status
       if (payload.billing?.success) {
-        toast.success(`VPS "${createForm.label}" created successfully! ${payload.billing.message}`);
+        mobileToast.success(`VPS "${createForm.label}" created successfully! ${payload.billing.message}`);
       } else {
-        toast.warning(`VPS "${createForm.label}" created successfully, but ${payload.billing?.message || 'initial billing failed'}. You will be billed hourly as normal.`);
+        mobileToast.warning(`VPS "${createForm.label}" created successfully, but ${payload.billing?.message || 'initial billing failed'}. You will be billed hourly as normal.`);
       }
 
       // Refresh list from server to reflect new instance
       await loadInstances();
 
+      // Handle form submission (clears saved data)
+      handleFormSubmit();
+      
       setShowCreateModal(false);
       setCreateStep(1);
-      setCreateForm({
-        label: '',
-        type: '',
-        region: 'us-east',
-        image: 'linode/ubuntu22.04',
-        rootPassword: '',
-        sshKeys: [],
-        backups: false,
-        privateIP: false
-      });
       setSelectedStackScript(null);
       setStackscriptData({});
     } catch (error) {
       console.error('Failed to create VPS instance:', error);
-      toast.error('Failed to create VPS instance');
+      mobileLoading.hideLoading();
+      mobileToast.error('Failed to create VPS instance');
     }
   };
 
@@ -837,73 +958,76 @@ const VPS: React.FC = () => {
       description: 'Configure the server label and pricing plan before provisioning.',
       content: (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Label *
-            </label>
-            <input
-              type="text"
-              value={createForm.label}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, label: e.target.value }))}
-              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="my-server"
-            />
-          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Label *
+              </label>
+              <input
+                type="text"
+                value={createForm.label}
+                onChange={(e) => setCreateForm({ label: e.target.value })}
+                className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
+                placeholder="my-server"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Plan
-            </label>
-            <select
-              value={createForm.type}
-              onChange={(e) => {
-                const newType = e.target.value;
-                const selectedType = linodeTypes.find(t => t.id === newType);
-                const newRegion = selectedType?.region || '';
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Plan
+              </label>
+              <select
+                value={createForm.type}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  const selectedType = linodeTypes.find(t => t.id === newType);
+                  const newRegion = selectedType?.region || '';
 
-                setCreateForm(prev => ({
-                  ...prev,
-                  type: newType,
-                  region: newRegion,
-                }));
-              }}
-              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-            >
-              <option value="">Click to choose plan</option>
-              {linodeTypes.map(type => (
-                <option key={type.id} value={type.id}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
+                  setCreateForm({
+                    type: newType,
+                    region: newRegion,
+                  });
+                }}
+                className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
+              >
+                <option value="">Click to choose plan</option>
+                {linodeTypes.map(type => (
+                  <option key={type.id} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Region
-            </label>
-            <div className="w-full px-3 py-2 border border rounded-md bg-muted text-foreground">
-              {createForm.type && createForm.region ? (
-                (() => {
-                  const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
-                  return (
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
-                      <span className="font-medium">
-                        {selectedRegion ? selectedRegion.label : createForm.region}
-                      </span>
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        (Auto-selected based on plan)
-                      </span>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="flex items-center text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  <span>Select a plan to see the region</span>
-                </div>
-              )}
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Region
+              </label>
+              <div className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-muted text-foreground flex items-center">
+                {createForm.type && createForm.region ? (
+                  (() => {
+                    const selectedRegion = allowedRegions.find(r => r.id === createForm.region);
+                    return (
+                      <div className="flex items-center w-full">
+                        <MapPin className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
+                        <div className="flex flex-col sm:flex-row sm:items-center min-w-0 flex-1">
+                          <span className="font-medium truncate">
+                            {selectedRegion ? selectedRegion.label : createForm.region}
+                          </span>
+                          <span className="text-sm text-muted-foreground sm:ml-2 mt-1 sm:mt-0">
+                            (Auto-selected based on plan)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center text-muted-foreground">
+                    <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span>Select a plan to see the region</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -919,142 +1043,19 @@ const VPS: React.FC = () => {
             <label className="block text-sm font-medium text-muted-foreground mb-2">
               1-Click Deployments (Optional)
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              <div
-                onClick={() => {
-                  const sshKeyScript = linodeStackScripts.find(script => 
-                    script.label === 'ssh-key' || 
-                    script.id === 'ssh-key' ||
-                    (script.label && script.label.toLowerCase().includes('ssh'))
-                  );
-                  setSelectedStackScript(sshKeyScript || null);
-                }}
-                className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                  selectedStackScript === null || 
-                  (selectedStackScript && (
-                    selectedStackScript.label === 'ssh-key' || 
-                    selectedStackScript.id === 'ssh-key' ||
-                    (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
-                  ))
-                    ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
-                    : 'border hover:border-input dark:hover:border-gray-500'
-                }`}
-              >
-                <div className="flex flex-col space-y-2">
-                  <div className="w-8 h-8 bg-gray-400 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">NO</span>
-                  </div>
-                  <h4 className="font-medium text-foreground text-sm">None</h4>
-                  <p className="text-xs text-muted-foreground truncate">Provision base OS without a deployment</p>
-                </div>
-                {(selectedStackScript === null || 
-                  (selectedStackScript && (
-                    selectedStackScript.label === 'ssh-key' || 
-                    selectedStackScript.id === 'ssh-key' ||
-                    (selectedStackScript.label && selectedStackScript.label.toLowerCase().includes('ssh'))
-                  ))) && (
-                  <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              {linodeStackScripts.map((script) => {
-                const isSshKeyScript = script.label === 'ssh-key' || 
-                  script.id === 'ssh-key' ||
-                  (script.label && script.label.toLowerCase().includes('ssh'));
-
-                if (isSshKeyScript) return null;
-
-                return (
-                  <div
-                    key={script.id}
-                    onClick={() => setSelectedStackScript(script)}
-                    className={`relative p-3 border rounded-lg cursor-pointer transition-all ${
-                      selectedStackScript?.id === script.id
-                        ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
-                        : 'border hover:border-input dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <div className="flex flex-col space-y-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">
-                          {String(script.label || '').substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      <h4 className="font-medium text-foreground text-sm truncate">{script.label}</h4>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {script.description || 'Automated setup script'}
-                      </p>
-                    </div>
-                    {selectedStackScript?.id === script.id && (
-                      <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <LazyDeploymentSelection
+              stackScripts={linodeStackScripts}
+              selectedStackScript={selectedStackScript}
+              onStackScriptSelect={setSelectedStackScript}
+            />
           </div>
 
-          {selectedStackScript && Array.isArray(selectedStackScript.user_defined_fields) && selectedStackScript.user_defined_fields.length > 0 && (
-            <div className="mt-4 p-3 border rounded-lg bg-muted/30 border">
-              <h4 className="text-sm font-medium text-foreground mb-2">Deployment Configuration</h4>
-              <p className="text-xs text-muted-foreground mb-2">
-                Allowed base images: {allowedImagesDisplay}
-              </p>
-              <form onSubmit={(e) => e.preventDefault()}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selectedStackScript.user_defined_fields.map((f: any) => {
-                    const value = stackscriptData[f.name] ?? '';
-                    const optionsArr = Array.isArray(f.allowed) ? f.allowed : (Array.isArray(f.oneof) ? f.oneof : null);
-                    const rawOptions = !optionsArr && typeof f.oneof === 'string' ? String(f.oneof).trim() : '';
-                    const parsedOptions = rawOptions ? rawOptions.split(/[|,]/).map((s: string) => s.trim()).filter(Boolean) : [];
-                    const options = optionsArr || parsedOptions;
-                    const nameLower = String(f.name || '').toLowerCase();
-                    const inputType: 'text' | 'password' | 'email' = options && options.length > 0
-                      ? 'text'
-                      : nameLower.includes('password') || nameLower.includes('pass')
-                        ? 'password'
-                        : nameLower.includes('email')
-                          ? 'email'
-                          : 'text';
-                    return (
-                      <div key={f.name}>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1">{f.label || f.name}</label>
-                        {options && options.length > 0 ? (
-                          <select
-                            value={value}
-                            onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                            className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
-                          >
-                            <option value="">Select</option>
-                            {options.map((opt: string) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            type={inputType}
-                            value={value}
-                            onChange={(e) => setStackscriptData(prev => ({ ...prev, [f.name]: e.target.value }))}
-                            placeholder={f.example || f.default || ''}
-                            className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                            autoComplete={inputType === 'password' ? 'new-password' : 'off'}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </form>
-            </div>
-          )}
+          <LazyStackScriptConfig
+            selectedStackScript={selectedStackScript}
+            stackscriptData={stackscriptData}
+            onStackScriptDataChange={setStackscriptData}
+            allowedImagesDisplay={allowedImagesDisplay}
+          />
         </div>
       )
     },
@@ -1068,88 +1069,32 @@ const VPS: React.FC = () => {
             <button
               type="button"
               onClick={() => setOsTab('templates')}
-              className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'templates' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
+              className={`px-4 py-3 min-h-[48px] text-sm font-medium rounded-md border touch-manipulation transition-colors duration-200 ${osTab === 'templates' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary hover:bg-secondary/80'}`}
+              aria-label="Select OS templates"
+              aria-pressed={osTab === 'templates'}
             >
               Templates
             </button>
             <button
               type="button"
               onClick={() => setOsTab('iso')}
-              className={`px-3 py-1.5 text-sm rounded-md border ${osTab === 'iso' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary'}`}
+              className={`px-4 py-3 min-h-[48px] text-sm font-medium rounded-md border touch-manipulation transition-colors duration-200 ${osTab === 'iso' ? 'border-primary text-primary bg-primary/10 dark:bg-primary/20' : 'border text-muted-foreground bg-secondary hover:bg-secondary/80'}`}
+              aria-label="Select ISO images"
+              aria-pressed={osTab === 'iso'}
             >
               ISO
             </button>
           </div>
 
           {osTab === 'templates' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(
-                ['ubuntu','debian','centos','rockylinux','almalinux','fedora','alpine','arch','opensuse','gentoo','slackware']
-              ).filter(key => effectiveOsGroups[key] && effectiveOsGroups[key].versions.length > 0).map(key => {
-                const group = effectiveOsGroups[key];
-                const selectedVersionId = selectedOSVersion[key] || group.versions[0]?.id;
-                const isSelected = selectedOSGroup === key;
-                const colorMap: Record<string, string> = {
-                  ubuntu: 'from-orange-500 to-red-600',
-                  debian: 'from-red-500 to-gray-600',
-                  centos: 'from-emerald-500 to-emerald-600',
-                  rockylinux: 'from-green-600 to-emerald-700',
-                  almalinux: 'from-rose-500 to-pink-600',
-                  fedora: 'from-blue-600 to-indigo-700',
-                  alpine: 'from-cyan-500 to-sky-600',
-                  arch: 'from-sky-500 to-blue-700',
-                  opensuse: 'from-lime-500 to-green-600',
-                  gentoo: 'from-purple-500 to-violet-600',
-                  slackware: 'from-gray-500 to-gray-700'
-                };
-                const colors = colorMap[key] || 'from-blue-500 to-purple-600';
-                return (
-                  <div
-                    key={key}
-                    className={`p-4 border-2 rounded-lg transition-all cursor-pointer hover:shadow-md ${isSelected ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary' : 'border hover:border-input dark:hover:border-gray-500'}`}
-                    onClick={() => {
-                      setSelectedOSGroup(key);
-                      const idToUse = selectedVersionId || group.versions[0]?.id;
-                      if (idToUse) setCreateForm(prev => ({ ...prev, image: idToUse }));
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors} flex items-center justify-center`}>
-                          <span className="text-white font-bold text-xs">{group.name.slice(0,2).toUpperCase()}</span>
-                        </div>
-                        <h3 className="font-medium text-foreground text-sm lowercase">{group.name}</h3>
-                      </div>
-                      {isSelected && (
-                        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Select Version</label>
-                      <select
-                        value={selectedVersionId || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSelectedOSVersion(prev => ({ ...prev, [key]: val }));
-                          setCreateForm(prev => ({ ...prev, image: val }));
-                          setSelectedOSGroup(key);
-                        }}
-                        className="w-full text-xs rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary"
-                      >
-                        <option value="" disabled>SELECT VERSION</option>
-                        {group.versions.map(v => (
-                          <option key={v.id} value={v.id}>{v.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <LazyOSSelection
+              osGroups={effectiveOsGroups}
+              selectedOSGroup={selectedOSGroup}
+              selectedOSVersion={selectedOSVersion}
+              onOSGroupSelect={setSelectedOSGroup}
+              onOSVersionSelect={(key, version) => setSelectedOSVersion(prev => ({ ...prev, [key]: version }))}
+              onImageSelect={(imageId) => setCreateForm({ image: imageId })}
+            />
           ) : (
             <div className="p-4 border border-dashed border rounded-lg text-sm text-muted-foreground">
               ISO install support coming soon. Use Templates for now.
@@ -1165,37 +1110,37 @@ const VPS: React.FC = () => {
       content: (
         <div className="space-y-5">
           <form onSubmit={(e) => e.preventDefault()}>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Root Password *
             </label>
             <input
               type="password"
               value={createForm.rootPassword}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, rootPassword: e.target.value }))}
-              className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              onChange={(e) => setCreateForm({ rootPassword: e.target.value })}
+              className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
               placeholder="Enter a strong password"
               autoComplete="new-password"
             />
           </form>
 
-          <div className="flex items-center space-x-6">
-            <label className="flex items-center">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
+            <label className="flex items-center min-h-[44px] touch-manipulation">
               <input
                 type="checkbox"
                 checked={createForm.backups}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, backups: e.target.checked }))}
-                className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
+                onChange={(e) => setCreateForm({ backups: e.target.checked })}
+                className="h-5 w-5 text-primary focus:ring-primary border rounded bg-secondary"
               />
-              <span className="ml-2 text-sm text-muted-foreground">Enable Backups (+40%)</span>
+              <span className="ml-3 text-sm text-muted-foreground">Enable Backups (+40%)</span>
             </label>
-            <label className="flex items-center">
+            <label className="flex items-center min-h-[44px] touch-manipulation">
               <input
                 type="checkbox"
                 checked={createForm.privateIP}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, privateIP: e.target.checked }))}
-                className="h-4 w-4 text-primary focus:ring-primary border rounded bg-secondary"
+                onChange={(e) => setCreateForm({ privateIP: e.target.checked })}
+                className="h-5 w-5 text-primary focus:ring-primary border rounded bg-secondary"
               />
-              <span className="ml-2 text-sm text-muted-foreground">Private IP</span>
+              <span className="ml-3 text-sm text-muted-foreground">Private IP</span>
             </label>
           </div>
 
@@ -1207,7 +1152,7 @@ const VPS: React.FC = () => {
                 if (!selectedType) return null;
                 const selectedRegion = selectedType.region ? allowedRegions.find(r => r.id === selectedType.region) : null;
                 return (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">vCPUs:</span>
                       <span className="ml-2 font-medium text-foreground">{selectedType.vcpus}</span>
@@ -1249,8 +1194,20 @@ const VPS: React.FC = () => {
   const stackFooter = (
     <div className="flex items-center justify-between">
       <button
-        onClick={() => { setShowCreateModal(false); setCreateStep(1); }}
-        className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        onClick={() => { 
+          if (isFormDirty) {
+            const shouldSave = window.confirm(
+              "You have unsaved changes. Would you like to save your progress?"
+            );
+            if (shouldSave) {
+              saveForm();
+            }
+          }
+          setShowCreateModal(false); 
+          setCreateStep(1); 
+        }}
+        className="px-6 py-3 min-h-[48px] border border-rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 active:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary touch-manipulation transition-colors duration-200"
+        aria-label="Cancel VPS creation"
       >
         Cancel
       </button>
@@ -1291,6 +1248,14 @@ const VPS: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Mobile loading overlay */}
+      <MobileLoading
+        isLoading={mobileLoading.isLoading}
+        title={mobileLoading.title}
+        description={mobileLoading.description}
+        progress={mobileLoading.progress}
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -1301,13 +1266,15 @@ const VPS: React.FC = () => {
                 Manage your VPS instances and monitor their performance
               </p>
             </div>
-            <button
+            <MobileLoadingButton
               onClick={() => { setCreateStep(1); setShowCreateModal(true); }}
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary w-full sm:w-auto"
+              className="inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap px-4 py-2 sm:py-3 min-h-[44px] sm:min-h-[48px] border border-transparent text-sm font-medium rounded-lg shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 active:bg-primary/95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary w-auto touch-manipulation transition-colors duration-200"
+              isLoading={false}
+              aria-label="Create new VPS instance"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Create VPS
-            </button>
+              <Plus className="h-4 w-4 self-center flex-shrink-0" />
+              <span className="font-medium leading-none">Create VPS</span>
+            </MobileLoadingButton>
           </div>
         </div>
 
@@ -1324,15 +1291,17 @@ const VPS: React.FC = () => {
                     placeholder="Search instances..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full pl-10 pr-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
+                    aria-label="Search VPS instances"
                   />
                 </div>
                 <button
                   onClick={loadInstances}
-                  className="inline-flex w-full sm:w-auto items-center justify-center px-4 py-2.5 border border shadow-sm text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  className="inline-flex w-full sm:w-auto items-center justify-center px-4 py-3 min-h-[48px] border border shadow-sm text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 active:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary touch-manipulation transition-colors duration-200"
+                  aria-label="Refresh VPS instances list"
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
+                  <RefreshCw className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span>Refresh</span>
                 </button>
               </div>
               
@@ -1346,7 +1315,8 @@ const VPS: React.FC = () => {
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
+                      aria-label="Filter by VPS status"
                     >
                       <option value="all">All Status</option>
                       <option value="running">Running</option>
@@ -1362,7 +1332,8 @@ const VPS: React.FC = () => {
                     <select
                       value={regionFilter}
                       onChange={(e) => setRegionFilter(e.target.value)}
-                      className="w-full px-3 py-2.5 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
+                      aria-label="Filter by VPS region"
                     >
                       <option value="all">All Regions</option>
                       {allowedRegions.map(region => (
@@ -1536,6 +1507,14 @@ const VPS: React.FC = () => {
         <DialogStack
           open={showCreateModal}
           onOpenChange={(isOpen) => {
+            if (!isOpen && isFormDirty) {
+              const shouldSave = window.confirm(
+                "You have unsaved changes. Would you like to save your progress?"
+              );
+              if (shouldSave) {
+                saveForm();
+              }
+            }
             setShowCreateModal(isOpen);
             if (!isOpen) setCreateStep(1);
           }}
@@ -1543,8 +1522,13 @@ const VPS: React.FC = () => {
           activeStep={createStep - 1}
           onStepChange={(index) => setCreateStep(index + 1)}
           title="Create New VPS Instance"
-          description="Provision a VPS using our guided setup."
+          description={lastSaved 
+            ? `Provision a VPS using our guided setup. Auto-saved ${new Date(lastSaved).toLocaleTimeString()}`
+            : "Provision a VPS using our guided setup."
+          }
           footer={stackFooter}
+          mobileLayout={optimizedSettings.enableAnimations ? "adaptive" : "fullscreen"}
+          touchOptimized={true}
         />
 
         {deleteModal.open && (
@@ -1557,8 +1541,9 @@ const VPS: React.FC = () => {
                   <p className="text-sm font-mono px-2 py-1 bg-secondary text-foreground rounded">{deleteModal.label}</p>
                   <button
                     onClick={() => copyToClipboard(deleteModal.label)}
-                    className="p-1 text-muted-foreground hover:text-foreground text-muted-foreground dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                    className="p-3 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground active:text-foreground focus:outline-none focus:ring-2 focus:ring-primary rounded-md touch-manipulation transition-colors duration-200"
                     title="Copy server name"
+                    aria-label="Copy server name to clipboard"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -1571,8 +1556,9 @@ const VPS: React.FC = () => {
                       value={deleteModal.input}
                       onChange={(e) => setDeleteModal(m => ({ ...m, input: e.target.value, error: '' }))}
                       placeholder="Type the server name to confirm"
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-red-500 text-base touch-manipulation"
                       autoComplete="off"
+                      aria-label="Confirm server name for deletion"
                     />
                   </div>
                   
@@ -1583,8 +1569,9 @@ const VPS: React.FC = () => {
                       value={deleteModal.password}
                       onChange={(e) => setDeleteModal(m => ({ ...m, password: e.target.value, error: '' }))}
                       placeholder="Enter your account password"
-                      className="w-full px-3 py-2 border border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-red-500 text-base touch-manipulation"
                       autoComplete="current-password"
+                      aria-label="Enter account password to confirm deletion"
                     />
                   </div>
                 </form>
@@ -1605,18 +1592,20 @@ const VPS: React.FC = () => {
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteModal.error}</p>
                   )}
                 </div>
-                <div className="flex items-center justify-end space-x-3 mt-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
                   <button
                     onClick={() => setDeleteModal({ open: false, id: '', label: '', input: '', password: '', confirmCheckbox: false, loading: false, error: '' })}
-                    className="px-4 py-2 border border rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    className="px-6 py-3 min-h-[48px] border border-rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 active:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary touch-manipulation transition-colors duration-200"
                     disabled={deleteModal.loading}
+                    aria-label="Cancel deletion"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDeleteInstance}
                     disabled={deleteModal.loading || deleteModal.input.trim() !== deleteModal.label.trim() || !deleteModal.password.trim() || !deleteModal.confirmCheckbox}
-                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${deleteModal.input.trim() === deleteModal.label.trim() && deleteModal.password.trim() && deleteModal.confirmCheckbox ? 'bg-red-600 hover:bg-red-700' : 'bg-red-400 cursor-not-allowed'}`}
+                    className={`px-6 py-3 min-h-[48px] border border-transparent rounded-md shadow-sm text-sm font-medium text-white touch-manipulation transition-colors duration-200 ${deleteModal.input.trim() === deleteModal.label.trim() && deleteModal.password.trim() && deleteModal.confirmCheckbox ? 'bg-red-600 hover:bg-red-700 active:bg-red-800' : 'bg-red-400 cursor-not-allowed'}`}
+                    aria-label="Confirm server deletion"
                   >
                     {deleteModal.loading ? 'Deleting...' : 'Delete Server'}
                   </button>
