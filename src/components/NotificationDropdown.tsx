@@ -283,7 +283,7 @@ const NotificationDropdown: React.FC = () => {
             You are all caught up.
           </div>
         ) : (
-          <div className="max-h-[360px] overflow-y-auto">
+          <div className="max-h-[360px] overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             <div className="divide-y">
               {notifications.map((notification) => (
                 <div
