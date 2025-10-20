@@ -354,8 +354,8 @@ export function DialogStack({
                 />
               ))}
               {currentStep && (
-                <Card className="relative z-20 rounded-lg border border-border/80 bg-card/95 shadow-2xl sm:rounded-[26px]">
-                  <CardHeader className="gap-2 flex-col items-start sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Card className="relative z-20 rounded-lg border border-border/80 bg-card/95 shadow-2xl sm:rounded-[26px] flex flex-col max-h-[calc(100vh-200px)]">
+                  <CardHeader className="gap-2 flex-col items-start sm:gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
                     <div className="space-y-1">
                       <CardTitle className="text-base sm:text-lg">{currentStep.title}</CardTitle>
                       {currentStep.description && (
@@ -366,11 +366,11 @@ export function DialogStack({
                       Step {clampedIndex + 1} of {steps.length}
                     </span>
                   </CardHeader>
-                  <CardContent className="space-y-4 sm:space-y-6">
+                  <CardContent className="space-y-4 sm:space-y-6 overflow-y-auto flex-1">
                     {currentStep.content}
                   </CardContent>
                   {currentStep.footer && (
-                    <CardFooter className="border-t border-border/60 bg-card/60 py-3 sm:py-4">
+                    <CardFooter className="border-t border-border/60 bg-card/60 py-3 sm:py-4 flex-shrink-0">
                       {currentStep.footer}
                     </CardFooter>
                   )}

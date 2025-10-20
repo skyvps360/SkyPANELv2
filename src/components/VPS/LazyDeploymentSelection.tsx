@@ -51,29 +51,29 @@ export default function LazyDeploymentSelection({
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* None option */}
       <div
         onClick={handleNoneSelect}
         className={cn(
-          "relative p-4 min-h-[80px] border rounded-lg cursor-pointer transition-all touch-manipulation",
+          "relative p-3 min-h-[75px] border rounded-lg cursor-pointer transition-all touch-manipulation",
           isNoneSelected
             ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
             : 'border hover:border-input dark:hover:border-gray-500'
         )}
       >
-        <div className="flex flex-col space-y-3">
-          <div className="w-10 h-10 bg-gray-400 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">NO</span>
+        <div className="flex flex-col space-y-2">
+          <div className="w-9 h-9 bg-gray-400 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-xs">NO</span>
           </div>
-          <h4 className="font-medium text-foreground text-base">None</h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <h4 className="font-medium text-foreground text-sm">None</h4>
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Provision base OS without a deployment
           </p>
         </div>
         {isNoneSelected && (
           <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </div>
@@ -89,23 +89,23 @@ export default function LazyDeploymentSelection({
             key={script.id}
             onClick={() => onStackScriptSelect(script)}
             className={cn(
-              "relative p-4 min-h-[80px] border rounded-lg cursor-pointer transition-all touch-manipulation",
+              "relative p-3 min-h-[75px] border rounded-lg cursor-pointer transition-all touch-manipulation",
               isSelected
                 ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
                 : 'border hover:border-input dark:hover:border-gray-500'
             )}
           >
-            <div className="flex flex-col space-y-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+            <div className="flex flex-col space-y-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xs">
                   {String(script.label || '').substring(0, 2).toUpperCase()}
                 </span>
               </div>
-              <h4 className="font-medium text-foreground text-base truncate">
+              <h4 className="font-medium text-foreground text-sm truncate">
                 {script.label}
               </h4>
               <p 
-                className="text-sm text-muted-foreground leading-relaxed overflow-hidden" 
+                className="text-xs text-muted-foreground leading-relaxed overflow-hidden" 
                 style={{ 
                   display: '-webkit-box', 
                   WebkitLineClamp: 2, 
@@ -117,7 +117,7 @@ export default function LazyDeploymentSelection({
             </div>
             {isSelected && (
               <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </div>

@@ -46,7 +46,7 @@ export default function LazyOSSelection({
   }, [osGroups]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {sortedOSKeys.map(key => {
         const group = osGroups[key];
         const selectedVersionId = selectedOSVersion[key] || group.versions[0]?.id;
@@ -57,7 +57,7 @@ export default function LazyOSSelection({
           <div
             key={key}
             className={cn(
-              "p-4 min-h-[120px] border-2 rounded-lg transition-all cursor-pointer hover:shadow-md touch-manipulation",
+              "p-3 min-h-[110px] border-2 rounded-lg transition-all cursor-pointer hover:shadow-md touch-manipulation",
               isSelected 
                 ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary' 
                 : 'border hover:border-input dark:hover:border-gray-500'
@@ -68,34 +68,34 @@ export default function LazyOSSelection({
               if (idToUse) onImageSelect(idToUse);
             }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3 min-w-0 flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2 min-w-0 flex-1">
                 <div className={cn(
-                  "w-12 h-12 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-md",
+                  "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-md",
                   colors
                 )}>
-                  <span className="text-white font-bold text-sm">
+                  <span className="text-white font-bold text-xs">
                     {group.name.slice(0,2).toUpperCase()}
                   </span>
                 </div>
-                <h3 className="font-medium text-foreground text-base lowercase truncate">
+                <h3 className="font-medium text-foreground text-sm lowercase truncate">
                   {group.name}
                 </h3>
               </div>
               <div className="flex-shrink-0 ml-2">
                 {isSelected ? (
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
                 ) : (
-                  <div className="w-6 h-6 border-2 border-muted-foreground/30 rounded-full"></div>
+                  <div className="w-5 h-5 border-2 border-muted-foreground/30 rounded-full"></div>
                 )}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Select Version
               </label>
               <select
@@ -106,7 +106,7 @@ export default function LazyOSSelection({
                   onImageSelect(val);
                   onOSGroupSelect(key);
                 }}
-                className="w-full px-3 py-3 min-h-[44px] text-sm rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary focus:outline-none focus:ring-2 touch-manipulation"
+                className="w-full px-3 py-2.5 min-h-[40px] text-sm rounded-md border bg-secondary text-foreground shadow-sm focus:border-primary focus:ring-primary focus:outline-none focus:ring-2 touch-manipulation"
                 onClick={(e) => e.stopPropagation()}
               >
                 <option value="" disabled>SELECT VERSION</option>
