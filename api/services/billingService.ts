@@ -145,8 +145,7 @@ export class BillingService {
           0.027
         ) as hourly_rate
       FROM vps_instances vi
-      WHERE vi.status IN ('running', 'provisioning')
-        AND (
+      WHERE (
           vi.last_billed_at IS NULL 
           OR vi.last_billed_at <= $1
         )
@@ -344,14 +343,15 @@ export class BillingService {
       `, [organizationId]);
 
       // Get active VPS count and monthly estimate
+      // Note: All VPS instances are billed hourly regardless of status (running, stopped, etc.)
+      // Only deleted instances (removed from table) stop billing
       const activeVPSResult = await query(`
         SELECT 
           COUNT(*) as count,
           COALESCE(SUM((base_price + markup_price)), 0) as monthly_estimate
         FROM vps_instances vi
         LEFT JOIN vps_plans vp ON (vp.id = vi.plan_id OR vp.provider_plan_id = vi.plan_id)
-        WHERE vi.organization_id = $1 
-          AND vi.status IN ('running', 'provisioning')
+        WHERE vi.organization_id = $1
       `, [organizationId]);
 
       return {
@@ -412,7 +412,9 @@ export class BillingService {
   }
 
   /**
-   * Stop billing for a VPS instance (when deleted or stopped)
+   * Stop billing for a VPS instance (when deleted)
+   * Note: Stopping/powering off a VPS does NOT stop billing - you are charged for reserved resources
+   * Billing only stops when the VPS is permanently deleted
    */
   static async stopVPSBilling(vpsInstanceId: string): Promise<void> {
     try {
