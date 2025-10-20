@@ -11,6 +11,7 @@ export interface ActivityPayload {
   message?: string | null;
   status?: 'success' | 'warning' | 'error' | 'info';
   metadata?: any;
+  suppressNotification?: boolean;
 }
 
 export interface RateLimitEventPayload {
@@ -56,9 +57,14 @@ export const ensureActivityLogsTable = async (): Promise<void> => {
         ip_address VARCHAR(64),
         user_agent TEXT,
         metadata JSONB DEFAULT '{}'::jsonb,
+        is_read BOOLEAN DEFAULT FALSE,
+        read_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+
+    await query('ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE');
+    await query('ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ');
 
     const indexStatements = [
       'CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)',
@@ -88,18 +94,21 @@ export async function logActivity(payload: ActivityPayload, req?: Request): Prom
       entityId = null,
       message = null,
       status = 'info',
-      metadata = {}
+      metadata = {},
+      suppressNotification = false
     } = payload;
 
     const ip = req ? getIP(req, { enableLogging: false }) : undefined;
     const ua = req?.headers['user-agent'] || undefined;
+    const isRead = suppressNotification;
+    const readAt = suppressNotification ? new Date().toISOString() : null;
 
     await ensureActivityLogsTable();
 
     await query(
-      `INSERT INTO activity_logs (user_id, organization_id, event_type, entity_type, entity_id, message, status, ip_address, user_agent, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [userId, organizationId, eventType, entityType, entityId, message, status, ip, ua, metadata]
+      `INSERT INTO activity_logs (user_id, organization_id, event_type, entity_type, entity_id, message, status, ip_address, user_agent, metadata, is_read, read_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [userId, organizationId, eventType, entityType, entityId, message, status, ip, ua, metadata, isRead, readAt]
     );
   } catch (e) {
     // Non-blocking: do not throw, but log to server console

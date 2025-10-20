@@ -38,7 +38,8 @@ export const auditLogger = (operation: string) => {
             user_agent: req.headers['user-agent'],
             request_size: req.headers['content-length'] || 0,
             response_size: data ? data.length : 0
-          }
+          },
+          suppressNotification: true
         }, req).catch(err => {
           console.error('Failed to log admin operation:', err);
         });

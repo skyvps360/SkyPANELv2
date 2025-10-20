@@ -178,8 +178,11 @@ const NotificationDropdown: React.FC = () => {
           const payload = JSON.parse(event.data);
           if (payload?.type === 'notification' && payload?.data) {
             const notification: Notification = payload.data;
+            if (notification.is_read) {
+              return; // Skip already-read activity such as suppressed audit logs
+            }
             setNotifications((prev) => [notification, ...prev]);
-            setUnreadCount((prev) => prev + (notification.is_read ? 0 : 1));
+            setUnreadCount((prev) => prev + 1);
             // Brief toast for new notifications
             toast.success(notification.message || `${notification.event_type} ${notification.entity_type}`);
           }

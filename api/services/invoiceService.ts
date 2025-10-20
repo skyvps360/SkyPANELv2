@@ -4,6 +4,7 @@
  */
 
 import { query } from '../lib/database.js';
+import type { ThemePalette } from './themeService.js';
 
 export interface InvoiceData {
   id: string;
@@ -27,6 +28,25 @@ export interface InvoiceItem {
   unitPrice: number;
   amount: number;
 }
+
+const defaultInvoicePalette: ThemePalette = {
+  background: '#ffffff',
+  foreground: '#333333',
+  card: '#ffffff',
+  cardForeground: '#333333',
+  muted: '#f8f9fa',
+  mutedForeground: '#666666',
+  border: '#e0e0e0',
+  primary: '#007bff',
+  primaryForeground: '#ffffff',
+  secondary: '#e3f2fd',
+  secondaryForeground: '#1976d2',
+  accent: '#388e3c',
+  accentForeground: '#ffffff',
+  destructive: '#d32f2f',
+  destructiveForeground: '#ffffff',
+  ring: '#007bff',
+};
 
 export class InvoiceService {
   private static invoiceTableEnsured = false;
@@ -75,7 +95,8 @@ export class InvoiceService {
   static generateInvoiceHTML(
     invoiceData: InvoiceData,
     companyName?: string,
-    companyLogo?: string
+    companyLogo?: string,
+    themePalette?: ThemePalette
   ): string {
     const resolvedCompanyName = (companyName && companyName.trim())
       || (process.env['COMPANY-NAME'] && process.env['COMPANY-NAME'].trim())
@@ -89,14 +110,36 @@ export class InvoiceService {
       day: 'numeric',
     });
 
+    const palette = themePalette ?? defaultInvoicePalette;
+    const colors = {
+      background: palette.background,
+      foreground: palette.foreground,
+      card: palette.card,
+      cardForeground: palette.cardForeground,
+      muted: palette.muted,
+      mutedForeground: palette.mutedForeground,
+      border: palette.border,
+      primary: palette.primary,
+      primaryForeground: palette.primaryForeground,
+      secondary: palette.secondary,
+      secondaryForeground: palette.secondaryForeground,
+      accent: palette.accent,
+      accentForeground: palette.accentForeground,
+      destructive: palette.destructive,
+      destructiveForeground: palette.destructiveForeground,
+      ring: palette.ring,
+    };
+
+    const borderStyle = `1px solid ${colors.border}`;
+
     const itemsHTML = invoiceData.items
       .map(
-        item => `
+        (item) => `
       <tr>
-        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">${item.description}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right;">$${item.amount.toFixed(2)}</td>
+        <td style="padding: 12px; border-bottom: ${borderStyle}; color: ${colors.cardForeground};">${item.description}</td>
+        <td style="padding: 12px; border-bottom: ${borderStyle}; text-align: center; color: ${colors.cardForeground};">${item.quantity}</td>
+        <td style="padding: 12px; border-bottom: ${borderStyle}; text-align: right; color: ${colors.cardForeground};">$${item.unitPrice.toFixed(2)}</td>
+        <td style="padding: 12px; border-bottom: ${borderStyle}; text-align: right; color: ${colors.cardForeground};">$${item.amount.toFixed(2)}</td>
       </tr>
     `
       )
@@ -121,21 +164,23 @@ export class InvoiceService {
         }
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-          color: #333;
+          color: ${colors.foreground};
+          background: ${colors.background};
           line-height: 1.6;
         }
         .container {
           max-width: 850px;
           margin: 0 auto;
           padding: 40px;
-          background: white;
+          background: ${colors.card};
+          color: ${colors.cardForeground};
         }
         .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 40px;
-          border-bottom: 2px solid #007bff;
+          border-bottom: 2px solid ${colors.primary};
           padding-bottom: 20px;
         }
         .company-info {
@@ -143,7 +188,7 @@ export class InvoiceService {
         }
         .company-info h1 {
           font-size: 28px;
-          color: #007bff;
+          color: ${colors.primary};
           margin: 10px 0;
         }
         .invoice-info {
@@ -151,7 +196,7 @@ export class InvoiceService {
         }
         .invoice-info h2 {
           font-size: 32px;
-          color: #007bff;
+          color: ${colors.primary};
           margin-bottom: 10px;
         }
         .invoice-meta {
@@ -160,7 +205,7 @@ export class InvoiceService {
           gap: 20px;
           margin: 20px 0 40px 0;
           padding: 20px;
-          background: #f8f9fa;
+          background: ${colors.secondary};
           border-radius: 5px;
         }
         .invoice-meta-item {
@@ -169,14 +214,14 @@ export class InvoiceService {
         }
         .invoice-meta-label {
           font-weight: 600;
-          color: #666;
+          color: ${colors.mutedForeground};
           font-size: 12px;
           text-transform: uppercase;
           margin-bottom: 4px;
         }
         .invoice-meta-value {
           font-size: 16px;
-          color: #333;
+          color: ${colors.cardForeground};
         }
         table {
           width: 100%;
@@ -184,18 +229,18 @@ export class InvoiceService {
           border-collapse: collapse;
         }
         table thead {
-          background: #f8f9fa;
+          background: ${colors.secondary};
         }
         table th {
           padding: 12px;
           text-align: left;
           font-weight: 600;
-          color: #333;
-          border-bottom: 2px solid #dee2e6;
+          color: ${colors.secondaryForeground};
+          border-bottom: 2px solid ${colors.border};
         }
         table td {
           padding: 12px;
-          border-bottom: 1px solid #e0e0e0;
+          border-bottom: ${borderStyle};
         }
         table tr:last-child td {
           border-bottom: none;
@@ -212,13 +257,13 @@ export class InvoiceService {
           display: flex;
           justify-content: space-between;
           padding: 10px 0;
-          border-bottom: 1px solid #e0e0e0;
+          border-bottom: ${borderStyle};
         }
         .totals-row.total {
-          border-bottom: 2px solid #007bff;
+          border-bottom: 2px solid ${colors.primary};
           font-size: 18px;
           font-weight: 600;
-          color: #007bff;
+          color: ${colors.primary};
           padding: 15px 0;
         }
         .status-badge {
@@ -229,25 +274,31 @@ export class InvoiceService {
           font-weight: 600;
           text-transform: uppercase;
           margin-top: 20px;
+          background: ${colors.secondary};
+          color: ${colors.secondaryForeground};
         }
         .status-badge.issued {
-          background: #e3f2fd;
-          color: #1976d2;
+          background: ${colors.primary};
+          color: ${colors.primaryForeground};
         }
         .status-badge.paid {
-          background: #e8f5e9;
-          color: #388e3c;
+          background: ${colors.accent};
+          color: ${colors.accentForeground};
         }
         .status-badge.draft {
-          background: #fff3e0;
-          color: #f57c00;
+          background: ${colors.muted};
+          color: ${colors.mutedForeground};
+        }
+        .status-badge.cancelled {
+          background: ${colors.destructive};
+          color: ${colors.destructiveForeground};
         }
         .footer {
           margin-top: 40px;
           padding-top: 20px;
-          border-top: 1px solid #e0e0e0;
+          border-top: 1px solid ${colors.border};
           font-size: 12px;
-          color: #666;
+          color: ${colors.mutedForeground};
           text-align: center;
         }
         @media print {
@@ -269,11 +320,11 @@ export class InvoiceService {
           <div class="company-info">
             ${logoHTML}
             <h1>${resolvedCompanyName}</h1>
-            <p style="color: #666;">Billing & Payments</p>
+            <p style="color: ${colors.mutedForeground};">Billing & Payments</p>
           </div>
           <div class="invoice-info">
             <h2>INVOICE</h2>
-            <p style="font-size: 18px; color: #007bff; font-weight: 600;">${invoiceData.invoiceNumber}</p>
+            <p style="font-size: 18px; color: ${colors.primary}; font-weight: 600;">${invoiceData.invoiceNumber}</p>
           </div>
         </div>
 
@@ -302,8 +353,8 @@ export class InvoiceService {
           </div>
         </div>
 
-        ${invoiceData.title ? `<h3 style="margin-bottom: 20px; color: #333;">${invoiceData.title}</h3>` : ''}
-        ${invoiceData.description ? `<p style="margin-bottom: 30px; color: #666;">${invoiceData.description}</p>` : ''}
+  ${invoiceData.title ? `<h3 style="margin-bottom: 20px; color: ${colors.cardForeground};">${invoiceData.title}</h3>` : ''}
+  ${invoiceData.description ? `<p style="margin-bottom: 30px; color: ${colors.mutedForeground};">${invoiceData.description}</p>` : ''}
 
         <table>
           <thead>
@@ -343,9 +394,9 @@ export class InvoiceService {
         </div>
 
         <div class="footer">
-          <p style="margin: 10px 0;">Thank you for your business with ${resolvedCompanyName}</p>
-          <p style="margin: 10px 0; color: #999;">This is an automated invoice. Please retain this document for your records.</p>
-          <p style="margin: 10px 0; color: #999;">Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC</p>
+          <p style="margin: 10px 0; color: ${colors.cardForeground};">Thank you for your business with ${resolvedCompanyName}</p>
+          <p style="margin: 10px 0; color: ${colors.mutedForeground};">This is an automated invoice. Please retain this document for your records.</p>
+          <p style="margin: 10px 0; color: ${colors.mutedForeground};">Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC</p>
         </div>
       </div>
     </body>

@@ -9,6 +9,7 @@ import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { InvoiceService } from '../services/invoiceService.js';
 import { PayPalService, type WalletTransaction } from '../services/paypalService.js';
 import { query } from '../lib/database.js';
+import { themeService, resolveThemePalette } from '../services/themeService.js';
 
 const router = express.Router();
 
@@ -249,11 +250,15 @@ router.post(
         invoiceNumber
       );
 
-      // Generate HTML
+      // Generate HTML with organization theme
+      const themeConfig = await themeService.getThemeConfig();
+      const themePalette = resolveThemePalette(themeConfig);
+
       const htmlContent = InvoiceService.generateInvoiceHTML(
         invoiceData,
         resolveCompanyName(),
-        resolveCompanyLogo()
+        resolveCompanyLogo(),
+        themePalette
       );
 
       // Store invoice
@@ -318,11 +323,15 @@ router.post(
         invoiceNumber
       );
 
-      // Generate HTML
+      // Generate HTML with organization theme
+      const themeConfig = await themeService.getThemeConfig();
+      const themePalette = resolveThemePalette(themeConfig);
+
       const htmlContent = InvoiceService.generateInvoiceHTML(
         invoiceData,
         resolveCompanyName(),
-        resolveCompanyLogo()
+        resolveCompanyLogo(),
+        themePalette
       );
 
       // Store invoice
