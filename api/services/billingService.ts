@@ -174,8 +174,9 @@ export class BillingService {
         const billingPeriodStart = instance.lastBilledAt || instance.createdAt;
         const billingPeriodEnd = now;
 
-        // Calculate actual hours to bill (minimum 1 hour)
-        const hoursToCharge = Math.max(1, Math.ceil((billingPeriodEnd.getTime() - billingPeriodStart.getTime()) / (60 * 60 * 1000)));
+        // Always charge for exactly 1 hour per billing cycle
+        // The scheduler runs hourly, so each run charges the hourly rate once
+        const hoursToCharge = 1;
         const totalAmount = instance.hourlyRate * hoursToCharge;
 
         // Check if organization has sufficient wallet balance
