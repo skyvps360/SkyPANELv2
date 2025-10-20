@@ -488,10 +488,32 @@ class LinodeService {
       }
 
       const data = await response.json();
+      const allImages = Array.isArray(data?.data) ? data.data : [];
+      const filtered = allImages.filter((image: any) => {
+        const label = String(image?.label || '');
+        const vendor = String(image?.vendor || '');
+        const isPublic = Boolean(image?.is_public);
+
+        if (!isPublic) {
+          return false;
+        }
+
+        if (!vendor.trim()) {
+          return false;
+        }
+
+        if (/recovery|rescue/i.test(label) || /recovery|rescue/i.test(vendor)) {
+          return false;
+        }
+
+        return true;
+      });
+
       if (isDebug) {
-        console.log('Fetched Linode images:', data.data.length)
+        console.log('Fetched Linode images:', allImages.length, 'filtered to', filtered.length)
       }
-      return data.data.map((image: any) => ({
+
+      return filtered.map((image: any) => ({
         id: image.id,
         label: image.label,
         description: image.description,
