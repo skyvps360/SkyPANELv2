@@ -32,9 +32,12 @@ export interface BillingResult {
   success: boolean;
   billedInstances: number;
   totalAmount: number;
+  totalHours: number;
   failedInstances: string[];
   errors: string[];
 }
+
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 export class BillingService {
   /**
@@ -71,6 +74,7 @@ export class BillingService {
       success: true,
       billedInstances: 0,
       totalAmount: 0,
+      totalHours: 0,
       failedInstances: [],
       errors: []
     };
@@ -88,16 +92,25 @@ export class BillingService {
 
       for (const instance of activeInstances) {
         try {
-          const billingSuccess = await this.billVPSInstance(instance);
-          if (billingSuccess) {
-            result.billedInstances++;
-            result.totalAmount += instance.hourlyRate;
-            console.log(`✅ Successfully billed VPS ${instance.label} (${instance.id}) - $${instance.hourlyRate.toFixed(4)}`);
-          } else {
+          const billingOutcome = await this.billVPSInstance(instance);
+          if (!billingOutcome.success) {
             result.failedInstances.push(instance.id);
             result.errors.push(`Failed to bill VPS ${instance.label} (${instance.id})`);
             console.error(`❌ Failed to bill VPS ${instance.label} (${instance.id})`);
+            continue;
           }
+
+          if (billingOutcome.hoursCharged === 0) {
+            console.log(`⏭️ No billable hours yet for VPS ${instance.label} (${instance.id}); skipping.`);
+            continue;
+          }
+
+          result.billedInstances++;
+          result.totalAmount += billingOutcome.amountCharged;
+          result.totalHours += billingOutcome.hoursCharged;
+          console.log(
+            `✅ Successfully billed VPS ${instance.label} (${instance.id}) - ${billingOutcome.hoursCharged}h @ $${instance.hourlyRate.toFixed(4)}/h (charged $${billingOutcome.amountCharged.toFixed(4)})`
+          );
         } catch (error) {
           result.failedInstances.push(instance.id);
           result.errors.push(`Error billing VPS ${instance.label}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -109,7 +122,9 @@ export class BillingService {
         result.success = false;
       }
 
-      console.log(`🏁 Billing completed: ${result.billedInstances} billed, ${result.failedInstances.length} failed, $${result.totalAmount.toFixed(2)} total`);
+      console.log(
+        `🏁 Billing completed: ${result.billedInstances} billed, ${result.failedInstances.length} failed, ${result.totalHours}h charged, $${result.totalAmount.toFixed(2)} total`
+      );
       return result;
 
     } catch (error) {
@@ -164,21 +179,26 @@ export class BillingService {
   }
 
   /**
-   * Bill a specific VPS instance for one hour
+   * Bill a specific VPS instance for any fully elapsed hours since the last charge.
    */
-  private static async billVPSInstance(instance: VPSBillingInfo): Promise<boolean> {
+  private static async billVPSInstance(
+    instance: VPSBillingInfo
+  ): Promise<{ success: boolean; amountCharged: number; hoursCharged: number }> {
     try {
       return await transaction(async (client) => {
         const now = new Date();
-        const billingPeriodStart = instance.lastBilledAt || instance.createdAt;
-        const billingPeriodEnd = now;
+        const billingPeriodStart = instance.lastBilledAt ?? instance.createdAt;
+        const elapsedMs = Math.max(0, now.getTime() - billingPeriodStart.getTime());
+        const rawHoursElapsed = elapsedMs / MS_PER_HOUR;
+        const hoursToCharge = Math.floor(rawHoursElapsed);
 
-        // Always charge for exactly 1 hour per billing cycle
-        // The scheduler runs hourly, so each run charges the hourly rate once
-        const hoursToCharge = 1;
-        const totalAmount = instance.hourlyRate * hoursToCharge;
+        if (hoursToCharge < 1) {
+          return { success: true, amountCharged: 0, hoursCharged: 0 };
+        }
 
-        // Check if organization has sufficient wallet balance
+        const billingPeriodEnd = new Date(billingPeriodStart.getTime() + hoursToCharge * MS_PER_HOUR);
+        const totalAmount = Number((instance.hourlyRate * hoursToCharge).toFixed(4));
+
         const walletResult = await client.query(
           'SELECT balance FROM wallets WHERE organization_id = $1',
           [instance.organizationId]
@@ -186,14 +206,15 @@ export class BillingService {
 
         if (walletResult.rows.length === 0) {
           console.error(`No wallet found for organization ${instance.organizationId}`);
-          return false;
+          return { success: false, amountCharged: 0, hoursCharged: hoursToCharge };
         }
 
         const currentBalance = parseFloat(walletResult.rows[0].balance);
         if (currentBalance < totalAmount) {
-          console.warn(`Insufficient balance for VPS ${instance.label}: required $${totalAmount.toFixed(4)}, available $${currentBalance.toFixed(2)}`);
-          
-          // Create a failed billing cycle record
+          console.warn(
+            `Insufficient balance for VPS ${instance.label}: required $${totalAmount.toFixed(4)}, available $${currentBalance.toFixed(2)}`
+          );
+
           await client.query(`
             INSERT INTO vps_billing_cycles (
               vps_instance_id, organization_id, billing_period_start, billing_period_end,
@@ -207,13 +228,12 @@ export class BillingService {
             instance.hourlyRate,
             totalAmount,
             'failed',
-            JSON.stringify({ reason: 'insufficient_balance', hours_charged: hoursToCharge })
+            JSON.stringify({ reason: 'insufficient_balance', hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
           ]);
 
-          return false;
+          return { success: false, amountCharged: 0, hoursCharged: hoursToCharge };
         }
 
-        // Deduct funds from wallet
         const deductionSuccess = await PayPalService.deductFundsFromWallet(
           instance.organizationId,
           totalAmount,
@@ -222,10 +242,26 @@ export class BillingService {
 
         if (!deductionSuccess) {
           console.error(`Failed to deduct funds for VPS ${instance.label}`);
-          return false;
+
+          await client.query(`
+            INSERT INTO vps_billing_cycles (
+              vps_instance_id, organization_id, billing_period_start, billing_period_end,
+              hourly_rate, total_amount, status, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            instance.id,
+            instance.organizationId,
+            billingPeriodStart,
+            billingPeriodEnd,
+            instance.hourlyRate,
+            totalAmount,
+            'failed',
+            JSON.stringify({ reason: 'wallet_deduction_failed', hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
+          ]);
+
+          return { success: false, amountCharged: 0, hoursCharged: hoursToCharge };
         }
 
-        // Get the transaction ID from the most recent payment transaction
         const transactionResult = await client.query(`
           SELECT id FROM payment_transactions 
           WHERE organization_id = $1 
@@ -237,7 +273,6 @@ export class BillingService {
 
         const paymentTransactionId = transactionResult.rows[0]?.id;
 
-        // Create billing cycle record
         await client.query(`
           INSERT INTO vps_billing_cycles (
             vps_instance_id, organization_id, billing_period_start, billing_period_end,
@@ -252,20 +287,19 @@ export class BillingService {
           totalAmount,
           'billed',
           paymentTransactionId,
-          JSON.stringify({ hours_charged: hoursToCharge })
+          JSON.stringify({ hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
         ]);
 
-        // Update last_billed_at timestamp
         await client.query(
           'UPDATE vps_instances SET last_billed_at = $1 WHERE id = $2',
-          [now, instance.id]
+          [billingPeriodEnd, instance.id]
         );
 
-        return true;
+        return { success: true, amountCharged: totalAmount, hoursCharged: hoursToCharge };
       });
     } catch (error) {
       console.error(`Error billing VPS instance ${instance.id}:`, error);
-      return false;
+      return { success: false, amountCharged: 0, hoursCharged: 0 };
     }
   }
 
@@ -288,8 +322,7 @@ export class BillingService {
           bc.hourly_rate,
           bc.total_amount,
           bc.status,
-          bc.payment_transaction_id,
-          bc.created_at
+          bc.payment_transaction_id
         FROM vps_billing_cycles bc
         WHERE bc.organization_id = $1
         ORDER BY bc.created_at DESC
@@ -305,7 +338,7 @@ export class BillingService {
         hourlyRate: parseFloat(row.hourly_rate),
         totalAmount: parseFloat(row.total_amount),
         status: row.status,
-        paymentTransactionId: row.payment_transaction_id
+        paymentTransactionId: row.payment_transaction_id ?? undefined
       }));
     } catch (error) {
       console.error('Error getting billing history:', error);
