@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Mail, Shield, Calendar, Clock, Server, Box, Activity, AlertCircle } from 'lucide-react';
+import { User, Mail, Shield, Calendar, Clock, Server, Box, Activity, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -138,25 +138,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           }
         >
-          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50">
+          <DialogHeader className="pb-4 border-b border-border/50">
             <DialogTitle className="flex items-center gap-2 text-xl font-semibold animate-in slide-in-from-left-2 duration-300">
               <User className="h-5 w-5 text-muted-foreground" />
               User Profile
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className={cn(
-                "h-8 w-8 p-0 transition-all duration-200 hover:scale-110",
-                "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                "hover:bg-destructive/10 hover:text-destructive"
-              )}
-              aria-label="Close user profile modal"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
           </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">

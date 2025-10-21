@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, User, Mail, Shield, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { User, Mail, Shield, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -385,27 +385,11 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
             </div>
           }
         >
-          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50">
+          <DialogHeader className="pb-4 border-b border-border/50">
             <DialogTitle className="flex items-center gap-2 text-xl font-semibold animate-in slide-in-from-left-2 duration-300">
               <User className="h-5 w-5 text-muted-foreground" />
               Edit User
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className={cn(
-                "h-8 w-8 p-0 transition-all duration-200 hover:scale-110",
-                "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                "hover:bg-destructive/10 hover:text-destructive",
-                isSaving && "opacity-50 cursor-not-allowed hover:scale-100"
-              )}
-              disabled={isSaving}
-              aria-label="Close user edit modal"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
           </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-400">

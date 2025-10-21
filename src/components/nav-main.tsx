@@ -7,6 +7,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
@@ -16,6 +21,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavMain({
@@ -35,6 +41,9 @@ export function NavMain({
   }[]
   label?: string
 }) {
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
@@ -43,46 +52,75 @@ export function NavMain({
           const isItemActive = item.isActive || item.items?.some((sub) => sub.isActive)
 
           return (
-            <Collapsible key={item.title} asChild defaultOpen={isItemActive}>
-              <SidebarMenuItem>
-                {item.items?.length ? (
-                  <>
-                    <CollapsibleTrigger asChild>
+            <SidebarMenuItem key={item.title}>
+              {item.items?.length ? (
+                isCollapsed ? (
+                  // Collapsed state: Show popover with sub-items
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
                         <item.icon />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuAction className="data-[state=open]:rotate-90">
-                        <ChevronRight />
-                        <span className="sr-only">Toggle</span>
-                      </SidebarMenuAction>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
+                    </PopoverTrigger>
+                    <PopoverContent side="right" align="start" className="w-48 p-2">
+                      <div className="space-y-1">
+                        <div className="px-2 py-1.5 text-sm font-medium text-foreground">
+                          {item.title}
+                        </div>
                         {item.items?.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton asChild isActive={subItem.isActive}>
-                              <Link to={subItem.url}>
-                                <span>{subItem.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
+                          <Link
+                            key={subItem.title}
+                            to={subItem.url}
+                            className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                          >
+                            {subItem.title}
+                          </Link>
                         ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 ) : (
-                  <SidebarMenuButton asChild tooltip={item.title} isActive={isItemActive}>
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-            </Collapsible>
+                  // Expanded state: Show normal collapsible
+                  <Collapsible asChild defaultOpen={isItemActive}>
+                    <>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuAction className="data-[state=open]:rotate-90">
+                          <ChevronRight />
+                          <span className="sr-only">Toggle</span>
+                        </SidebarMenuAction>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.items?.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton asChild isActive={subItem.isActive}>
+                                <Link to={subItem.url}>
+                                  <span>{subItem.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </>
+                  </Collapsible>
+                )
+              ) : (
+                <SidebarMenuButton asChild tooltip={item.title} isActive={isItemActive}>
+                  <Link to={item.url}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              )}
+            </SidebarMenuItem>
           )
         })}
       </SidebarMenu>

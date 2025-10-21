@@ -1,200 +1,637 @@
 /**
- * API Client for ContainerStacks Frontend
- * Handles all API communication with the backend
+ * Payment Service for ContainerStacks Frontend
+ * Handles PayPal payments and wallet management
  */
 
-const resolveApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL?.trim();
-  if (envUrl && envUrl.length > 0) {
-    return envUrl.replace(/\/$/, '');
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+// Export API_BASE_URL for use in other modules
+export { API_BASE_URL };
+
+/**
+ * Builds a complete API URL from a path
+ * @param path - The API endpoint path
+ * @param baseUrl - Optional base URL (defaults to API_BASE_URL)
+ * @returns Complete API URL
+ */
+export function buildApiUrl(path: string, baseUrl?: string): string {
+  const base = baseUrl || API_BASE_URL;
+  
+  // If path already starts with the base URL, return as is
+  if (path.startsWith(base)) {
+    return path;
   }
-
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/api`.replace(/\/$/, '');
+  
+  // If path already starts with http/https, return as is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
   }
-
-  return 'http://localhost:3001/api';
-};
-
-export const API_BASE_URL = resolveApiBaseUrl();
-
-export const buildApiUrl = (path: string, baseUrl: string = API_BASE_URL) => {
+  
+  // Ensure path starts with /
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // Combine base URL with path, avoiding double slashes
+  return base.endsWith('/') 
+    ? `${base.slice(0, -1)}${normalizedPath}`
+    : `${base}${normalizedPath}`;
+}
 
-  if (baseUrl.endsWith('/api') && normalizedPath.startsWith('/api/')) {
-    return `${baseUrl}${normalizedPath.substring(4)}`;
-  }
+export interface PaymentIntent {
+  amount: number;
+  currency: string;
+  description: string;
+}
 
-  return `${baseUrl}${normalizedPath}`;
-};
+export interface PaymentResult {
+  success: boolean;
+  paymentId?: string;
+  approvalUrl?: string;
+  error?: string;
+}
 
-class ApiClient {
-  private baseURL: string;
+export interface WalletBalance {
+  balance: number;
+}
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL.replace(/\/$/, '');
-  }
+export interface WalletTransaction {
+  id: string;
+  amount: number;
+  currency: string;
+  type: 'credit' | 'debit';
+  description: string;
+  paymentId?: string;
+  balanceBefore?: number | null;
+  balanceAfter: number | null;
+  createdAt: string;
+}
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = buildApiUrl(endpoint, this.baseURL);
+export interface PaymentHistory {
+  id: string;
+  amount: number;
+  currency: string;
+  description: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
+  provider: string;
+  providerPaymentId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTransactionDetail {
+  id: string;
+  organizationId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  status: PaymentHistory['status'];
+  provider: string;
+  paymentMethod: string;
+  providerPaymentId?: string;
+  type: 'credit' | 'debit';
+  balanceBefore: number | null;
+  balanceAfter: number | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+class PaymentService {
+  private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token');
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : '',
     };
+  }
 
+  /**
+   * Create a payment intent for adding funds to wallet
+   */
+  async createPayment(paymentIntent: PaymentIntent): Promise<PaymentResult> {
     try {
-      const response = await fetch(url, config);
-      
+      const response = await fetch(`${API_BASE_URL}/payments/create-payment`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(paymentIntent),
+      });
+
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        return {
+          success: false,
+          error: data.error || 'Failed to create payment',
+        };
       }
 
-      return await response.json();
+      return {
+        success: true,
+        paymentId: data.paymentId,
+        approvalUrl: data.approvalUrl,
+      };
     } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+      console.error('Create payment error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
     }
   }
 
-  // Authentication methods
-  async login(email: string, password: string) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+  /**
+   * Capture a PayPal payment after user approval
+   */
+  async capturePayment(orderId: string): Promise<PaymentResult> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/capture-payment/${orderId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to capture payment',
+        };
+      }
+
+      return {
+        success: true,
+        paymentId: data.paymentId,
+      };
+    } catch (error) {
+      console.error('Capture payment error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
   }
 
-  async register(data: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    organizationName?: string;
-  }) {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  /**
+   * Get wallet balance for the organization
+   */
+  async getWalletBalance(): Promise<WalletBalance | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/wallet/balance`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to get wallet balance:', data.error);
+        return null;
+      }
+
+      return {
+        balance: data.balance,
+      };
+    } catch (error) {
+      console.error('Get wallet balance error:', error);
+      return null;
+    }
   }
 
-  async logout() {
-    return this.request('/auth/logout', {
-      method: 'POST',
-    });
+  /**
+   * Get wallet transactions for the organization
+   */
+  async getWalletTransactions(
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<{
+    transactions: WalletTransaction[];
+    hasMore: boolean;
+  }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/payments/wallet/transactions?limit=${limit}&offset=${offset}`,
+        {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to get wallet transactions:', data.error);
+        return { transactions: [], hasMore: false };
+      }
+
+      const transactionsSource = (Array.isArray(data.transactions) ? data.transactions : []) as Array<Record<string, unknown>>;
+
+      return {
+        transactions: transactionsSource.map((tx) => {
+          const amountRaw = tx.amount;
+          const amountValue = typeof amountRaw === 'string'
+            ? parseFloat(amountRaw)
+            : typeof amountRaw === 'number'
+              ? amountRaw
+              : null;
+          const amount = amountValue !== null && Number.isFinite(amountValue) ? amountValue : 0;
+          const txRecord = tx as Record<string, unknown>;
+          const balanceRaw = txRecord.balanceAfter ?? txRecord.balance_after;
+          const balanceBeforeRaw = txRecord.balanceBefore ?? txRecord.balance_before;
+          const balanceAfter =
+            typeof balanceRaw === 'string'
+              ? parseFloat(balanceRaw)
+              : typeof balanceRaw === 'number' && Number.isFinite(balanceRaw)
+                ? balanceRaw
+                : null;
+          const balanceBefore =
+            typeof balanceBeforeRaw === 'string'
+              ? parseFloat(balanceBeforeRaw)
+              : typeof balanceBeforeRaw === 'number' && Number.isFinite(balanceBeforeRaw)
+                ? balanceBeforeRaw
+                : balanceAfter !== null
+                  ? parseFloat((balanceAfter - amount).toFixed(2))
+                  : null;
+          const typeValue = (tx as Record<string, unknown>).type;
+          const type = typeValue === 'credit' || typeValue === 'debit' ? typeValue : (amount >= 0 ? 'credit' : 'debit');
+          const createdAtValue = (tx as Record<string, unknown>).createdAt ?? (tx as Record<string, unknown>).created_at;
+          const createdAt = typeof createdAtValue === 'string' ? createdAtValue : '';
+          const descriptionValue = txRecord.description;
+          const description = typeof descriptionValue === 'string' ? descriptionValue : 'Unknown transaction';
+          const paymentIdValue = txRecord.paymentId ?? txRecord.payment_id;
+          const paymentId = typeof paymentIdValue === 'string' ? paymentIdValue : undefined;
+          const currencyValue = typeof txRecord.currency === 'string' ? txRecord.currency : 'USD';
+
+          return {
+            id: String(txRecord.id ?? ''),
+            amount,
+            type,
+            description,
+            paymentId,
+            currency: currencyValue,
+            balanceBefore,
+            balanceAfter,
+            createdAt,
+          };
+        }),
+        hasMore: Boolean(data.pagination?.hasMore),
+      };
+    } catch (error) {
+      console.error('Get wallet transactions error:', error);
+      return { transactions: [], hasMore: false };
+    }
   }
 
-  async refreshToken() {
-    return this.request('/auth/refresh', {
-      method: 'POST',
-    });
+  /**
+   * Get payment history for the organization
+   */
+  async getPaymentHistory(
+    limit: number = 50,
+    offset: number = 0,
+    status?: string
+  ): Promise<{
+    payments: PaymentHistory[];
+    hasMore: boolean;
+  }> {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+
+      if (status) {
+        params.append('status', status);
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/payments/history?${params.toString()}`,
+        {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to get payment history:', data.error);
+        return { payments: [], hasMore: false };
+      }
+
+      const paymentsSource = (Array.isArray(data.payments) ? data.payments : []) as Array<Record<string, unknown>>;
+
+      return {
+        payments: paymentsSource.map((payment) => ({
+          id: String(payment.id ?? ''),
+          amount: typeof payment.amount === 'string' ? parseFloat(payment.amount) : Number(payment.amount ?? 0),
+          currency: typeof payment.currency === 'string' ? payment.currency : 'USD',
+          description: typeof payment.description === 'string' ? payment.description : 'Payment',
+          status: (payment.status as PaymentHistory['status']) ?? 'pending',
+          provider: typeof payment.provider === 'string' ? payment.provider : 'unknown',
+          providerPaymentId: typeof payment.provider_payment_id === 'string' ? payment.provider_payment_id : undefined,
+          createdAt: typeof payment.created_at === 'string' ? payment.created_at : '',
+          updatedAt: typeof payment.updated_at === 'string' ? payment.updated_at : '',
+        })),
+        hasMore: Boolean(data.pagination?.hasMore),
+      };
+    } catch (error) {
+      console.error('Get payment history error:', error);
+      return { payments: [], hasMore: false };
+    }
   }
 
-  async getProfile() {
-    return this.request('/auth/me');
+  /**
+   * Get a single payment transaction by ID
+   */
+  async getTransactionById(transactionId: string): Promise<{
+    success: boolean;
+    transaction?: PaymentTransactionDetail;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/transactions/${transactionId}`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to load transaction',
+        };
+      }
+
+      const transaction = data.transaction;
+
+      return {
+        success: true,
+        transaction: {
+          id: transaction.id,
+          organizationId: transaction.organizationId,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          description: transaction.description,
+          status: transaction.status,
+          provider: transaction.provider,
+          paymentMethod: transaction.paymentMethod,
+          providerPaymentId: transaction.providerPaymentId,
+          type: transaction.type,
+          balanceBefore: transaction.balanceBefore ?? null,
+          balanceAfter: transaction.balanceAfter,
+          metadata: transaction.metadata || null,
+          createdAt: transaction.createdAt,
+          updatedAt: transaction.updatedAt,
+        },
+      };
+    } catch (error) {
+      console.error('Get transaction error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
   }
 
-  async updateProfile(data: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    timezone?: string;
-  }) {
-    return this.request('/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+  /**
+   * Create an invoice from a single transaction
+   */
+  async createInvoiceFromTransaction(transactionId: string): Promise<{
+    success: boolean;
+    invoiceId?: string;
+    invoiceNumber?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/invoices/from-transaction/${transactionId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to generate invoice',
+        };
+      }
+
+      return {
+        success: true,
+        invoiceId: data.invoiceId,
+        invoiceNumber: data.invoiceNumber,
+      };
+    } catch (error) {
+      console.error('Create transaction invoice error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
   }
 
-  async changePassword(currentPassword: string, newPassword: string) {
-    return this.request('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
+  /**
+   * Create a refund/payout
+   */
+  async createRefund(
+    email: string,
+    amount: number,
+    currency: string,
+    reason: string
+  ): Promise<PaymentResult> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/refund`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          email,
+          amount,
+          currency,
+          reason,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to create refund',
+        };
+      }
+
+      return {
+        success: true,
+        paymentId: data.payoutId,
+      };
+    } catch (error) {
+      console.error('Create refund error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
   }
 
-  // Container methods
-  async getContainers() {
-    return this.request('/containers');
+  /**
+   * List invoices for the organization
+   */
+  async getInvoices(
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<{
+    invoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      totalAmount: number;
+      currency: string;
+      createdAt: string;
+    }>;
+    hasMore: boolean;
+  }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/invoices?limit=${limit}&offset=${offset}`,
+        {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to get invoices:', data.error);
+        return { invoices: [], hasMore: false };
+      }
+
+      return {
+        invoices: data.invoices,
+        hasMore: data.pagination.hasMore,
+      };
+    } catch (error) {
+      console.error('Get invoices error:', error);
+      return { invoices: [], hasMore: false };
+    }
   }
 
-  // VPS methods
-  async getVpsInstances() {
-    return this.request('/vps');
-  }
+  /**
+   * Open PayPal payment window
+   */
+  openPayPalPayment(approvalUrl: string): void {
+    const popup = window.open(
+      approvalUrl,
+      'paypal-payment',
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
 
-  async getVpsInstanceDetail(id: string) {
-    return this.request(`/vps/${id}`);
-  }
+    if (!popup) {
+      throw new Error('Popup blocked. Please allow popups for this site.');
+    }
 
-  // Support methods
-  async getSupportTickets() {
-    return this.request('/support/tickets');
-  }
-
-  async createSupportTicket(data: {
-    subject: string;
-    message: string;
-    priority: string;
-    category: string;
-  }) {
-    return this.request('/support/tickets', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Payment methods
-  async getWalletBalance() {
-    return this.request('/payments/wallet/balance');
-  }
-
-  async getPaymentHistory() {
-    return this.request('/payments/history');
-  }
-
-  // Admin methods
-  async getAdminTickets() {
-    return this.request('/admin/tickets');
-  }
-
-  async getVpsPlans() {
-    return this.request('/admin/plans');
-  }
-
-  // Generic HTTP methods
-  async get<T = any>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
-  }
-
-  async post<T = any>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async put<T = any>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async delete<T = any>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    // Listen for popup close or completion
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        // Refresh wallet balance after payment
+        this.getWalletBalance();
+      }
+    }, 1000);
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
-export default apiClient;
+export const paymentService = new PaymentService();
+
+/**
+ * Generic API Client for making HTTP requests
+ * Handles authentication, JSON parsing, and error handling
+ */
+class ApiClient {
+  private getAuthHeaders(): HeadersInit {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+  }
+
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        // If not JSON, use the text as error message
+        errorMessage = errorText || errorMessage;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
     
+    // For non-JSON responses, return the text
+    return response.text() as unknown as T;
+  }
+
+  async get<T = any>(path: string): Promise<T> {
+    const url = buildApiUrl(path);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  async post<T = any>(path: string, data?: any): Promise<T> {
+    const url = buildApiUrl(path);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  async put<T = any>(path: string, data?: any): Promise<T> {
+    const url = buildApiUrl(path);
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  async patch<T = any>(path: string, data?: any): Promise<T> {
+    const url = buildApiUrl(path);
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  async delete<T = any>(path: string): Promise<T> {
+    const url = buildApiUrl(path);
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse<T>(response);
+  }
+}
+
+// Create and export the API client instance
+export const apiClient = new ApiClient();
+
+// Default export for backward compatibility
+const api = apiClient;
+export default api;

@@ -11,7 +11,6 @@ import {
 import { BRAND_NAME } from '../lib/brand';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import DecryptedText from "@/components/ui/decrypted-text";
 import { Separator } from '@/components/ui/separator';
 
 interface PublicLayoutProps {
@@ -25,10 +24,10 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <Server className="h-8 w-8 text-primary" />
-              <DecryptedText text={BRAND_NAME} className="ml-2 text-xl font-bold" />
-            </div>
+              <span className="ml-2 text-xl font-bold">{BRAND_NAME}</span>
+            </Link>
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">Home</Link>
               <Link to="/about" className="text-sm font-medium hover:text-primary transition-colors">About</Link>
@@ -59,10 +58,10 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Brand Column */}
             <div className="space-y-4">
-              <div className="flex items-center">
+              <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
                 <Server className="h-6 w-6 text-primary" />
-                <DecryptedText text={BRAND_NAME} className="ml-2 text-lg font-bold" />
-              </div>
+                <span className="ml-2 text-lg font-bold">{BRAND_NAME}</span>
+              </Link>
               <p className="text-sm text-muted-foreground">
                 The most reliable cloud infrastructure platform for developers and businesses.
               </p>

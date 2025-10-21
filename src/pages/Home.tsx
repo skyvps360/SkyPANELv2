@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Container, 
@@ -14,7 +15,9 @@ import {
   Award,
   Github,
   Twitter,
-  Linkedin
+  Linkedin,
+  Menu,
+  X
 } from 'lucide-react';
 import { BRAND_NAME } from '../lib/brand';
 import { Button } from '@/components/ui/button';
@@ -30,6 +33,8 @@ import {
 } from "@/components/ui/collapsible";
 
 export default function Home() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const features = [
     {
       icon: Container,
@@ -137,10 +142,12 @@ export default function Home() {
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <Server className="h-8 w-8 text-primary" />
-              <DecryptedText text={BRAND_NAME} className="ml-2 text-xl font-bold" />
-            </div>
+              <span className="ml-2 text-xl font-bold">{BRAND_NAME}</span>
+            </Link>
+            
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</a>
               <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
@@ -149,7 +156,9 @@ export default function Home() {
               <Link to="/faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</Link>
               <Link to="/status" className="text-sm font-medium hover:text-primary transition-colors">Status</Link>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Desktop Auth Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
               <Button variant="ghost" asChild>
                 <Link to="/login">Sign in</Link>
               </Button>
@@ -157,7 +166,87 @@ export default function Home() {
                 <Link to="/register">Get Started</Link>
               </Button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Toggle mobile menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </Button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden border-t bg-background/95 backdrop-blur">
+              <div className="px-2 pt-2 pb-3 space-y-1">
+                <a 
+                  href="#features" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Features
+                </a>
+                <a 
+                  href="#pricing" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
+                </a>
+                <Link 
+                  to="/about" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  About
+                </Link>
+                <Link 
+                  to="/contact" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+                <Link 
+                  to="/faq" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  FAQ
+                </Link>
+                <Link 
+                  to="/status" 
+                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Status
+                </Link>
+                
+                {/* Mobile Auth Buttons */}
+                <div className="pt-4 border-t space-y-2">
+                  <Button variant="ghost" asChild className="w-full justify-start">
+                    <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      Sign in
+                    </Link>
+                  </Button>
+                  <Button asChild className="w-full">
+                    <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 

@@ -51,10 +51,16 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
   const navMainItems = React.useMemo(
     () => {
       if (isAdminRoute) {
-        const activeAnchor = currentHash || "support";
+        const activeAnchor = currentHash || "dashboard";
         
         // Organized admin navigation with groups
         const adminGroups = [
+          {
+            title: "Dashboard",
+            icon: LayoutDashboard,
+            url: `/admin`,
+            isActive: activeAnchor === "dashboard" || !currentHash,
+          },
           {
             title: "Plan Management",
             icon: CreditCard,

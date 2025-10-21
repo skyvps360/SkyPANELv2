@@ -8,6 +8,11 @@ export interface BreadcrumbItem {
   isActive?: boolean;
 }
 
+export interface DynamicBreadcrumbOverride {
+  path: string;
+  label: string;
+}
+
 const routeLabels: Record<string, string> = {
   "/": "Home",
   "/dashboard": "Dashboard",
@@ -27,7 +32,10 @@ const routeLabels: Record<string, string> = {
   "/api-docs": "API Docs",
 };
 
-export function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
+export function generateBreadcrumbs(
+  pathname: string, 
+  dynamicOverrides?: DynamicBreadcrumbOverride[]
+): BreadcrumbItem[] {
   // Start with dashboard as home
   const breadcrumbs: BreadcrumbItem[] = [
     { label: "Dashboard", href: "/dashboard" },
@@ -50,7 +58,17 @@ export function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
     // Check if this is an ID parameter (UUID or number)
     const isIdSegment = /^[0-9a-f-]{36}$/.test(segment) || /^\d+$/.test(segment);
 
-    if (isIdSegment) {
+    // Check for dynamic override for this path
+    const dynamicOverride = dynamicOverrides?.find(override => override.path === currentPath);
+
+    if (dynamicOverride) {
+      // Use dynamic override label
+      breadcrumbs.push({
+        label: dynamicOverride.label,
+        href: currentPath,
+        isActive: i === segments.length - 1,
+      });
+    } else if (isIdSegment) {
       // For ID segments, try to get parent route label
       const parentRoute = segments.slice(0, i).join("/");
       const parentLabel =

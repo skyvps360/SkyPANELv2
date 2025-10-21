@@ -35,6 +35,7 @@ import type { ThemePreset } from '@/theme/presets';
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 type AdminSection =
+  | 'dashboard'
   | 'support'
   | 'vps-plans'
   | 'container-plans'
@@ -48,6 +49,7 @@ type AdminSection =
   | 'rate-limiting';
 
 const ADMIN_SECTIONS: AdminSection[] = [
+  'dashboard',
   'support',
   'vps-plans',
   'container-plans',
@@ -61,7 +63,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'rate-limiting',
 ];
 
-const DEFAULT_ADMIN_SECTION: AdminSection = 'support';
+const DEFAULT_ADMIN_SECTION: AdminSection = 'dashboard';
 
 const TICKET_STATUS_META: Record<TicketStatus, { label: string; className: string }> = {
   open: {
@@ -319,7 +321,7 @@ const Admin: React.FC = () => {
   const { themeId, setTheme, themes, reloadTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AdminSection>('support');
+  const [activeTab, setActiveTab] = useState<AdminSection>('dashboard');
   const [, setLoading] = useState(false);
 
   // Tickets state
@@ -505,9 +507,16 @@ const Admin: React.FC = () => {
 
   const updateAdminHash = useCallback(
     (section: AdminSection) => {
-      const expectedHash = `#${section}`;
-      if (location.hash !== expectedHash) {
-        navigate({ pathname: '/admin', hash: expectedHash }, { replace: true });
+      if (section === 'dashboard') {
+        // Dashboard should have no hash
+        if (location.hash) {
+          navigate({ pathname: '/admin' }, { replace: true });
+        }
+      } else {
+        const expectedHash = `#${section}`;
+        if (location.hash !== expectedHash) {
+          navigate({ pathname: '/admin', hash: expectedHash }, { replace: true });
+        }
       }
     },
     [location.hash, navigate]
@@ -517,10 +526,10 @@ const Admin: React.FC = () => {
     const hashValueRaw = location.hash ? location.hash.slice(1) : '';
 
     if (!hashValueRaw) {
+      // No hash means we're on the dashboard
       if (activeTab !== DEFAULT_ADMIN_SECTION) {
         setActiveTab(DEFAULT_ADMIN_SECTION);
       }
-      updateAdminHash(DEFAULT_ADMIN_SECTION);
       return;
     }
 
@@ -532,7 +541,7 @@ const Admin: React.FC = () => {
     if (normalized !== activeTab) {
       setActiveTab(normalized);
     }
-  }, [activeTab, location.hash, updateAdminHash]);
+  }, [activeTab, location.hash]);
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -784,6 +793,14 @@ const Admin: React.FC = () => {
     }
 
     switch (activeTab) {
+      case 'dashboard':
+        // Fetch data for dashboard overview
+        fetchTickets();
+        fetchPlans();
+        fetchContainerPlans();
+        fetchServers();
+        fetchAdminUsers();
+        break;
       case 'support':
         fetchTickets();
         break;
@@ -1612,6 +1629,68 @@ const Admin: React.FC = () => {
 
   <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <div className="space-y-6">
+
+            <TabsContent value="dashboard" id="dashboard">
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h2 className="text-2xl font-semibold tracking-tight text-foreground">Welcome to the Admin Dashboard</h2>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Monitor your platform's key metrics and navigate to specific management areas using the sidebar.
+                  </p>
+                </div>
+                
+                {/* Quick Actions */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => handleTabChange('support')}>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="rounded-full bg-amber-500/10 p-2">
+                        <Ticket className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Support Tickets</p>
+                        <p className="text-xs text-muted-foreground">Manage customer requests</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => handleTabChange('vps-plans')}>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="rounded-full bg-green-500/10 p-2">
+                        <DollarSign className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">VPS Plans</p>
+                        <p className="text-xs text-muted-foreground">Configure offerings</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => handleTabChange('servers')}>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="rounded-full bg-blue-500/10 p-2">
+                        <ServerCog className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Servers</p>
+                        <p className="text-xs text-muted-foreground">Monitor infrastructure</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => handleTabChange('user-management')}>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="rounded-full bg-purple-500/10 p-2">
+                        <Users className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">User Management</p>
+                        <p className="text-xs text-muted-foreground">Manage accounts</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
 
             <TabsContent value="theme" id="theme">
               <div className="bg-card shadow sm:rounded-lg">

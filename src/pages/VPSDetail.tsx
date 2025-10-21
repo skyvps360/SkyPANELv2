@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { useBreadcrumb } from '../contexts/BreadcrumbContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -540,6 +541,7 @@ const BACKUP_WINDOW_CHOICES: Array<{ value: string; label: string }> = [
 const VPSDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
+  const { setDynamicOverride, removeDynamicOverride } = useBreadcrumb();
 
   const [detail, setDetail] = useState<VpsInstanceDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -959,6 +961,23 @@ const VPSDetail: React.FC = () => {
   useEffect(() => {
     loadNetworkingConfig();
   }, [loadNetworkingConfig]);
+
+  // Set dynamic breadcrumb when VPS data is loaded
+  useEffect(() => {
+    if (!id) return;
+    
+    if (detail) {
+      // Use label (hostname) if available, otherwise fall back to id (UUID)
+      const displayName = detail.label && detail.label.trim() 
+        ? detail.label.trim() 
+        : detail.id;
+      
+      setDynamicOverride(`/vps/${id}`, `VPS: ${displayName}`);
+    } else {
+      // Clear override when no data (will show default "VPS Details")
+      removeDynamicOverride(`/vps/${id}`);
+    }
+  }, [detail, id, setDynamicOverride, removeDynamicOverride]);
 
   const handleCopy = useCallback(async (value: string, label?: string) => {
     if (!value) {

@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
+import { BreadcrumbProvider, useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import type { VPSInstance } from "@/types/vps";
 
 // Container interface based on the Containers.tsx structure
@@ -58,8 +59,42 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+// Separate component for breadcrumb navigation that uses the context
+const BreadcrumbNavigation: React.FC = () => {
   const location = useLocation();
+  const { dynamicOverrides } = useBreadcrumb();
+
+  // Generate breadcrumbs from current route with dynamic overrides
+  const breadcrumbs = useMemo(
+    () => generateBreadcrumbs(location.pathname, dynamicOverrides),
+    [location.pathname, dynamicOverrides]
+  );
+
+  return (
+    <div className="hidden md:block">
+      <Breadcrumb>
+        <BreadcrumbList>
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={`${crumb.label}-${index}`}>
+              {index > 0 && <BreadcrumbSeparator />}
+              <BreadcrumbItem>
+                {crumb.isActive || !crumb.href ? (
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href={crumb.href}>
+                    {crumb.label}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </React.Fragment>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
+    </div>
+  );
+};
+
+const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { token } = useAuth();
   const [commandOpen, setCommandOpen] = useState(false);
@@ -91,11 +126,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     setIsSidebarOpen(getSidebarPreference());
   }, [getSidebarPreference]);
 
-  // Generate breadcrumbs from current route
-  const breadcrumbs = useMemo(
-    () => generateBreadcrumbs(location.pathname),
-    [location.pathname]
-  );
+  // This will be moved to a separate component that uses the breadcrumb context
 
   // Use the proper theme hook for persistence
   const { isDark, toggleTheme } = useTheme();
@@ -306,26 +337,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <SidebarTrigger className={cn(isSidebarOpen ? "-ml-1" : "ml-2")} />
               
               <Separator orientation="vertical" className="mr-2 h-4 hidden md:block" />
-              <div className="hidden md:block">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    {breadcrumbs.map((crumb, index) => (
-                      <React.Fragment key={`${crumb.label}-${index}`}>
-                        {index > 0 && <BreadcrumbSeparator />}
-                        <BreadcrumbItem>
-                          {crumb.isActive || !crumb.href ? (
-                            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                          ) : (
-                            <BreadcrumbLink href={crumb.href}>
-                              {crumb.label}
-                            </BreadcrumbLink>
-                          )}
-                        </BreadcrumbItem>
-                      </React.Fragment>
-                    ))}
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
+              <BreadcrumbNavigation />
 
             </div>
 
@@ -524,4 +536,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   );
 };
 
-export default AppLayout;
+// Wrapper component that provides the breadcrumb context
+const AppLayoutWithProvider: React.FC<AppLayoutProps> = ({ children }) => {
+  return (
+    <BreadcrumbProvider>
+      <AppLayout>{children}</AppLayout>
+    </BreadcrumbProvider>
+  );
+};
+
+export default AppLayoutWithProvider;
