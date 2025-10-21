@@ -21,21 +21,24 @@ The ContainerStacks Billing Daemon is a standalone background process that perfo
 
 ## Installation
 
-### 1. Verify Database Migration
+### 1. Install Dependencies
 
-Ensure the billing daemon status table exists:
-
-```bash
-node scripts/verify-billing-daemon-table.js
-```
-
-If the table doesn't exist, apply the migration:
+Ensure all npm dependencies are installed (including tsx):
 
 ```bash
-node scripts/apply-migration.js migrations/012_billing_daemon_status.sql
+cd /root/containerstacks
+npm install
 ```
 
-### 2. Configure Environment Variables
+### 2. Verify Database Migration
+
+Ensure the billing daemon status table exists. If the table doesn't exist, apply the migration:
+
+```bash
+node scripts/run-migration.js
+```
+
+### 3. Configure Environment Variables
 
 The daemon uses the same `.env` file as your main application. Ensure these variables are set:
 
@@ -48,18 +51,21 @@ BILLING_INTERVAL_MINUTES=60
 LOG_LEVEL=info
 ```
 
-### 3. Install systemd Service
+### 4. Install systemd Service
 
 Copy the service file to systemd directory:
 
 ```bash
-sudo cp systemd/containerstacks-billing.service /etc/systemd/system/
+sudo cp systemd/containerstacks-billing-dev.service /etc/systemd/system/containerstacks-billing.service
 ```
 
-Update the service file paths if your installation directory differs from `/root/containerstacks`:
+**Important:** If your installation directory differs from `/root/containerstacks`, you must update the `WorkingDirectory` and `ExecStart` paths in the service file:
 
 ```bash
 sudo nano /etc/systemd/system/containerstacks-billing.service
+# Update these lines:
+# WorkingDirectory=/your/path/to/containerstacks
+# ExecStart=/your/path/to/containerstacks/node_modules/.bin/tsx scripts/billing-daemon/index.js
 ```
 
 Reload systemd to recognize the new service:
@@ -68,7 +74,7 @@ Reload systemd to recognize the new service:
 sudo systemctl daemon-reload
 ```
 
-### 4. Enable and Start the Service
+### 5. Enable and Start the Service
 
 Enable the service to start automatically on boot:
 
@@ -198,6 +204,58 @@ LIMIT 1;
 ```
 
 ## Troubleshooting
+
+## Troubleshooting
+
+### Exit Code 203/EXEC Error
+
+**Symptom**: Service fails to start with error code 203/EXEC
+
+```
+Process: 240526 ExecStart=/usr/bin/npx tsx scripts/billing-daemon/index.js (code=exited, status=203/EXEC)
+```
+
+**Cause**: This error indicates that the command specified in `ExecStart` cannot be executed. Common causes:
+- npm dependencies (including tsx) are not installed
+- The path to tsx in the service file is incorrect
+- The working directory path doesn't match your installation
+
+**Solutions**:
+
+1. **Install dependencies** in your ContainerStacks directory:
+   ```bash
+   cd /root/containerstacks  # or your installation path
+   npm install
+   ```
+
+2. **Verify tsx is available**:
+   ```bash
+   ls -la /root/containerstacks/node_modules/.bin/tsx
+   # Should show: lrwxrwxrwx ... tsx -> ../tsx/dist/cli.mjs
+   ```
+
+3. **Check service file paths**:
+   ```bash
+   sudo systemctl cat containerstacks-billing.service
+   ```
+   
+   Ensure these paths match your installation:
+   - `WorkingDirectory=/root/containerstacks` (or your path)
+   - `ExecStart=/root/containerstacks/node_modules/.bin/tsx scripts/billing-daemon/index.js`
+   - `EnvironmentFile=/root/containerstacks/.env`
+
+4. **Update service file if needed**:
+   ```bash
+   sudo nano /etc/systemd/system/containerstacks-billing.service
+   # Update the paths to match your installation
+   ```
+
+5. **Reload and restart**:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl restart containerstacks-billing
+   sudo systemctl status containerstacks-billing
+   ```
 
 ### Daemon Won't Start
 
