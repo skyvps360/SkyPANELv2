@@ -48,10 +48,20 @@ LOG_LEVEL=info               # Options: error, warn, info, debug
 
 ### Manual Execution
 
+For manual testing or development:
+
 ```bash
-# From the project root
+# From the project root (ensure npm install has been run)
 npx tsx scripts/billing-daemon/index.js
+
+# Or if tsx is installed globally
+tsx scripts/billing-daemon/index.js
+
+# Or using node_modules directly
+./node_modules/.bin/tsx scripts/billing-daemon/index.js
 ```
+
+**Note:** The daemon requires `tsx` to run because it imports TypeScript files from the main application. Ensure dependencies are installed with `npm install`.
 
 ### As a systemd Service (Linux)
 
@@ -67,30 +77,48 @@ sudo useradd -r -s /bin/false -d /opt/containerstacks containerstacks
 sudo mkdir -p /opt/containerstacks
 sudo cp -r . /opt/containerstacks/
 sudo chown -R containerstacks:containerstacks /opt/containerstacks
+
+# 3. Install dependencies
+cd /opt/containerstacks
+sudo -u containerstacks npm install
 sudo chmod 600 /opt/containerstacks/.env
 
-# 3. Install and start the service
+# 4. Install and start the service
 sudo cp systemd/containerstacks-billing.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable containerstacks-billing
 sudo systemctl start containerstacks-billing
 ```
 
+**Important:** The service file assumes installation at `/opt/containerstacks`. If you use a different path, update the service file accordingly.
+
 #### Development/Testing Installation
 
 For development or testing environments where you want to run as root:
 
 ```bash
-# 1. Copy the development service file
+# 1. Ensure dependencies are installed
+cd /root/containerstacks
+npm install
+
+# 2. Copy the development service file
 sudo cp systemd/containerstacks-billing-dev.service /etc/systemd/system/containerstacks-billing.service
 
-# 2. Install and start the service
+# 3. Reload systemd and start the service
 sudo systemctl daemon-reload
 sudo systemctl enable containerstacks-billing
 sudo systemctl start containerstacks-billing
 ```
 
-**Note**: The systemd service file has been updated to use `npx tsx` instead of `node` to properly handle TypeScript imports. If you're updating from an older version, make sure to copy the updated service file and reload systemd.
+**Important:** If your installation directory differs from `/root/containerstacks`, you must update the service file paths:
+
+```bash
+sudo nano /etc/systemd/system/containerstacks-billing.service
+# Update these lines:
+# WorkingDirectory=/your/path/to/containerstacks
+# ExecStart=/your/path/to/containerstacks/node_modules/.bin/tsx scripts/billing-daemon/index.js
+# EnvironmentFile=/your/path/to/containerstacks/.env
+```
 
 #### Service Management
 
@@ -159,7 +187,41 @@ journalctl -u containerstacks-billing -f
 
 ## Troubleshooting
 
-### Daemon won't start
+### Daemon won't start (Exit code 203/EXEC error)
+
+**Symptom:** Service fails with `code=exited, status=203/EXEC`
+
+**Cause:** This error indicates the ExecStart command cannot be executed, usually because:
+- The path to tsx is incorrect
+- npm dependencies are not installed
+- The working directory path is wrong
+
+**Solutions:**
+
+1. Ensure npm dependencies are installed:
+   ```bash
+   cd /root/containerstacks  # or your installation path
+   npm install
+   ```
+
+2. Verify tsx is available:
+   ```bash
+   ls -la /root/containerstacks/node_modules/.bin/tsx
+   ```
+
+3. Check the service file paths match your installation:
+   ```bash
+   sudo nano /etc/systemd/system/containerstacks-billing.service
+   # Verify WorkingDirectory and ExecStart paths are correct
+   ```
+
+4. After fixing, reload and restart:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl restart containerstacks-billing
+   ```
+
+### Daemon won't start (other errors)
 
 1. Check DATABASE_URL is correct
 2. Verify database is accessible
