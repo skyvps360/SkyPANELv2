@@ -1,0 +1,30 @@
+[Unit]
+Description=ContainerStacks Billing Daemon
+Documentation=https://github.com/yourusername/containerstacks
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/containerstacks
+ExecStart=/usr/bin/node /root/containerstacks/scripts/billing-daemon/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=containerstacks-billing
+
+# Environment configuration
+Environment="NODE_ENV=production"
+EnvironmentFile=/root/containerstacks/.env
+
+# Security hardening (optional but recommended)
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

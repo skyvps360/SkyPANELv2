@@ -113,3 +113,79 @@ export const requireOrganization = async (
   }
   next();
 };
+
+/**
+ * Optional authentication middleware
+ * Attempts to authenticate but continues even if no token is provided
+ * Sets req.user if authentication succeeds, leaves it undefined otherwise
+ */
+export const optionalAuth = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      // No token provided, continue without authentication
+      return next();
+    }
+
+    // Verify JWT token
+    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    
+    // Get user from database
+    const userResult = await query(
+      'SELECT id, email, role FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Invalid token, continue without authentication
+      return next();
+    }
+
+    const user = userResult.rows[0];
+
+    // Get user's organization
+    let orgMember = null;
+    try {
+      const orgResult = await query(
+        'SELECT organization_id FROM organization_members WHERE user_id = $1',
+        [user.id]
+      );
+      orgMember = orgResult.rows[0] || null;
+    } catch {
+      console.warn('organization_members table not found, skipping organization lookup');
+    }
+
+    let organizationId = orgMember?.organization_id;
+    if (!organizationId) {
+      try {
+        const ownerOrg = await query(
+          'SELECT id FROM organizations WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 1',
+          [user.id]
+        );
+        if (ownerOrg.rows[0]) {
+          organizationId = ownerOrg.rows[0].id;
+        }
+      } catch {
+        console.warn('organizations lookup failed for owner fallback');
+      }
+    }
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId
+    };
+
+    next();
+  } catch {
+    // Authentication failed, continue without user
+    next();
+  }
+};

@@ -1,10 +1,22 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ImpersonationProvider, useImpersonation } from "./contexts/ImpersonationContext";
 import { ImpersonationBanner } from "./components/admin/ImpersonationBanner";
 import { ImpersonationLoadingOverlay } from "./components/admin/ImpersonationLoadingOverlay";
+
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      retry: 1,
+      staleTime: 30000, // 30 seconds
+    },
+  },
+});
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -338,19 +350,21 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <ImpersonationProvider>
-          <Router>
-            <AppRoutes />
-            <Toaster 
-              position="bottom-right"
-              richColors
-              closeButton
-            />
-          </Router>
-        </ImpersonationProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <ImpersonationProvider>
+            <Router>
+              <AppRoutes />
+              <Toaster 
+                position="bottom-right"
+                richColors
+                closeButton
+              />
+            </Router>
+          </ImpersonationProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

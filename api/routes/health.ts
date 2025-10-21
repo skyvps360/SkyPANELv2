@@ -13,6 +13,9 @@ import {
 import { getCurrentMetrics } from "../services/rateLimitMetrics.js";
 import { config } from "../config/index.js";
 import { query } from "../lib/database.js";
+import { PlatformStatsService } from "../services/platformStatsService.js";
+import { DaemonStatusService } from "../services/daemonStatusService.js";
+import { authenticateToken, requireAdmin, optionalAuth, AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -310,6 +313,110 @@ router.get("/config-validation", (req: Request, res: Response) => {
       error:
         process.env.NODE_ENV === "development"
           ? error.message
+          : "Internal server error",
+    });
+  }
+});
+
+/**
+ * VPS Infrastructure Statistics Endpoint
+ * Returns VPS infrastructure metrics with status breakdown and resource totals
+ * Public access with limited data, authenticated users get detailed metrics
+ */
+router.get("/stats", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const stats = await PlatformStatsService.getVPSStats();
+
+    // If user is authenticated, return full details
+    if (req.user) {
+      return res.status(200).json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        ...stats
+      });
+    }
+
+    // For unauthenticated users, return limited public data
+    res.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      vps: {
+        total: stats.vps.total,
+        byStatus: stats.vps.byStatus,
+        // Omit detailed resource information for public access
+        resources: {
+          totalVCPUs: 0,
+          totalMemoryGB: 0,
+          totalDiskGB: 0
+        }
+      },
+      lastUpdated: stats.lastUpdated
+    });
+  } catch (error) {
+    console.error("VPS stats endpoint failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve VPS statistics",
+      timestamp: new Date().toISOString(),
+      error:
+        process.env.NODE_ENV === "development"
+          ? (error as Error).message
+          : "Internal server error",
+    });
+  }
+});
+
+/**
+ * Billing Daemon Status Endpoint
+ * Returns billing daemon status with warning threshold calculation
+ * Admin-only access
+ */
+router.get("/billing-daemon", authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const daemonStatus = await DaemonStatusService.getDaemonStatus();
+
+    res.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      daemon: daemonStatus
+    });
+  } catch (error) {
+    console.error("Billing daemon status endpoint failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve billing daemon status",
+      timestamp: new Date().toISOString(),
+      error:
+        process.env.NODE_ENV === "development"
+          ? (error as Error).message
+          : "Internal server error",
+    });
+  }
+});
+
+/**
+ * Platform Statistics Endpoint
+ * Returns all-time platform statistics for the about page
+ * Public access with sanitized data
+ */
+router.get("/platform-stats", async (req: Request, res: Response) => {
+  try {
+    const platformStats = await PlatformStatsService.getPlatformStats();
+
+    res.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      stats: platformStats
+    });
+  } catch (error) {
+    console.error("Platform stats endpoint failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve platform statistics",
+      timestamp: new Date().toISOString(),
+      error:
+        process.env.NODE_ENV === "development"
+          ? (error as Error).message
           : "Internal server error",
     });
   }

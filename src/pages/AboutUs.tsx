@@ -12,13 +12,16 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND_NAME } from "../lib/brand";
 import PublicLayout from "@/components/PublicLayout";
+import api from "@/lib/api";
 
 const values = [
   {
@@ -53,12 +56,35 @@ const values = [
   },
 ];
 
-const stats = [
-  { label: "Platform uptime", value: "99.99%" },
-  { label: "Active organizations", value: "1,800+" },
-  { label: "Regions available", value: "18" },
-  { label: "Support CSAT", value: "4.9 / 5" },
-];
+interface PlatformStats {
+  users: {
+    total: number;
+    admins: number;
+    regular: number;
+  };
+  organizations: {
+    total: number;
+  };
+  vps: {
+    total: number;
+    active: number;
+  };
+  containers: {
+    total: number;
+  };
+  support: {
+    totalTickets: number;
+    openTickets: number;
+  };
+  plans: {
+    vpsPlans: number;
+    containerPlans: number;
+  };
+  regions: {
+    total: number;
+  };
+  cacheExpiry: string;
+}
 
 const differentiators = [
   {
@@ -97,6 +123,18 @@ const milestones = [
 ];
 
 export default function AboutUs() {
+  // Fetch platform statistics with 5-minute cache
+  const { data: platformStats, isLoading, isError } = useQuery<PlatformStats>({
+    queryKey: ['platform-stats'],
+    queryFn: async () => {
+      const response = await api.get('/health/platform-stats');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+    refetchOnWindowFocus: false,
+  });
+
   return (
     <PublicLayout>
       <div className="container mx-auto max-w-6xl px-4 py-12">
@@ -139,12 +177,54 @@ export default function AboutUs() {
             <CardDescription>Numbers that reflect how customers rely on us today.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-border p-4 text-left">
-                <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
+            {isLoading ? (
+              // Loading skeleton
+              <>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="rounded-lg border border-border p-4 text-left">
+                    <Skeleton className="h-8 w-20 mb-2" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ))}
+              </>
+            ) : isError ? (
+              // Error state
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-center">
+                <p className="text-sm text-destructive">Unable to load platform statistics. Please try again later.</p>
               </div>
-            ))}
+            ) : platformStats ? (
+              // Real data
+              <>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.users.total.toLocaleString()}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Users</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.organizations.total.toLocaleString()}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Organizations</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.vps.total.toLocaleString()}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total VPS Deployed</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.containers.total.toLocaleString()}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Containers</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.support.totalTickets.toLocaleString()}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Tickets Handled</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.plans.vpsPlans}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Available VPS Plans</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 text-left">
+                  <div className="text-2xl font-semibold text-foreground">{platformStats.regions.total || 'N/A'}</div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Supported Regions</p>
+                </div>
+              </>
+            ) : null}
           </CardContent>
         </Card>
       </section>
