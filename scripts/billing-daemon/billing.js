@@ -3,7 +3,7 @@
  * Wraps the main application's BillingService with error handling and status updates
  */
 
-import { BillingService } from '../../api/services/billingService.js';
+import { BillingService } from '../../api/services/billingService.ts';
 import * as logger from './logger.js';
 import * as status from './status.js';
 
