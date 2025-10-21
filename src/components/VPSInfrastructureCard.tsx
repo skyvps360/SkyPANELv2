@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Server, Cpu, HardDrive, MemoryStick } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Status } from "@/components/ui/status";
 import { apiClient } from "@/lib/api";
@@ -77,8 +76,7 @@ export function VPSInfrastructureCard() {
     );
   }
 
-  const { vps, lastUpdated } = data;
-  const lastUpdateTime = new Date(lastUpdated).toLocaleTimeString();
+  const { vps } = data;
   
   // Check if resource data is available (authenticated users get real data)
   const hasResourceData = vps.resources.totalVCPUs > 0 || vps.resources.totalMemoryGB > 0 || vps.resources.totalDiskGB > 0;
