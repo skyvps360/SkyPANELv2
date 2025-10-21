@@ -52,13 +52,55 @@ node scripts/billing-daemon/index.js
 
 ### As a systemd Service (Linux)
 
-See the main documentation for systemd service installation instructions.
+#### Production Installation (Recommended)
+
+For production environments, use the secure service configuration:
 
 ```bash
+# 1. Create a dedicated user for security
+sudo useradd -r -s /bin/false -d /opt/containerstacks containerstacks
+
+# 2. Set up the application directory
+sudo mkdir -p /opt/containerstacks
+sudo cp -r . /opt/containerstacks/
+sudo chown -R containerstacks:containerstacks /opt/containerstacks
+sudo chmod 600 /opt/containerstacks/.env
+
+# 3. Install and start the service
 sudo cp systemd/containerstacks-billing.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable containerstacks-billing
 sudo systemctl start containerstacks-billing
+```
+
+#### Development/Testing Installation
+
+For development or testing environments where you want to run as root:
+
+```bash
+# 1. Copy the development service file
+sudo cp systemd/containerstacks-billing-dev.service /etc/systemd/system/containerstacks-billing.service
+
+# 2. Install and start the service
+sudo systemctl daemon-reload
+sudo systemctl enable containerstacks-billing
+sudo systemctl start containerstacks-billing
+```
+
+#### Service Management
+
+```bash
+# Check service status
+sudo systemctl status containerstacks-billing
+
+# View logs
+sudo journalctl -u containerstacks-billing -f
+
+# Stop the service
+sudo systemctl stop containerstacks-billing
+
+# Restart the service
+sudo systemctl restart containerstacks-billing
 ```
 
 ### Stopping the Daemon
