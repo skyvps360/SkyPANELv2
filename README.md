@@ -50,10 +50,12 @@ If you find my work helpful, consider supporting me:
 ## 📋 Prerequisites
 
 - **Node.js** 20.x or higher
-- **npm** or **yarn**
-- **PostgreSQL** database
-- **Redis** server
-- **InfluxDB** (optional for metrics)
+- **npm** (package manager)
+- **PostgreSQL** 12+ database
+- **Redis** server (for caching and Bull queues)
+- **InfluxDB** (optional, for metrics storage)
+- **Git** (for cloning the repository)
+- **tsx** (installed via npm, for TypeScript execution)
 
 ## Example Images (rotated Regularly)
 <img width="1914" height="946" alt="image" src="https://github.com/user-attachments/assets/2a251974-5d12-422b-a5e2-50025ba2ea80" />
@@ -168,8 +170,24 @@ If you find my work helpful, consider supporting me:
    - See `.env.example` for a reference configuration that includes `COMPANY-NAME`.
 
 5. **Set up the database**
-   - Run migrations from `migrations/` or use the provided scripts in `scripts/`
-   - Ensure Row Level Security policies are applied as per the architecture docs
+   
+   **Option 1: Using migration scripts (Recommended)**
+   ```bash
+   # Apply all migrations in order
+   node scripts/apply-migration.js
+   
+   # Or apply a specific migration
+   node scripts/apply-single-migration.js migrations/001_initial_schema.sql
+   ```
+   
+   **Option 2: Manual setup**
+   - Run SQL files in `migrations/` directory in numerical order (001, 002, 003, etc.)
+   - Ensure all migrations complete successfully
+   
+   **Important Notes:**
+   - Row Level Security (RLS) policies are automatically applied during migrations
+   - The initial schema creates default admin user (email: `admin@containerstacks.com`, password: `admin123`)
+   - Change the default admin password immediately after first login
 
 6. **Start the development servers**
    ```bash
@@ -210,14 +228,32 @@ If you find my work helpful, consider supporting me:
 ## 🚦 Development
 
 ### Available Scripts
+
+**Development:**
 - `npm run dev` - Start both frontend and backend (uses `concurrently`)
-- `npm run client:dev` - Start frontend only
-- `npm run server:dev` - Start backend only
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run check` - Run TypeScript checks
+- `npm run client:dev` - Start frontend only (Vite dev server)
+- `npm run server:dev` - Start backend only (Nodemon with hot reload)
 - `npm run kill-ports` - Free ports `3001` and `5173` if conflicts occur
-- `npm run seed:admin` - Seed an initial admin user
+
+**Production:**
+- `npm run build` - Build production assets (`tsc` + `vite build`)
+- `npm run start` - Start production server (Node + Vite preview)
+- `npm run pm2:start` - Start with PM2 process manager
+- `npm run pm2:reload` - Reload PM2 processes (zero-downtime)
+- `npm run pm2:stop` - Stop and delete PM2 processes
+- `npm run pm2:list` - List PM2 processes
+
+**Database & Setup:**
+- `npm run seed:admin` - Create initial admin user
+- `node scripts/apply-migration.js` - Apply all database migrations
+- `node scripts/seed-admin.js` - Alternative admin seeding
+- `node scripts/test-connection.js` - Test database connectivity
+
+**Testing & Quality:**
+- `npm run test` - Run Vitest tests (single run)
+- `npm run test:watch` - Run tests in watch mode
+- `npm run lint` - Run ESLint
+- `npm run check` - Run TypeScript type checking
 
 ### Ports & Preview
 - Frontend serves at `http://localhost:5173`
@@ -235,11 +271,113 @@ If you find my work helpful, consider supporting me:
 - Update documentation for feature changes
 
 ### Troubleshooting
-- Vite loads but API fails: confirm `PORT=3001` and `VITE_API_URL=http://localhost:3001/api` in `.env`
-- Region dropdown empty: verify `LINODE_API_TOKEN`, provider configuration, and network connectivity
-- Port conflicts: use `npm run kill-ports` before `npm run dev`
-- Missing table errors: ensure migrations are applied and review server logs
-- Branding not updating: ensure `COMPANY-NAME` (or `VITE_COMPANY_NAME`) is set in `.env` and restart the dev server (`npm run dev`).
+- **Vite loads but API fails**: Confirm `PORT=3001` in `.env` and backend is running
+- **Region dropdown empty**: Verify `LINODE_API_TOKEN`, provider configuration in Admin Panel, and network connectivity
+- **Port conflicts**: Use `npm run kill-ports` before `npm run dev`
+- **Missing table errors**: Ensure migrations are applied via `node scripts/apply-migration.js`
+- **Branding not updating**: Ensure `COMPANY-NAME` (or `VITE_COMPANY_NAME`) is set in `.env` and restart dev server
+- **Database connection errors**: Check `DATABASE_URL` format and PostgreSQL service status
+- **Redis connection issues**: Verify `REDIS_URL` and ensure Redis server is running
+- **PayPal integration fails**: Confirm `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `PAYPAL_MODE` are correct
+- **Email notifications not sending**: Verify SMTP2GO credentials and test with `node scripts/test-smtp.js`
+- **Billing not running**: Check billing daemon status (see Billing Daemon section below)
+
+## 💰 Billing Daemon
+
+ContainerStacks includes a standalone billing daemon that runs independently to ensure continuous hourly billing even during application downtime.
+
+### Features
+- **Independent Operation**: Runs as separate process from main application
+- **Automatic Failover**: Built-in billing resumes if daemon stops
+- **Heartbeat Monitoring**: Updates status every 60 seconds
+- **Graceful Shutdown**: Completes current billing cycle before stopping
+
+### Running the Billing Daemon
+
+**Manual Execution:**
+```bash
+npx tsx scripts/billing-daemon/index.js
+```
+
+**As systemd Service (Linux Production):**
+```bash
+# Install as system service
+sudo cp systemd/containerstacks-billing.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable containerstacks-billing
+sudo systemctl start containerstacks-billing
+
+# Check status
+sudo systemctl status containerstacks-billing
+
+# View logs
+sudo journalctl -u containerstacks-billing -f
+```
+
+**Configuration:**
+- Set `BILLING_INTERVAL_MINUTES=60` in `.env` (default: 60 minutes)
+- Monitor daemon status via Admin Panel or database table `billing_daemon_status`
+- See `scripts/billing-daemon/README.md` for detailed documentation
+
+## 🚀 Deployment
+
+### Production Deployment Options
+
+**1. PM2 Process Manager (Recommended for Node.js hosting):**
+```bash
+# Build and start with PM2
+npm run pm2:start
+
+# Zero-downtime reload
+npm run pm2:reload
+
+# Stop all processes
+npm run pm2:stop
+```
+
+**2. Systemd Service (Linux servers):**
+- Configure systemd service files in `systemd/` directory
+- Suitable for VPS/dedicated server deployments
+
+**3. Cloud Platforms:**
+- **Vercel**: Configuration included in `vercel.json`
+- **Neon/Supabase**: Compatible with cloud PostgreSQL providers
+- Update `DATABASE_URL` to use cloud database connection string
+
+### Production Checklist
+- [ ] Set `NODE_ENV=production` in `.env`
+- [ ] Update `JWT_SECRET` to a strong random key
+- [ ] Configure production `DATABASE_URL` with SSL enabled
+- [ ] Set up Redis for production caching
+- [ ] Configure PayPal production credentials (`PAYPAL_MODE=live`)
+- [ ] Set up SMTP2GO for email notifications
+- [ ] Update `CLIENT_URL` to production domain
+- [ ] Configure `ENCRYPTION_KEY` for API key storage
+- [ ] Set appropriate rate limiting values for production traffic
+- [ ] Configure `TRUST_PROXY` based on infrastructure (e.g., `1` for nginx, `2` for Cloudflare + nginx)
+- [ ] Set up InfluxDB for metrics (optional but recommended)
+- [ ] Configure backup retention (`BACKUP_RETENTION_DAYS`)
+- [ ] Start billing daemon as systemd service
+- [ ] Set up monitoring and alerting
+- [ ] Change default admin password
+
+## 📚 Additional Documentation
+
+Detailed documentation is available in the `docs/` directory:
+
+- **[Getting Started Guide](docs/getting-started/)** - Step-by-step setup instructions
+- **[Architecture Documentation](docs/architecture/)** - System design and technical architecture
+- **[API Reference](docs/api/)** - RESTful API documentation and OpenAPI spec
+- **[Reference Guides](docs/reference/)** - Configuration options and best practices
+- **[Troubleshooting Guide](docs/troubleshooting/)** - Common issues and solutions
+- **[Billing Daemon Guide](scripts/billing-daemon/README.md)** - Standalone billing daemon setup
+
+### API Documentation
+
+The project includes comprehensive OpenAPI documentation:
+- **Interactive API Docs**: Available at `/api-docs` when running the application
+- **OpenAPI Spec**: See `openapi.json` for complete API specification
+- **Postman/Insomnia**: Import `openapi.json` for API testing
 
 ## 🤝 Contributing
 
