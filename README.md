@@ -156,18 +156,18 @@ If you find my work helpful, consider supporting me:
    ```
 
    #### White-label Branding
-   - Set `COMPANY-NAME` in `.env` to customize the brand name displayed across the UI (navigation, home page hero/footer, login/register copy, and labels in API docs).
+   - Set `COMPANY_NAME` in `.env` to customize the brand name displayed across the UI (navigation, home page hero/footer, login/register copy, and labels in API docs).
    - Alternatively, you can use `VITE_COMPANY_NAME` if you prefer the standard Vite prefix.
    - Example:
 
      ```env
-     COMPANY-NAME=SkyVPS360
+     COMPANY_NAME=SkyVPS360
      # or
      VITE_COMPANY_NAME=SkyVPS360
      ```
 
    - After changing the brand variable, restart the dev server so the UI picks up the new value.
-   - See `.env.example` for a reference configuration that includes `COMPANY-NAME`.
+   - See `.env.example` for a reference configuration that includes `COMPANY_NAME`.
 
 5. **Set up the database**
    
@@ -275,7 +275,7 @@ If you find my work helpful, consider supporting me:
 - **Region dropdown empty**: Verify `LINODE_API_TOKEN`, provider configuration in Admin Panel, and network connectivity
 - **Port conflicts**: Use `npm run kill-ports` before `npm run dev`
 - **Missing table errors**: Ensure migrations are applied via `node scripts/apply-migration.js`
-- **Branding not updating**: Ensure `COMPANY-NAME` (or `VITE_COMPANY_NAME`) is set in `.env` and restart dev server
+- **Branding not updating**: Ensure `COMPANY_NAME` (or `VITE_COMPANY_NAME`) is set in `.env` and restart dev server
 - **Database connection errors**: Check `DATABASE_URL` format and PostgreSQL service status
 - **Redis connection issues**: Verify `REDIS_URL` and ensure Redis server is running
 - **PayPal integration fails**: Confirm `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `PAYPAL_MODE` are correct
