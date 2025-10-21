@@ -14,7 +14,7 @@ import { getCurrentMetrics } from "../services/rateLimitMetrics.js";
 import { config } from "../config/index.js";
 import { query } from "../lib/database.js";
 import { PlatformStatsService } from "../services/platformStatsService.js";
-import { authenticateToken, requireAdmin, optionalAuth, AuthenticatedRequest } from "../middleware/auth.js";
+import { optionalAuth, AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
