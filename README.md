@@ -280,44 +280,7 @@ If you find my work helpful, consider supporting me:
 - **Redis connection issues**: Verify `REDIS_URL` and ensure Redis server is running
 - **PayPal integration fails**: Confirm `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `PAYPAL_MODE` are correct
 - **Email notifications not sending**: Verify SMTP2GO credentials and test with `node scripts/test-smtp.js`
-- **Billing not running**: Check billing daemon status (see Billing Daemon section below)
-
-## 💰 Billing Daemon
-
-ContainerStacks includes a standalone billing daemon that runs independently to ensure continuous hourly billing even during application downtime.
-
-### Features
-- **Independent Operation**: Runs as separate process from main application
-- **Automatic Failover**: Built-in billing resumes if daemon stops
-- **Heartbeat Monitoring**: Updates status every 60 seconds
-- **Graceful Shutdown**: Completes current billing cycle before stopping
-
-### Running the Billing Daemon
-
-**Manual Execution:**
-```bash
-npx tsx scripts/billing-daemon/index.js
-```
-
-**As systemd Service (Linux Production):**
-```bash
-# Install as system service
-sudo cp systemd/containerstacks-billing.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable containerstacks-billing
-sudo systemctl start containerstacks-billing
-
-# Check status
-sudo systemctl status containerstacks-billing
-
-# View logs
-sudo journalctl -u containerstacks-billing -f
-```
-
-**Configuration:**
-- Set `BILLING_INTERVAL_MINUTES=60` in `.env` (default: 60 minutes)
-- Monitor daemon status via Admin Panel or database table `billing_daemon_status`
-- See `scripts/billing-daemon/README.md` for detailed documentation
+- **Billing not running**: Check application logs for hourly billing execution
 
 ## 🚀 Deployment
 
@@ -336,15 +299,18 @@ npm run pm2:stop
 ```
 
 **2. Systemd Service (Linux servers):**
-- Configure systemd service files in `systemd/` directory
+
+- Create a custom systemd unit for the API/backend as needed
 - Suitable for VPS/dedicated server deployments
 
 **3. Cloud Platforms:**
+
 - **Vercel**: Configuration included in `vercel.json`
 - **Neon/Supabase**: Compatible with cloud PostgreSQL providers
 - Update `DATABASE_URL` to use cloud database connection string
 
 ### Production Checklist
+
 - [ ] Set `NODE_ENV=production` in `.env`
 - [ ] Update `JWT_SECRET` to a strong random key
 - [ ] Configure production `DATABASE_URL` with SSL enabled
@@ -357,7 +323,6 @@ npm run pm2:stop
 - [ ] Configure `TRUST_PROXY` based on infrastructure (e.g., `1` for nginx, `2` for Cloudflare + nginx)
 - [ ] Set up InfluxDB for metrics (optional but recommended)
 - [ ] Configure backup retention (`BACKUP_RETENTION_DAYS`)
-- [ ] Start billing daemon as systemd service
 - [ ] Set up monitoring and alerting
 - [ ] Change default admin password
 
@@ -370,11 +335,11 @@ Detailed documentation is available in the `docs/` directory:
 - **[API Reference](docs/api/)** - RESTful API documentation and OpenAPI spec
 - **[Reference Guides](docs/reference/)** - Configuration options and best practices
 - **[Troubleshooting Guide](docs/troubleshooting/)** - Common issues and solutions
-- **[Billing Daemon Guide](scripts/billing-daemon/README.md)** - Standalone billing daemon setup
 
 ### API Documentation
 
 The project includes comprehensive OpenAPI documentation:
+
 - **Interactive API Docs**: Available at `/api-docs` when running the application
 - **OpenAPI Spec**: See `openapi.json` for complete API specification
 - **Postman/Insomnia**: Import `openapi.json` for API testing
@@ -393,7 +358,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-For support, create a ticket through the in-app support system or refer to the [documentation](#documentation).
+For support, create a ticket through the in-app support system or refer to the [Additional Documentation](#-additional-documentation).
 
 ---
 

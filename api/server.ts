@@ -5,7 +5,6 @@
 import app from "./app.js";
 import { initSSHBridge } from "./services/sshBridge.js";
 import { BillingService } from "./services/billingService.js";
-import { DaemonStatusService } from "./services/daemonStatusService.js";
 
 /**
  * start server with port
@@ -22,49 +21,33 @@ const server = app.listen(PORT, () => {
 });
 
 /**
- * Start the hourly billing scheduler with daemon coordination
+ * Start the hourly billing scheduler
  */
 function startBillingScheduler() {
-  console.log(
-    "🕐 Starting hourly VPS billing scheduler with daemon coordination..."
-  );
+  console.log("🕐 Starting hourly VPS billing scheduler...");
 
   // Run billing immediately on startup (for any missed billing)
   setTimeout(async () => {
-    await runCoordinatedBilling("initial");
+    await runHourlyBilling("initial");
   }, 5000); // Wait 5 seconds after server start
 
   // Schedule hourly billing (every hour)
   setInterval(async () => {
-    await runCoordinatedBilling("scheduled");
+    await runHourlyBilling("scheduled");
   }, 60 * 60 * 1000); // Run every hour (3600000 ms)
 }
 
 /**
- * Run billing with daemon coordination
- * Checks if daemon is active before running built-in billing
+ * Run hourly billing for all active VPS instances
  */
-async function runCoordinatedBilling(runType: "initial" | "scheduled") {
+async function runHourlyBilling(runType: "initial" | "scheduled") {
   try {
-    // Check if daemon is active
-    const isDaemonActive = await DaemonStatusService.isDaemonActive();
-
-    if (isDaemonActive) {
-      console.log(
-        `⏸️ Billing daemon is active, skipping built-in ${runType} billing (daemon takes priority)`
-      );
-      return;
-    }
-
-    // Daemon is not active, run built-in billing
-    console.log(
-      `🔄 Billing daemon inactive, running built-in ${runType} billing...`
-    );
+    console.log(`🔄 Starting ${runType} hourly VPS billing process...`);
     const result = await BillingService.runHourlyBilling();
     console.log(
-      `✅ Built-in billing completed: ${
+      `✅ Billing completed: ${
         result.billedInstances
-      } instances billed, ${result.totalAmount.toFixed(2)} total`
+      } instances billed, $${result.totalAmount.toFixed(2)} total`
     );
 
     if (result.failedInstances.length > 0) {
@@ -74,7 +57,7 @@ async function runCoordinatedBilling(runType: "initial" | "scheduled") {
       );
     }
   } catch (error) {
-    console.error(`❌ Error in ${runType} billing coordination:`, error);
+    console.error(`❌ Error in ${runType} billing:`, error);
   }
 }
 

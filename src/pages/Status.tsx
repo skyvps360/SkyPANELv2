@@ -18,8 +18,6 @@ import { Status as StatusDot } from "@/components/ui/status";
 import PublicLayout from "@/components/PublicLayout";
 import { BRAND_NAME } from "@/lib/brand";
 import { VPSInfrastructureCard } from "@/components/VPSInfrastructureCard";
-import { BillingDaemonCard } from "@/components/BillingDaemonCard";
-import { useAuth } from "@/contexts/AuthContext";
 
 type ServiceStatus = "operational" | "degraded" | "outage" | "maintenance";
 
@@ -54,7 +52,6 @@ interface Region {
 }
 
 export default function Status() {
-  const { user } = useAuth();
   const [services, setServices] = useState<ServiceComponent[]>([]);
   const [uptime] = useState({ day: 99.9, week: 99.8, month: 99.7 });
   const [activeIncidents, setActiveIncidents] = useState<Incident[]>([]);
@@ -344,10 +341,7 @@ export default function Status() {
           <h2 className="text-2xl font-semibold">Infrastructure Metrics</h2>
           <Badge variant="secondary">Real-time monitoring</Badge>
         </div>
-        <div className={`grid gap-6 ${user?.role === 'admin' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-          <VPSInfrastructureCard />
-          {user?.role === 'admin' && <BillingDaemonCard />}
-        </div>
+        <VPSInfrastructureCard />
       </section>
 
       {regions.length > 0 && (

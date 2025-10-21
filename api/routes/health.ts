@@ -14,7 +14,6 @@ import { getCurrentMetrics } from "../services/rateLimitMetrics.js";
 import { config } from "../config/index.js";
 import { query } from "../lib/database.js";
 import { PlatformStatsService } from "../services/platformStatsService.js";
-import { DaemonStatusService } from "../services/daemonStatusService.js";
 import { authenticateToken, requireAdmin, optionalAuth, AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
@@ -357,34 +356,6 @@ router.get("/stats", optionalAuth, async (req: AuthenticatedRequest, res: Respon
     res.status(500).json({
       success: false,
       message: "Failed to retrieve VPS statistics",
-      timestamp: new Date().toISOString(),
-      error:
-        process.env.NODE_ENV === "development"
-          ? (error as Error).message
-          : "Internal server error",
-    });
-  }
-});
-
-/**
- * Billing Daemon Status Endpoint
- * Returns billing daemon status with warning threshold calculation
- * Admin-only access
- */
-router.get("/billing-daemon", authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const daemonStatus = await DaemonStatusService.getDaemonStatus();
-
-    res.status(200).json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      daemon: daemonStatus
-    });
-  } catch (error) {
-    console.error("Billing daemon status endpoint failed:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve billing daemon status",
       timestamp: new Date().toISOString(),
       error:
         process.env.NODE_ENV === "development"

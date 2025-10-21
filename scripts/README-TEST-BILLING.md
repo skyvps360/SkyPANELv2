@@ -2,7 +2,9 @@
 
 ## Overview
 
-This test script (`test-hourly-billing.js`) verifies that the VPS hourly billing system works correctly after the recent fixes.
+This test script (`test-hourly-billing.js`) verifies that the VPS hourly billing system works correctly.
+
+The hourly billing system runs automatically within the main application via a built-in scheduler in `api/server.ts`. It executes billing cycles every 60 minutes, charging VPS instances based on their configured hourly rates.
 
 ## What It Tests
 
@@ -161,5 +163,5 @@ After testing, you may want to:
 ## Related Files
 
 - `api/services/billingService.ts` - Main billing logic
-- `api/server.ts` - Hourly billing scheduler
+- `api/server.ts` - Built-in hourly billing scheduler (runs every 60 minutes)
 - `migrations/006_billing_tracking.sql` - Billing cycles table schema
