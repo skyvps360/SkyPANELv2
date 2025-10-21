@@ -41,6 +41,7 @@ export interface Config {
   FROM_NAME?: string;
   LINODE_API_TOKEN?: string;
   SSH_CRED_SECRET?: string;
+  CONTACT_FORM_RECIPIENT?: string;
 }
 
 /**
@@ -153,6 +154,7 @@ function getConfig(): Config {
     FROM_NAME: process.env.FROM_NAME,
     LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
     SSH_CRED_SECRET: process.env.SSH_CRED_SECRET,
+    CONTACT_FORM_RECIPIENT: process.env.CONTACT_FORM_RECIPIENT,
   };
 
   // Debug logging

@@ -27,18 +27,31 @@ export default function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    toast.success("Message sent successfully! We'll get back to you soon.");
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      category: "",
-      message: "",
-    });
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send message.");
+      }
+      toast.success("Message sent successfully! We'll get back to you soon.");
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        category: "",
+        message: "",
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send message.");
+    }
     setIsSubmitting(false);
   };
 

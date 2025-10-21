@@ -158,3 +158,6 @@ The SkyVPS360 Team`;
 
   await sendEmail({ to, subject, html, text });
 }
+export async function sendContactEmail({ to, from, subject, text }: { to: string; from: string; subject: string; text: string }): Promise<void> {
+  await sendEmail({ to, from, subject, text });
+}

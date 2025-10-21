@@ -26,6 +26,7 @@ import invoicesRouter from './routes/invoices.js';
 import notificationsRouter from './routes/notifications.js';
 import themeRoutes from './routes/theme.js';
 import healthRoutes from './routes/health.js';
+import contactRouter from './routes/contact.js';
 import { notificationService } from './services/notificationService.js';
 import { performStartupValidation, initializeConfigurationMonitoring } from './services/rateLimitConfigValidator.js';
 import { initializeMetricsCollection, startMetricsPersistence } from './services/rateLimitMetrics.js';
@@ -110,6 +111,7 @@ app.use('/api/activity', activityRoutes)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/theme', themeRoutes)
 app.use('/api/health', healthRoutes)
+app.use('/api/contact', contactRouter);
 
 // Health check routes are now handled by the dedicated health router
 
