@@ -1,6 +1,6 @@
 [Unit]
 Description=ContainerStacks Billing Daemon (Development)
-Documentation=https://github.com/yourusername/containerstacks
+Documentation=https://github.com/skyvps360/containerstacks
 After=network.target postgresql.service
 Wants=postgresql.service
 
@@ -10,7 +10,7 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/root/containerstacks
-ExecStart=/usr/bin/node scripts/billing-daemon/index.js
+ExecStart=/usr/bin/npx tsx scripts/billing-daemon/index.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -19,6 +19,7 @@ SyslogIdentifier=containerstacks-billing
 
 # Environment configuration
 Environment="NODE_ENV=production"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/root/.local/bin"
 EnvironmentFile=/root/containerstacks/.env
 
 # Basic security hardening
