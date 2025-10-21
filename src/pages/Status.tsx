@@ -18,7 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import { Status as StatusDot } from "@/components/ui/status";
 import PublicLayout from "@/components/PublicLayout";
 import { BRAND_NAME } from "@/lib/brand";
-import { apiClient } from "@/lib/api";
 
 type ServiceStatus = "operational" | "degraded" | "outage" | "maintenance";
 
@@ -67,15 +66,28 @@ export default function Status() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch VPS instances count
-      const vpsResponse = await apiClient.getVpsInstances();
-      const vpsCount = Array.isArray(vpsResponse) ? vpsResponse.length : (vpsResponse as any)?.data?.length || 0;
+      // Fetch public status data (no auth required)
+      let vpsCount = 0;
+      let vpsRunning = 0;
+      let vpsStopped = 0;
+      let containersCount = 0;
 
-      // Fetch containers count
-      const containersResponse = await apiClient.getContainers();
-      const containersCount = Array.isArray(containersResponse) ? containersResponse.length : (containersResponse as any)?.data?.length || 0;
+      try {
+        const statusResponse = await fetch('/api/health/status');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.success && statusData.services) {
+          vpsCount = statusData.services.vps?.total || 0;
+          vpsRunning = statusData.services.vps?.running || 0;
+          vpsStopped = statusData.services.vps?.stopped || 0;
+          containersCount = statusData.services.containers?.total || 0;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch status data:', err);
+        // Continue with zeros if status endpoint fails
+      }
 
-      // Fetch regions
+      // Fetch regions (public data)
       const regionsResponse = await fetch('https://api.linode.com/v4/regions');
       const regionsData = await regionsResponse.json();
       const regionsData_: Region[] = regionsData.data || [];
@@ -88,7 +100,7 @@ export default function Status() {
           status: "operational",
           icon: Server,
           instances: vpsCount,
-          description: "Virtual Private Server provisioning and management"
+          description: `Virtual Private Server provisioning and management${vpsCount > 0 ? ` (${vpsRunning} running, ${vpsStopped} stopped)` : ''}`
         },
         {
           name: "Container Platform",
