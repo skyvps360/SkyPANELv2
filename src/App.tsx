@@ -27,6 +27,12 @@ import VpsSshConsole from "./pages/VpsSshConsole";
 import AppLayout from "./components/AppLayout";
 import ActivityPage from "./pages/Activity";
 import ApiDocs from "./pages/ApiDocs";
+import FAQ from "./pages/FAQ";
+import AboutUs from "./pages/AboutUs";
+import Contact from "./pages/Contact";
+import Status from "./pages/Status";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Component to handle impersonation banner display
 function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
@@ -319,6 +325,12 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route path="/faq" element={<FAQ />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/status" element={<Status />} />
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

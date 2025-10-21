@@ -57,25 +57,59 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
     () => {
       if (isAdminRoute) {
         const activeAnchor = currentHash || "support";
-        const adminItems = [
-          { title: "Support", anchor: "support", icon: LifeBuoy },
-          { title: "VPS Plans", anchor: "vps-plans", icon: CreditCard },
-          { title: "Container Plans", anchor: "container-plans", icon: Boxes },
-          { title: "Containers", anchor: "containers", icon: Box },
-          { title: "Servers", anchor: "servers", icon: ServerCog },
-          { title: "Providers", anchor: "providers", icon: Settings },
-          { title: "StackScripts", anchor: "stackscripts", icon: FileCode },
-          { title: "Networking", anchor: "networking", icon: Globe },
-          { title: "Theme", anchor: "theme", icon: Palette },
-          { title: "User Management", anchor: "user-management", icon: Users },
+        
+        // Organized admin navigation with groups
+        const adminGroups = [
+          {
+            title: "Plan Management",
+            icon: CreditCard,
+            url: `/admin#vps-plans`,
+            isActive: activeAnchor === "vps-plans" || activeAnchor === "container-plans",
+            items: [
+              { title: "VPS Plans", url: `/admin#vps-plans`, isActive: activeAnchor === "vps-plans" },
+              { title: "Container Plans", url: `/admin#container-plans`, isActive: activeAnchor === "container-plans" },
+            ],
+          },
+          {
+            title: "Support",
+            icon: LifeBuoy,
+            url: `/admin#support`,
+            isActive: activeAnchor === "support",
+            items: [
+              { title: "Tickets", url: `/admin#support`, isActive: activeAnchor === "support" },
+            ],
+          },
+          {
+            title: "Infrastructure",
+            icon: ServerCog,
+            url: `/admin#servers`,
+            isActive: ["containers", "servers", "networking", "stackscripts", "providers"].includes(activeAnchor),
+            items: [
+              { title: "Containers", url: `/admin#containers`, isActive: activeAnchor === "containers" },
+              { title: "Servers", url: `/admin#servers`, isActive: activeAnchor === "servers" },
+              { title: "Networking", url: `/admin#networking`, isActive: activeAnchor === "networking" },
+              { title: "StackScripts", url: `/admin#stackscripts`, isActive: activeAnchor === "stackscripts" },
+              { title: "Providers", url: `/admin#providers`, isActive: activeAnchor === "providers" },
+            ],
+          },
+          {
+            title: "Settings",
+            icon: Settings,
+            url: `/admin#theme`,
+            isActive: activeAnchor === "theme",
+            items: [
+              { title: "Theme", url: `/admin#theme`, isActive: activeAnchor === "theme" },
+            ],
+          },
+          {
+            title: "User Management",
+            icon: Users,
+            url: `/admin#user-management`,
+            isActive: activeAnchor === "user-management",
+          },
         ];
 
-        return adminItems.map((item) => ({
-          title: item.title,
-          url: `/admin#${item.anchor}`,
-          icon: item.icon,
-          isActive: activeAnchor === item.anchor,
-        }));
+        return adminGroups;
       }
 
       return [
