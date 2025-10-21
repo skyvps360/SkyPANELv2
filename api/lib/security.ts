@@ -1,7 +1,6 @@
 /**
  * Security utilities for admin user management
  */
-import { Request } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 
 export interface SecurityValidationResult {

@@ -84,10 +84,9 @@ export const useVirtualScroll = <T>(
  */
 export const useMemoizedCalculation = <T, R>(
   calculation: (input: T) => R,
-  input: T,
-  deps: React.DependencyList = []
+  input: T
 ): R => {
-  return React.useMemo(() => calculation(input), [input, ...deps]);
+  return React.useMemo(() => calculation(input), [calculation, input]);
 };
 
 /**

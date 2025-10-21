@@ -10,7 +10,7 @@ import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { getClientIP } from '../lib/ipDetection.js';
-import { logActivity, logRateLimitEvent } from '../services/activityLogger.js';
+import { logRateLimitEvent } from '../services/activityLogger.js';
 import { recordRateLimitEvent } from '../services/rateLimitMetrics.js';
 import type { AuthenticatedRequest } from './auth.js';
 

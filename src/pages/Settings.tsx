@@ -10,22 +10,17 @@ import {
   Key, 
   Bell, 
   Shield, 
-  CreditCard,
   Save,
   Eye,
   EyeOff,
   Copy,
-  RefreshCw,
   Trash2,
-  AlertTriangle,
-  X
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';

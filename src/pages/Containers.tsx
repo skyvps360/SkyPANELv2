@@ -3,7 +3,7 @@
  * Handles Docker container creation, management, and monitoring
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Plus, 
@@ -18,11 +18,9 @@ import {
   Cpu, 
   MemoryStick 
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Status } from '@/components/ui/status';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
@@ -63,7 +61,6 @@ const Containers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedContainer, setSelectedContainer] = useState<ContainerInfo | null>(null);
   const [createForm, setCreateForm] = useState<CreateContainerForm>({
     name: '',
     image: '',
@@ -75,11 +72,7 @@ const Containers: React.FC = () => {
   });
   const { token } = useAuth();
 
-  useEffect(() => {
-    loadContainers();
-  }, []);
-
-  const loadContainers = async () => {
+  const loadContainers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/containers', {
@@ -107,7 +100,11 @@ const Containers: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadContainers();
+  }, [loadContainers]);
 
   const handleContainerAction = async (containerId: string, action: 'start' | 'stop' | 'restart' | 'remove') => {
     try {
@@ -213,22 +210,6 @@ const Containers: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'running':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'stopped':
-        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
-      case 'paused':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'restarting':
-        return 'text-primary bg-primary/10 dark:text-primary dark:bg-primary/20';
-      case 'error':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default:
-        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
-    }
-  };
 
   const getContainerStatusVariant = (status: string) => {
     switch (status) {
@@ -262,14 +243,6 @@ const Containers: React.FC = () => {
       default:
         return null;
     }
-  };
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const formatDate = (dateString: string): string => {

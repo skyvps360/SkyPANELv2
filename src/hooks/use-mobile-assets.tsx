@@ -69,6 +69,8 @@ export function useMobileAssets() {
       decoding: 'async'
     };
 
+    props['data-quality'] = quality;
+
     // Add responsive sizing for mobile
     if (isMobile) {
       props.sizes = '(max-width: 768px) 100vw, 50vw';

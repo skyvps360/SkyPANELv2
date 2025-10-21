@@ -18,12 +18,8 @@ import {
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -175,14 +171,15 @@ const Support: React.FC = () => {
       es.close();
       eventSourceRef.current = null;
     };
-  }, [selectedTicket?.id, token, scrollToBottom]);
+  }, [selectedTicket, token, scrollToBottom]);
 
   // Auto-scroll when messages change
   useEffect(() => {
-    if (selectedTicket && selectedTicket.messages.length > 0) {
-      scrollToBottom();
+    if (!selectedTicket || selectedTicket.messages.length === 0) {
+      return;
     }
-  }, [selectedTicket?.messages.length, scrollToBottom]);
+    scrollToBottom();
+  }, [selectedTicket, scrollToBottom]);
 
   const [newTicket, setNewTicket] = useState({
     subject: '',

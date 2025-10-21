@@ -8,18 +8,10 @@ import {
   CheckCircle, 
   Users, 
   Globe, 
-  Clock, 
   Star,
   TrendingUp,
-  Cpu,
-  HardDrive,
-  Network,
-  DollarSign,
   ChevronDown,
-  Play,
   Award,
-  Headphones,
-  FileText,
   Github,
   Twitter,
   Linkedin
@@ -152,8 +144,10 @@ export default function Home() {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</a>
               <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
-              <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">About</a>
-              <a href="#support" className="text-sm font-medium hover:text-primary transition-colors">Support</a>
+              <Link to="/about" className="text-sm font-medium hover:text-primary transition-colors">About</Link>
+              <Link to="/contact" className="text-sm font-medium hover:text-primary transition-colors">Contact</Link>
+              <Link to="/faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</Link>
+              <Link to="/status" className="text-sm font-medium hover:text-primary transition-colors">Status</Link>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" asChild>
@@ -377,7 +371,7 @@ export default function Home() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
-                <Link to="/support">
+                <Link to="/contact">
                   Contact Sales
                 </Link>
               </Button>
@@ -423,13 +417,13 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Support Column */}
+            {/* Contact Column */}
             <div>
-              <h3 className="font-semibold mb-4">Support</h3>
+              <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact Us</Link></li>
                 <li><Link to="/support" className="hover:text-foreground transition-colors">Help Center</Link></li>
-                <li><a href="mailto:support@example.com" className="hover:text-foreground transition-colors">Contact Us</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Status Page</a></li>
+                <li><Link to="/status" className="hover:text-foreground transition-colors">Status Page</Link></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
               </ul>
             </div>
@@ -438,9 +432,9 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#about" className="hover:text-foreground transition-colors">About</a></li>
+                <li><Link to="/about" className="hover:text-foreground transition-colors">About</Link></li>
+                <li><Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Careers</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
               </ul>
             </div>

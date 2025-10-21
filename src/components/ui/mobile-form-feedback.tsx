@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 import { AlertCircle, CheckCircle2, Info, AlertTriangle } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"

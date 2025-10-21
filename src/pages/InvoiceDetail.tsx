@@ -8,9 +8,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Download, ChevronLeft, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import AppLayout from '../components/AppLayout';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 
 interface Invoice {
   id: string;

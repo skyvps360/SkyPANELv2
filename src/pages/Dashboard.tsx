@@ -3,7 +3,7 @@
  * Main overview page showing containers, VPS instances, billing, and recent activity
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Server, 
   Container, 
@@ -11,22 +11,13 @@ import {
   Activity, 
   TrendingUp, 
   AlertTriangle,
-  Plus,
-  Eye,
-  Settings,
-  Play,
-  Pause,
-  Square,
-  Monitor,
-  HardDrive,
-  Cpu,
-  MemoryStick
+  Plus
 } from 'lucide-react';
 // Layout provides Navigation and Sidebar globally
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -99,11 +90,7 @@ const Dashboard: React.FC = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       const [containersRes, vpsRes, walletRes, paymentsRes] = await Promise.all([
@@ -215,7 +202,7 @@ const Dashboard: React.FC = () => {
           setRecentActivity(mapped);
         }
       } catch (e) {
-        console.warn('Failed to load recent activity');
+        console.warn('Failed to load recent activity', e);
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -223,7 +210,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -232,32 +223,6 @@ const Dashboard: React.FC = () => {
     }).format(amount);
   };
 
-  const formatPercent = (value: number): string => `${Math.max(0, Number(value) || 0).toFixed(1)}%`;
-  const formatNetworkRate = (value: number): string => {
-    if (!Number.isFinite(Number(value)) || Number(value) <= 0) return '0 Mbps';
-    const mbps = Number(value) / 1_000_000;
-    return `${mbps.toFixed(mbps >= 10 ? 1 : 2)} Mbps`;
-  };
-  const formatBlocks = (value: number): string => {
-    if (!Number.isFinite(Number(value)) || Number(value) <= 0) return '0 blk/s';
-    const num = Number(value);
-    return `${num.toFixed(num >= 10 ? 1 : 2)} blk/s`;
-  };
-
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'running':
-        return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20';
-      case 'stopped':
-        return 'text-muted-foreground text-muted-foreground bg-muted';
-      case 'error':
-        return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
-      case 'provisioning':
-        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20';
-      default:
-        return 'text-muted-foreground text-muted-foreground bg-muted';
-    }
-  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {

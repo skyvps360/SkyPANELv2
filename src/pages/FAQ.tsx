@@ -1,10 +1,15 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
-import { useState } from "react";
-import { BRAND_NAME } from "../lib/brand";
+import { ArrowUpRight, BookOpen, LifeBuoy, Search } from "lucide-react";
+
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { BRAND_NAME } from "../lib/brand";
+import PublicLayout from "@/components/PublicLayout";
 
 const faqs = [
   {
@@ -127,136 +132,197 @@ const faqs = [
   },
 ];
 
+const quickLinks = [
+  { label: "Open a support ticket", href: "/support", icon: LifeBuoy },
+  { label: "View platform status", href: "/status", icon: ArrowUpRight },
+  { label: "Browse API docs", href: "/api-docs", icon: BookOpen },
+];
+
+const toSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
 export default function FAQ() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([faqs[0].category]);
-  const [expandedQuestions, setExpandedQuestions] = useState<string[]>([]);
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
+  const filteredFaqs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-  const toggleQuestion = (question: string) => {
-    setExpandedQuestions(prev =>
-      prev.includes(question)
-        ? prev.filter(q => q !== question)
-        : [...prev, question]
-    );
-  };
+    if (!query) {
+      return faqs;
+    }
 
-  const filteredFaqs = faqs.map(category => ({
-    ...category,
-    questions: category.questions.filter(
-      qa =>
-        qa.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        qa.a.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
-  })).filter(category => category.questions.length > 0);
+    return faqs
+      .map(category => ({
+        ...category,
+        questions: category.questions.filter(qa =>
+          qa.q.toLowerCase().includes(query) || qa.a.toLowerCase().includes(query)
+        ),
+      }))
+      .filter(category => category.questions.length > 0);
+  }, [searchQuery]);
+
+  const totalQuestions = useMemo(
+    () => faqs.reduce((count, category) => count + category.questions.length, 0),
+    []
+  );
 
   return (
-    <div className="container mx-auto max-w-5xl py-12 px-4">
-      {/* Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-foreground mb-4">Frequently Asked Questions</h1>
-        <p className="text-lg text-muted-foreground mb-8">
-          Find answers to common questions about {BRAND_NAME}
-        </p>
-        
-        {/* Search */}
-        <div className="max-w-xl mx-auto relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-          <Input
-            type="text"
-            placeholder="Search FAQs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* FAQ Categories */}
-      <div className="space-y-4">
-        {filteredFaqs.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-muted-foreground">
-                No FAQs found matching your search. Try different keywords or{" "}
-                <Link to="/support" className="text-primary hover:underline">
-                  contact support
-                </Link>.
+    <PublicLayout>
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+      <div className="grid gap-10 lg:grid-cols-[2fr,1fr]">
+        <div>
+          <div className="mb-10 space-y-4">
+            <div className="space-y-2">
+              <Badge variant="outline" className="uppercase tracking-wide">Support</Badge>
+              <h1 className="text-3xl font-semibold md:text-4xl">Frequently Asked Questions</h1>
+              <p className="text-muted-foreground text-base">
+                Find answers to the most common questions about {BRAND_NAME}. Still stuck? Our support team is a message away.
               </p>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search by keyword or topic"
+                    className="pl-10"
+                  />
+                </div>
+                <CardDescription className="mt-3 text-xs">
+                  Showing {filteredFaqs.reduce((count, category) => count + category.questions.length, 0)} of {totalQuestions} answers
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+
+          {filteredFaqs.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <h2 className="text-xl font-medium">No results for “{searchQuery}”</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Try adjusting your search or {""}
+                  <Link to="/support" className="font-medium text-primary">
+                    contact support
+                  </Link>{" "}
+                  for personalized help.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Accordion
+              key={searchQuery}
+              type="multiple"
+              defaultValue={filteredFaqs.length ? [toSlug(filteredFaqs[0].category)] : []}
+              className="space-y-4"
+            >
+              {filteredFaqs.map((category) => (
+                <AccordionItem value={toSlug(category.category)} key={category.category} className="border-none">
+                  <Card className="shadow-sm">
+                    <AccordionTrigger className="px-6 py-5">
+                      <div className="flex w-full items-start justify-between gap-4 text-left">
+                        <div className="space-y-1">
+                          <CardTitle className="text-xl font-semibold">{category.category}</CardTitle>
+                          <CardDescription className="text-sm">
+                            {category.questions.length} {category.questions.length === 1 ? "question" : "questions"}
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary">Category</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <Separator />
+                      <div className="px-6 py-4">
+                        <Accordion type="multiple" className="space-y-2">
+                          {category.questions.map((qa, index) => (
+                            <AccordionItem value={`${toSlug(category.category)}-${index}`} key={qa.q} className="border rounded-lg">
+                              <AccordionTrigger className="px-4 py-3 text-left text-base font-medium">
+                                {qa.q}
+                              </AccordionTrigger>
+                              <AccordionContent className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground">
+                                {qa.a}
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      </div>
+                    </AccordionContent>
+                  </Card>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
+
+          <Card className="mt-10 border-primary/30 bg-primary/5">
+            <CardContent className="flex flex-col items-start justify-between gap-6 px-8 py-8 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-2xl font-semibold">Still have questions?</h2>
+                <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                  We’re here to help with anything from billing to infrastructure architecture. Reach out and we’ll respond within one business day.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild size="lg">
+                  <Link to="/support">Open support ticket</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link to="/contact">Talk to sales</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        ) : (
-          filteredFaqs.map((category) => (
-            <Card key={category.category}>
-              <CardHeader 
-                className="cursor-pointer hover:bg-secondary/50 transition-colors"
-                onClick={() => toggleCategory(category.category)}
-              >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">{category.category}</CardTitle>
-                  {expandedCategories.includes(category.category) ? (
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-              
-              {expandedCategories.includes(category.category) && (
-                <CardContent className="space-y-4">
-                  {category.questions.map((qa, idx) => (
-                    <div key={idx} className="border-b border-border last:border-0 pb-4 last:pb-0">
-                      <button
-                        onClick={() => toggleQuestion(qa.q)}
-                        className="w-full text-left flex items-start justify-between gap-4 py-2"
-                      >
-                        <h3 className="font-medium text-foreground">{qa.q}</h3>
-                        {expandedQuestions.includes(qa.q) ? (
-                          <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        )}
-                      </button>
-                      {expandedQuestions.includes(qa.q) && (
-                        <p className="text-muted-foreground mt-2 ml-0 text-sm leading-relaxed">
-                          {qa.a}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </CardContent>
-              )}
-            </Card>
-          ))
-        )}
-      </div>
+        </div>
 
-      {/* Still have questions? */}
-      <Card className="mt-12 bg-primary/5 border-primary/20">
-        <CardContent className="text-center py-8">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">
-            Still have questions?
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            Can't find what you're looking for? Our support team is here to help.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button asChild>
-              <Link to="/support">Contact Support</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/help-center">Visit Help Center</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <div className="hidden space-y-6 lg:block">
+          <Card>
+            <CardHeader>
+              <CardTitle>Need something else?</CardTitle>
+              <CardDescription>Direct links to our most-requested support resources.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {quickLinks.map(({ label, href, icon: Icon }) => (
+                <Button
+                  key={href}
+                  variant="ghost"
+                  asChild
+                  className="h-auto w-full justify-start px-3 py-3 text-left"
+                >
+                  <Link to={href} className="flex items-center gap-3">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <span className="flex-1 text-sm font-medium">{label}</span>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Latest updates</CardTitle>
+              <CardDescription>Highlights from our release notes and platform announcements.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <div>
+                <p className="font-medium text-foreground">New API endpoints for theme controls</p>
+                <p>Automate theme presets and dynamic branding from your CI/CD pipeline.</p>
+              </div>
+              <Separator />
+              <div>
+                <p className="font-medium text-foreground">Status page redesign</p>
+                <p>Real-time health metrics with region-level granularity and historical uptime.</p>
+              </div>
+              <Separator />
+              <div>
+                <p className="font-medium text-foreground">Improved billing transparency</p>
+                <p>Hourly usage charts and wallet alerts keep your finance team in sync.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      </div>
+    </PublicLayout>
   );
 }

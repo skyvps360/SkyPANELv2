@@ -1,211 +1,283 @@
 import { Link } from "react-router-dom";
-import { Server, Users, Shield, Zap, Globe, Award } from "lucide-react";
-import { BRAND_NAME } from "../lib/brand";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Award,
+  Building2,
+  Cpu,
+  Globe,
+  Handshake,
+  Layers,
+  Shield,
+  Sparkles,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { BRAND_NAME } from "../lib/brand";
+import PublicLayout from "@/components/PublicLayout";
+
+const values = [
+  {
+    title: "Reliability first",
+    description: "Enterprise-grade infrastructure, redundant networking, and observability baked into every region.",
+    icon: Shield,
+  },
+  {
+    title: "Developer delight",
+    description: "An interface built for busy teams—predictable APIs, consistent CLI tooling, and actionable dashboards.",
+    icon: Zap,
+  },
+  {
+    title: "Transparent pricing",
+    description: "Metered billing down to the hour with clear invoices, usage alerts, and no surprise overages.",
+    icon: Award,
+  },
+  {
+    title: "Global reach",
+    description: "Low-latency deployments across strategic regions so you can ship closer to your customers.",
+    icon: Globe,
+  },
+  {
+    title: "Human support",
+    description: "Real engineers on-call 24/7 to help troubleshoot incidents, migrations, and architectural decisions.",
+    icon: Users,
+  },
+  {
+    title: "Security by design",
+    description: "Hardening, compliance, and audit trails woven into the platform from SSH access to activity logs.",
+    icon: Target,
+  },
+];
+
+const stats = [
+  { label: "Platform uptime", value: "99.99%" },
+  { label: "Active organizations", value: "1,800+" },
+  { label: "Regions available", value: "18" },
+  { label: "Support CSAT", value: "4.9 / 5" },
+];
+
+const differentiators = [
+  {
+    title: "Opinionated automation",
+    description: "Reusable stack scripts, GitOps-ready APIs, and fine-grained access controls designed to scale with your org.",
+    icon: Layers,
+  },
+  {
+    title: "Finance-friendly tooling",
+    description: "Shared wallets, granular usage exports, and alerts keep engineering and finance aligned without spreadsheet wrangling.",
+    icon: Handshake,
+  },
+  {
+    title: "Managed partner ecosystem",
+    description: "Carefully vetted integrations with Linode, PayPal, and monitoring providers so you can extend without re-architecting.",
+    icon: Building2,
+  },
+];
+
+const milestones = [
+  {
+    year: "2023",
+    title: "Founded to simplify infrastructure",
+    description: "Launched {BRAND_NAME} with a vision to bring managed containers and VPS into a single, cohesive control plane.",
+  },
+  {
+    year: "2024",
+    title: "Expanded to multi-region",
+    description: "Rolled out global networking, API keys, and SOC 2-aligned activity logging for enterprise customers.",
+  },
+  {
+    year: "2025",
+    title: "Automation-first platform",
+    description: "Introduced programmable themes, advanced billing insights, and a refined admin experience for large teams.",
+  },
+];
 
 export default function AboutUs() {
   return (
-    <div className="container mx-auto max-w-6xl py-12 px-4">
-      {/* Hero Section */}
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-          About {BRAND_NAME}
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          We're on a mission to make cloud infrastructure accessible, affordable, and easy to use for everyone.
-        </p>
-      </div>
-
-      {/* Mission Statement */}
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Our Mission</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            {BRAND_NAME} was founded with a simple vision: to democratize access to enterprise-grade cloud infrastructure. We believe that every developer, startup, and business should have access to powerful, reliable, and affordable cloud services without the complexity and high costs typically associated with cloud platforms.
+    <PublicLayout>
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+      <section className="space-y-6 text-center">
+        <Badge variant="outline" className="mx-auto uppercase tracking-wide">Who we are</Badge>
+        <div className="space-y-4">
+          <h1 className="text-3xl font-semibold md:text-5xl">The infrastructure platform teams actually enjoy using</h1>
+          <p className="mx-auto max-w-3xl text-base text-muted-foreground md:text-lg">
+            {BRAND_NAME} gives engineering, platform, and security teams a unified way to deploy containers, manage VPS fleets, and understand spend—without losing the human support that growing companies need.
           </p>
-          <p className="text-muted-foreground leading-relaxed mt-4">
-            By partnering with leading infrastructure providers and focusing on simplicity and transparency, we've created a platform that makes deploying and managing cloud resources as easy as it should be.
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Build faster</span>
+          <span className="inline-flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Stay secure</span>
+          <span className="inline-flex items-center gap-2"><Cpu className="h-4 w-4 text-primary" /> Scale confidently</span>
+        </div>
+      </section>
+
+      <section className="mt-12 grid gap-8 md:grid-cols-[2fr,1fr]">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Our mission</CardTitle>
+            <CardDescription className="text-base">
+              Empower builders with reliable infrastructure that doesn’t require a dedicated operations team to unlock.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-6 text-muted-foreground">
+            <p>
+              We founded {BRAND_NAME} to bridge the gap between developer velocity and operational excellence. Traditional cloud platforms offer power at the cost of complexity. We believe you shouldn’t need a week of training—or professional services—to ship your next release.
+            </p>
+            <p>
+              By pairing opinionated defaults with transparent controls, we help teams move from manual provisioning to scripted automation without losing visibility or governance.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>At a glance</CardTitle>
+            <CardDescription>Numbers that reflect how customers rely on us today.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-lg border border-border p-4 text-left">
+                <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-16 space-y-8">
+        <div className="space-y-2 text-center">
+          <h2 className="text-2xl font-semibold md:text-3xl">What drives our team</h2>
+          <p className="mx-auto max-w-2xl text-sm text-muted-foreground md:text-base">
+            Every decision—from API design to support SLAs—starts with empathy for the teams running production workloads on our platform.
           </p>
-        </CardContent>
-      </Card>
-
-      {/* Core Values */}
-      <div className="mb-16">
-        <h2 className="text-3xl font-semibold text-foreground text-center mb-8">Our Core Values</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <Shield className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Reliability</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                We partner with top-tier infrastructure providers to ensure 99.9% uptime and maximum reliability for your mission-critical applications.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Zap className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Simplicity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Complex cloud platforms shouldn't be hard to use. We've designed our interface to be intuitive and straightforward, so you can focus on building, not configuring.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Award className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Transparency</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                No hidden fees, no surprise charges. Our pricing is simple and transparent with hourly billing that shows exactly what you're paying for.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Globe className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Global Reach</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Deploy your applications closer to your users with data centers across North America, Europe, and Asia.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Server className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Performance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Powered by enterprise-grade hardware and optimized infrastructure to deliver the performance your applications demand.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Users className="h-12 w-12 text-primary mb-4" />
-              <CardTitle>Support</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Our dedicated support team is available 24/7 to help you succeed with quick response times and expert assistance.
-              </p>
-            </CardContent>
-          </Card>
         </div>
-      </div>
 
-      {/* What We Offer */}
-      <div className="mb-16">
-        <h2 className="text-3xl font-semibold text-foreground text-center mb-8">What We Offer</h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>VPS Hosting</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Full-featured virtual private servers with dedicated resources, root access, and your choice of Linux distributions. Perfect for websites, applications, and development environments.
-              </p>
-              <Button variant="link" asChild className="px-0">
-                <Link to="/dedicated-servers">Learn more about VPS →</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Container Hosting</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Deploy Docker containers with ease. Ideal for microservices, modern applications, and cloud-native development with instant scaling and deployment.
-              </p>
-              <Button variant="link" asChild className="px-0">
-                <Link to="/containers-page">Learn more about Containers →</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Managed Services</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Automated backups, monitoring, security updates, and more. Focus on your business while we handle the infrastructure management.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Developer Tools</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Full API access, CLI tools, and integrations. Automate your infrastructure and integrate with your existing workflows seamlessly.
-              </p>
-              <Button variant="link" asChild className="px-0">
-                <Link to="/api-docs-public">View API Documentation →</Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-3">
+          {values.map(({ title, description, icon: Icon }) => (
+            <Card key={title} className="h-full border-border/80">
+              <CardHeader className="space-y-3">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <CardTitle className="text-lg">{title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-6">{description}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {/* Statistics */}
-      <div className="bg-primary/5 rounded-lg p-8 mb-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div>
-            <div className="text-4xl font-bold text-primary mb-2">99.9%</div>
-            <div className="text-muted-foreground">Uptime SLA</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-primary mb-2">24/7</div>
-            <div className="text-muted-foreground">Support Available</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-primary mb-2">15+</div>
-            <div className="text-muted-foreground">Data Centers</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-primary mb-2">1000s</div>
-            <div className="text-muted-foreground">Happy Customers</div>
-          </div>
-        </div>
-      </div>
+      <section className="mt-16 grid gap-6 md:grid-cols-3">
+        {differentiators.map(({ title, description, icon: Icon }) => (
+          <Card key={title} className="border-primary/20 bg-primary/5">
+            <CardHeader className="space-y-3">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Icon className="h-5 w-5" />
+              </div>
+              <CardTitle className="text-lg">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground leading-6">{description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
 
-      {/* Call to Action */}
-      <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-        <CardContent className="text-center py-12">
-          <h2 className="text-3xl font-bold text-foreground mb-4">Ready to Get Started?</h2>
-          <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of developers and businesses who trust {BRAND_NAME} for their cloud infrastructure needs.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button size="lg" asChild>
-              <Link to="/register">Create Free Account</Link>
+      <section className="mt-16">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Our journey</CardTitle>
+            <CardDescription>Key milestones that shaped the platform.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-3">
+              {milestones.map((milestone) => (
+                <div key={milestone.year} className="rounded-lg border border-dashed border-border/70 p-5">
+                  <Badge variant="secondary" className="mb-3">{milestone.year}</Badge>
+                  <h3 className="text-lg font-semibold text-foreground">{milestone.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-6">
+                    {milestone.description.replace("{BRAND_NAME}", BRAND_NAME)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-16 grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>How we partner with teams</CardTitle>
+            <CardDescription>Every account gets a dedicated onboarding plan tailored to their stack.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              From the first migration call to production launch, our success engineers help map workloads, configure security guardrails, and set up monitoring so your team can stay focused on features.
+            </p>
+            <ul className="space-y-2">
+              <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-primary" /> Guided migrations &amp; architecture reviews</li>
+              <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-primary" /> Incident response playbooks and runbooks</li>
+              <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-primary" /> Quarterly cost optimization sessions</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="ghost" className="px-0">
+              <Link to="/contact" className="text-primary">Meet the team →</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/contact">Contact Sales</Link>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Built for modern workflows</CardTitle>
+            <CardDescription>Everything connects back to your preferred tools.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>Provision infrastructure with Terraform, manage secrets through your SSO provider, and audit activity directly from our API or UI.</p>
+            <Separator />
+            <div className="flex flex-wrap gap-3 text-xs uppercase tracking-wide text-muted-foreground/80">
+              <span className="rounded-full border border-border px-3 py-1">Terraform</span>
+              <span className="rounded-full border border-border px-3 py-1">GitOps</span>
+              <span className="rounded-full border border-border px-3 py-1">SAML / SSO</span>
+              <span className="rounded-full border border-border px-3 py-1">Audit Logs</span>
+              <span className="rounded-full border border-border px-3 py-1">Prometheus</span>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="ghost" className="px-0">
+              <Link to="/api-docs" className="text-primary">Explore the API →</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </section>
+
+      <Card className="mt-20 border-primary/30 bg-primary/5 shadow-sm">
+        <CardContent className="flex flex-col items-start justify-between gap-6 px-8 py-10 md:flex-row md:items-center">
+          <div className="space-y-3">
+            <h2 className="text-3xl font-semibold">Ready to build with {BRAND_NAME}?</h2>
+            <p className="max-w-xl text-sm text-muted-foreground md:text-base">
+              Spin up your first environment in minutes, invite your team, and start deploying with confidence. We’ll be here if you need us.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild size="lg">
+              <Link to="/register">Create free account</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/contact">Talk with sales</Link>
             </Button>
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PublicLayout>
   );
 }

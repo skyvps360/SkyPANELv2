@@ -2,14 +2,9 @@ import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Activity,
-  Box,
-  Boxes,
   CreditCard,
-  FileCode,
-  Globe,
   LayoutDashboard,
   LifeBuoy,
-  Palette,
   Search,
   Server,
   ServerCog,
