@@ -3,7 +3,8 @@
  * Provides aggregated statistics for VPS infrastructure and platform-wide metrics
  */
 
-import { query } from '../lib/database.js';
+import { query } from "../lib/database.js";
+import { linodeService } from "./linodeService.js";
 
 interface VPSStatusBreakdown {
   running: number;
@@ -72,7 +73,7 @@ export class PlatformStatsService {
   private static isCacheValid<T>(cache: CachedStats<T> | null): boolean {
     if (!cache) return false;
     const now = Date.now();
-    return (now - cache.timestamp) < this.CACHE_TTL_MS;
+    return now - cache.timestamp < this.CACHE_TTL_MS;
   }
 
   /**
@@ -83,7 +84,7 @@ export class PlatformStatsService {
     if (this.isCacheValid(this.vpsStatsCache)) {
       return {
         vps: this.vpsStatsCache!.data,
-        lastUpdated: new Date(this.vpsStatsCache!.timestamp).toISOString()
+        lastUpdated: new Date(this.vpsStatsCache!.timestamp).toISOString(),
       };
     }
 
@@ -109,7 +110,7 @@ export class PlatformStatsService {
         stopped: 0,
         provisioning: 0,
         rebooting: 0,
-        error: 0
+        error: 0,
       };
 
       // Get resource totals by joining with vps_plans
@@ -125,7 +126,7 @@ export class PlatformStatsService {
       const resourceRow = resourceResult.rows[0] || {
         total_vcpus: 0,
         total_memory_gb: 0,
-        total_disk_gb: 0
+        total_disk_gb: 0,
       };
 
       const vpsStats: VPSStats = {
@@ -135,28 +136,28 @@ export class PlatformStatsService {
           stopped: parseInt(statusRow.stopped) || 0,
           provisioning: parseInt(statusRow.provisioning) || 0,
           rebooting: parseInt(statusRow.rebooting) || 0,
-          error: parseInt(statusRow.error) || 0
+          error: parseInt(statusRow.error) || 0,
         },
         resources: {
           totalVCPUs: parseInt(resourceRow.total_vcpus) || 0,
           totalMemoryGB: parseInt(resourceRow.total_memory_gb) || 0,
-          totalDiskGB: parseInt(resourceRow.total_disk_gb) || 0
-        }
+          totalDiskGB: parseInt(resourceRow.total_disk_gb) || 0,
+        },
       };
 
       // Cache the result
       const now = Date.now();
       this.vpsStatsCache = {
         data: vpsStats,
-        timestamp: now
+        timestamp: now,
       };
 
       return {
         vps: vpsStats,
-        lastUpdated: new Date(now).toISOString()
+        lastUpdated: new Date(now).toISOString(),
       };
     } catch (error) {
-      console.error('Error fetching VPS stats:', error);
+      console.error("Error fetching VPS stats:", error);
       throw error;
     }
   }
@@ -222,53 +223,62 @@ export class PlatformStatsService {
       const plansResult = await query(`
         SELECT COUNT(*) as vps_plans
         FROM vps_plans
-        WHERE available = true
+        WHERE active = true
       `);
 
       const plansRow = plansResult.rows[0] || { vps_plans: 0 };
 
-      // Get regions count from Linode API (since there's no regions table)
-      // For now, we'll return 0 for container plans and regions
-      // These can be enhanced later when the data is available
+      // Get regions count from Linode API
+      let regionCount = 0;
+      try {
+        const regions = await linodeService.getLinodeRegions();
+        regionCount = regions.length;
+      } catch (error) {
+        console.warn(
+          "Failed to fetch Linode regions for platform stats:",
+          error
+        );
+        // Fallback to 0 if API call fails
+      }
       const platformStats: PlatformStats = {
         users: {
           total: parseInt(userRow.total) || 0,
           admins: parseInt(userRow.admins) || 0,
-          regular: parseInt(userRow.regular) || 0
+          regular: parseInt(userRow.regular) || 0,
         },
         organizations: {
-          total: parseInt(orgRow.total) || 0
+          total: parseInt(orgRow.total) || 0,
         },
         vps: {
           total: parseInt(vpsRow.total) || 0,
-          active: parseInt(vpsRow.active) || 0
+          active: parseInt(vpsRow.active) || 0,
         },
         containers: {
-          total: parseInt(containerRow.total) || 0
+          total: parseInt(containerRow.total) || 0,
         },
         support: {
           totalTickets: parseInt(ticketRow.total) || 0,
-          openTickets: parseInt(ticketRow.open) || 0
+          openTickets: parseInt(ticketRow.open) || 0,
         },
         plans: {
           vpsPlans: parseInt(plansRow.vps_plans) || 0,
-          containerPlans: 0 // No container plans table exists yet
+          containerPlans: 0, // No container plans table exists yet
         },
         regions: {
-          total: 0 // No regions table exists, would need to query Linode API
+          total: regionCount,
         },
-        cacheExpiry: new Date(Date.now() + this.CACHE_TTL_MS).toISOString()
+        cacheExpiry: new Date(Date.now() + this.CACHE_TTL_MS).toISOString(),
       };
 
       // Cache the result
       this.platformStatsCache = {
         data: platformStats,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       return platformStats;
     } catch (error) {
-      console.error('Error fetching platform stats:', error);
+      console.error("Error fetching platform stats:", error);
       throw error;
     }
   }

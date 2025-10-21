@@ -377,7 +377,7 @@ router.get("/platform-stats", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
-      stats: platformStats
+      ...platformStats
     });
   } catch (error) {
     console.error("Platform stats endpoint failed:", error);

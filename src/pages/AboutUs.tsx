@@ -127,8 +127,11 @@ export default function AboutUs() {
   const { data: platformStats, isLoading, isError } = useQuery<PlatformStats>({
     queryKey: ['platform-stats'],
     queryFn: async () => {
-      const response = await api.get('/health/platform-stats');
-      return response.data;
+      const response = await api.get<any>('/health/platform-stats');
+      // API client returns the full response object with success, timestamp, and spread stats
+      // Extract just the stats by removing metadata fields
+      const { success, timestamp, ...stats } = response;
+      return stats as PlatformStats;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
