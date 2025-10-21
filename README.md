@@ -58,22 +58,86 @@ If you find my work helpful, consider supporting me:
 - **tsx** (installed via npm, for TypeScript execution)
 
 ## Example Images (rotated Regularly)
-<img width="1914" height="946" alt="image" src="https://github.com/user-attachments/assets/2a251974-5d12-422b-a5e2-50025ba2ea80" />
-<img width="1910" height="945" alt="image" src="https://github.com/user-attachments/assets/80d84596-23e8-44f6-9773-fa041fe043e6" />
-<img width="1903" height="947" alt="image" src="https://github.com/user-attachments/assets/5de28224-95fb-4160-b654-a4c5583fb514" />
-<img width="1920" height="946" alt="image" src="https://github.com/user-attachments/assets/c40e220e-2085-485d-a006-b1051ea9e745" />
-<img width="1918" height="952" alt="image" src="https://github.com/user-attachments/assets/5b369e72-0496-4002-adac-c4b0faab21c7" />
-<img width="1901" height="945" alt="image" src="https://github.com/user-attachments/assets/12389b65-0727-4ba9-9316-64e62014287d" />
-<img width="1911" height="953" alt="image" src="https://github.com/user-attachments/assets/0fdefe67-5e8f-41a5-87f2-d49bacc376c7" />
-<img width="1920" height="963" alt="image" src="https://github.com/user-attachments/assets/2d807a6d-c216-4435-ae28-0da8b1937013" />
-<img width="1910" height="932" alt="image" src="https://github.com/user-attachments/assets/72d0205f-430b-494c-8e95-c7c4438eed27" />
-<img width="1914" height="948" alt="image" src="https://github.com/user-attachments/assets/9c3d075a-7082-4fbc-b85e-3b5b4ebee967" />
-<img width="1916" height="950" alt="image" src="https://github.com/user-attachments/assets/754e8f4c-0b78-4534-9dea-1d3e95832ce1" />
-<img width="1918" height="949" alt="image" src="https://github.com/user-attachments/assets/1e9d921e-2ee5-438b-9794-65b0be748df1" />
-<img width="1916" height="953" alt="image" src="https://github.com/user-attachments/assets/8c58e00e-2cc0-48c0-8a01-d33e776487c2" />
-<img width="1913" height="957" alt="image" src="https://github.com/user-attachments/assets/de6b0dac-87b4-4d54-b167-3a8302a07e51" />
+
+#### Homepage
+<img width="1744" height="4521" alt="image" src="https://github.com/user-attachments/assets/9946df73-39e1-40da-a642-fd52faf99472" />
+
+#### Login & Register Pages
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/6415a34b-1479-4adf-a7a6-7301188b3a67" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/b3f05823-fe36-443e-bb6f-75e305c08206" />
+
+#### Forgot Password
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/6eba2bb3-50a4-4ad4-b37c-01d7ba255b2c" />
+
+#### Reset Forgot Password (SMTP Port 2525 smtp2go)
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/06460344-b3f3-423a-9e3a-eb9f6f5f662e" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/160e193a-56bf-46a8-915c-8f15f4ed3bff" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/e2baaa2b-2d85-49ba-a15e-7bfa7b13e1d4" />
+
+#### Updated Dashboard
+<img width="1859" height="964" alt="image" src="https://github.com/user-attachments/assets/df382c78-3456-4f06-b340-0a38c221bcdf" />
+
+#### VPS Page
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/a3119176-28f3-4e74-8e67-29c055c41822" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/1998e40c-e117-4f56-ba3a-d1905bab641b" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/bd768634-2e49-4a40-80f1-4f2ca9668db0" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/7b205aca-d50d-4859-9fec-d29ebf95bc18" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/811ea291-0598-4c68-96db-b4697a80fc99" />
+<img width="1744" height="975" alt="image" src="https://github.com/user-attachments/assets/fb1fb112-7a8a-4ac0-bb58-5a69ba163687" />
+
+#### VPS/:id Page
+<img width="1744" height="1253" alt="image" src="https://github.com/user-attachments/assets/7551e163-3fb9-46f9-a6aa-57b1ef6705f7" />
+<img width="1744" height="1253" alt="image" src="https://github.com/user-attachments/assets/c137693a-518a-4155-ae74-a56962815a6a" />
+<img width="1744" height="1730" alt="image" src="https://github.com/user-attachments/assets/357704a8-cd79-4a98-9930-a80eee8e9a64" />
+<img width="1744" height="1253" alt="image" src="https://github.com/user-attachments/assets/728b812e-b248-453c-842b-6d8404115550" />
+<img width="1744" height="1253" alt="image" src="https://github.com/user-attachments/assets/7c713ebb-8ae0-4f74-b992-4a56cd5fa5da" />
+<img width="1744" height="1253" alt="image" src="https://github.com/user-attachments/assets/d6132aae-abf7-48fc-af2b-35cd92fdf636" />
+<img width="1744" height="1243" alt="image" src="https://github.com/user-attachments/assets/dcb72608-903f-4b27-a10d-f8c2a35aeae4" />
+<img width="1909" height="983" alt="image" src="https://github.com/user-attachments/assets/4bee7928-69ae-4b8b-a936-07830d2c3bad" />
+
+#### ADMIN Panel / Company Team Panel ( MASSIVE WIP )
+<img width="1744" height="1220" alt="image" src="https://github.com/user-attachments/assets/74968f3c-1154-46b3-9a48-6ae46fd1d3e0" />
+<img width="1744" height="991" alt="image" src="https://github.com/user-attachments/assets/98a4f4d1-f2f7-4a9a-a295-78105e3f3652" />
+<img width="1744" height="1954" alt="image" src="https://github.com/user-attachments/assets/4d47562a-b286-4acc-9f22-e2f1e4f70bab" />
+
+#### Support Tickets Admin Page ( MASSIVE WIP )
+<img width="1744" height="1338" alt="image" src="https://github.com/user-attachments/assets/29f20e74-d6fb-4abf-aa64-d6dc73c9a0b9" />
+
+#### Containers Page (WIP Roadmap)
+<img width="1744" height="975" alt="image" src="https://github.com/user-attachments/assets/60c1fe1b-5571-4fb7-924c-8ec60ba4c153" />
+
+#### Client Facing Activity Logs
+<img width="1744" height="944" alt="image" src="https://github.com/user-attachments/assets/eb8728b5-8baa-4ad0-a9cd-abd6f3fe569f" />
+
+#### Billing
+<img width="1744" height="1503" alt="image" src="https://github.com/user-attachments/assets/15a5868d-188a-4478-9c14-b4948cda2129" />
+<img width="1744" height="901" alt="image" src="https://github.com/user-attachments/assets/a598a35b-503a-4160-9fe2-ec3f1633cba9" />
+
+#### Billing HTML Invoice (Abides By `/admin` brand theme)
+<img width="1744" height="954" alt="image" src="https://github.com/user-attachments/assets/7db9e211-e7fe-488d-b93e-a6ea475e004a" />
+
+#### Command Pallete (WIP)
+<img width="1744" height="1491" alt="image" src="https://github.com/user-attachments/assets/584e0ef1-7259-4dee-85d1-8d995b5a3621" />
+<img width="1744" height="1491" alt="image" src="https://github.com/user-attachments/assets/6c2cf0b9-7d0f-4edb-b30a-4a8e6c0c56b5" />
 
 
+#### AboutUs Page (WIP)
+<img width="1744" height="2925" alt="image" src="https://github.com/user-attachments/assets/3bbf96ea-f9fd-4bbc-ba5b-5a59bb59f006" />
+
+#### Contact Us Page (WIP)
+<img width="1744" height="1811" alt="image" src="https://github.com/user-attachments/assets/61ac82ce-384f-4579-91e9-4866591575d0" />
+
+#### FAQ Page (WIP)
+<img width="1744" height="1885" alt="image" src="https://github.com/user-attachments/assets/c3464bfa-a2e8-40d9-a065-c7ad2112cdd7" />
+
+### Status Page (WIP)
+<img width="1744" height="3365" alt="image" src="https://github.com/user-attachments/assets/5d6dc617-cad4-49f0-bc2d-cfbcbb0f49cf" />
+
+#### TOS / Terms Of Service (WIP Not LEGIT Yet) - Missing shared header & footer
+<img width="1744" height="1444" alt="image" src="https://github.com/user-attachments/assets/4bcc16ca-625a-4559-8e2a-2a015f4d116d" />
+
+#### Privacy Policy (WIP Not LEGIT Yet) - Missing shared header & footer
+<img width="1744" height="1591" alt="image" src="https://github.com/user-attachments/assets/d8e84b6c-87e9-4a45-83bf-c49524ca101e" />
 
 ## 🏗️ Setup & Installation
 
