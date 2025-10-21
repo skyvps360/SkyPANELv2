@@ -114,7 +114,7 @@ const faqs = [
     questions: [
       {
         q: "What data centers do you use?",
-        a: "We partner with leading infrastructure providers including Linode/Akamai. Servers are available in multiple regions worldwide including North America, Europe, and Asia."
+        a: "We partner with leading infrastructure providers including Linode/Akamai, DigitalOcean, and ReliableSite. Servers are available in multiple regions worldwide including North America, Europe, and Asia."
       },
       {
         q: "Do you provide DDoS protection?",
