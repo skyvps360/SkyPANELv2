@@ -25,8 +25,11 @@ The daemon consists of six modules:
 ## Requirements
 
 - Node.js 20+
+- npm/npx (for tsx execution)
 - PostgreSQL database with `billing_daemon_status` table
 - Environment variables configured (see Configuration)
+
+**Note**: This daemon imports TypeScript files from the main application and requires `tsx` for execution.
 
 ## Configuration
 
@@ -47,7 +50,7 @@ LOG_LEVEL=info               # Options: error, warn, info, debug
 
 ```bash
 # From the project root
-node scripts/billing-daemon/index.js
+npx tsx scripts/billing-daemon/index.js
 ```
 
 ### As a systemd Service (Linux)
@@ -86,6 +89,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable containerstacks-billing
 sudo systemctl start containerstacks-billing
 ```
+
+**Note**: The systemd service file has been updated to use `npx tsx` instead of `node` to properly handle TypeScript imports. If you're updating from an older version, make sure to copy the updated service file and reload systemd.
 
 #### Service Management
 
@@ -184,7 +189,7 @@ To test the daemon locally:
 
 1. Ensure your `.env` file is configured
 2. Run the migration to create the status table
-3. Start the daemon: `node scripts/billing-daemon/index.js`
+3. Start the daemon: `npx tsx scripts/billing-daemon/index.js`
 4. Monitor logs and database status
 5. Stop with Ctrl+C to test graceful shutdown
 
