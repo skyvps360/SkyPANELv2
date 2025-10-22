@@ -97,9 +97,10 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
             title: "Settings",
             icon: Settings,
             url: `/admin#theme`,
-            isActive: activeAnchor === "theme",
+            isActive: activeAnchor === "theme" || activeAnchor === "faq-management",
             items: [
               { title: "Theme", url: `/admin#theme`, isActive: activeAnchor === "theme" },
+              { title: "FAQ Management", url: `/admin#faq-management`, isActive: activeAnchor === "faq-management" },
             ],
           },
           {

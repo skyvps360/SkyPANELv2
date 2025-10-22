@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Search, Server, ServerCog, Settings, Ticket, Trash2, Users, X, Box, Boxes, Shield, Calendar, Clock } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, ClipboardList, DollarSign, Edit, FileCode, Globe, Palette, Plus, RefreshCw, Search, Server, ServerCog, Settings, Ticket, Trash2, Users, X, Box, Boxes, Shield, Calendar, Clock, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,9 @@ import { UserActionMenu } from '@/components/admin/UserActionMenu';
 import { UserProfileModal } from '@/components/admin/UserProfileModal';
 import { UserEditModal } from '@/components/admin/UserEditModal';
 import { RateLimitMonitoring } from '@/components/admin/RateLimitMonitoring';
+import { CategoryManager } from '@/components/admin/CategoryManager';
+import { FAQItemManager } from '@/components/admin/FAQItemManager';
+import { UpdatesManager } from '@/components/admin/UpdatesManager';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +49,8 @@ type AdminSection =
   | 'networking'
   | 'theme'
   | 'user-management'
-  | 'rate-limiting';
+  | 'rate-limiting'
+  | 'faq-management';
 
 const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard',
@@ -61,6 +65,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'theme',
   'user-management',
   'rate-limiting',
+  'faq-management',
 ];
 
 const DEFAULT_ADMIN_SECTION: AdminSection = 'dashboard';
@@ -834,6 +839,9 @@ const Admin: React.FC = () => {
       case 'user-management':
         fetchAdminUsers();
         break;
+      case 'faq-management':
+        // FAQ management will handle its own data fetching
+        break;
       default:
         fetchTickets();
         break;
@@ -1585,6 +1593,9 @@ const Admin: React.FC = () => {
         break;
       case 'rate-limiting':
         // Rate limiting monitoring handles its own data fetching
+        break;
+      case 'faq-management':
+        // FAQ management will handle its own data fetching
         break;
       default:
         break;
@@ -2539,6 +2550,23 @@ const Admin: React.FC = () => {
 
             <TabsContent value="rate-limiting" id="rate-limiting">
               <RateLimitMonitoring token={token || ''} />
+            </TabsContent>
+
+            <TabsContent value="faq-management" id="faq-management">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">FAQ Management</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Manage FAQ categories, items, and latest updates displayed on the public FAQ page.
+                    </p>
+                  </div>
+                </div>
+                <CategoryManager token={token || ''} />
+                <FAQItemManager token={token || ''} />
+                <UpdatesManager token={token || ''} />
+              </div>
             </TabsContent>
 
             <TabsContent value="stackscripts" id="stackscripts">

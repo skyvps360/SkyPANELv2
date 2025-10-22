@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, BookOpen, LifeBuoy, Search } from "lucide-react";
+import { ArrowUpRight, BookOpen, LifeBuoy, Search, AlertCircle } from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -8,129 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND_NAME } from "../lib/brand";
 import PublicLayout from "@/components/PublicLayout";
+import { apiClient } from "@/lib/api";
+import type { FAQCategoriesResponse, FAQUpdatesResponse, FAQCategoryWithItems, FAQUpdate } from "@/types/faq";
 
-const faqs = [
-  {
-    category: "Getting Started",
-    questions: [
-      {
-        q: `What is ${BRAND_NAME}?`,
-        a: `${BRAND_NAME} is a cloud infrastructure platform that provides VPS hosting, container deployment, and managed services. We offer flexible, scalable solutions for businesses of all sizes.`
-      },
-      {
-        q: "How do I create an account?",
-        a: "Click the 'Register' button at the top right of the page. Fill in your email, create a password, and verify your email address. Once verified, you can start deploying services immediately."
-      },
-      {
-        q: "What payment methods do you accept?",
-        a: "We accept PayPal for wallet top-ups. You can add funds to your wallet using credit/debit cards through PayPal's secure payment gateway."
-      },
-      {
-        q: "How does billing work?",
-        a: "We use an hourly billing model. Resources are billed every hour based on usage. Charges are automatically deducted from your prepaid wallet balance."
-      },
-    ]
-  },
-  {
-    category: "VPS Hosting",
-    questions: [
-      {
-        q: "What is a VPS?",
-        a: "A Virtual Private Server (VPS) is a virtualized server that provides dedicated resources (CPU, RAM, storage) in a shared hosting environment. It gives you full root access and control over your server."
-      },
-      {
-        q: "What operating systems are available?",
-        a: "We offer a wide range of Linux distributions including Ubuntu, Debian, CentOS, Fedora, and more. You can also deploy custom images or use marketplace applications."
-      },
-      {
-        q: "Can I upgrade or downgrade my VPS?",
-        a: "Yes! You can resize your VPS at any time. Upgrades happen quickly, while downgrades may require some downtime for disk reduction."
-      },
-      {
-        q: "Do you provide backups?",
-        a: "Yes, we offer automated daily backups and manual snapshots. You can enable backups for any VPS instance and restore from any backup point."
-      },
-    ]
-  },
-  {
-    category: "Containers",
-    questions: [
-      {
-        q: "What is container hosting?",
-        a: "Container hosting allows you to deploy Docker containers for your applications. It's lightweight, portable, and perfect for microservices architecture."
-      },
-      {
-        q: "Can I deploy my own Docker images?",
-        a: "Absolutely! You can deploy any Docker image from Docker Hub or your private registry."
-      },
-      {
-        q: "How do containers differ from VPS?",
-        a: "Containers are lightweight and share the host OS kernel, making them faster to start and more resource-efficient than VPS. However, VPS provides complete isolation and full OS control."
-      },
-    ]
-  },
-  {
-    category: "Billing & Payments",
-    questions: [
-      {
-        q: "How do I add funds to my wallet?",
-        a: "Go to the Billing section and click 'Add Funds'. Enter the amount you want to add and complete the payment through PayPal."
-      },
-      {
-        q: "Can I get a refund?",
-        a: "We offer prorated refunds for unused services. Contact our support team to request a refund, and we'll process it within 5-7 business days."
-      },
-      {
-        q: "What happens if my wallet runs out of funds?",
-        a: "You'll receive email notifications when your balance is low. If your wallet reaches zero, your services will be suspended until you add more funds."
-      },
-      {
-        q: "Can I set up auto-reload?",
-        a: "Currently, auto-reload is not available, but it's on our roadmap. You'll need to manually add funds as needed."
-      },
-    ]
-  },
-  {
-    category: "Support",
-    questions: [
-      {
-        q: "How do I contact support?",
-        a: "You can create a support ticket from your dashboard. We typically respond within 24 hours for regular tickets and within 4 hours for urgent issues."
-      },
-      {
-        q: "Do you offer live chat support?",
-        a: "Currently, support is provided through our ticketing system. Live chat support is planned for future releases."
-      },
-      {
-        q: "What are your support hours?",
-        a: "Our support team is available 24/7 for critical issues. Regular tickets are handled during business hours (9 AM - 6 PM EST)."
-      },
-    ]
-  },
-  {
-    category: "Technical",
-    questions: [
-      {
-        q: "What data centers do you use?",
-        a: "We partner with leading infrastructure providers including Linode/Akamai, DigitalOcean, and ReliableSite. Servers are available in multiple regions worldwide including North America, Europe, and Asia."
-      },
-      {
-        q: "Do you provide DDoS protection?",
-        a: "Yes, all our services include basic DDoS protection. Advanced DDoS mitigation is available as an add-on."
-      },
-      {
-        q: "Can I use my own domain?",
-        a: "Yes! You can point your domain to your VPS or container using A/AAAA records. We also support custom reverse DNS."
-      },
-      {
-        q: "Is there an API available?",
-        a: "Yes, we provide a comprehensive RESTful API. You can generate API keys from your account settings and integrate with our platform programmatically."
-      },
-    ]
-  },
-];
+// Transform API data to match the component's expected format
+interface LocalFAQCategory {
+  category: string;
+  questions: Array<{
+    q: string;
+    a: string;
+  }>;
+}
+
+function transformCategories(apiCategories: FAQCategoryWithItems[]): LocalFAQCategory[] {
+  return apiCategories.map(cat => ({
+    category: cat.name,
+    questions: cat.items.map(item => ({
+      q: item.question,
+      a: item.answer,
+    })),
+  }));
+}
 
 const quickLinks = [
   { label: "Open a support ticket", href: "/support", icon: LifeBuoy },
@@ -142,15 +44,47 @@ const toSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-"
 
 export default function FAQ() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState<LocalFAQCategory[]>([]);
+  const [updates, setUpdates] = useState<FAQUpdate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch FAQ data from API
+  useEffect(() => {
+    const fetchFAQData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch categories and updates in parallel
+        const [categoriesResponse, updatesResponse] = await Promise.all([
+          apiClient.get<FAQCategoriesResponse>('/faq/categories'),
+          apiClient.get<FAQUpdatesResponse>('/faq/updates'),
+        ]);
+
+        // Transform and set categories
+        const transformedCategories = transformCategories(categoriesResponse.categories);
+        setCategories(transformedCategories);
+        setUpdates(updatesResponse.updates);
+      } catch (err) {
+        console.error('Failed to fetch FAQ data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load FAQ content');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFAQData();
+  }, []);
 
   const filteredFaqs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     if (!query) {
-      return faqs;
+      return categories;
     }
 
-    return faqs
+    return categories
       .map(category => ({
         ...category,
         questions: category.questions.filter(qa =>
@@ -158,11 +92,11 @@ export default function FAQ() {
         ),
       }))
       .filter(category => category.questions.length > 0);
-  }, [searchQuery]);
+  }, [searchQuery, categories]);
 
   const totalQuestions = useMemo(
-    () => faqs.reduce((count, category) => count + category.questions.length, 0),
-    []
+    () => categories.reduce((count, category) => count + category.questions.length, 0),
+    [categories]
   );
 
   return (
@@ -188,21 +122,73 @@ export default function FAQ() {
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search by keyword or topic"
                     className="pl-10"
+                    disabled={isLoading}
                   />
                 </div>
                 <CardDescription className="mt-3 text-xs">
-                  Showing {filteredFaqs.reduce((count, category) => count + category.questions.length, 0)} of {totalQuestions} answers
+                  {isLoading ? (
+                    "Loading FAQ content..."
+                  ) : (
+                    `Showing ${filteredFaqs.reduce((count, category) => count + category.questions.length, 0)} of ${totalQuestions} answers`
+                  )}
                 </CardDescription>
               </CardContent>
             </Card>
           </div>
 
-          {filteredFaqs.length === 0 ? (
+          {/* Loading State */}
+          {isLoading && (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="shadow-sm">
+                  <CardContent className="p-6 space-y-3">
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-20 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Error State */}
+          {!isLoading && error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading FAQ content</AlertTitle>
+              <AlertDescription>
+                {error}. Please try refreshing the page or{" "}
+                <Link to="/support" className="font-medium underline">
+                  contact support
+                </Link>{" "}
+                if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Empty State - No FAQ Content */}
+          {!isLoading && !error && categories.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center">
-                <h2 className="text-xl font-medium">No results for “{searchQuery}”</h2>
+                <h2 className="text-xl font-medium">No FAQ content available</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Try adjusting your search or {""}
+                  We're currently updating our FAQ section. In the meantime, please{" "}
+                  <Link to="/support" className="font-medium text-primary">
+                    contact support
+                  </Link>{" "}
+                  for any questions you may have.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No Search Results */}
+          {!isLoading && !error && categories.length > 0 && filteredFaqs.length === 0 && (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <h2 className="text-xl font-medium">No results for "{searchQuery}"</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Try adjusting your search or{" "}
                   <Link to="/support" className="font-medium text-primary">
                     contact support
                   </Link>{" "}
@@ -210,7 +196,10 @@ export default function FAQ() {
                 </p>
               </CardContent>
             </Card>
-          ) : (
+          )}
+
+          {/* FAQ Content */}
+          {!isLoading && !error && filteredFaqs.length > 0 && (
             <Accordion
               key={searchQuery}
               type="multiple"
@@ -259,7 +248,7 @@ export default function FAQ() {
               <div>
                 <h2 className="text-2xl font-semibold">Still have questions?</h2>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                  We’re here to help with anything from billing to infrastructure architecture. Reach out and we’ll respond within one business day.
+                  We're here to help with anything from billing to infrastructure architecture. Reach out and we'll respond within one business day.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -304,20 +293,27 @@ export default function FAQ() {
               <CardDescription>Highlights from our release notes and platform announcements.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">New API endpoints for theme controls</p>
-                <p>Automate theme presets and dynamic branding from your CI/CD pipeline.</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="font-medium text-foreground">Status page redesign</p>
-                <p>Real-time health metrics with region-level granularity and historical uptime.</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="font-medium text-foreground">Improved billing transparency</p>
-                <p>Hourly usage charts and wallet alerts keep your finance team in sync.</p>
-              </div>
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-16 w-full" />
+                  <Separator />
+                  <Skeleton className="h-16 w-full" />
+                  <Separator />
+                  <Skeleton className="h-16 w-full" />
+                </>
+              ) : updates.length > 0 ? (
+                updates.map((update, index) => (
+                  <div key={update.id}>
+                    {index > 0 && <Separator />}
+                    <div>
+                      <p className="font-medium text-foreground">{update.title}</p>
+                      <p>{update.description}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center py-4">No updates available at this time.</p>
+              )}
             </CardContent>
           </Card>
         </div>
