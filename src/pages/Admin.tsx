@@ -976,7 +976,7 @@ const Admin: React.FC = () => {
       if (!configRes.ok) throw new Error(configData.error || 'Failed to load StackScript configs');
       
       // Fetch available stackscripts
-      const scriptRes = await fetch(`${API_BASE_URL}/admin/linode/stackscripts?mine=true`, { headers: authHeader });
+      const scriptRes = await fetch(`${API_BASE_URL}/admin/upstream/stackscripts?mine=true`, { headers: authHeader });
       const scriptData = await scriptRes.json();
       if (!scriptRes.ok) throw new Error(scriptData.error || 'Failed to load StackScripts');
       
@@ -1096,9 +1096,9 @@ const Admin: React.FC = () => {
   const fetchLinodeTypes = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/linode/plans`, { headers: authHeader });
+      const res = await fetch(`${API_BASE_URL}/admin/upstream/plans`, { headers: authHeader });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load Linode types');
+      if (!res.ok) throw new Error(data.error || 'Failed to load upstream provider plans');
       setLinodeTypes(data.plans);
     } catch (e: any) {
       toast.error(e.message);
@@ -1108,9 +1108,9 @@ const Admin: React.FC = () => {
   const fetchLinodeRegions = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/linode/regions`, { headers: authHeader });
+      const res = await fetch(`${API_BASE_URL}/admin/upstream/regions`, { headers: authHeader });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load Linode regions');
+      if (!res.ok) throw new Error(data.error || 'Failed to load upstream provider regions');
       setLinodeRegions(data.regions);
     } catch (e: any) {
       toast.error(e.message);

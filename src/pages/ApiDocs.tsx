@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -1100,8 +1100,8 @@ export default function ApiDocs() {
           },
           { 
             method: 'GET', 
-            path: '/linode/plans', 
-            description: 'Fetch available plans from Linode API',
+            path: '/upstream/plans', 
+            description: 'Fetch available plans from upstream provider',
             auth: true,
             response: [{ 
               id: 'g6-nanode-1', 
@@ -1113,8 +1113,8 @@ export default function ApiDocs() {
           },
           { 
             method: 'GET', 
-            path: '/linode/regions', 
-            description: 'Fetch available regions from Linode API',
+            path: '/upstream/regions', 
+            description: 'Fetch available regions from upstream provider',
             auth: true,
             response: [{ 
               id: 'us-east', 
@@ -1125,14 +1125,14 @@ export default function ApiDocs() {
           },
           { 
             method: 'GET', 
-            path: '/linode/stackscripts', 
-            description: 'Fetch available StackScripts from Linode API',
+            path: '/upstream/stackscripts', 
+            description: 'Fetch available StackScripts from upstream provider',
             auth: true,
             response: [{ 
               id: 123456, 
               label: 'WordPress Setup', 
               description: 'Automated WordPress installation',
-              images: ['linode/ubuntu20.04'],
+              images: ['ubuntu20.04'],
               deployments_total: 1500,
               is_public: true
             }]
@@ -1181,6 +1181,246 @@ export default function ApiDocs() {
             description: 'Delete StackScript configuration',
             auth: true,
             response: { success: true, message: 'StackScript configuration deleted successfully' }
+          },
+          { 
+            method: 'GET', 
+            path: '/contact', 
+            description: 'Get all contact methods (admin view)',
+            auth: true,
+            response: [{ 
+              id: 1, 
+              name: 'Email Support', 
+              value: 'support@example.com', 
+              type: 'email',
+              is_active: true,
+              created_at: '2024-01-01T00:00:00Z'
+            }]
+          },
+          { 
+            method: 'POST', 
+            path: '/contact', 
+            description: 'Create new contact method',
+            auth: true,
+            body: { 
+              name: 'Live Chat', 
+              value: 'https://chat.example.com', 
+              type: 'chat',
+              is_active: true
+            },
+            response: { id: 3, message: 'Contact method created successfully' }
+          },
+          { 
+            method: 'PUT', 
+            path: '/contact/:id', 
+            description: 'Update existing contact method',
+            auth: true,
+            body: { 
+              name: 'Updated Email Support',
+              value: 'newsupport@example.com',
+              is_active: false
+            },
+            response: { success: true, message: 'Contact method updated successfully' }
+          },
+          { 
+            method: 'DELETE', 
+            path: '/contact/:id', 
+            description: 'Delete contact method',
+            auth: true,
+            response: { success: true, message: 'Contact method deleted successfully' }
+          },
+          { 
+            method: 'GET', 
+            path: '/platform', 
+            description: 'Get platform configuration and settings',
+            auth: true,
+            response: { 
+              platform_name: 'ContainerStacks',
+              maintenance_mode: false,
+              registration_enabled: true,
+              max_containers_per_user: 10,
+              max_vps_per_user: 5,
+              default_currency: 'USD',
+              updated_at: '2024-01-01T00:00:00Z'
+            }
+          },
+          { 
+            method: 'PUT', 
+            path: '/platform', 
+            description: 'Update platform configuration',
+            auth: true,
+            body: { 
+              platform_name: 'Updated Platform Name',
+              maintenance_mode: true,
+              max_containers_per_user: 15
+            },
+            response: { success: true, message: 'Platform configuration updated successfully' }
+          },
+          { 
+            method: 'GET', 
+            path: '/faq', 
+            description: 'Get all FAQ items (admin view with additional details)',
+            auth: true,
+            response: [{ 
+              id: 1, 
+              question: 'How do I deploy a container?', 
+              answer: 'To deploy a container, navigate to...',
+              category_id: 1,
+              category_name: 'General',
+              sort_order: 1,
+              is_active: true,
+              view_count: 150,
+              created_at: '2024-01-01T00:00:00Z',
+              updated_at: '2024-01-01T00:00:00Z'
+            }]
+          },
+          { 
+            method: 'POST', 
+            path: '/faq', 
+            description: 'Create new FAQ item',
+            auth: true,
+            body: { 
+              question: 'What payment methods do you accept?',
+              answer: 'We accept credit cards, PayPal, and bank transfers.',
+              category_id: 2,
+              sort_order: 1,
+              is_active: true
+            },
+            response: { id: 2, message: 'FAQ item created successfully' }
+          },
+          { 
+            method: 'PUT', 
+            path: '/faq/:id', 
+            description: 'Update existing FAQ item',
+            auth: true,
+            body: { 
+              question: 'Updated question?',
+              answer: 'Updated answer with more details.',
+              is_active: false
+            },
+            response: { success: true, message: 'FAQ item updated successfully' }
+          },
+          { 
+            method: 'DELETE', 
+            path: '/faq/:id', 
+            description: 'Delete FAQ item',
+            auth: true,
+            response: { success: true, message: 'FAQ item deleted successfully' }
+          },
+        ],
+      },
+      {
+        title: 'FAQ',
+        base: `${apiBase}/faq`,
+        description: 'Frequently Asked Questions management',
+        endpoints: [
+          { 
+            method: 'GET', 
+            path: '/categories', 
+            description: 'Get all FAQ categories',
+            auth: false,
+            response: [{ 
+              id: 1, 
+              name: 'General', 
+              description: 'General questions about the platform',
+              sort_order: 1,
+              is_active: true
+            }]
+          },
+          { 
+            method: 'GET', 
+            path: '/updates', 
+            description: 'Get recent FAQ updates',
+            auth: false,
+            response: [{ 
+              id: 1, 
+              title: 'Updated pricing information', 
+              content: 'We have updated our pricing structure...',
+              created_at: '2024-01-01T00:00:00Z'
+            }]
+          },
+        ],
+      },
+      {
+        title: 'Contact',
+        base: `${apiBase}/contact`,
+        description: 'Contact configuration and management',
+        endpoints: [
+          { 
+            method: 'GET', 
+            path: '/config', 
+            description: 'Get contact configuration including available methods',
+            auth: false,
+            response: { 
+              methods: [
+                { id: 1, name: 'Email Support', value: 'support@example.com', type: 'email', is_active: true },
+                { id: 2, name: 'Phone Support', value: '+1-555-0123', type: 'phone', is_active: true }
+              ]
+            }
+          },
+        ],
+      },
+      {
+        title: 'Notifications (Admin)',
+        base: `${apiBase}/notifications`,
+        description: 'Admin-oriented notification management overview',
+        endpoints: [
+          { 
+            method: 'GET', 
+            path: '/stream', 
+            description: 'Server-sent events stream for real-time notifications',
+            auth: true,
+            response: 'Server-sent events stream with notification data'
+          },
+          { 
+            method: 'GET', 
+            path: '/unread-count', 
+            description: 'Get count of unread notifications',
+            auth: true,
+            response: { count: 5 }
+          },
+          { 
+            method: 'GET', 
+            path: '/unread', 
+            description: 'Get all unread notifications',
+            auth: true,
+            response: [{ 
+              id: 'notif_123', 
+              title: 'Container deployed successfully', 
+              message: 'Your container my-app has been deployed',
+              type: 'success',
+              created_at: '2024-01-01T00:00:00Z'
+            }]
+          },
+          { 
+            method: 'GET', 
+            path: '/', 
+            description: 'Get all notifications with pagination',
+            auth: true,
+            response: { 
+              notifications: [{ 
+                id: 'notif_123', 
+                title: 'Container deployed', 
+                message: 'Your container has been deployed successfully',
+                type: 'success',
+                is_read: false,
+                created_at: '2024-01-01T00:00:00Z'
+              }],
+              pagination: { page: 1, limit: 20, total: 50 }
+            }
+          },
+          { 
+            method: 'PATCH', 
+            path: '/:id/read', 
+            description: 'Mark a specific notification as read',
+            auth: true,
+            response: { success: true, message: 'Notification marked as read' }
+          },
+          { 
+            method: 'PATCH', 
+            path: '/read-all', 
+            description: 'Mark all notifications as read',
+            auth: true,
+            response: { success: true, message: 'All notifications marked as read' }
           },
         ],
       },
@@ -1592,17 +1832,26 @@ export default function ApiDocs() {
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="hidden text-xs font-mono md:inline">{section.base}</code>
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Copy section base URL"
+                          className={buttonVariants({ variant: 'ghost', size: 'icon' })}
                           onClick={event => {
                             event.preventDefault();
                             event.stopPropagation();
                             copyToClipboard(section.base);
                           }}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              copyToClipboard(section.base);
+                            }
+                          }}
                         >
                           <Copy className="h-4 w-4" />
-                        </Button>
+                        </span>
                       </div>
                     </div>
                   </AccordionTrigger>

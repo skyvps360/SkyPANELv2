@@ -1392,45 +1392,45 @@ router.get('/schema/check', authenticateToken, requireAdmin, async (_req: Reques
   }
 });
 
-// Get Linode plans (types)
-router.get('/linode/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+// Get upstream provider plans (types)
+router.get('/upstream/plans', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const plans = await linodeService.getLinodeTypes();
     res.json({ plans });
   } catch (err: any) {
-    console.error('Error fetching Linode plans:', err);
+    console.error('Error fetching upstream provider plans:', err);
     res.status(500).json({ 
-      error: err.message || 'Failed to fetch Linode plans',
-      details: 'Make sure LINODE_API_TOKEN is configured in environment variables'
+      error: err.message || 'Failed to fetch upstream provider plans',
+      details: 'Make sure upstream provider API token is configured in environment variables'
     });
   }
 });
 
-// Get Linode regions
-router.get('/linode/regions', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+// Get upstream provider regions
+router.get('/upstream/regions', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const regions = await linodeService.getLinodeRegions();
     res.json({ regions });
   } catch (err: any) {
-    console.error('Error fetching Linode regions:', err);
+    console.error('Error fetching upstream provider regions:', err);
     res.status(500).json({ 
-      error: err.message || 'Failed to fetch Linode regions',
-      details: 'Make sure LINODE_API_TOKEN is configured in environment variables'
+      error: err.message || 'Failed to fetch upstream provider regions',
+      details: 'Make sure upstream provider API token is configured in environment variables'
     });
   }
 });
 
-// Get Linode StackScripts
-router.get('/linode/stackscripts', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+// Get upstream provider StackScripts
+router.get('/upstream/stackscripts', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const mine = String(req.query.mine || '').toLowerCase() === 'true';
     const stackscripts = await linodeService.getLinodeStackScripts(mine);
     res.json({ stackscripts });
   } catch (err: any) {
-    console.error('Error fetching Linode StackScripts:', err);
+    console.error('Error fetching upstream provider StackScripts:', err);
     res.status(500).json({ 
       error: err.message || 'Failed to fetch StackScripts',
-      details: 'Make sure LINODE_API_TOKEN is configured in environment variables'
+      details: 'Make sure upstream provider API token is configured in environment variables'
     });
   }
 });
