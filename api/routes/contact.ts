@@ -149,7 +149,7 @@ router.post(
         message: string;
       };
 
-      let recipient = appConfig.CONTACT_FORM_RECIPIENT || appConfig.FROM_EMAIL || appConfig.SMTP2GO_USERNAME;
+  let recipient = appConfig.CONTACT_FORM_RECIPIENT || appConfig.FROM_EMAIL;
       let categoryLabel = category;
 
       try {
@@ -192,7 +192,7 @@ router.post(
         return;
       }
 
-      const senderAddress = appConfig.FROM_EMAIL || appConfig.SMTP2GO_USERNAME;
+  const senderAddress = appConfig.FROM_EMAIL || appConfig.CONTACT_FORM_RECIPIENT;
       if (!senderAddress) {
         res.status(500).json({ error: 'Outbound email is not configured.' });
         return;

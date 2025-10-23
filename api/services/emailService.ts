@@ -45,7 +45,7 @@ function ensureTransporter(): Transporter {
 }
 
 async function sendEmail(options: SendMailOptions): Promise<void> {
-  const senderEmail = config.FROM_EMAIL || config.SMTP2GO_USERNAME;
+  const senderEmail = config.FROM_EMAIL || config.CONTACT_FORM_RECIPIENT || config.SMTP2GO_USERNAME;
   if (!senderEmail) {
     const error = new Error('FROM_EMAIL is not configured. Please set FROM_EMAIL environment variable.');
     console.error('Email Configuration Error:', error.message);
@@ -54,7 +54,7 @@ async function sendEmail(options: SendMailOptions): Promise<void> {
 
   const senderName = config.FROM_NAME || 'SkyVPS360';
   const mailOptions: SendMailOptions = {
-    from: options.from || `${senderName} <${senderEmail}>`,
+  from: options.from || `${senderName} <${senderEmail}>`,
     ...options
   };
 
