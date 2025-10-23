@@ -32,7 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { buildApiUrl } from '@/lib/api';
-import type { FAQCategory } from '@/types/faq';
+import type { FAQCategory, FAQItem } from '@/types/faq';
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Category name is required').max(255, 'Category name must be less than 255 characters'),
@@ -49,9 +49,10 @@ interface SortableRowProps {
   onEdit: (category: FAQCategory) => void;
   onDelete: (category: FAQCategory) => void;
   onToggleActive: (category: FAQCategory) => void;
+  itemCount: number;
 }
 
-const SortableRow: React.FC<SortableRowProps> = ({ category, onEdit, onDelete, onToggleActive }) => {
+const SortableRow: React.FC<SortableRowProps> = ({ category, onEdit, onDelete, onToggleActive, itemCount }) => {
   const {
     attributes,
     listeners,
@@ -79,7 +80,7 @@ const SortableRow: React.FC<SortableRowProps> = ({ category, onEdit, onDelete, o
         {category.description || '—'}
       </TableCell>
       <TableCell>
-        <Badge variant="outline">0</Badge>
+        <Badge variant="outline">{itemCount}</Badge>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
@@ -128,6 +129,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ token }) => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<FAQCategory | null>(null);
+  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
 
   const createForm = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
@@ -171,8 +173,27 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ token }) => {
     }
   };
 
+  const fetchItemCounts = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(buildApiUrl('/api/admin/faq/items'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load FAQ items');
+      const counts: Record<string, number> = {};
+      (data.items || []).forEach((item: FAQItem) => {
+        counts[item.category_id] = (counts[item.category_id] || 0) + 1;
+      });
+      setItemCounts(counts);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load FAQ item counts');
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
+    fetchItemCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -386,6 +407,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ token }) => {
                           onEdit={openEditDialog}
                           onDelete={openDeleteDialog}
                           onToggleActive={handleToggleActive}
+                          itemCount={itemCounts[category.id] ?? 0}
                         />
                       ))}
                     </SortableContext>
