@@ -3,9 +3,21 @@
  * Provides contact configuration for the public Contact page
  */
 import express, { Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { query } from '../lib/database.js';
+import { sendContactEmail } from '../services/emailService.js';
+import { config as appConfig } from '../config/index.js';
 
 const router = express.Router();
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 /**
  * Get all active contact configuration
@@ -94,5 +106,133 @@ router.get('/config', async (req: Request, res: Response) => {
     });
   }
 });
+
+router.post(
+  '/',
+  [
+    body('name')
+      .isString()
+      .trim()
+      .notEmpty().withMessage('Name is required')
+      .isLength({ max: 120 }).withMessage('Name must be 120 characters or fewer'),
+    body('email')
+      .isEmail().withMessage('Valid email is required')
+      .normalizeEmail(),
+    body('subject')
+      .isString()
+      .trim()
+      .notEmpty().withMessage('Subject is required')
+      .isLength({ max: 200 }).withMessage('Subject must be 200 characters or fewer'),
+    body('category')
+      .optional()
+      .isString()
+      .trim()
+      .isLength({ max: 100 }).withMessage('Category must be 100 characters or fewer'),
+    body('message')
+      .isString()
+      .trim()
+      .isLength({ min: 10, max: 5000 }).withMessage('Message must be between 10 and 5000 characters'),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { name, email, subject, category, message } = req.body as {
+        name: string;
+        email: string;
+        subject: string;
+        category?: string;
+        message: string;
+      };
+
+      let recipient = appConfig.CONTACT_FORM_RECIPIENT || appConfig.FROM_EMAIL || appConfig.SMTP2GO_USERNAME;
+      let categoryLabel = category;
+
+      try {
+        const emailMethodResult = await query(
+          `SELECT config
+           FROM contact_methods
+           WHERE method_type = 'email' AND is_active = TRUE
+           LIMIT 1`
+        );
+
+        const emailConfigRaw = emailMethodResult.rows[0]?.config;
+        const emailConfig = typeof emailConfigRaw === 'string' ? JSON.parse(emailConfigRaw) : emailConfigRaw;
+        if (emailConfig?.email_address) {
+          recipient = emailConfig.email_address;
+        }
+      } catch (err) {
+        console.warn('[Contact API] Failed to load email contact configuration, falling back to environment variables:', err);
+      }
+
+      if (category) {
+        try {
+          const categoryResult = await query(
+            `SELECT label
+             FROM contact_categories
+             WHERE value = $1
+             LIMIT 1`,
+            [category]
+          );
+
+          if (categoryResult.rows[0]?.label) {
+            categoryLabel = categoryResult.rows[0].label;
+          }
+        } catch (err) {
+          console.warn('[Contact API] Failed to resolve contact category label:', err);
+        }
+      }
+
+      if (!recipient) {
+        res.status(500).json({ error: 'Contact form recipient is not configured. Please try again later.' });
+        return;
+      }
+
+      const senderAddress = appConfig.FROM_EMAIL || appConfig.SMTP2GO_USERNAME;
+      if (!senderAddress) {
+        res.status(500).json({ error: 'Outbound email is not configured.' });
+        return;
+      }
+
+      const brandName = appConfig.FROM_NAME || 'SkyVPS360';
+      const timestamp = new Date().toISOString();
+      const normalizedSubject = subject.trim();
+      const categoryText = categoryLabel || 'Not specified';
+
+      const plainTextBody = `New contact form submission\n\nName: ${name}\nEmail: ${email}\nCategory: ${categoryText}\nSubject: ${normalizedSubject}\nSubmitted At: ${timestamp}\n\nMessage:\n${message}\n`;
+
+      const htmlBody = `
+        <p><strong>New contact form submission received.</strong></p>
+        <ul>
+          <li><strong>Name:</strong> ${escapeHtml(name)}</li>
+          <li><strong>Email:</strong> ${escapeHtml(email)}</li>
+          <li><strong>Category:</strong> ${escapeHtml(categoryText)}</li>
+          <li><strong>Subject:</strong> ${escapeHtml(normalizedSubject)}</li>
+          <li><strong>Submitted At:</strong> ${escapeHtml(timestamp)}</li>
+        </ul>
+        <p><strong>Message:</strong></p>
+        <p>${escapeHtml(message).replace(/\n/g, '<br />')}</p>
+      `;
+
+      await sendContactEmail({
+        to: recipient,
+        from: `${brandName} Contact Form <${senderAddress}>`,
+        subject: `[Contact Form] ${normalizedSubject}`,
+        text: plainTextBody,
+        html: htmlBody,
+        replyTo: `${name} <${email}>`,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[Contact API] Failed to process contact form submission:', err);
+      res.status(500).json({ error: 'Failed to send message. Please try again later.' });
+    }
+  }
+);
 
 export default router;

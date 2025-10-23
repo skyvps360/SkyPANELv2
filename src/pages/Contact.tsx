@@ -85,12 +85,18 @@ export default function Contact() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          subject: formData.subject,
+          category: formData.category,
           message: formData.message,
         }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to send message.");
+        let errorMessage = data.error || "Failed to send message.";
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          errorMessage = data.errors.map((err: { msg?: string }) => err?.msg || "Validation error").join(", ");
+        }
+        throw new Error(errorMessage);
       }
       toast.success("Message sent successfully! We'll get back to you soon.");
       setFormData({
