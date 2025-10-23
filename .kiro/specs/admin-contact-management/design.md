@@ -114,16 +114,9 @@ CREATE TABLE platform_availability (
 
 CREATE INDEX idx_platform_availability_display_order ON platform_availability(display_order);
 
--- Also add a settings table for emergency support text
-CREATE TABLE platform_settings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    setting_key VARCHAR(255) NOT NULL UNIQUE,
-    setting_value TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_platform_settings_key ON platform_settings(setting_key);
+-- Note: platform_settings table already exists from migration 010_theme_settings.sql
+-- Schema: key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ
+-- Emergency support text is stored as: { "text": "..." }
 ```
 
 ### API Endpoints
@@ -464,11 +457,9 @@ interface AvailabilityFormData {
 - **updated_at**: Timestamp
 
 ### Platform Settings Model
-- **id**: UUID primary key
-- **setting_key**: Unique key for the setting (e.g., "emergency_support_text")
-- **setting_value**: Text value of the setting
-- **created_at**: Timestamp
-- **updated_at**: Timestamp
+- **key**: TEXT primary key (e.g., "emergency_support_text")
+- **value**: JSONB value (e.g., `{ "text": "..." }`)
+- **updated_at**: Timestamp with time zone
 
 ## Error Handling
 

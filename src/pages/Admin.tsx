@@ -15,6 +15,9 @@ import { RateLimitMonitoring } from '@/components/admin/RateLimitMonitoring';
 import { CategoryManager } from '@/components/admin/CategoryManager';
 import { FAQItemManager } from '@/components/admin/FAQItemManager';
 import { UpdatesManager } from '@/components/admin/UpdatesManager';
+import { ContactCategoryManager } from '@/components/admin/ContactCategoryManager';
+import { ContactMethodManager } from '@/components/admin/ContactMethodManager';
+import PlatformAvailabilityManager from '@/components/admin/PlatformAvailabilityManager';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +53,9 @@ type AdminSection =
   | 'theme'
   | 'user-management'
   | 'rate-limiting'
-  | 'faq-management';
+  | 'faq-management'
+  | 'platform'
+  | 'contact-management';
 
 const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard',
@@ -66,6 +71,8 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'user-management',
   'rate-limiting',
   'faq-management',
+  'platform',
+  'contact-management',
 ];
 
 const DEFAULT_ADMIN_SECTION: AdminSection = 'dashboard';
@@ -842,6 +849,12 @@ const Admin: React.FC = () => {
       case 'faq-management':
         // FAQ management will handle its own data fetching
         break;
+      case 'platform':
+        // Platform settings page - no specific data fetching needed
+        break;
+      case 'contact-management':
+        // Contact management will handle its own data fetching
+        break;
       default:
         fetchTickets();
         break;
@@ -1596,6 +1609,12 @@ const Admin: React.FC = () => {
         break;
       case 'faq-management':
         // FAQ management will handle its own data fetching
+        break;
+      case 'platform':
+        // Platform settings page - no specific data fetching needed
+        break;
+      case 'contact-management':
+        // Contact management will handle its own data fetching
         break;
       default:
         break;
@@ -2566,6 +2585,139 @@ const Admin: React.FC = () => {
                 <CategoryManager token={token || ''} />
                 <FAQItemManager token={token || ''} />
                 <UpdatesManager token={token || ''} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="platform" id="platform">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Settings className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Platform Settings</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Configure platform-wide settings including availability schedules and general configuration.
+                    </p>
+                  </div>
+                </div>
+                
+                <Tabs defaultValue="availability" className="space-y-6">
+                  <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+                    <TabsTrigger value="availability">Availability</TabsTrigger>
+                    <TabsTrigger value="theme">Theme</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="availability">
+                    <PlatformAvailabilityManager />
+                  </TabsContent>
+
+                  <TabsContent value="theme">
+                    <div className="bg-card shadow sm:rounded-lg">
+                      <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Palette className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <h2 className="text-lg font-medium text-foreground">Theme Manager</h2>
+                            <p className="text-sm text-muted-foreground">
+                              Choose a theme preset. Updates roll out to every user instantly.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {themeConfigLoading ? 'Syncing...' : `Last updated: ${formattedThemeUpdatedAt}`}
+                        </div>
+                      </div>
+                      <div className="space-y-10 px-6 py-6">
+                        <div>
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Presets</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Choose a built-in palette. Applying a preset changes the experience for every organization member.
+                          </p>
+                          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            {themes.map((preset) => {
+                              const isActive = preset.id === themeId;
+                              const isSaving = savingPresetId === preset.id;
+                              const disabled = (savingPresetId !== null && savingPresetId !== preset.id) || themeConfigLoading;
+
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => handlePresetSelection(preset)}
+                                  disabled={disabled}
+                                  className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                                    isActive ? 'border-primary ring-2 ring-primary ring-opacity-20' : 'border-border hover:border-primary'
+                                  } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                      <h3 className="text-base font-semibold text-foreground">{preset.label}</h3>
+                                      <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
+                                    </div>
+                                    <Badge variant={isActive ? 'default' : 'outline'}>
+                                      {isSaving ? 'Saving...' : isActive ? 'Active' : 'Preview'}
+                                    </Badge>
+                                  </div>
+                                  <div className="mt-4 flex gap-4">
+                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                      <span>Primary</span>
+                                      <span
+                                        className="h-10 w-10 rounded-md border shadow-sm"
+                                        style={{ backgroundColor: `hsl(${preset.light.primary})` }}
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                      <span>Surface</span>
+                                      <span
+                                        className="h-10 w-10 rounded-md border shadow-sm"
+                                        style={{ backgroundColor: `hsl(${preset.light.background})` }}
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                      <span>Dark Primary</span>
+                                      <span
+                                        className="h-10 w-10 rounded-md border shadow-sm"
+                                        style={{ backgroundColor: `hsl(${preset.dark.primary})` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="contact-management" id="contact-management">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Contact Management</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Manage contact page content including categories, contact methods, and availability schedules.
+                    </p>
+                  </div>
+                </div>
+                
+                <Tabs defaultValue="categories" className="space-y-6">
+                  <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+                    <TabsTrigger value="categories">Categories</TabsTrigger>
+                    <TabsTrigger value="methods">Contact Methods</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="categories">
+                    <ContactCategoryManager token={token || ''} />
+                  </TabsContent>
+
+                  <TabsContent value="methods">
+                    <ContactMethodManager token={token || ''} />
+                  </TabsContent>
+                </Tabs>
               </div>
             </TabsContent>
 

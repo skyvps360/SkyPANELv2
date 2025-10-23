@@ -37,6 +37,11 @@ export function NavMain({
       title: string
       url: string
       isActive?: boolean
+      items?: {
+        title: string
+        url: string
+        isActive?: boolean
+      }[]
     }[]
   }[]
   label?: string
@@ -69,13 +74,31 @@ export function NavMain({
                           {item.title}
                         </div>
                         {item.items?.map((subItem) => (
-                          <Link
-                            key={subItem.title}
-                            to={subItem.url}
-                            className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                          >
-                            {subItem.title}
-                          </Link>
+                          <div key={subItem.title}>
+                            {subItem.items?.length ? (
+                              <div className="space-y-1">
+                                <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                                  {subItem.title}
+                                </div>
+                                {subItem.items?.map((nestedItem) => (
+                                  <Link
+                                    key={nestedItem.title}
+                                    to={nestedItem.url}
+                                    className="flex items-center rounded-md px-4 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                  >
+                                    {nestedItem.title}
+                                  </Link>
+                                ))}
+                              </div>
+                            ) : (
+                              <Link
+                                to={subItem.url}
+                                className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                              >
+                                {subItem.title}
+                              </Link>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </PopoverContent>
@@ -100,11 +123,36 @@ export function NavMain({
                         <SidebarMenuSub>
                           {item.items?.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild isActive={subItem.isActive}>
-                                <Link to={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
+                              {subItem.items?.length ? (
+                                <Collapsible asChild defaultOpen={subItem.isActive}>
+                                  <>
+                                    <CollapsibleTrigger asChild>
+                                      <SidebarMenuSubButton isActive={subItem.isActive}>
+                                        <span>{subItem.title}</span>
+                                      </SidebarMenuSubButton>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                      <SidebarMenuSub>
+                                        {subItem.items?.map((nestedItem) => (
+                                          <SidebarMenuSubItem key={nestedItem.title}>
+                                            <SidebarMenuSubButton asChild isActive={nestedItem.isActive}>
+                                              <Link to={nestedItem.url}>
+                                                <span>{nestedItem.title}</span>
+                                              </Link>
+                                            </SidebarMenuSubButton>
+                                          </SidebarMenuSubItem>
+                                        ))}
+                                      </SidebarMenuSub>
+                                    </CollapsibleContent>
+                                  </>
+                                </Collapsible>
+                              ) : (
+                                <SidebarMenuSubButton asChild isActive={subItem.isActive}>
+                                  <Link to={subItem.url}>
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              )}
                             </SidebarMenuSubItem>
                           ))}
                         </SidebarMenuSub>

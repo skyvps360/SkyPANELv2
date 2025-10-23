@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Clock, MapPin, Send, Sparkles } from "lucide-react";
+import { Clock, MapPin, Send, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,25 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { BRAND_NAME } from "../lib/brand";
 import PublicLayout from "@/components/PublicLayout";
+import type { ContactConfig, EmailConfig, TicketConfig, PhoneConfig, OfficeConfig } from "@/types/contact";
+
+// Default fallback data
+const DEFAULT_CATEGORIES = [
+  { id: "1", label: "General inquiry", value: "general", display_order: 0, is_active: true, created_at: "", updated_at: "" },
+  { id: "2", label: "Pricing & sales", value: "sales", display_order: 1, is_active: true, created_at: "", updated_at: "" },
+  { id: "3", label: "Technical support", value: "support", display_order: 2, is_active: true, created_at: "", updated_at: "" },
+  { id: "4", label: "Billing", value: "billing", display_order: 3, is_active: true, created_at: "", updated_at: "" },
+  { id: "5", label: "Partnership", value: "partnership", display_order: 4, is_active: true, created_at: "", updated_at: "" },
+  { id: "6", label: "Other", value: "other", display_order: 5, is_active: true, created_at: "", updated_at: "" },
+];
+
+const DEFAULT_AVAILABILITY = [
+  { id: "1", day_of_week: "Weekdays", is_open: true, hours_text: "9:00 AM – 6:00 PM EST", display_order: 0, created_at: "", updated_at: "" },
+  { id: "2", day_of_week: "Saturday", is_open: true, hours_text: "10:00 AM – 4:00 PM EST", display_order: 1, created_at: "", updated_at: "" },
+  { id: "3", day_of_week: "Sunday", is_open: false, hours_text: "Closed", display_order: 2, created_at: "", updated_at: "" },
+];
+
+const DEFAULT_EMERGENCY_TEXT = "Available 24/7 for customers with enterprise SLAs. Call the hotline in your runbook for immediate response.";
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -23,6 +42,38 @@ export default function Contact() {
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [contactConfig, setContactConfig] = useState<ContactConfig | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch contact configuration on mount
+  useEffect(() => {
+    const fetchContactConfig = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/contact/config");
+        
+        if (!response.ok) {
+          throw new Error("Failed to load contact configuration");
+        }
+        
+        const data: ContactConfig = await response.json();
+        setContactConfig(data);
+      } catch (err) {
+        console.error("Error fetching contact config:", err);
+        // Use default fallback data
+        setContactConfig({
+          categories: DEFAULT_CATEGORIES,
+          methods: {},
+          availability: DEFAULT_AVAILABILITY,
+          emergency_support_text: DEFAULT_EMERGENCY_TEXT,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContactConfig();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +113,37 @@ export default function Contact() {
     }));
   };
 
+  // Get active categories sorted by display_order
+  const categories = contactConfig?.categories
+    .filter(cat => cat.is_active)
+    .sort((a, b) => a.display_order - b.display_order) || DEFAULT_CATEGORIES;
+
+  // Get active contact methods
+  const emailMethod = contactConfig?.methods.email?.is_active ? contactConfig.methods.email : null;
+  const ticketMethod = contactConfig?.methods.ticket?.is_active ? contactConfig.methods.ticket : null;
+  const phoneMethod = contactConfig?.methods.phone?.is_active ? contactConfig.methods.phone : null;
+  const officeMethod = contactConfig?.methods.office?.is_active ? contactConfig.methods.office : null;
+
+  // Get availability schedule
+  const availability = contactConfig?.availability.sort((a, b) => a.display_order - b.display_order) || DEFAULT_AVAILABILITY;
+  const emergencyText = contactConfig?.emergency_support_text || DEFAULT_EMERGENCY_TEXT;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <PublicLayout>
+        <div className="container mx-auto max-w-6xl px-4 py-12">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+              <p className="text-muted-foreground">Loading contact information...</p>
+            </div>
+          </div>
+        </div>
+      </PublicLayout>
+    );
+  }
+
   return (
     <PublicLayout>
       <div className="container mx-auto max-w-6xl px-4 py-12">
@@ -79,69 +161,97 @@ export default function Contact() {
 
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         <div className="space-y-6">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Email our team</CardTitle>
-              <CardDescription>For general questions and account help</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <a href={`mailto:support@${BRAND_NAME.toLowerCase()}.com`} className="text-sm font-medium text-primary">
-                support@{BRAND_NAME.toLowerCase()}.com
-              </a>
-              <p className="text-xs text-muted-foreground">We reply within one business day.</p>
-            </CardContent>
-          </Card>
+          {/* Email Method */}
+          {emailMethod && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>{emailMethod.title}</CardTitle>
+                {emailMethod.description && <CardDescription>{emailMethod.description}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <a href={`mailto:${(emailMethod.config as EmailConfig).email_address}`} className="text-sm font-medium text-primary">
+                  {(emailMethod.config as EmailConfig).email_address}
+                </a>
+                <p className="text-xs text-muted-foreground">{(emailMethod.config as EmailConfig).response_time}</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Submit a ticket</CardTitle>
-              <CardDescription>Technical issues, platform feedback, or outages</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>Create a ticket from your dashboard for prioritized routing to the right on-call engineer.</p>
-              <Separator />
-              <p className="text-xs uppercase tracking-wide">Priority queues</p>
-              <ul className="space-y-2 text-xs">
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" /> P1: Production outage (15 min response)</li>
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" /> P2: Degraded performance (1 hr response)</li>
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button variant="ghost" asChild className="px-0 text-primary">
-                <Link to="/support">Open dashboard →</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+          {/* Ticket Method */}
+          {ticketMethod && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>{ticketMethod.title}</CardTitle>
+                {ticketMethod.description && <CardDescription>{ticketMethod.description}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                {ticketMethod.description && <p>{ticketMethod.description}</p>}
+                {(ticketMethod.config as TicketConfig).priority_queues.length > 0 && (
+                  <>
+                    <Separator />
+                    <p className="text-xs uppercase tracking-wide">Priority queues</p>
+                    <ul className="space-y-2 text-xs">
+                      {(ticketMethod.config as TicketConfig).priority_queues.map((queue, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                          {queue.label} ({queue.response_time})
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </CardContent>
+              {(ticketMethod.config as TicketConfig).dashboard_link && (
+                <CardFooter>
+                  <Button variant="ghost" asChild className="px-0 text-primary">
+                    <Link to={(ticketMethod.config as TicketConfig).dashboard_link}>Open dashboard →</Link>
+                  </Button>
+                </CardFooter>
+              )}
+            </Card>
+          )}
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Call us</CardTitle>
-              <CardDescription>Weekdays 9:00 AM – 6:00 PM EST</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <a href="tel:+1234567890" className="text-sm font-medium text-primary">
-                +1 (234) 567-890
-              </a>
-              <p className="text-xs text-muted-foreground">Emergency support available 24/7 for enterprise plans.</p>
-            </CardContent>
-          </Card>
+          {/* Phone Method */}
+          {phoneMethod && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>{phoneMethod.title}</CardTitle>
+                {phoneMethod.description && <CardDescription>{phoneMethod.description}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <a href={`tel:${(phoneMethod.config as PhoneConfig).phone_number}`} className="text-sm font-medium text-primary">
+                  {(phoneMethod.config as PhoneConfig).phone_number}
+                </a>
+                <p className="text-xs text-muted-foreground">{(phoneMethod.config as PhoneConfig).availability_text}</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Visit our office</CardTitle>
-              <CardDescription>By appointment only</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-primary" />
-                <div>
-                  123 Cloud Street<br />
-                  Tech District, San Francisco, CA 94105<br />
-                  United States
+          {/* Office Method */}
+          {officeMethod && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>{officeMethod.title}</CardTitle>
+                {officeMethod.description && <CardDescription>{officeMethod.description}</CardDescription>}
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <div>
+                    {(officeMethod.config as OfficeConfig).address_line1}<br />
+                    {(officeMethod.config as OfficeConfig).address_line2 && (
+                      <>{(officeMethod.config as OfficeConfig).address_line2}<br /></>
+                    )}
+                    {(officeMethod.config as OfficeConfig).city}, {(officeMethod.config as OfficeConfig).state} {(officeMethod.config as OfficeConfig).postal_code}<br />
+                    {(officeMethod.config as OfficeConfig).country}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                {(officeMethod.config as OfficeConfig).appointment_required && (
+                  <p className="text-xs text-muted-foreground mt-3">{(officeMethod.config as OfficeConfig).appointment_required}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="bg-primary/5">
             <CardHeader>
@@ -210,12 +320,11 @@ export default function Contact() {
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="general">General inquiry</SelectItem>
-                        <SelectItem value="sales">Pricing &amp; sales</SelectItem>
-                        <SelectItem value="support">Technical support</SelectItem>
-                        <SelectItem value="billing">Billing</SelectItem>
-                        <SelectItem value="partnership">Partnership</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.value}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -265,22 +374,22 @@ export default function Contact() {
               <CardDescription>Standard response windows for each channel</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Weekdays</span>
-                <span className="font-medium">9:00 AM – 6:00 PM EST</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Saturday</span>
-                <span className="font-medium">10:00 AM – 4:00 PM EST</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Sunday</span>
-                <span className="font-medium">Closed</span>
-              </div>
-              <Separator className="my-4" />
-              <p className="text-xs text-muted-foreground">
-                <strong>Emergency support:</strong> Available 24/7 for customers with enterprise SLAs. Call the hotline in your runbook for immediate response.
-              </p>
+              {availability.map((schedule) => (
+                <div key={schedule.id} className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{schedule.day_of_week}</span>
+                  <span className="font-medium">
+                    {schedule.is_open ? schedule.hours_text : "Closed"}
+                  </span>
+                </div>
+              ))}
+              {emergencyText && (
+                <>
+                  <Separator className="my-4" />
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Emergency support:</strong> {emergencyText}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
