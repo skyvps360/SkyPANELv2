@@ -114,19 +114,20 @@ export class PlatformStatsService {
       };
 
       // Get resource totals by joining with vps_plans
+      // Note: memory and disk are stored in MB in specifications, so we convert to GB
       const resourceResult = await query(`
         SELECT 
           COALESCE(SUM(COALESCE((vps_plans.specifications->>'vcpus')::INTEGER, 0)), 0) as total_vcpus,
-          COALESCE(SUM(COALESCE((vps_plans.specifications->>'memory')::INTEGER, 0)), 0) as total_memory_gb,
-          COALESCE(SUM(COALESCE((vps_plans.specifications->>'disk')::INTEGER, 0)), 0) as total_disk_gb
+          COALESCE(SUM(COALESCE((vps_plans.specifications->>'memory')::INTEGER, 0)), 0) as total_memory_mb,
+          COALESCE(SUM(COALESCE((vps_plans.specifications->>'disk')::INTEGER, 0)), 0) as total_disk_mb
         FROM vps_instances
         LEFT JOIN vps_plans ON (vps_plans.id::text = vps_instances.plan_id OR vps_plans.provider_plan_id = vps_instances.plan_id)
       `);
 
       const resourceRow = resourceResult.rows[0] || {
         total_vcpus: 0,
-        total_memory_gb: 0,
-        total_disk_gb: 0,
+        total_memory_mb: 0,
+        total_disk_mb: 0,
       };
 
       const vpsStats: VPSStats = {
@@ -140,8 +141,12 @@ export class PlatformStatsService {
         },
         resources: {
           totalVCPUs: parseInt(resourceRow.total_vcpus) || 0,
-          totalMemoryGB: parseInt(resourceRow.total_memory_gb) || 0,
-          totalDiskGB: parseInt(resourceRow.total_disk_gb) || 0,
+          totalMemoryGB: Math.round(
+            (parseInt(resourceRow.total_memory_mb) || 0) / 1024
+          ),
+          totalDiskGB: Math.round(
+            (parseInt(resourceRow.total_disk_mb) || 0) / 1024
+          ),
         },
       };
 
