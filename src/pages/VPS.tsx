@@ -17,7 +17,11 @@ import {
   PowerOff,
   Copy,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Cpu,
+  HardDrive,
+  MemoryStick,
+  Network
 } from 'lucide-react';
 import { toast } from 'sonner';
 // Navigation provided by AppLayout
@@ -28,6 +32,7 @@ import { BulkDeleteModal } from '@/components/VPS/BulkDeleteModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DialogStack } from '@/components/ui/dialog-stack';
+import { Badge } from '@/components/ui/badge';
 import { useFormPersistence } from '@/hooks/use-form-persistence';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { useMobileToast } from '@/components/ui/mobile-toast';
@@ -1020,6 +1025,35 @@ const VPS: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {createForm.type && (() => {
+                const selectedType = linodeTypes.find(t => t.id === createForm.type);
+                if (!selectedType) return null;
+                return (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="gap-1">
+                      <Cpu className="h-3.5 w-3.5 mr-1" />
+                      {selectedType.vcpus} vCPU
+                    </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <MemoryStick className="h-3.5 w-3.5 mr-1" />
+                      {formatBytes(selectedType.memory)} RAM
+                    </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <HardDrive className="h-3.5 w-3.5 mr-1" />
+                      {Math.round(selectedType.disk / 1024)} GB Storage
+                    </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <Network className="h-3.5 w-3.5 mr-1" />
+                      {selectedType.transfer} GB Transfer
+                    </Badge>
+                    <Badge variant="secondary" className="gap-1">
+                      <DollarSign className="h-3.5 w-3.5 mr-1" />
+                      {formatCurrency(selectedType.price.monthly)} / mo
+                    </Badge>
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
