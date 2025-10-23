@@ -3,6 +3,11 @@
  * This file contains the enhanced PUT endpoint with detailed error logging
  * To use: replace the PUT handler in api/routes/admin/contact.ts with this implementation
  */
+import { Response } from 'express';
+import { validationResult } from 'express-validator';
+import type { AuthenticatedRequest } from '../../middleware/auth.js';
+import { query } from '../../lib/database.js';
+import { logActivity } from '../../services/activityLogger.js';
 
 // Enhanced PUT endpoint handler with comprehensive logging
 const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
@@ -16,8 +21,7 @@ const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.error(`[Contact Method Update] Validation failed for ${method_type}:`, errors.array());
-      res.status(400).json({ errors: errors.array() });
-      return;
+      return res.status(400).json({ errors: errors.array() });
     }
 
     const { title, description, is_active, config } = req.body;
@@ -31,8 +35,7 @@ const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
 
     if (existingResult.rows.length === 0) {
       console.error(`[Contact Method Update] Method not found: ${method_type}`);
-      res.status(404).json({ error: 'Contact method not found' });
-      return;
+      return res.status(404).json({ error: 'Contact method not found' });
     }
 
     console.log(`[Contact Method Update] Found existing method: ${existingResult.rows[0].title}`);
@@ -66,8 +69,7 @@ const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
 
     if (updateFields.length === 0) {
       console.error(`[Contact Method Update] No fields to update for ${method_type}`);
-      res.status(400).json({ error: 'No fields to update' });
-      return;
+      return res.status(400).json({ error: 'No fields to update' });
     }
 
     updateFields.push(`updated_at = $${paramIndex++}`);
@@ -110,7 +112,7 @@ const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
     const duration = Date.now() - startTime;
     console.log(`[Contact Method Update] Completed successfully in ${duration}ms`);
 
-    res.json({ method: updatedMethod });
+    return res.json({ method: updatedMethod });
   } catch (err: any) {
     const duration = Date.now() - startTime;
     console.error(`[Contact Method Update] Error after ${duration}ms:`, {
@@ -139,7 +141,7 @@ const enhancedPutHandler = async (req: AuthenticatedRequest, res: Response) => {
       }
     }
     
-    res.status(500).json({ error: err.message || 'Failed to update contact method' });
+    return res.status(500).json({ error: err.message || 'Failed to update contact method' });
   }
 };
 
