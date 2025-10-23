@@ -2705,9 +2705,10 @@ const Admin: React.FC = () => {
                 </div>
                 
                 <Tabs defaultValue="categories" className="space-y-6">
-                  <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+                  <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
                     <TabsTrigger value="categories">Categories</TabsTrigger>
                     <TabsTrigger value="methods">Contact Methods</TabsTrigger>
+                    <TabsTrigger value="availability">Availability</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="categories">
@@ -2716,6 +2717,10 @@ const Admin: React.FC = () => {
 
                   <TabsContent value="methods">
                     <ContactMethodManager token={token || ''} />
+                  </TabsContent>
+
+                  <TabsContent value="availability">
+                    <PlatformAvailabilityManager />
                   </TabsContent>
                 </Tabs>
               </div>
