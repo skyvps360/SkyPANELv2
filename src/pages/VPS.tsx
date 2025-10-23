@@ -548,10 +548,7 @@ const VPS: React.FC = () => {
       })();
       
       // Preload critical assets for better UX
-      if (!isSlowConnection) {
-        preloadAsset('/api/vps/images', 'script');
-        preloadAsset('/api/vps/stackscripts', 'script');
-      }
+      // Protected API endpoints require auth headers, so skip preload hints here to avoid 401s.
     } else {
       setModalOpen(false);
     }
