@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getMonthlySpendWithFallback } from '../lib/billingUtils';
+import { MonthlyResetIndicator } from '@/components/Dashboard/MonthlyResetIndicator';
 
 // Mock data interfaces
 interface ContainerStats {
@@ -346,16 +347,23 @@ const Dashboard: React.FC = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Monthly Spent</p>
+                  <p className="text-2xl font-bold">
+                    {billing ? formatCurrency(billing.monthlySpend) : '$0.00'}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Monthly Spent</p>
-                <p className="text-2xl font-bold">
-                  {billing ? formatCurrency(billing.monthlySpend) : '$0.00'}
-                </p>
+              <div className="flex-shrink-0 sm:self-center">
+                <MonthlyResetIndicator 
+                  monthlySpend={billing?.monthlySpend || 0}
+                />
               </div>
             </div>
           </CardContent>

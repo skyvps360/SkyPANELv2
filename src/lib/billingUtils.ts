@@ -132,3 +132,79 @@ export const getMonthlySpendWithFallback = async (): Promise<number> => {
     return 0;
   }
 };
+
+/**
+ * Monthly reset data interface
+ */
+export interface MonthlyResetData {
+  resetDate: Date;
+  currentSpend: number;
+  daysIntoMonth: number;
+  isNewMonth: boolean;
+  previousMonthSpend?: number;
+}
+
+/**
+ * Get monthly reset information for dashboard indicator
+ */
+export const getMonthlyResetInfo = (): {
+  resetDate: Date;
+  daysIntoMonth: number;
+  daysInMonth: number;
+  progressPercent: number;
+  isNewMonth: boolean;
+} => {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  // Calculate first day of the next month (reset date)
+  const resetDate = new Date(currentYear, currentMonth + 1, 1, 0, 0, 0, 0);
+  const monthStart = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+  const msPerDay = 1000 * 60 * 60 * 24;
+
+  // Total days in the current month
+  const daysInMonth = Math.round((resetDate.getTime() - monthStart.getTime()) / msPerDay);
+
+  // Calculate days into current month (clamped to the number of days in the month)
+  const rawDaysIntoMonth = Math.floor((now.getTime() - monthStart.getTime()) / msPerDay) + 1;
+  const daysIntoMonth = Math.max(1, Math.min(daysInMonth, rawDaysIntoMonth));
+
+  // Calculate progress percentage through the month
+  const progressPercent = Math.min(100, (daysIntoMonth / daysInMonth) * 100);
+  
+  // Check if it's a new month (first 3 days)
+  const isNewMonth = daysIntoMonth <= 3;
+  
+  return {
+    resetDate,
+    daysIntoMonth,
+    daysInMonth,
+    progressPercent,
+    isNewMonth
+  };
+};
+
+/**
+ * Format reset date for display
+ */
+export const formatResetDate = (resetDate: Date): string => {
+  return resetDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+/**
+ * Get reset indicator text based on current date
+ */
+export const getResetIndicatorText = (): string => {
+  const { resetDate, daysIntoMonth, isNewMonth } = getMonthlyResetInfo();
+  
+  if (isNewMonth) {
+    return 'Recently reset';
+  }
+  
+  const formattedDate = formatResetDate(resetDate);
+  return `Reset on ${formattedDate}`;
+};

@@ -40,6 +40,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import { Area, AreaChart, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { ActiveHoursDisplay } from '@/components/VPS/ActiveHoursDisplay';
 
 interface MetricPoint {
   timestamp: number;
@@ -1740,7 +1741,14 @@ const VPSDetail: React.FC = () => {
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Active Hours</dt>
-                        <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{calculateActiveHours(detail?.createdAt || null)}</dd>
+                        <dd className="mt-1">
+                          <ActiveHoursDisplay 
+                            createdAt={detail?.createdAt || null}
+                            hourlyRate={detail?.pricing?.hourly}
+                            context="detail"
+                            className="text-xs sm:text-sm"
+                          />
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last Updated</dt>
@@ -2946,7 +2954,14 @@ const VPSDetail: React.FC = () => {
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-muted-foreground">Active Hours</span>
-                    <span className="font-medium text-foreground sm:text-right">{calculateActiveHours(detail?.provider?.created || null)}</span>
+                    <div className="sm:text-right">
+                      <ActiveHoursDisplay 
+                        createdAt={detail?.provider?.created || null}
+                        hourlyRate={detail?.pricing?.hourly}
+                        context="detail"
+                        className="text-sm font-medium"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-muted-foreground">Last update</span>

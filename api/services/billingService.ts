@@ -359,15 +359,21 @@ export class BillingService {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get total wallet debits for the organization
-      const spendingResult = await query(`
-        SELECT 
-          COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0) AS total_spent_all_time,
-          COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) FILTER (WHERE created_at >= $2), 0) AS total_spent_this_month
-        FROM payment_transactions
-        WHERE organization_id = $1
-          AND status = 'completed'
+      // Get total spent this month
+      const monthlyResult = await query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM vps_billing_cycles
+        WHERE organization_id = $1 
+          AND status = 'billed'
+          AND created_at >= $2
       `, [organizationId, startOfMonth]);
+
+      // Get total spent all time
+      const allTimeResult = await query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total
+        FROM vps_billing_cycles
+        WHERE organization_id = $1 AND status = 'billed'
+      `, [organizationId]);
 
       // Get active VPS count and monthly estimate
       // Note: All VPS instances are billed hourly regardless of status (running, stopped, etc.)
@@ -381,11 +387,9 @@ export class BillingService {
         WHERE vi.organization_id = $1
       `, [organizationId]);
 
-      const totals = spendingResult.rows[0] ?? { total_spent_this_month: 0, total_spent_all_time: 0 };
-
       return {
-        totalSpentThisMonth: Number(totals.total_spent_this_month) || 0,
-        totalSpentAllTime: Number(totals.total_spent_all_time) || 0,
+        totalSpentThisMonth: parseFloat(monthlyResult.rows[0].total),
+        totalSpentAllTime: parseFloat(allTimeResult.rows[0].total),
         activeVPSCount: parseInt(activeVPSResult.rows[0].count),
         monthlyEstimate: parseFloat(activeVPSResult.rows[0].monthly_estimate || '0')
       };

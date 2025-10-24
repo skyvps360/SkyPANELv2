@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ActiveHoursDisplay } from "./ActiveHoursDisplay";
 import type { VPSInstance } from "@/types/vps";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -290,17 +291,20 @@ export function VpsInstancesTable({
         id: "activeHours",
         header: "Active Hours",
         cell: ({ row }) => {
-          const hours = calculateActiveHours(row.original.created);
+          const instance = row.original;
           return (
-            <div className="text-xs text-foreground text-right min-w-[100px]">
-              {Number.isFinite(hours)
-                ? hours.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                : '—'}
+            <div className="flex justify-end min-w-[120px]">
+              <ActiveHoursDisplay 
+                createdAt={instance.created}
+                hourlyRate={instance.pricing?.hourly}
+                context="table"
+                className="text-xs"
+              />
             </div>
           );
         },
         meta: {
-          className: "min-w-[100px] hidden sm:table-cell"
+          className: "min-w-[120px] hidden sm:table-cell"
         }
       },
       {
@@ -515,17 +519,15 @@ export function VpsInstancesTable({
             </div>
 
             {/* Active Hours for mobile cards */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="space-y-1">
-                <p className="text-muted-foreground">Active Hours</p>
-                <p className="font-medium text-foreground">
-                  {(() => {
-                    const hours = calculateActiveHours(instance.created);
-                    return Number.isFinite(hours)
-                      ? hours.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                      : '—';
-                  })()}
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-muted-foreground text-xs">Active Hours</p>
+                <ActiveHoursDisplay 
+                  createdAt={instance.created}
+                  hourlyRate={instance.pricing?.hourly}
+                  context="mobile"
+                  className="text-sm"
+                />
               </div>
             </div>
           </CardContent>
