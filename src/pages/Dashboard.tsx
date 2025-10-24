@@ -299,7 +299,7 @@ const Dashboard: React.FC = () => {
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
                     <Container className="h-6 w-6 text-primary" />
@@ -315,7 +315,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <Server className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -331,7 +331,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                 <Wallet className="h-6 w-6 text-purple-600 dark:text-purple-400" />
