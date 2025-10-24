@@ -1,48 +1,56 @@
-import express, { Request, Response } from 'express';
-import { authenticateToken, requireOrganization } from '../middleware/auth.js';
-import { query } from '../lib/database.js';
-import { linodeService } from '../services/linodeService.js';
+import express, { Request, Response } from "express";
+import { authenticateToken, requireOrganization } from "../middleware/auth.js";
+import { query } from "../lib/database.js";
+import { linodeService } from "../services/linodeService.js";
 import type {
   LinodeInstance,
   LinodeInstanceBackupsResponse,
   LinodeInstanceStatsResponse,
   LinodeInstanceStatsSeries,
   LinodeBackupSummary,
-  LinodeMetricTuple
-} from '../services/linodeService.js';
-import { logActivity } from '../services/activityLogger.js';
-import { encryptSecret } from '../lib/crypto.js';
-import { BillingService } from '../services/billingService.js';
-import { AuthService } from '../services/authService.js';
+  LinodeMetricTuple,
+} from "../services/linodeService.js";
+import { logActivity } from "../services/activityLogger.js";
+import { encryptSecret } from "../lib/crypto.js";
+import { BillingService } from "../services/billingService.js";
+import { AuthService } from "../services/authService.js";
 
 const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
 
-const DEFAULT_RDNS_BASE_DOMAIN = 'ip.rev.skyvps360.xyz';
+const DEFAULT_RDNS_BASE_DOMAIN = "ip.rev.skyvps360.xyz";
 
-router.get('/networking/config', async (_req: Request, res: Response) => {
+router.get("/networking/config", async (_req: Request, res: Response) => {
   try {
     const result = await query(
-      'SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1'
+      "SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1"
     );
     const row = result.rows?.[0] ?? null;
-    const baseDomain = typeof row?.rdns_base_domain === 'string' && row.rdns_base_domain.trim().length > 0
-      ? row.rdns_base_domain.trim()
-      : DEFAULT_RDNS_BASE_DOMAIN;
+    const baseDomain =
+      typeof row?.rdns_base_domain === "string" &&
+      row.rdns_base_domain.trim().length > 0
+        ? row.rdns_base_domain.trim()
+        : DEFAULT_RDNS_BASE_DOMAIN;
     res.json({ config: { rdns_base_domain: baseDomain } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load networking configuration';
-    if (message.toLowerCase().includes('does not exist')) {
-      res.json({ config: { rdns_base_domain: DEFAULT_RDNS_BASE_DOMAIN }, warning: message });
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to load networking configuration";
+    if (message.toLowerCase().includes("does not exist")) {
+      res.json({
+        config: { rdns_base_domain: DEFAULT_RDNS_BASE_DOMAIN },
+        warning: message,
+      });
       return;
     }
-    console.error('Networking config fetch error:', error);
+    console.error("Networking config fetch error:", error);
     res.status(500).json({ error: message });
   }
 });
 
-router.get('/plans', async (_req: Request, res: Response) => {
+router.get("/plans", async (_req: Request, res: Response) => {
   try {
     const result = await query(
       `SELECT
@@ -72,35 +80,36 @@ router.get('/plans', async (_req: Request, res: Response) => {
 
     res.json({ plans });
   } catch (error) {
-    console.error('VPS plans fetch error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch plans';
+    console.error("VPS plans fetch error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch plans";
     res.status(500).json({ error: message });
   }
 });
 
 const BACKUP_DAY_OPTIONS = new Set([
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ]);
 
 const BACKUP_WINDOW_OPTIONS = new Set([
-  'W0',
-  'W2',
-  'W4',
-  'W6',
-  'W8',
-  'W10',
-  'W12',
-  'W14',
-  'W16',
-  'W18',
-  'W20',
-  'W22',
+  "W0",
+  "W2",
+  "W4",
+  "W6",
+  "W8",
+  "W10",
+  "W12",
+  "W14",
+  "W16",
+  "W18",
+  "W20",
+  "W22",
 ]);
 
 interface MetricPoint {
@@ -117,7 +126,7 @@ interface MetricSummary {
 interface MetricSeriesPayload {
   series: MetricPoint[];
   summary: MetricSummary;
-  unit: 'percent' | 'bitsPerSecond' | 'blocksPerSecond';
+  unit: "percent" | "bitsPerSecond" | "blocksPerSecond";
 }
 
 interface AccountTransferPayload {
@@ -179,15 +188,15 @@ interface PlanMeta {
 }
 
 const normalizeProviderStatus = (status: string | null | undefined): string => {
-  if (!status) return 'unknown';
-  return status === 'offline' ? 'stopped' : status;
+  if (!status) return "unknown";
+  return status === "offline" ? "stopped" : status;
 };
 
 const isMetricTuple = (value: unknown): value is LinodeMetricTuple =>
   Array.isArray(value) &&
   value.length >= 2 &&
-  typeof value[0] === 'number' &&
-  typeof value[1] === 'number';
+  typeof value[0] === "number" &&
+  typeof value[1] === "number";
 
 const normalizeSeries = (series: unknown): MetricPoint[] => {
   if (!Array.isArray(series)) {
@@ -196,7 +205,10 @@ const normalizeSeries = (series: unknown): MetricPoint[] => {
   return (series as unknown[])
     .filter(isMetricTuple)
     .map(([timestamp, value]) => ({ timestamp, value }))
-    .filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.value));
+    .filter(
+      (point) =>
+        Number.isFinite(point.timestamp) && Number.isFinite(point.value)
+    );
 };
 
 const summarizeSeries = (series: MetricPoint[]): MetricSummary => {
@@ -218,10 +230,12 @@ const summarizeSeries = (series: MetricPoint[]): MetricSummary => {
   };
 };
 
-const deriveTimeframe = (collections: MetricPoint[][]): { start: number | null; end: number | null } => {
+const deriveTimeframe = (
+  collections: MetricPoint[][]
+): { start: number | null; end: number | null } => {
   const timestamps: number[] = [];
-  collections.forEach(series => {
-    series.forEach(point => {
+  collections.forEach((series) => {
+    series.forEach((point) => {
       if (Number.isFinite(point.timestamp)) {
         timestamps.push(point.timestamp);
       }
@@ -244,29 +258,39 @@ const bytesToGigabytes = (value: number): number => {
 };
 
 const safeNumber = (value: unknown): number => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
   return 0;
 };
 
 const extractTransferUsedBytes = (value: unknown): number => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
-  if (value && typeof value === 'object') {
+  if (value && typeof value === "object") {
     const source = value as Record<string, unknown>;
-    const directCandidate = source.total ?? source.bytes ?? source.amount ?? source.used;
-    if (typeof directCandidate === 'number' && Number.isFinite(directCandidate)) {
+    const directCandidate =
+      source.total ?? source.bytes ?? source.amount ?? source.used;
+    if (
+      typeof directCandidate === "number" &&
+      Number.isFinite(directCandidate)
+    ) {
       return directCandidate;
     }
     const inboundCandidate = source.in ?? source.ingress ?? source.inbound;
     const outboundCandidate = source.out ?? source.egress ?? source.outbound;
     let total = 0;
-    if (typeof inboundCandidate === 'number' && Number.isFinite(inboundCandidate)) {
+    if (
+      typeof inboundCandidate === "number" &&
+      Number.isFinite(inboundCandidate)
+    ) {
       total += inboundCandidate;
     }
-    if (typeof outboundCandidate === 'number' && Number.isFinite(outboundCandidate)) {
+    if (
+      typeof outboundCandidate === "number" &&
+      Number.isFinite(outboundCandidate)
+    ) {
       total += outboundCandidate;
     }
     if (total > 0) {
@@ -276,24 +300,29 @@ const extractTransferUsedBytes = (value: unknown): number => {
   return 0;
 };
 
-const mapBackupSummary = (backup: LinodeBackupSummary | null | undefined): BackupSummaryPayload | null => {
-  if (!backup || typeof backup !== 'object') {
+const mapBackupSummary = (
+  backup: LinodeBackupSummary | null | undefined
+): BackupSummaryPayload | null => {
+  if (!backup || typeof backup !== "object") {
     return null;
   }
   const disks = Array.isArray(backup.disks) ? backup.disks : [];
   const totalSizeMb = disks.reduce<number>((sum, disk) => {
-    const diskSize = typeof (disk as { size?: unknown }).size === 'number' ? (disk as { size?: number }).size! : 0;
+    const diskSize =
+      typeof (disk as { size?: unknown }).size === "number"
+        ? (disk as { size?: number }).size!
+        : 0;
     return sum + diskSize;
   }, 0);
 
   return {
-    id: typeof backup.id === 'number' ? backup.id : null,
-    label: typeof backup.label === 'string' ? backup.label : null,
-    type: typeof backup.type === 'string' ? backup.type : null,
-    status: typeof backup.status === 'string' ? backup.status : null,
-    created: typeof backup.created === 'string' ? backup.created : null,
-    finished: typeof backup.finished === 'string' ? backup.finished : null,
-    updated: typeof backup.updated === 'string' ? backup.updated : null,
+    id: typeof backup.id === "number" ? backup.id : null,
+    label: typeof backup.label === "string" ? backup.label : null,
+    type: typeof backup.type === "string" ? backup.type : null,
+    status: typeof backup.status === "string" ? backup.status : null,
+    created: typeof backup.created === "string" ? backup.created : null,
+    finished: typeof backup.finished === "string" ? backup.finished : null,
+    updated: typeof backup.updated === "string" ? backup.updated : null,
     available: Boolean((backup as { available?: boolean }).available),
     totalSizeMb,
     configs: Array.isArray(backup.configs) ? backup.configs : [],
@@ -301,21 +330,21 @@ const mapBackupSummary = (backup: LinodeBackupSummary | null | undefined): Backu
 };
 
 const toStringOrNull = (value: any): string | null => {
-  if (typeof value === 'string' && value.trim().length > 0) {
+  if (typeof value === "string" && value.trim().length > 0) {
     return value;
   }
   return null;
 };
 
 const toNumberOrNull = (value: any): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
   return null;
 };
 
 const mapIPv4Address = (entry: any): any | null => {
-  if (!entry || typeof entry !== 'object') return null;
+  if (!entry || typeof entry !== "object") return null;
   const address = toStringOrNull(entry.address);
   if (!address) return null;
   const editable = entry?.rdns_editable;
@@ -328,12 +357,12 @@ const mapIPv4Address = (entry: any): any | null => {
     subnetMask: toStringOrNull(entry.subnet_mask),
     prefix: toNumberOrNull(entry.prefix),
     region: toStringOrNull(entry.region),
-    rdnsEditable: typeof editable === 'boolean' ? editable : true,
+    rdnsEditable: typeof editable === "boolean" ? editable : true,
   };
 };
 
 const mapIPv6Assignment = (entry: any): any | null => {
-  if (!entry || typeof entry !== 'object') return null;
+  if (!entry || typeof entry !== "object") return null;
   const address = toStringOrNull(entry.address);
   if (!address) return null;
   return {
@@ -347,7 +376,7 @@ const mapIPv6Assignment = (entry: any): any | null => {
 };
 
 const mapIPv6Range = (entry: any): any | null => {
-  if (!entry || typeof entry !== 'object') return null;
+  if (!entry || typeof entry !== "object") return null;
   const range = toStringOrNull(entry.range);
   const prefix = toNumberOrNull(entry.prefix);
   if (!range && prefix === null) {
@@ -397,7 +426,8 @@ const mapFirewallAttachment = (entry: any): any | null => {
     return null;
   }
 
-  const entity = entry?.entity && typeof entry.entity === 'object' ? entry.entity : {};
+  const entity =
+    entry?.entity && typeof entry.entity === "object" ? entry.entity : {};
   const entityId = toNumberOrNull((entity as any)?.id);
 
   return {
@@ -414,7 +444,9 @@ const mapFirewallSummary = (entry: any, attachment?: any): any | null => {
     return null;
   }
   const tags = Array.isArray(entry?.tags)
-    ? entry.tags.map((tag: any) => toStringOrNull(tag)).filter((tag): tag is string => Boolean(tag))
+    ? entry.tags
+        .map((tag: any) => toStringOrNull(tag))
+        .filter((tag): tag is string => Boolean(tag))
     : [];
 
   return {
@@ -425,12 +457,17 @@ const mapFirewallSummary = (entry: any, attachment?: any): any | null => {
     created: toStringOrNull(entry?.created),
     updated: toStringOrNull(entry?.updated),
     pendingChanges: Boolean(entry?.has_pending_changes),
-    rules: entry?.rules && typeof entry.rules === 'object'
-      ? {
-          inbound: Array.isArray(entry.rules.inbound) ? entry.rules.inbound : [],
-          outbound: Array.isArray(entry.rules.outbound) ? entry.rules.outbound : [],
-        }
-      : null,
+    rules:
+      entry?.rules && typeof entry.rules === "object"
+        ? {
+            inbound: Array.isArray(entry.rules.inbound)
+              ? entry.rules.inbound
+              : [],
+            outbound: Array.isArray(entry.rules.outbound)
+              ? entry.rules.outbound
+              : [],
+          }
+        : null,
     attachment: attachment ? mapFirewallAttachment(attachment) : null,
   };
 };
@@ -442,7 +479,9 @@ const mapFirewallOption = (entry: any): any | null => {
   }
 
   const tags = Array.isArray(entry?.tags)
-    ? entry.tags.map((tag: any) => toStringOrNull(tag)).filter((tag): tag is string => Boolean(tag))
+    ? entry.tags
+        .map((tag: any) => toStringOrNull(tag))
+        .filter((tag): tag is string => Boolean(tag))
     : [];
 
   return {
@@ -468,7 +507,10 @@ const mapConfigProfile = (entry: any): any | null => {
     virtMode: toStringOrNull(entry?.virt_mode),
     memoryLimit: toNumberOrNull(entry?.memory_limit),
     interfaces: Array.isArray(entry?.interfaces) ? entry.interfaces : [],
-    helpers: entry?.helpers && typeof entry.helpers === 'object' ? entry.helpers : null,
+    helpers:
+      entry?.helpers && typeof entry.helpers === "object"
+        ? entry.helpers
+        : null,
     created: toStringOrNull(entry?.created),
     updated: toStringOrNull(entry?.updated),
   };
@@ -481,7 +523,7 @@ const mapEventSummary = (entry: any): any | null => {
   }
   return {
     id,
-    action: toStringOrNull(entry?.action) ?? 'unknown',
+    action: toStringOrNull(entry?.action) ?? "unknown",
     status: toStringOrNull(entry?.status),
     message: toStringOrNull(entry?.message),
     created: toStringOrNull(entry?.created),
@@ -492,7 +534,7 @@ const mapEventSummary = (entry: any): any | null => {
 };
 
 const clampPercent = (value: number | null | undefined): number | null => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return null;
   }
   if (value < 0) return 0;
@@ -501,24 +543,39 @@ const clampPercent = (value: number | null | undefined): number | null => {
 };
 
 const PROGRESS_ACTION_MAP: Record<string, string[]> = {
-  provisioning: ['linode_create', 'linode_clone', 'linode_migrate', 'linode_migration_begin'],
-  rebooting: ['linode_reboot', 'linode_shutdown', 'linode_boot'],
-  restoring: ['linode_snapshot_clone', 'linode_snapshot_restore', 'linode_migrate'],
-  backing_up: ['linode_snapshot', 'linode_snapshot_create'],
+  provisioning: [
+    "linode_create",
+    "linode_clone",
+    "linode_migrate",
+    "linode_migration_begin",
+  ],
+  rebooting: ["linode_reboot", "linode_shutdown", "linode_boot"],
+  restoring: [
+    "linode_snapshot_clone",
+    "linode_snapshot_restore",
+    "linode_migrate",
+  ],
+  backing_up: ["linode_snapshot", "linode_snapshot_create"],
 };
 
-const pickProgressEvent = (events: Array<Record<string, any>>, instanceStatus: string): Record<string, any> | null => {
+const pickProgressEvent = (
+  events: Array<Record<string, any>>,
+  instanceStatus: string
+): Record<string, any> | null => {
   if (!Array.isArray(events) || events.length === 0) {
     return null;
   }
 
-  const normalizedStatus = (instanceStatus || '').toLowerCase();
+  const normalizedStatus = (instanceStatus || "").toLowerCase();
   const actionCandidates = PROGRESS_ACTION_MAP[normalizedStatus];
 
   if (Array.isArray(actionCandidates) && actionCandidates.length > 0) {
-    const actionSet = new Set(actionCandidates.map(action => action.toLowerCase()));
-    const byAction = events.find(event => {
-      const action = typeof event?.action === 'string' ? event.action.toLowerCase() : '';
+    const actionSet = new Set(
+      actionCandidates.map((action) => action.toLowerCase())
+    );
+    const byAction = events.find((event) => {
+      const action =
+        typeof event?.action === "string" ? event.action.toLowerCase() : "";
       return actionSet.has(action);
     });
     if (byAction) {
@@ -526,7 +583,7 @@ const pickProgressEvent = (events: Array<Record<string, any>>, instanceStatus: s
     }
   }
 
-  const activeByPercent = events.find(event => {
+  const activeByPercent = events.find((event) => {
     const percent = clampPercent(event?.percentComplete ?? null);
     return percent !== null && percent < 100;
   });
@@ -534,22 +591,31 @@ const pickProgressEvent = (events: Array<Record<string, any>>, instanceStatus: s
     return activeByPercent;
   }
 
-  const activeByStatus = events.find(event => {
-    const status = typeof event?.status === 'string' ? event.status.toLowerCase() : '';
-    return status && status !== 'finished' && status !== 'notification';
+  const activeByStatus = events.find((event) => {
+    const status =
+      typeof event?.status === "string" ? event.status.toLowerCase() : "";
+    return status && status !== "finished" && status !== "notification";
   });
   if (activeByStatus) {
     return activeByStatus;
   }
 
-  const anyWithPercent = events.find(event => clampPercent(event?.percentComplete ?? null) !== null);
+  const anyWithPercent = events.find(
+    (event) => clampPercent(event?.percentComplete ?? null) !== null
+  );
   return anyWithPercent || null;
 };
 
 const deriveProgressFromEvents = (
   instanceStatus: string,
   events: Array<Record<string, any>>
-): { percent: number | null; action: string | null; status: string | null; message: string | null; created: string | null } | null => {
+): {
+  percent: number | null;
+  action: string | null;
+  status: string | null;
+  message: string | null;
+  created: string | null;
+} | null => {
   if (!Array.isArray(events) || events.length === 0) {
     return null;
   }
@@ -562,22 +628,29 @@ const deriveProgressFromEvents = (
   const rawPercent = clampPercent(bestEvent?.percentComplete ?? null);
   let percent = rawPercent;
   if (percent === null) {
-    const status = typeof bestEvent?.status === 'string' ? bestEvent.status.toLowerCase() : '';
-    if (status === 'finished' || status === 'completed' || status === 'success') {
+    const status =
+      typeof bestEvent?.status === "string"
+        ? bestEvent.status.toLowerCase()
+        : "";
+    if (
+      status === "finished" ||
+      status === "completed" ||
+      status === "success"
+    ) {
       percent = 100;
-    } else if (status === 'failed' || status === 'error') {
+    } else if (status === "failed" || status === "error") {
       percent = 100;
-    } else if (status === 'started' || status === 'running') {
+    } else if (status === "started" || status === "running") {
       percent = 10;
     }
   }
 
   return {
     percent,
-    action: typeof bestEvent?.action === 'string' ? bestEvent.action : null,
-    status: typeof bestEvent?.status === 'string' ? bestEvent.status : null,
-    message: typeof bestEvent?.message === 'string' ? bestEvent.message : null,
-    created: typeof bestEvent?.created === 'string' ? bestEvent.created : null,
+    action: typeof bestEvent?.action === "string" ? bestEvent.action : null,
+    status: typeof bestEvent?.status === "string" ? bestEvent.status : null,
+    message: typeof bestEvent?.message === "string" ? bestEvent.message : null,
+    created: typeof bestEvent?.created === "string" ? bestEvent.created : null,
   };
 };
 
@@ -589,15 +662,19 @@ const ensureRegionLabelCache = async (): Promise<Map<string, string>> => {
   }
   try {
     const regions = await linodeService.getLinodeRegions();
-    regionLabelCache = new Map(regions.map(region => [region.id, region.label]));
+    regionLabelCache = new Map(
+      regions.map((region) => [region.id, region.label])
+    );
   } catch (err) {
-    console.warn('Failed to populate region label cache:', err);
+    console.warn("Failed to populate region label cache:", err);
     regionLabelCache = new Map();
   }
   return regionLabelCache;
 };
 
-const resolveRegionLabel = async (regionId: string | null): Promise<string | null> => {
+const resolveRegionLabel = async (
+  regionId: string | null
+): Promise<string | null> => {
   if (!regionId) {
     return null;
   }
@@ -607,10 +684,12 @@ const resolveRegionLabel = async (regionId: string | null): Promise<string | nul
   }
   try {
     const regions = await linodeService.getLinodeRegions();
-    regionLabelCache = new Map(regions.map(region => [region.id, region.label]));
+    regionLabelCache = new Map(
+      regions.map((region) => [region.id, region.label])
+    );
     return regionLabelCache.get(regionId) ?? null;
   } catch (err) {
-    console.warn('Failed to refresh region labels:', err);
+    console.warn("Failed to refresh region labels:", err);
     return null;
   }
 };
@@ -620,46 +699,58 @@ const resolvePlanMeta = async (
   providerDetail: LinodeInstance | null
 ): Promise<PlanMeta> => {
   let planRow: any = null;
-  const configuration = (instanceRow?.configuration && typeof instanceRow.configuration === 'object')
-    ? instanceRow.configuration
-    : {};
-  const configuredType = typeof configuration?.type === 'string' ? configuration.type : undefined;
+  const configuration =
+    instanceRow?.configuration && typeof instanceRow.configuration === "object"
+      ? instanceRow.configuration
+      : {};
+  const configuredType =
+    typeof configuration?.type === "string" ? configuration.type : undefined;
   const providerType = providerDetail?.type;
 
   const planIdCandidate = instanceRow?.plan_id;
 
   try {
     if (planIdCandidate) {
-      const res = await query('SELECT * FROM vps_plans WHERE id = $1 LIMIT 1', [planIdCandidate]);
+      const res = await query("SELECT * FROM vps_plans WHERE id = $1 LIMIT 1", [
+        planIdCandidate,
+      ]);
       planRow = res.rows[0] ?? null;
     }
     if (!planRow && configuredType) {
-      const res = await query('SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1', [configuredType]);
+      const res = await query(
+        "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
+        [configuredType]
+      );
       planRow = res.rows[0] ?? null;
     }
     if (!planRow && providerType) {
-      const res = await query('SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1', [providerType]);
+      const res = await query(
+        "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
+        [providerType]
+      );
       planRow = res.rows[0] ?? null;
     }
   } catch (err) {
-    console.warn('Failed to resolve VPS plan metadata:', err);
+    console.warn("Failed to resolve VPS plan metadata:", err);
   }
 
-  const providerPlanId = typeof planRow?.provider_plan_id === 'string'
-    ? String(planRow.provider_plan_id)
-    : configuredType ?? providerType ?? null;
+  const providerPlanId =
+    typeof planRow?.provider_plan_id === "string"
+      ? String(planRow.provider_plan_id)
+      : configuredType ?? providerType ?? null;
 
   const specs: PlanSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
   const pricing: PlanPricing = { hourly: 0, monthly: 0 };
 
   if (planRow) {
-    const rawSpecs = (planRow.specifications && typeof planRow.specifications === 'object')
-      ? planRow.specifications
-      : {};
+    const rawSpecs =
+      planRow.specifications && typeof planRow.specifications === "object"
+        ? planRow.specifications
+        : {};
 
     const sanitizeNumber = (value: any): number | undefined => {
-      if (typeof value === 'number' && Number.isFinite(value)) return value;
-      if (typeof value === 'string') {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : undefined;
       }
@@ -668,7 +759,7 @@ const resolvePlanMeta = async (
 
     const pickNumber = (candidates: Array<number | undefined>): number => {
       for (const candidate of candidates) {
-        if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+        if (typeof candidate === "number" && Number.isFinite(candidate)) {
           return candidate;
         }
       }
@@ -724,33 +815,46 @@ const resolvePlanMeta = async (
 };
 
 // Get Linode Marketplace apps (limited to selected slugs)
-router.get('/apps', async (req: Request, res: Response) => {
+router.get("/apps", async (req: Request, res: Response) => {
   try {
-    const slugsParam = String(req.query.slugs || '').trim();
-    const slugs = slugsParam ? slugsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
-    const apps = await linodeService.listMarketplaceApps(slugs.length > 0 ? slugs : undefined);
+    const slugsParam = String(req.query.slugs || "").trim();
+    const slugs = slugsParam
+      ? slugsParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+    const apps = await linodeService.listMarketplaceApps(
+      slugs.length > 0 ? slugs : undefined
+    );
     res.json({ apps });
   } catch (err: any) {
-    console.error('Apps fetch error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch Marketplace apps' });
+    console.error("Apps fetch error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch Marketplace apps" });
   }
 });
 
 // Get available Linode images
-router.get('/images', async (req: Request, res: Response) => {
+router.get("/images", async (req: Request, res: Response) => {
   try {
     const images = await linodeService.getLinodeImages();
     res.json({ images });
   } catch (err: any) {
-    console.error('Images fetch error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch images' });
+    console.error("Images fetch error:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch images" });
   }
 });
 
 // Get available Linode stack scripts
-router.get('/stackscripts', async (req: Request, res: Response) => {
-  const isTruthy = (value: any) => String(value || '').toLowerCase() === 'true';
-  const configuredOnly = isTruthy((req.query as any).configured || (req.query as any).allowed || (req.query as any).allowedOnly);
+router.get("/stackscripts", async (req: Request, res: Response) => {
+  const isTruthy = (value: any) => String(value || "").toLowerCase() === "true";
+  const configuredOnly = isTruthy(
+    (req.query as any).configured ||
+      (req.query as any).allowed ||
+      (req.query as any).allowedOnly
+  );
   const mineOnly = isTruthy(req.query.mine);
 
   try {
@@ -765,9 +869,14 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
         );
         configs = configRes.rows || [];
       } catch (configErr: any) {
-        const msg = String(configErr?.message || '').toLowerCase();
-        if (msg.includes('does not exist') || msg.includes('relation') && msg.includes('vps_stackscript_configs')) {
-          console.warn('StackScript config table missing; returning empty configured list');
+        const msg = String(configErr?.message || "").toLowerCase();
+        if (
+          msg.includes("does not exist") ||
+          (msg.includes("relation") && msg.includes("vps_stackscript_configs"))
+        ) {
+          console.warn(
+            "StackScript config table missing; returning empty configured list"
+          );
           return res.json({ stackscripts: [] });
         }
         throw configErr;
@@ -781,9 +890,12 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
       const scriptMap = new Map<number, any>();
       try {
         ownedScripts = await linodeService.getLinodeStackScripts(true);
-        ownedScripts.forEach(script => scriptMap.set(script.id, script));
+        ownedScripts.forEach((script) => scriptMap.set(script.id, script));
       } catch (err) {
-        console.warn('Failed to fetch owned StackScripts list, will query individually:', err);
+        console.warn(
+          "Failed to fetch owned StackScripts list, will query individually:",
+          err
+        );
       }
 
       const enriched: any[] = [];
@@ -806,9 +918,12 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
           continue;
         }
 
-        const displayLabel = row.label || script.label || `StackScript ${stackscriptId}`;
-        const displayDescription = row.description || script.description || script.rev_note || '';
-        const metadata = (row.metadata && typeof row.metadata === 'object') ? row.metadata : {};
+        const displayLabel =
+          row.label || script.label || `StackScript ${stackscriptId}`;
+        const displayDescription =
+          row.description || script.description || script.rev_note || "";
+        const metadata =
+          row.metadata && typeof row.metadata === "object" ? row.metadata : {};
 
         enriched.push({
           ...script,
@@ -821,7 +936,7 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
             is_enabled: row.is_enabled !== false,
             display_order: Number(row.display_order || 0),
             metadata,
-          }
+          },
         });
       }
 
@@ -829,7 +944,11 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
         const orderA = Number(a?.config?.display_order ?? 0);
         const orderB = Number(b?.config?.display_order ?? 0);
         if (orderA !== orderB) return orderA - orderB;
-        return String(a?.label || '').localeCompare(String(b?.label || ''), undefined, { sensitivity: 'base' });
+        return String(a?.label || "").localeCompare(
+          String(b?.label || ""),
+          undefined,
+          { sensitivity: "base" }
+        );
       });
 
       return res.json({ stackscripts: enriched });
@@ -838,17 +957,19 @@ router.get('/stackscripts', async (req: Request, res: Response) => {
     const stackscripts = await linodeService.getLinodeStackScripts(mineOnly);
     return res.json({ stackscripts });
   } catch (err: any) {
-    console.error('StackScripts fetch error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch stack scripts' });
+    console.error("StackScripts fetch error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch stack scripts" });
   }
 });
 
 // List VPS instances for the user's organization
-router.get('/', async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const organizationId = (req as any).user.organizationId;
     const result = await query(
-      'SELECT * FROM vps_instances WHERE organization_id = $1 ORDER BY created_at DESC',
+      "SELECT * FROM vps_instances WHERE organization_id = $1 ORDER BY created_at DESC",
       [organizationId]
     );
 
@@ -858,149 +979,304 @@ router.get('/', async (req: Request, res: Response) => {
     let regionLabelMap: Record<string, string> = {};
     try {
       const regions = await linodeService.getLinodeRegions();
-      regionLabelMap = Object.fromEntries(regions.map(r => [r.id, r.label]));
+      regionLabelMap = Object.fromEntries(regions.map((r) => [r.id, r.label]));
     } catch (e) {
       // Non-fatal: if regions fail to load, we simply won't provide labels
-      console.warn('Failed to fetch Linode regions for labeling:', e);
+      console.warn("Failed to fetch Linode regions for labeling:", e);
     }
 
     // Enrich each instance with latest Linode details and persist status/IP updates
-    const enriched = await Promise.all(rows.map(async (row) => {
-      try {
-        const instanceId = Number(row.provider_instance_id);
-        if (!Number.isFinite(instanceId)) return row;
-        const detail = await linodeService.getLinodeInstance(instanceId);
-
-        // If status or IP changed, update DB
-        const currentIp = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
-        // Normalize provider 'offline' to our UI 'stopped'
-        const normalized = detail.status === 'offline' ? 'stopped' : detail.status;
-        if (row.status !== normalized || row.ip_address !== currentIp) {
-          await query(
-            'UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3',
-            [normalized, currentIp, row.id]
-          );
-          row.status = normalized;
-          row.ip_address = currentIp;
-        }
-
-        // Also keep configuration in sync for image/region when available
-        const conf = row.configuration || {};
-        const newConf = { ...conf, image: detail.image || conf.image, region: detail.region || conf.region, type: detail.type || conf.type };
-        row.configuration = newConf;
-
-        // Attach region label for UI convenience
-        const regionCode = newConf.region || '';
-        (row as any).region_label = regionLabelMap[regionCode] || null;
-
-        // Attach plan specs and pricing for UI without admin dependency
-        let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
-        let planPricing = { hourly: 0, monthly: 0 };
+    const enriched = await Promise.all(
+      rows.map(async (row) => {
         try {
-          // Try by stored plan_id first
-          let planRow: any = null;
-          if (row.plan_id) {
-            const byId = await query('SELECT * FROM vps_plans WHERE id = $1 LIMIT 1', [row.plan_id]);
-            planRow = byId.rows[0] || null;
+          const instanceId = Number(row.provider_instance_id);
+          if (!Number.isFinite(instanceId)) return row;
+          const detail = await linodeService.getLinodeInstance(instanceId);
+
+          // If status or IP changed, update DB
+          const currentIp =
+            Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+              ? detail.ipv4[0]
+              : null;
+          // Normalize provider 'offline' to our UI 'stopped'
+          const normalized =
+            detail.status === "offline" ? "stopped" : detail.status;
+          if (row.status !== normalized || row.ip_address !== currentIp) {
+            await query(
+              "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+              [normalized, currentIp, row.id]
+            );
+            row.status = normalized;
+            row.ip_address = currentIp;
           }
-          // Fallback: lookup by provider_plan_id using configuration.type
-          if (!planRow && newConf.type) {
-            const byProviderId = await query('SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1', [newConf.type]);
-            planRow = byProviderId.rows[0] || null;
+
+          // Also keep configuration in sync for image/region when available
+          const conf = row.configuration || {};
+          const newConf = {
+            ...conf,
+            image: detail.image || conf.image,
+            region: detail.region || conf.region,
+            type: detail.type || conf.type,
+          };
+          row.configuration = newConf;
+
+          // Attach region label for UI convenience
+          const regionCode = newConf.region || "";
+          (row as any).region_label = regionLabelMap[regionCode] || null;
+
+          // Attach plan specs and pricing for UI without admin dependency
+          let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
+          let planPricing = { hourly: 0, monthly: 0 };
+          try {
+            // Try by stored plan_id first
+            let planRow: any = null;
+            if (row.plan_id) {
+              const byId = await query(
+                "SELECT * FROM vps_plans WHERE id = $1 LIMIT 1",
+                [row.plan_id]
+              );
+              planRow = byId.rows[0] || null;
+            }
+            // Fallback: lookup by provider_plan_id using configuration.type
+            if (!planRow && newConf.type) {
+              const byProviderId = await query(
+                "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
+                [newConf.type]
+              );
+              planRow = byProviderId.rows[0] || null;
+            }
+
+            if (planRow) {
+              const specs = planRow.specifications || {};
+              const disk =
+                (typeof specs.disk === "number" ? specs.disk : undefined) ??
+                (typeof specs.storage_gb === "number"
+                  ? specs.storage_gb
+                  : undefined) ??
+                0;
+              const memoryMb =
+                (typeof specs.memory === "number" ? specs.memory : undefined) ??
+                (typeof specs.memory_gb === "number"
+                  ? specs.memory_gb * 1024
+                  : undefined) ??
+                0;
+              const vcpus =
+                (typeof specs.vcpus === "number" ? specs.vcpus : undefined) ??
+                (typeof specs.cpu_cores === "number"
+                  ? specs.cpu_cores
+                  : undefined) ??
+                0;
+              const transferGb =
+                (typeof specs.transfer === "number"
+                  ? specs.transfer
+                  : undefined) ??
+                (typeof specs.transfer_gb === "number"
+                  ? specs.transfer_gb
+                  : undefined) ??
+                (typeof specs.bandwidth_gb === "number"
+                  ? specs.bandwidth_gb
+                  : undefined) ??
+                0;
+
+              const basePrice = Number(planRow.base_price || 0);
+              const markupPrice = Number(planRow.markup_price || 0);
+              const monthly = basePrice + markupPrice;
+
+              planSpecs = {
+                vcpus,
+                memory: memoryMb,
+                disk,
+                transfer: transferGb,
+              };
+              planPricing = { hourly: monthly / 730, monthly };
+            } else if (detail && detail.specs) {
+              // Fallback to Linode detail specs when plan is not found
+              planSpecs = {
+                vcpus: Number(detail.specs.vcpus || 0),
+                memory: Number(detail.specs.memory || 0),
+                disk: Number(detail.specs.disk || 0),
+                transfer: Number(detail.specs.transfer || 0),
+              };
+            }
+          } catch (e) {
+            console.warn("Failed to attach plan specs/pricing:", e);
           }
 
-          if (planRow) {
-            const specs = planRow.specifications || {};
-            const disk = (typeof specs.disk === 'number' ? specs.disk : undefined) ??
-                         (typeof specs.storage_gb === 'number' ? specs.storage_gb : undefined) ?? 0;
-            const memoryMb = (typeof specs.memory === 'number' ? specs.memory : undefined) ??
-                             (typeof specs.memory_gb === 'number' ? specs.memory_gb * 1024 : undefined) ?? 0;
-            const vcpus = (typeof specs.vcpus === 'number' ? specs.vcpus : undefined) ??
-                           (typeof specs.cpu_cores === 'number' ? specs.cpu_cores : undefined) ?? 0;
-            const transferGb = (typeof specs.transfer === 'number' ? specs.transfer : undefined) ??
-                               (typeof specs.transfer_gb === 'number' ? specs.transfer_gb : undefined) ??
-                               (typeof specs.bandwidth_gb === 'number' ? specs.bandwidth_gb : undefined) ?? 0;
+          (row as any).plan_specs = planSpecs;
+          (row as any).plan_pricing = planPricing;
 
-            const basePrice = Number(planRow.base_price || 0);
-            const markupPrice = Number(planRow.markup_price || 0);
-            const monthly = basePrice + markupPrice;
-
-            planSpecs = { vcpus, memory: memoryMb, disk, transfer: transferGb };
-            planPricing = { hourly: monthly / 730, monthly };
-          } else if (detail && detail.specs) {
-            // Fallback to Linode detail specs when plan is not found
-            planSpecs = {
-              vcpus: Number(detail.specs.vcpus || 0),
-              memory: Number(detail.specs.memory || 0),
-              disk: Number(detail.specs.disk || 0),
-              transfer: Number(detail.specs.transfer || 0)
-            };
+          const normalizedStatus =
+            typeof row.status === "string" ? row.status.toLowerCase() : "";
+          if (
+            ["provisioning", "rebooting", "restoring", "backing_up"].includes(
+              normalizedStatus
+            )
+          ) {
+            try {
+              const eventsData = await linodeService.getLinodeInstanceEvents(
+                instanceId,
+                { pageSize: 50 }
+              );
+              const events = Array.isArray((eventsData as any)?.data)
+                ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
+                : [];
+              const progress = deriveProgressFromEvents(
+                normalizedStatus,
+                events
+              );
+              (row as any).provider_progress = progress;
+              (row as any).progress_percent = progress?.percent ?? null;
+            } catch (eventError) {
+              console.warn(
+                "Failed to fetch instance events for progress:",
+                eventError
+              );
+            }
+          } else {
+            (row as any).provider_progress = null;
+            (row as any).progress_percent = null;
           }
         } catch (e) {
-          console.warn('Failed to attach plan specs/pricing:', e);
+          console.warn("Failed to enrich instance with Linode details:", e);
         }
-
-        (row as any).plan_specs = planSpecs;
-        (row as any).plan_pricing = planPricing;
-
-        const normalizedStatus = typeof row.status === 'string' ? row.status.toLowerCase() : '';
-        if (['provisioning', 'rebooting', 'restoring', 'backing_up'].includes(normalizedStatus)) {
-          try {
-            const eventsData = await linodeService.getLinodeInstanceEvents(instanceId, { pageSize: 50 });
-            const events = Array.isArray((eventsData as any)?.data)
-              ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
-              : [];
-            const progress = deriveProgressFromEvents(normalizedStatus, events);
-            (row as any).provider_progress = progress;
-            (row as any).progress_percent = progress?.percent ?? null;
-          } catch (eventError) {
-            console.warn('Failed to fetch instance events for progress:', eventError);
-          }
-        } else {
-          (row as any).provider_progress = null;
-          (row as any).progress_percent = null;
-        }
-      } catch (e) {
-        console.warn('Failed to enrich instance with Linode details:', e);
-      }
-      // Ensure normalized status is returned even if DB was already current
-      if (row.status === 'offline') (row as any).status = 'stopped';
-      return row;
-    }));
+        // Ensure normalized status is returned even if DB was already current
+        if (row.status === "offline") (row as any).status = "stopped";
+        return row;
+      })
+    );
 
     res.json({ instances: enriched });
   } catch (err: any) {
-    console.error('VPS list error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch VPS instances' });
+    console.error("VPS list error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch VPS instances" });
   }
 });
 
-router.get('/:id', async (req: Request, res: Response) => {
+// Get VPS uptime summary for billing display
+router.get("/uptime-summary", async (req: Request, res: Response) => {
+  try {
+    const organizationId = (req as any).user.organizationId;
+
+    // Fetch all VPS instances for the organization with plan data
+    const result = await query(
+      `SELECT 
+        vi.id,
+        vi.label,
+        vi.status,
+        vi.created_at,
+        vi.last_billed_at,
+        vi.plan_id,
+        vp.base_price,
+        vp.markup_price,
+        vp.provider_plan_id
+      FROM vps_instances vi
+      LEFT JOIN vps_plans vp ON vi.plan_id::uuid = vp.id
+      WHERE vi.organization_id = $1
+      ORDER BY vi.created_at DESC`,
+      [organizationId]
+    );
+
+    const instances = result.rows || [];
+
+    if (instances.length === 0) {
+      return res.json({
+        totalActiveHours: 0,
+        totalEstimatedCost: 0,
+        vpsInstances: [],
+      });
+    }
+
+    const currentTime = new Date();
+    let totalActiveHours = 0;
+    let totalEstimatedCost = 0;
+
+    const vpsInstances = instances.map((instance: any) => {
+      // Calculate active hours from creation to now
+      const createdAt = new Date(instance.created_at);
+      const activeMilliseconds = currentTime.getTime() - createdAt.getTime();
+      const activeHours = activeMilliseconds / (1000 * 60 * 60);
+
+      // Calculate hourly rate from plan pricing
+      // Default fallback rate if plan data is missing
+      let hourlyRate = 0.027;
+
+      if (instance.base_price !== null && instance.markup_price !== null) {
+        const basePrice = parseFloat(instance.base_price) || 0;
+        const markupPrice = parseFloat(instance.markup_price) || 0;
+        const monthlyPrice = basePrice + markupPrice;
+        // Convert monthly to hourly (730 hours per month average)
+        hourlyRate = monthlyPrice / 730;
+      }
+
+      // Calculate estimated cost
+      const estimatedCost = activeHours * hourlyRate;
+
+      totalActiveHours += activeHours;
+      totalEstimatedCost += estimatedCost;
+
+      return {
+        id: instance.id,
+        label: instance.label,
+        status: instance.status,
+        createdAt: instance.created_at,
+        deletedAt: null, // Not tracking deletions yet
+        activeHours: Math.round(activeHours * 10) / 10, // Round to 1 decimal
+        hourlyRate: Math.round(hourlyRate * 100000) / 100000, // Round to 5 decimals
+        estimatedCost: Math.round(estimatedCost * 100) / 100, // Round to 2 decimals
+        lastBilledAt: instance.last_billed_at,
+      };
+    });
+
+    res.json({
+      totalActiveHours: Math.round(totalActiveHours * 10) / 10,
+      totalEstimatedCost: Math.round(totalEstimatedCost * 100) / 100,
+      vpsInstances,
+    });
+  } catch (error) {
+    console.error("VPS uptime summary error:", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch VPS uptime data";
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const organizationId = (req as any).user.organizationId;
     const detailRes = await query(
-      'SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2 LIMIT 1',
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2 LIMIT 1",
       [id, organizationId]
     );
 
     if (detailRes.rows.length === 0) {
-      res.status(404).json({ error: 'Instance not found' });
+      res.status(404).json({ error: "Instance not found" });
       return;
     }
 
     const instanceRow = detailRes.rows[0];
-    let configuration = (instanceRow?.configuration && typeof instanceRow.configuration === 'object')
-      ? instanceRow.configuration
-      : {};
+    let configuration =
+      instanceRow?.configuration &&
+      typeof instanceRow.configuration === "object"
+        ? instanceRow.configuration
+        : {};
     const providerInstanceId = Number(instanceRow.provider_instance_id);
 
     let providerDetail: LinodeInstance | null = null;
     if (Number.isFinite(providerInstanceId)) {
       try {
-        providerDetail = await linodeService.getLinodeInstance(providerInstanceId);
+        providerDetail = await linodeService.getLinodeInstance(
+          providerInstanceId
+        );
       } catch (err) {
-        console.warn(`Failed to fetch provider detail for instance ${instanceRow.provider_instance_id}:`, err);
+        console.warn(
+          `Failed to fetch provider detail for instance ${instanceRow.provider_instance_id}:`,
+          err
+        );
       }
     }
 
@@ -1014,19 +1290,25 @@ router.get('/:id', async (req: Request, res: Response) => {
       configuration = newConfiguration;
     }
 
-    const normalizedStatus = normalizeProviderStatus(providerDetail?.status ?? instanceRow.status);
-    const providerIp = Array.isArray(providerDetail?.ipv4) && providerDetail.ipv4.length > 0
-      ? providerDetail.ipv4[0]
-      : instanceRow.ip_address ?? null;
+    const normalizedStatus = normalizeProviderStatus(
+      providerDetail?.status ?? instanceRow.status
+    );
+    const providerIp =
+      Array.isArray(providerDetail?.ipv4) && providerDetail.ipv4.length > 0
+        ? providerDetail.ipv4[0]
+        : instanceRow.ip_address ?? null;
 
-    if (instanceRow.status !== normalizedStatus || instanceRow.ip_address !== providerIp) {
+    if (
+      instanceRow.status !== normalizedStatus ||
+      instanceRow.ip_address !== providerIp
+    ) {
       try {
         await query(
-          'UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3',
+          "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
           [normalizedStatus, providerIp, instanceRow.id]
         );
       } catch (err) {
-        console.warn('Failed to synchronize instance cache fields:', err);
+        console.warn("Failed to synchronize instance cache fields:", err);
       }
       instanceRow.status = normalizedStatus;
       instanceRow.ip_address = providerIp;
@@ -1036,7 +1318,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     const regionCode = providerDetail?.region ?? configuration?.region ?? null;
-    const regionLabel = await resolveRegionLabel(typeof regionCode === 'string' ? regionCode : null);
+    const regionLabel = await resolveRegionLabel(
+      typeof regionCode === "string" ? regionCode : null
+    );
 
     const planMeta = await resolvePlanMeta(instanceRow, providerDetail);
 
@@ -1057,17 +1341,23 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
-        const stats: LinodeInstanceStatsResponse = await linodeService.getLinodeInstanceStats(providerInstanceId);
-        const statsPayload = (stats?.data && typeof stats.data === 'object') ? stats.data : stats;
+        const stats: LinodeInstanceStatsResponse =
+          await linodeService.getLinodeInstanceStats(providerInstanceId);
+        const statsPayload =
+          stats?.data && typeof stats.data === "object" ? stats.data : stats;
         const metricsSource: LinodeInstanceStatsSeries =
-          statsPayload && typeof statsPayload === 'object'
+          statsPayload && typeof statsPayload === "object"
             ? (statsPayload as LinodeInstanceStatsSeries)
             : {};
         const cpuSeries = normalizeSeries(metricsSource?.cpu);
         const ipv4InSeries = normalizeSeries(metricsSource?.netv4?.in);
         const ipv4OutSeries = normalizeSeries(metricsSource?.netv4?.out);
-        const ipv4PrivateInSeries = normalizeSeries(metricsSource?.netv4?.private_in);
-        const ipv4PrivateOutSeries = normalizeSeries(metricsSource?.netv4?.private_out);
+        const ipv4PrivateInSeries = normalizeSeries(
+          metricsSource?.netv4?.private_in
+        );
+        const ipv4PrivateOutSeries = normalizeSeries(
+          metricsSource?.netv4?.private_out
+        );
         const ioSeries = normalizeSeries(metricsSource?.io?.io);
         const swapSeries = normalizeSeries(metricsSource?.io?.swap);
 
@@ -1081,14 +1371,34 @@ router.get('/:id', async (req: Request, res: Response) => {
             ioSeries,
             swapSeries,
           ]),
-          cpu: { series: cpuSeries, summary: summarizeSeries(cpuSeries), unit: 'percent' },
+          cpu: {
+            series: cpuSeries,
+            summary: summarizeSeries(cpuSeries),
+            unit: "percent",
+          },
           network: {
-            inbound: { series: ipv4InSeries, summary: summarizeSeries(ipv4InSeries), unit: 'bitsPerSecond' },
-            outbound: { series: ipv4OutSeries, summary: summarizeSeries(ipv4OutSeries), unit: 'bitsPerSecond' },
+            inbound: {
+              series: ipv4InSeries,
+              summary: summarizeSeries(ipv4InSeries),
+              unit: "bitsPerSecond",
+            },
+            outbound: {
+              series: ipv4OutSeries,
+              summary: summarizeSeries(ipv4OutSeries),
+              unit: "bitsPerSecond",
+            },
           },
           io: {
-            read: { series: ioSeries, summary: summarizeSeries(ioSeries), unit: 'blocksPerSecond' },
-            swap: { series: swapSeries, summary: summarizeSeries(swapSeries), unit: 'blocksPerSecond' },
+            read: {
+              series: ioSeries,
+              summary: summarizeSeries(ioSeries),
+              unit: "blocksPerSecond",
+            },
+            swap: {
+              series: swapSeries,
+              summary: summarizeSeries(swapSeries),
+              unit: "blocksPerSecond",
+            },
           },
         };
 
@@ -1097,55 +1407,72 @@ router.get('/:id', async (req: Request, res: Response) => {
           metrics.network.privateIn = {
             series: ipv4PrivateInSeries,
             summary: summarizeSeries(ipv4PrivateInSeries),
-            unit: 'bitsPerSecond',
+            unit: "bitsPerSecond",
           };
           metrics.network.privateOut = {
             series: ipv4PrivateOutSeries,
             summary: summarizeSeries(ipv4PrivateOutSeries),
-            unit: 'bitsPerSecond',
+            unit: "bitsPerSecond",
           };
         }
       } catch (err) {
-        console.warn('Failed to fetch instance metrics:', err);
+        console.warn("Failed to fetch instance metrics:", err);
       }
     }
 
-  let transfer: TransferPayload | null = null;
-  let networking: any = null;
-  let firewalls: any[] = [];
-  let firewallOptions: any[] = [];
-  let providerConfigs: any[] = [];
-  let instanceEvents: any[] = [];
+    let transfer: TransferPayload | null = null;
+    let networking: any = null;
+    let firewalls: any[] = [];
+    let firewallOptions: any[] = [];
+    let providerConfigs: any[] = [];
+    let instanceEvents: any[] = [];
 
-  if (providerDetail && Number.isFinite(providerInstanceId)) {
+    if (providerDetail && Number.isFinite(providerInstanceId)) {
       try {
-        const transferData = await linodeService.getLinodeInstanceTransfer(providerInstanceId);
+        const transferData = await linodeService.getLinodeInstanceTransfer(
+          providerInstanceId
+        );
 
         const transferSource = (transferData ?? {}) as Record<string, unknown>;
         const usedBytes = extractTransferUsedBytes(transferSource.used);
         const usedGb = bytesToGigabytes(usedBytes);
         const billableGb = safeNumber(transferSource.billable);
-        
+
         // Use the plan's transfer allocation as the quota instead of the API's quota field
         // The API's quota field appears to return account-level pooled transfer data
-        const quotaGb = planMeta.specs.transfer > 0 ? planMeta.specs.transfer : safeNumber(transferSource.quota);
-        const utilizationPercent = quotaGb > 0 ? Math.min(100, Math.max(0, (usedGb / quotaGb) * 100)) : 0;
+        const quotaGb =
+          planMeta.specs.transfer > 0
+            ? planMeta.specs.transfer
+            : safeNumber(transferSource.quota);
+        const utilizationPercent =
+          quotaGb > 0
+            ? Math.min(100, Math.max(0, (usedGb / quotaGb) * 100))
+            : 0;
 
         // Only use instance-specific transfer data, no account-level data
-        transfer = { usedGb, quotaGb, billableGb, utilizationPercent, account: null, usedBytes };
+        transfer = {
+          usedGb,
+          quotaGb,
+          billableGb,
+          utilizationPercent,
+          account: null,
+          usedBytes,
+        };
       } catch (err) {
-        console.warn('Failed to fetch transfer usage:', err);
+        console.warn("Failed to fetch transfer usage:", err);
       }
     }
 
-  let backups: BackupsPayload | null = null;
-  if (providerDetail && Number.isFinite(providerInstanceId)) {
+    let backups: BackupsPayload | null = null;
+    if (providerDetail && Number.isFinite(providerInstanceId)) {
       const providerBackups = providerDetail.backups ?? null;
       let backupCollection: LinodeInstanceBackupsResponse | null = null;
       try {
-        backupCollection = await linodeService.getLinodeInstanceBackups(providerInstanceId);
+        backupCollection = await linodeService.getLinodeInstanceBackups(
+          providerInstanceId
+        );
       } catch (err) {
-        console.warn('Failed to fetch instance backups:', err);
+        console.warn("Failed to fetch instance backups:", err);
       }
 
       const automatic = Array.isArray(backupCollection?.automatic)
@@ -1155,7 +1482,9 @@ router.get('/:id', async (req: Request, res: Response) => {
         : [];
 
       const snapshot = mapBackupSummary(backupCollection?.snapshot?.current);
-      const snapshotInProgress = mapBackupSummary(backupCollection?.snapshot?.in_progress);
+      const snapshotInProgress = mapBackupSummary(
+        backupCollection?.snapshot?.in_progress
+      );
 
       backups = {
         enabled: Boolean(providerBackups?.enabled),
@@ -1180,19 +1509,29 @@ router.get('/:id', async (req: Request, res: Response) => {
           .map(mapFirewallOption)
           .filter((item): item is Record<string, unknown> => Boolean(item));
       } catch (err) {
-        console.warn('Failed to fetch firewall catalog:', err);
+        console.warn("Failed to fetch firewall catalog:", err);
       }
 
       try {
-        const ipData = await linodeService.getLinodeInstanceIPs(providerInstanceId);
+        const ipData = await linodeService.getLinodeInstanceIPs(
+          providerInstanceId
+        );
         const ipv4Data = (ipData as any)?.ipv4 || {};
         const ipv6Data = (ipData as any)?.ipv6 || null;
         networking = {
           ipv4: {
-            public: pickIPv4Array(ipv4Data, 'public').map(mapIPv4Address).filter(Boolean),
-            private: pickIPv4Array(ipv4Data, 'private').map(mapIPv4Address).filter(Boolean),
-            shared: pickIPv4Array(ipv4Data, 'shared').map(mapIPv4Address).filter(Boolean),
-            reserved: pickIPv4Array(ipv4Data, 'reserved').map(mapIPv4Address).filter(Boolean),
+            public: pickIPv4Array(ipv4Data, "public")
+              .map(mapIPv4Address)
+              .filter(Boolean),
+            private: pickIPv4Array(ipv4Data, "private")
+              .map(mapIPv4Address)
+              .filter(Boolean),
+            shared: pickIPv4Array(ipv4Data, "shared")
+              .map(mapIPv4Address)
+              .filter(Boolean),
+            reserved: pickIPv4Array(ipv4Data, "reserved")
+              .map(mapIPv4Address)
+              .filter(Boolean),
           },
           ipv6: ipv6Data
             ? {
@@ -1205,95 +1544,149 @@ router.get('/:id', async (req: Request, res: Response) => {
             : null,
         };
       } catch (err) {
-        console.warn('Failed to fetch instance networking:', err);
+        console.warn("Failed to fetch instance networking:", err);
       }
 
       try {
-        const firewallData = await linodeService.getLinodeInstanceFirewalls(providerInstanceId);
-        const firewallRows = Array.isArray((firewallData as any)?.data) ? (firewallData as any).data : [];
+        const firewallData = await linodeService.getLinodeInstanceFirewalls(
+          providerInstanceId
+        );
+        const firewallRows = Array.isArray((firewallData as any)?.data)
+          ? (firewallData as any).data
+          : [];
         const resolved = await Promise.all(
           firewallRows.map(async (row: any) => {
             const firewallId = toNumberOrNull(row?.id);
             let attachment: Record<string, unknown> | null = null;
             if (firewallId !== null) {
               try {
-                const devices = await linodeService.getFirewallDevices(firewallId);
-                const matches = devices.find(device => {
+                const devices = await linodeService.getFirewallDevices(
+                  firewallId
+                );
+                const matches = devices.find((device) => {
                   const mapped = mapFirewallAttachment(device);
                   if (!mapped) {
                     return false;
                   }
-                  const type = (mapped.type || '').toLowerCase();
-                  return type === 'linode' && Number(mapped.entityId) === providerInstanceId;
+                  const type = (mapped.type || "").toLowerCase();
+                  return (
+                    type === "linode" &&
+                    Number(mapped.entityId) === providerInstanceId
+                  );
                 });
                 if (matches) {
                   attachment = matches as Record<string, unknown>;
                 }
               } catch (deviceErr) {
-                console.warn(`Failed to fetch firewall devices for ${firewallId}:`, deviceErr);
+                console.warn(
+                  `Failed to fetch firewall devices for ${firewallId}:`,
+                  deviceErr
+                );
               }
             }
             return mapFirewallSummary(row, attachment);
           })
         );
-        firewalls = resolved.filter((item): item is Record<string, unknown> => Boolean(item));
+        firewalls = resolved.filter((item): item is Record<string, unknown> =>
+          Boolean(item)
+        );
       } catch (err) {
-        console.warn('Failed to fetch instance firewalls:', err);
+        console.warn("Failed to fetch instance firewalls:", err);
       }
 
       try {
-        const configData = await linodeService.getLinodeInstanceConfigs(providerInstanceId);
+        const configData = await linodeService.getLinodeInstanceConfigs(
+          providerInstanceId
+        );
         providerConfigs = Array.isArray((configData as any)?.data)
           ? (configData as any).data.map(mapConfigProfile).filter(Boolean)
           : [];
       } catch (err) {
-        console.warn('Failed to fetch instance configurations:', err);
+        console.warn("Failed to fetch instance configurations:", err);
       }
 
       try {
-        const eventsData = await linodeService.getLinodeInstanceEvents(providerInstanceId, { pageSize: 50 });
+        const eventsData = await linodeService.getLinodeInstanceEvents(
+          providerInstanceId,
+          { pageSize: 50 }
+        );
         instanceEvents = Array.isArray((eventsData as any)?.data)
           ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
           : [];
       } catch (err) {
-        console.warn('Failed to fetch instance events:', err);
+        console.warn("Failed to fetch instance events:", err);
       }
     }
 
-  // Calculate progress information for transitional states
-  let providerProgress: { percent: number | null; action: string | null; status: string | null; message: string | null; created: string | null } | null = null;
-  let progressPercent: number | null = null;
-  if (['provisioning', 'rebooting', 'restoring', 'backing_up'].includes(normalizedStatus)) {
-    providerProgress = deriveProgressFromEvents(normalizedStatus, instanceEvents);
-    progressPercent = providerProgress?.percent ?? null;
-  }
+    // Calculate progress information for transitional states
+    let providerProgress: {
+      percent: number | null;
+      action: string | null;
+      status: string | null;
+      message: string | null;
+      created: string | null;
+    } | null = null;
+    let progressPercent: number | null = null;
+    if (
+      ["provisioning", "rebooting", "restoring", "backing_up"].includes(
+        normalizedStatus
+      )
+    ) {
+      providerProgress = deriveProgressFromEvents(
+        normalizedStatus,
+        instanceEvents
+      );
+      progressPercent = providerProgress?.percent ?? null;
+    }
 
-  const planBasePrice = planMeta.planRow ? Number(planMeta.planRow.base_price ?? 0) : 0;
-  const planMarkupPrice = planMeta.planRow ? Number(planMeta.planRow.markup_price ?? 0) : 0;
-  const combinedPlanPrice = planBasePrice + planMarkupPrice;
-  const referencePlanPrice = combinedPlanPrice > 0 ? combinedPlanPrice : planMeta.pricing.monthly;
-  const backupMonthlyCost = referencePlanPrice > 0 ? referencePlanPrice * 0.3 : 0;
-    const backupPricing = backupMonthlyCost > 0
-      ? {
-          monthly: Math.round(backupMonthlyCost * 100) / 100,
-          hourly: Math.round((backupMonthlyCost / 730) * 100000) / 100000,
-          currency: 'USD' as const,
-        }
-      : null;
+    const planBasePrice = planMeta.planRow
+      ? Number(planMeta.planRow.base_price ?? 0)
+      : 0;
+    const planMarkupPrice = planMeta.planRow
+      ? Number(planMeta.planRow.markup_price ?? 0)
+      : 0;
+    const combinedPlanPrice = planBasePrice + planMarkupPrice;
+    const referencePlanPrice =
+      combinedPlanPrice > 0 ? combinedPlanPrice : planMeta.pricing.monthly;
+    const backupMonthlyCost =
+      referencePlanPrice > 0 ? referencePlanPrice * 0.3 : 0;
+    const backupPricing =
+      backupMonthlyCost > 0
+        ? {
+            monthly: Math.round(backupMonthlyCost * 100) / 100,
+            hourly: Math.round((backupMonthlyCost / 730) * 100000) / 100000,
+            currency: "USD" as const,
+          }
+        : null;
 
     const allIPv4Collections = networking?.ipv4
       ? [
-          ...(Array.isArray(networking.ipv4.public) ? networking.ipv4.public : []),
-          ...(Array.isArray(networking.ipv4.private) ? networking.ipv4.private : []),
-          ...(Array.isArray(networking.ipv4.shared) ? networking.ipv4.shared : []),
-          ...(Array.isArray(networking.ipv4.reserved) ? networking.ipv4.reserved : []),
+          ...(Array.isArray(networking.ipv4.public)
+            ? networking.ipv4.public
+            : []),
+          ...(Array.isArray(networking.ipv4.private)
+            ? networking.ipv4.private
+            : []),
+          ...(Array.isArray(networking.ipv4.shared)
+            ? networking.ipv4.shared
+            : []),
+          ...(Array.isArray(networking.ipv4.reserved)
+            ? networking.ipv4.reserved
+            : []),
         ]
       : [];
-    const rdnsEnabledOnIpv4 = allIPv4Collections.some((entry: any) => entry && typeof entry === 'object' && entry.rdnsEditable === true);
-    const slaacAddress = networking?.ipv6 && typeof networking.ipv6 === 'object'
-      ? (networking.ipv6 as { slaac?: { address?: string | null } | null }).slaac?.address
-      : null;
-    const rdnsEditable = rdnsEnabledOnIpv4 || (typeof slaacAddress === 'string' && slaacAddress.trim().length > 0);
+    const rdnsEnabledOnIpv4 = allIPv4Collections.some(
+      (entry: any) =>
+        entry && typeof entry === "object" && entry.rdnsEditable === true
+    );
+    const slaacAddress =
+      networking?.ipv6 && typeof networking.ipv6 === "object"
+        ? (networking.ipv6 as { slaac?: { address?: string | null } | null })
+            .slaac?.address
+        : null;
+    const rdnsEditable =
+      rdnsEnabledOnIpv4 ||
+      (typeof slaacAddress === "string" && slaacAddress.trim().length > 0);
 
     res.json({
       instance: {
@@ -1304,19 +1697,22 @@ router.get('/:id', async (req: Request, res: Response) => {
         providerInstanceId: instanceRow.provider_instance_id,
         createdAt: instanceRow.created_at ?? null,
         updatedAt: instanceRow.updated_at ?? null,
-        region: typeof regionCode === 'string' ? regionCode : null,
+        region: typeof regionCode === "string" ? regionCode : null,
         regionLabel,
         configuration,
         image: configuration?.image ?? providerDetail?.image ?? null,
         plan: {
           id: planMeta.planRow?.id ?? null,
-          name: typeof planMeta.planRow?.name === 'string' ? planMeta.planRow.name : null,
+          name:
+            typeof planMeta.planRow?.name === "string"
+              ? planMeta.planRow.name
+              : null,
           providerPlanId: planMeta.providerPlanId,
           specs: planMeta.specs,
           pricing: {
             hourly: planMeta.pricing.hourly,
             monthly: planMeta.pricing.monthly,
-            currency: 'USD',
+            currency: "USD",
           },
         },
         provider: providerDetail
@@ -1348,13 +1744,15 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    console.error('VPS detail error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch VPS instance details' });
+    console.error("VPS detail error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch VPS instance details" });
   }
 });
 
 // Create a new VPS instance via Linode API
-router.post('/', async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const organizationId = (req as any).user.organizationId;
     const {
@@ -1373,7 +1771,9 @@ router.post('/', async (req: Request, res: Response) => {
     } = req.body || {};
 
     if (!label || !type || !image || !rootPassword) {
-      res.status(400).json({ error: 'label, type, image, and rootPassword are required' });
+      res
+        .status(400)
+        .json({ error: "label, type, image, and rootPassword are required" });
       return;
     }
 
@@ -1382,13 +1782,13 @@ router.post('/', async (req: Request, res: Response) => {
     let linodeTypeId: string | undefined = undefined;
     try {
       const availableTypes = await linodeService.getLinodeTypes();
-      const set = new Set(availableTypes.map(t => t.id));
+      const set = new Set(availableTypes.map((t) => t.id));
       if (set.has(type)) {
         linodeTypeId = type;
       }
     } catch (e) {
       // If Linode types cannot be fetched, we will still attempt plan lookup below
-      console.warn('Failed to fetch Linode types for validation:', e);
+      console.warn("Failed to fetch Linode types for validation:", e);
     }
 
     // Resolve region from the pre-configured VPS plan when available
@@ -1398,13 +1798,13 @@ router.post('/', async (req: Request, res: Response) => {
     try {
       // First, try lookup by provider_plan_id (expected frontend value)
       let planRes = await query(
-        'SELECT id, provider_plan_id, specifications FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1',
+        "SELECT id, provider_plan_id, specifications FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
         [type]
       );
       // If not found, user may have passed internal plan UUID; try that
       if (planRes.rows.length === 0) {
         planRes = await query(
-          'SELECT id, provider_plan_id, specifications FROM vps_plans WHERE id = $1 LIMIT 1',
+          "SELECT id, provider_plan_id, specifications FROM vps_plans WHERE id = $1 LIMIT 1",
           [type]
         );
       }
@@ -1414,24 +1814,42 @@ router.post('/', async (req: Request, res: Response) => {
         planIdForInstance = String(planRow.id);
         const specs = planRow.specifications || {};
         // Prefer provider_plan_id from plan row when available
-        if (!linodeTypeId && typeof planRow.provider_plan_id === 'string' && planRow.provider_plan_id.trim().length > 0) {
+        if (
+          !linodeTypeId &&
+          typeof planRow.provider_plan_id === "string" &&
+          planRow.provider_plan_id.trim().length > 0
+        ) {
           linodeTypeId = planRow.provider_plan_id.trim();
         }
-        if (specs && typeof specs.region === 'string' && specs.region.trim().length > 0) {
+        if (
+          specs &&
+          typeof specs.region === "string" &&
+          specs.region.trim().length > 0
+        ) {
           regionToUse = specs.region.trim();
         }
       }
     } catch (lookupErr) {
-      console.warn('Failed to lookup plan for type:', type, lookupErr);
+      console.warn("Failed to lookup plan for type:", type, lookupErr);
     }
 
     if (!linodeTypeId) {
-      res.status(400).json({ error: 'Invalid Linode plan type. Provide a valid Linode type id (e.g. g6-standard-2) or a configured plan UUID from /admin.' });
+      res
+        .status(400)
+        .json({
+          error:
+            "Invalid Linode plan type. Provide a valid Linode type id (e.g. g6-standard-2) or a configured plan UUID from /admin.",
+        });
       return;
     }
 
     if (!regionToUse) {
-      res.status(400).json({ error: 'Region is required (plan specifications.region or request body)' });
+      res
+        .status(400)
+        .json({
+          error:
+            "Region is required (plan specifications.region or request body)",
+        });
       return;
     }
 
@@ -1440,49 +1858,55 @@ router.post('/', async (req: Request, res: Response) => {
     try {
       if (planIdForInstance) {
         const planResult = await query(
-          'SELECT base_price, markup_price FROM vps_plans WHERE id = $1',
+          "SELECT base_price, markup_price FROM vps_plans WHERE id = $1",
           [planIdForInstance]
         );
         if (planResult.rows.length > 0) {
           const plan = planResult.rows[0];
-          const monthlyPrice = parseFloat(plan.base_price) + parseFloat(plan.markup_price);
+          const monthlyPrice =
+            parseFloat(plan.base_price) + parseFloat(plan.markup_price);
           hourlyRate = monthlyPrice / 730; // Convert monthly to hourly (730 hours per month average)
         }
       }
     } catch (planErr) {
-      console.warn('Failed to calculate hourly rate from plan:', planErr);
+      console.warn("Failed to calculate hourly rate from plan:", planErr);
     }
 
     // Check wallet balance before creating VPS
     try {
       const walletResult = await query(
-        'SELECT balance FROM wallets WHERE organization_id = $1',
+        "SELECT balance FROM wallets WHERE organization_id = $1",
         [organizationId]
       );
 
       if (walletResult.rows.length === 0) {
-        res.status(400).json({ 
-          error: 'No wallet found for your organization. Please contact support.',
-          code: 'WALLET_NOT_FOUND'
+        res.status(400).json({
+          error:
+            "No wallet found for your organization. Please contact support.",
+          code: "WALLET_NOT_FOUND",
         });
         return;
       }
 
       const currentBalance = parseFloat(walletResult.rows[0].balance);
       if (currentBalance < hourlyRate) {
-        res.status(400).json({ 
-          error: `Insufficient wallet balance. Required: $${hourlyRate.toFixed(4)}, Available: $${currentBalance.toFixed(2)}. Please add funds to your wallet.`,
-          code: 'INSUFFICIENT_BALANCE',
+        res.status(400).json({
+          error: `Insufficient wallet balance. Required: $${hourlyRate.toFixed(
+            4
+          )}, Available: $${currentBalance.toFixed(
+            2
+          )}. Please add funds to your wallet.`,
+          code: "INSUFFICIENT_BALANCE",
           required: hourlyRate,
-          available: currentBalance
+          available: currentBalance,
         });
         return;
       }
     } catch (walletErr) {
-      console.error('Error checking wallet balance:', walletErr);
-      res.status(500).json({ 
-        error: 'Failed to verify wallet balance. Please try again.',
-        code: 'WALLET_CHECK_FAILED'
+      console.error("Error checking wallet balance:", walletErr);
+      res.status(500).json({
+        error: "Failed to verify wallet balance. Please try again.",
+        code: "WALLET_CHECK_FAILED",
       });
       return;
     }
@@ -1499,7 +1923,7 @@ router.post('/', async (req: Request, res: Response) => {
           backups,
           privateIP,
           appSlug,
-          appData: appData || {}
+          appData: appData || {},
         })
       : await linodeService.createLinodeInstance({
           type: linodeTypeId,
@@ -1512,8 +1936,8 @@ router.post('/', async (req: Request, res: Response) => {
           private_ip: privateIP,
           stackscript_id: stackscriptId,
           stackscript_data: stackscriptData,
-          tags: ['containerstacks'],
-          group: 'containerstacks'
+          tags: ["containerstacks"],
+          group: "containerstacks",
         });
 
     // Persist instance record
@@ -1528,14 +1952,17 @@ router.post('/', async (req: Request, res: Response) => {
       appSlug,
       appData,
       auth: {
-        method: 'password',
-        user: 'root',
+        method: "password",
+        user: "root",
         password_enc: encryptSecret(String(rootPassword)),
       },
     };
 
-    const ip = Array.isArray(created.ipv4) && created.ipv4.length > 0 ? created.ipv4[0] : null;
-    const status = created.status || 'provisioning';
+    const ip =
+      Array.isArray(created.ipv4) && created.ipv4.length > 0
+        ? created.ipv4[0]
+        : null;
+    const status = created.status || "provisioning";
 
     const insertRes = await query(
       `INSERT INTO vps_instances (organization_id, plan_id, provider_instance_id, label, status, ip_address, configuration)
@@ -1559,26 +1986,40 @@ router.post('/', async (req: Request, res: Response) => {
     setImmediate(async () => {
       try {
         // Fetch configured base domain from admin networking config
-        let baseDomain = 'ip.rev.skyvps360.xyz';
+        let baseDomain = "ip.rev.skyvps360.xyz";
         try {
-          const cfgRes = await query('SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1');
+          const cfgRes = await query(
+            "SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1"
+          );
           const row = cfgRes.rows?.[0];
-          if (row && typeof row.rdns_base_domain === 'string' && row.rdns_base_domain.trim().length > 0) {
+          if (
+            row &&
+            typeof row.rdns_base_domain === "string" &&
+            row.rdns_base_domain.trim().length > 0
+          ) {
             baseDomain = String(row.rdns_base_domain).trim();
           }
         } catch (cfgErr: any) {
           // If the table is missing or any error occurs, fallback to default without failing provisioning
-          const msg = (cfgErr?.message || '').toLowerCase();
-          if (msg.includes('relation') && msg.includes('does not exist')) {
-            console.warn('networking_config table not found; using default rDNS base domain');
+          const msg = (cfgErr?.message || "").toLowerCase();
+          if (msg.includes("relation") && msg.includes("does not exist")) {
+            console.warn(
+              "networking_config table not found; using default rDNS base domain"
+            );
           } else {
-            console.warn('Failed to read networking rDNS config; using default base domain:', cfgErr);
+            console.warn(
+              "Failed to read networking rDNS config; using default base domain:",
+              cfgErr
+            );
           }
         }
 
         await linodeService.setupCustomRDNSAsync(created.id, label, baseDomain);
       } catch (rdnsErr) {
-        console.warn(`Background rDNS setup failed for VPS ${label} (${created.id}):`, rdnsErr);
+        console.warn(
+          `Background rDNS setup failed for VPS ${label} (${created.id}):`,
+          rdnsErr
+        );
       }
     });
 
@@ -1591,246 +2032,321 @@ router.post('/', async (req: Request, res: Response) => {
         hourlyRate,
         label
       );
-      
+
       if (!billingSuccess) {
-        console.warn(`VPS created but billing failed for ${label} (${instance.id})`);
+        console.warn(
+          `VPS created but billing failed for ${label} (${instance.id})`
+        );
         // Note: We don't fail the VPS creation if billing fails, but we log it
         // The hourly billing service will pick this up later
       }
     } catch (billingErr) {
-      console.error('Error processing VPS creation billing:', billingErr);
+      console.error("Error processing VPS creation billing:", billingErr);
       // Continue with VPS creation even if billing fails
     }
-    
+
     // Log instance creation
     try {
       const user = (req as any).user;
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.create',
-        entityType: 'vps',
-        entityId: String(instance.id),
-        message: `Created VPS '${label}' (${instance.provider_instance_id})`,
-        status: 'success',
-        metadata: { label, type, region: regionToUse, image, hourlyRate }
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.create",
+          entityType: "vps",
+          entityId: String(instance.id),
+          message: `Created VPS '${label}' (${instance.provider_instance_id})`,
+          status: "success",
+          metadata: { label, type, region: regionToUse, image, hourlyRate },
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.create activity:', logErr);
+      console.warn("Failed to log vps.create activity:", logErr);
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       instance,
       billing: {
         success: billingSuccess,
         hourlyRate: hourlyRate,
-        message: billingSuccess 
-          ? `Initial billing of $${hourlyRate.toFixed(4)}/hour processed successfully`
-          : 'Initial billing failed - will be retried by hourly billing service'
-      }
+        message: billingSuccess
+          ? `Initial billing of $${hourlyRate.toFixed(
+              4
+            )}/hour processed successfully`
+          : "Initial billing failed - will be retried by hourly billing service",
+      },
     });
   } catch (err: any) {
-    console.error('VPS create error:', err);
-    res.status(500).json({ error: err.message || 'Failed to create VPS instance' });
+    console.error("VPS create error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to create VPS instance" });
   }
 });
 // Instance actions: boot
-router.post('/:id/boot', async (req: Request, res: Response) => {
+router.post("/:id/boot", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const organizationId = (req as any).user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
+    if (rowRes.rows.length === 0)
+      return res.status(404).json({ error: "Instance not found" });
     const row = rowRes.rows[0];
     const providerId = Number(row.provider_instance_id);
     await linodeService.bootLinodeInstance(providerId);
     const detail = await linodeService.getLinodeInstance(providerId);
-    const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
-    await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    const ip =
+      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+        ? detail.ipv4[0]
+        : null;
+    await query(
+      "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+      [detail.status, ip, id]
+    );
     // Log boot action
     try {
       const user = (req as any).user;
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.boot',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Booted VPS '${row.label}'`,
-        status: 'success'
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.boot",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Booted VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.boot activity:', logErr);
+      console.warn("Failed to log vps.boot activity:", logErr);
     }
     res.json({ status: detail.status });
   } catch (err: any) {
-    console.error('VPS boot error:', err);
-    res.status(500).json({ error: err.message || 'Failed to boot VPS instance' });
+    console.error("VPS boot error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to boot VPS instance" });
   }
 });
 
 // Instance actions: shutdown
-router.post('/:id/shutdown', async (req: Request, res: Response) => {
+router.post("/:id/shutdown", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const organizationId = (req as any).user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
+    if (rowRes.rows.length === 0)
+      return res.status(404).json({ error: "Instance not found" });
     const row = rowRes.rows[0];
     const providerId = Number(row.provider_instance_id);
     await linodeService.shutdownLinodeInstance(providerId);
     const detail = await linodeService.getLinodeInstance(providerId);
-    const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
-    await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    const ip =
+      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+        ? detail.ipv4[0]
+        : null;
+    await query(
+      "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+      [detail.status, ip, id]
+    );
     // Log shutdown action
     try {
       const user = (req as any).user;
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.shutdown',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Shutdown VPS '${row.label}'`,
-        status: 'success'
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.shutdown",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Shutdown VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.shutdown activity:', logErr);
+      console.warn("Failed to log vps.shutdown activity:", logErr);
     }
     res.json({ status: detail.status });
   } catch (err: any) {
-    console.error('VPS shutdown error:', err);
-    res.status(500).json({ error: err.message || 'Failed to shutdown VPS instance' });
+    console.error("VPS shutdown error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to shutdown VPS instance" });
   }
 });
 
 // Instance actions: reboot
-router.post('/:id/reboot', async (req: Request, res: Response) => {
+router.post("/:id/reboot", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const organizationId = (req as any).user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
+    if (rowRes.rows.length === 0)
+      return res.status(404).json({ error: "Instance not found" });
     const row = rowRes.rows[0];
     const providerId = Number(row.provider_instance_id);
     await linodeService.rebootLinodeInstance(providerId);
     const detail = await linodeService.getLinodeInstance(providerId);
-    const ip = Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
-    await query('UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3', [detail.status, ip, id]);
+    const ip =
+      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+        ? detail.ipv4[0]
+        : null;
+    await query(
+      "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+      [detail.status, ip, id]
+    );
     // Log reboot action
     try {
       const user = (req as any).user;
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.reboot',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Rebooted VPS '${row.label}'`,
-        status: 'success'
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.reboot",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Rebooted VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.reboot activity:', logErr);
+      console.warn("Failed to log vps.reboot activity:", logErr);
     }
     res.json({ status: detail.status });
   } catch (err: any) {
-    console.error('VPS reboot error:', err);
-    res.status(500).json({ error: err.message || 'Failed to reboot VPS instance' });
+    console.error("VPS reboot error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to reboot VPS instance" });
   }
 });
 
-router.post('/:id/backups/enable', async (req: Request, res: Response) => {
+router.post("/:id/backups/enable", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     await linodeService.enableLinodeBackups(providerInstanceId);
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.enable',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Enabled backups for VPS '${row.label}'`,
-        status: 'success',
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.backups.enable",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Enabled backups for VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.backups.enable activity:', logErr);
+      console.warn("Failed to log vps.backups.enable activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS enable backups error:', err);
-    res.status(500).json({ error: err.message || 'Failed to enable backups' });
+    console.error("VPS enable backups error:", err);
+    res.status(500).json({ error: err.message || "Failed to enable backups" });
   }
 });
 
-router.post('/:id/backups/disable', async (req: Request, res: Response) => {
+router.post("/:id/backups/disable", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     await linodeService.cancelLinodeBackups(providerInstanceId);
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.disable',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Disabled backups for VPS '${row.label}'`,
-        status: 'success',
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.backups.disable",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Disabled backups for VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.backups.disable activity:', logErr);
+      console.warn("Failed to log vps.backups.disable activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS disable backups error:', err);
-    res.status(500).json({ error: err.message || 'Failed to disable backups' });
+    console.error("VPS disable backups error:", err);
+    res.status(500).json({ error: err.message || "Failed to disable backups" });
   }
 });
 
-router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
+router.post("/:id/backups/schedule", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     const { day: rawDay, window: rawWindow } = req.body ?? {};
@@ -1839,17 +2355,17 @@ router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
     if (rawDay !== undefined) {
       if (rawDay === null) {
         dayValue = null;
-      } else if (typeof rawDay === 'string') {
+      } else if (typeof rawDay === "string") {
         const trimmed = rawDay.trim();
-        if (trimmed === '') {
+        if (trimmed === "") {
           dayValue = null;
         } else if (BACKUP_DAY_OPTIONS.has(trimmed)) {
           dayValue = trimmed;
         } else {
-          return res.status(400).json({ error: 'Invalid backup day selected' });
+          return res.status(400).json({ error: "Invalid backup day selected" });
         }
       } else {
-        return res.status(400).json({ error: 'Invalid backup day payload' });
+        return res.status(400).json({ error: "Invalid backup day payload" });
       }
     }
 
@@ -1857,17 +2373,19 @@ router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
     if (rawWindow !== undefined) {
       if (rawWindow === null) {
         windowValue = null;
-      } else if (typeof rawWindow === 'string') {
+      } else if (typeof rawWindow === "string") {
         const trimmed = rawWindow.trim().toUpperCase();
-        if (trimmed === '') {
+        if (trimmed === "") {
           windowValue = null;
         } else if (BACKUP_WINDOW_OPTIONS.has(trimmed)) {
           windowValue = trimmed;
         } else {
-          return res.status(400).json({ error: 'Invalid backup window selected' });
+          return res
+            .status(400)
+            .json({ error: "Invalid backup window selected" });
         }
       } else {
-        return res.status(400).json({ error: 'Invalid backup window payload' });
+        return res.status(400).json({ error: "Invalid backup window payload" });
       }
     }
 
@@ -1880,254 +2398,340 @@ router.post('/:id/backups/schedule', async (req: Request, res: Response) => {
     }
 
     if (Object.keys(scheduleUpdate).length === 0) {
-      return res.status(400).json({ error: 'No schedule changes supplied' });
+      return res.status(400).json({ error: "No schedule changes supplied" });
     }
 
-    await linodeService.updateLinodeBackupSchedule(providerInstanceId, scheduleUpdate);
+    await linodeService.updateLinodeBackupSchedule(
+      providerInstanceId,
+      scheduleUpdate
+    );
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.schedule',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Updated backup schedule for VPS '${row.label}'`,
-        metadata: {
-          day: dayValue ?? 'auto',
-          window: windowValue ?? 'auto',
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.backups.schedule",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Updated backup schedule for VPS '${row.label}'`,
+          metadata: {
+            day: dayValue ?? "auto",
+            window: windowValue ?? "auto",
+          },
+          status: "success",
         },
-        status: 'success',
-      }, req as any);
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.backups.schedule activity:', logErr);
+      console.warn("Failed to log vps.backups.schedule activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS update backup schedule error:', err);
-    res.status(500).json({ error: err.message || 'Failed to update backup schedule' });
+    console.error("VPS update backup schedule error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to update backup schedule" });
   }
 });
 
-router.post('/:id/backups/snapshot', async (req: Request, res: Response) => {
+router.post("/:id/backups/snapshot", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { label } = (req.body || {}) as { label?: string };
-    const snapshotLabel = typeof label === 'string' && label.trim().length > 0 ? label.trim() : undefined;
+    const snapshotLabel =
+      typeof label === "string" && label.trim().length > 0
+        ? label.trim()
+        : undefined;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     await linodeService.createLinodeBackup(providerInstanceId, snapshotLabel);
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.snapshot',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Triggered manual snapshot for VPS '${row.label}'${snapshotLabel ? ` (${snapshotLabel})` : ''}`,
-        status: 'success',
-      }, req as any);
-    } catch (logErr) {
-      console.warn('Failed to log vps.backups.snapshot activity:', logErr);
-    }
-
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error('VPS snapshot error:', err);
-    res.status(500).json({ error: err.message || 'Failed to trigger snapshot' });
-  }
-});
-
-router.post('/:id/backups/:backupId/restore', async (req: Request, res: Response) => {
-  try {
-    const { id, backupId } = req.params;
-    const user = (req as any).user;
-    const organizationId = user.organizationId;
-    const parsedBackupId = Number(backupId);
-    if (!Number.isInteger(parsedBackupId) || parsedBackupId <= 0) {
-      return res.status(400).json({ error: 'A valid backupId is required' });
-    }
-
-    const { overwrite } = (req.body || {}) as { overwrite?: boolean };
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
-    }
-
-    const row = rowRes.rows[0];
-    const providerInstanceId = Number(row.provider_instance_id);
-    if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
-    }
-
-    await linodeService.restoreLinodeBackup(providerInstanceId, parsedBackupId, {
-      overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
-      targetInstanceId: providerInstanceId,
-    });
-
-    try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.backups.restore',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Initiated restore from backup ${parsedBackupId} for VPS '${row.label}'`,
-        status: 'success',
-        metadata: {
-          backupId: parsedBackupId,
-          overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.backups.snapshot",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Triggered manual snapshot for VPS '${row.label}'${
+            snapshotLabel ? ` (${snapshotLabel})` : ""
+          }`,
+          status: "success",
         },
-      }, req as any);
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.backups.restore activity:', logErr);
+      console.warn("Failed to log vps.backups.snapshot activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS restore backup error:', err);
-    res.status(500).json({ error: err.message || 'Failed to restore from backup' });
+    console.error("VPS snapshot error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to trigger snapshot" });
   }
 });
 
-router.post('/:id/firewalls/attach', async (req: Request, res: Response) => {
+router.post(
+  "/:id/backups/:backupId/restore",
+  async (req: Request, res: Response) => {
+    try {
+      const { id, backupId } = req.params;
+      const user = (req as any).user;
+      const organizationId = user.organizationId;
+      const parsedBackupId = Number(backupId);
+      if (!Number.isInteger(parsedBackupId) || parsedBackupId <= 0) {
+        return res.status(400).json({ error: "A valid backupId is required" });
+      }
+
+      const { overwrite } = (req.body || {}) as { overwrite?: boolean };
+      const rowRes = await query(
+        "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+        [id, organizationId]
+      );
+      if (rowRes.rows.length === 0) {
+        return res.status(404).json({ error: "Instance not found" });
+      }
+
+      const row = rowRes.rows[0];
+      const providerInstanceId = Number(row.provider_instance_id);
+      if (!Number.isFinite(providerInstanceId)) {
+        return res
+          .status(400)
+          .json({ error: "Instance is missing provider reference" });
+      }
+
+      await linodeService.restoreLinodeBackup(
+        providerInstanceId,
+        parsedBackupId,
+        {
+          overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
+          targetInstanceId: providerInstanceId,
+        }
+      );
+
+      try {
+        await logActivity(
+          {
+            userId: user.id,
+            organizationId: user.organizationId,
+            eventType: "vps.backups.restore",
+            entityType: "vps",
+            entityId: String(id),
+            message: `Initiated restore from backup ${parsedBackupId} for VPS '${row.label}'`,
+            status: "success",
+            metadata: {
+              backupId: parsedBackupId,
+              overwrite: overwrite !== undefined ? Boolean(overwrite) : true,
+            },
+          },
+          req as any
+        );
+      } catch (logErr) {
+        console.warn("Failed to log vps.backups.restore activity:", logErr);
+      }
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("VPS restore backup error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to restore from backup" });
+    }
+  }
+);
+
+router.post("/:id/firewalls/attach", async (req: Request, res: Response) => {
   try {
     const { firewallId } = (req.body || {}) as { firewallId?: number };
     const parsedFirewallId = Number(firewallId);
     if (!Number.isInteger(parsedFirewallId) || parsedFirewallId <= 0) {
-      return res.status(400).json({ error: 'Valid firewallId is required' });
+      return res.status(400).json({ error: "Valid firewallId is required" });
     }
 
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
-    await linodeService.attachFirewallToLinode(parsedFirewallId, providerInstanceId);
+    await linodeService.attachFirewallToLinode(
+      parsedFirewallId,
+      providerInstanceId
+    );
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.firewall.attach',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Attached firewall ${parsedFirewallId} to VPS '${row.label}'`,
-        status: 'success',
-        metadata: { firewallId: parsedFirewallId },
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.firewall.attach",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Attached firewall ${parsedFirewallId} to VPS '${row.label}'`,
+          status: "success",
+          metadata: { firewallId: parsedFirewallId },
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.firewall.attach activity:', logErr);
+      console.warn("Failed to log vps.firewall.attach activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS attach firewall error:', err);
-    res.status(500).json({ error: err.message || 'Failed to attach firewall' });
+    console.error("VPS attach firewall error:", err);
+    res.status(500).json({ error: err.message || "Failed to attach firewall" });
   }
 });
 
-router.post('/:id/firewalls/detach', async (req: Request, res: Response) => {
+router.post("/:id/firewalls/detach", async (req: Request, res: Response) => {
   try {
-    const { firewallId, deviceId } = (req.body || {}) as { firewallId?: number; deviceId?: number };
+    const { firewallId, deviceId } = (req.body || {}) as {
+      firewallId?: number;
+      deviceId?: number;
+    };
     const parsedFirewallId = Number(firewallId);
     const parsedDeviceId = Number(deviceId);
-    if (!Number.isInteger(parsedFirewallId) || parsedFirewallId <= 0 || !Number.isInteger(parsedDeviceId) || parsedDeviceId <= 0) {
-      return res.status(400).json({ error: 'Valid firewallId and deviceId are required' });
+    if (
+      !Number.isInteger(parsedFirewallId) ||
+      parsedFirewallId <= 0 ||
+      !Number.isInteger(parsedDeviceId) ||
+      parsedDeviceId <= 0
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Valid firewallId and deviceId are required" });
     }
 
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
-    await linodeService.detachFirewallFromLinode(parsedFirewallId, parsedDeviceId);
+    await linodeService.detachFirewallFromLinode(
+      parsedFirewallId,
+      parsedDeviceId
+    );
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.firewall.detach',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Detached firewall ${parsedFirewallId} from VPS '${row.label}'`,
-        status: 'success',
-        metadata: { firewallId: parsedFirewallId, deviceId: parsedDeviceId },
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.firewall.detach",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Detached firewall ${parsedFirewallId} from VPS '${row.label}'`,
+          status: "success",
+          metadata: { firewallId: parsedFirewallId, deviceId: parsedDeviceId },
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.firewall.detach activity:', logErr);
+      console.warn("Failed to log vps.firewall.detach activity:", logErr);
     }
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error('VPS detach firewall error:', err);
-    res.status(500).json({ error: err.message || 'Failed to detach firewall' });
+    console.error("VPS detach firewall error:", err);
+    res.status(500).json({ error: err.message || "Failed to detach firewall" });
   }
 });
 
-router.post('/:id/networking/rdns', async (req: Request, res: Response) => {
+router.post("/:id/networking/rdns", async (req: Request, res: Response) => {
   try {
-    const { address, rdns } = (req.body || {}) as { address?: string; rdns?: string | null };
-    if (typeof address !== 'string' || address.trim().length === 0) {
-      return res.status(400).json({ error: 'A valid IP address is required' });
+    const { address, rdns } = (req.body || {}) as {
+      address?: string;
+      rdns?: string | null;
+    };
+    if (typeof address !== "string" || address.trim().length === 0) {
+      return res.status(400).json({ error: "A valid IP address is required" });
     }
     const normalizedAddress = address.trim();
-    const rdnsValue = typeof rdns === 'string' && rdns.trim().length > 0 ? rdns.trim() : null;
+    const rdnsValue =
+      typeof rdns === "string" && rdns.trim().length > 0 ? rdns.trim() : null;
 
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     try {
-      const ipPayload = await linodeService.getLinodeInstanceIPs(providerInstanceId);
-      const ipv4Sets = ipPayload?.ipv4 && typeof ipPayload.ipv4 === 'object' ? Object.values(ipPayload.ipv4) : [];
+      const ipPayload = await linodeService.getLinodeInstanceIPs(
+        providerInstanceId
+      );
+      const ipv4Sets =
+        ipPayload?.ipv4 && typeof ipPayload.ipv4 === "object"
+          ? Object.values(ipPayload.ipv4)
+          : [];
       const flattened = Array.isArray(ipv4Sets)
         ? (ipv4Sets as unknown[]).reduce<string[]>((acc, value) => {
             if (Array.isArray(value)) {
-              value.forEach(entry => {
+              value.forEach((entry) => {
                 const addr = (entry as any)?.address;
-                if (typeof addr === 'string') {
+                if (typeof addr === "string") {
                   acc.push(addr);
                 }
               });
@@ -2137,153 +2741,189 @@ router.post('/:id/networking/rdns', async (req: Request, res: Response) => {
         : [];
 
       if (!flattened.includes(normalizedAddress)) {
-        return res.status(400).json({ error: 'Address not assigned to this instance' });
+        return res
+          .status(400)
+          .json({ error: "Address not assigned to this instance" });
       }
     } catch (addressErr) {
-      console.warn('Failed to verify IP ownership before rDNS update:', addressErr);
+      console.warn(
+        "Failed to verify IP ownership before rDNS update:",
+        addressErr
+      );
     }
 
     await linodeService.updateIPAddressReverseDNS(normalizedAddress, rdnsValue);
 
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.network.rdns',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Updated rDNS for ${normalizedAddress} on VPS '${row.label}'`,
-        status: 'success',
-        metadata: { ip: normalizedAddress, rdns: rdnsValue },
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.network.rdns",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Updated rDNS for ${normalizedAddress} on VPS '${row.label}'`,
+          status: "success",
+          metadata: { ip: normalizedAddress, rdns: rdnsValue },
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.network.rdns activity:', logErr);
+      console.warn("Failed to log vps.network.rdns activity:", logErr);
     }
 
     res.json({ success: true, rdns: rdnsValue });
   } catch (err: any) {
-    console.error('VPS rDNS update error:', err);
-    res.status(500).json({ error: err.message || 'Failed to update rDNS' });
+    console.error("VPS rDNS update error:", err);
+    res.status(500).json({ error: err.message || "Failed to update rDNS" });
   }
 });
 
 // Update hostname
-router.put('/:id/hostname', async (req: Request, res: Response) => {
+router.put("/:id/hostname", async (req: Request, res: Response) => {
   try {
     const { hostname } = (req.body || {}) as { hostname?: string };
-    
+
     // Validate hostname format
-    if (typeof hostname !== 'string' || hostname.trim().length === 0) {
-      return res.status(400).json({ error: 'Hostname is required' });
+    if (typeof hostname !== "string" || hostname.trim().length === 0) {
+      return res.status(400).json({ error: "Hostname is required" });
     }
-    
+
     const normalizedHostname = hostname.trim();
-    
+
     // Validate hostname format (3-64 characters, alphanumeric with hyphens, underscores, periods)
     if (normalizedHostname.length < 3 || normalizedHostname.length > 64) {
-      return res.status(400).json({ error: 'Hostname must be between 3 and 64 characters' });
+      return res
+        .status(400)
+        .json({ error: "Hostname must be between 3 and 64 characters" });
     }
-    
+
     const hostnamePattern = /^[a-zA-Z0-9._-]+$/;
     if (!hostnamePattern.test(normalizedHostname)) {
-      return res.status(400).json({ error: 'Hostname can only contain letters, numbers, hyphens, underscores, and periods' });
+      return res
+        .status(400)
+        .json({
+          error:
+            "Hostname can only contain letters, numbers, hyphens, underscores, and periods",
+        });
     }
 
     const { id } = req.params;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    
+
     // Check if instance exists and belongs to organization
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
     if (rowRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Instance not found' });
+      return res.status(404).json({ error: "Instance not found" });
     }
 
     const row = rowRes.rows[0];
     const providerInstanceId = Number(row.provider_instance_id);
     if (!Number.isFinite(providerInstanceId)) {
-      return res.status(400).json({ error: 'Instance is missing provider reference' });
+      return res
+        .status(400)
+        .json({ error: "Instance is missing provider reference" });
     }
 
     // Update hostname via Linode API
-  await linodeService.updateLinodeInstance(providerInstanceId, { label: normalizedHostname });
+    await linodeService.updateLinodeInstance(providerInstanceId, {
+      label: normalizedHostname,
+    });
 
     // Update local database
     await query(
-      'UPDATE vps_instances SET label = $1, updated_at = NOW() WHERE id = $2',
+      "UPDATE vps_instances SET label = $1, updated_at = NOW() WHERE id = $2",
       [normalizedHostname, id]
     );
 
     // Log hostname update activity
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.hostname.update',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Updated hostname for VPS '${row.label}' to '${normalizedHostname}'`,
-        status: 'success',
-        metadata: { oldHostname: row.label, newHostname: normalizedHostname },
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.hostname.update",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Updated hostname for VPS '${row.label}' to '${normalizedHostname}'`,
+          status: "success",
+          metadata: { oldHostname: row.label, newHostname: normalizedHostname },
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.hostname.update activity:', logErr);
+      console.warn("Failed to log vps.hostname.update activity:", logErr);
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       hostname: normalizedHostname,
-      message: 'Hostname updated successfully'
+      message: "Hostname updated successfully",
     });
   } catch (err: any) {
-    console.error('VPS hostname update error:', err);
-    res.status(500).json({ error: err.message || 'Failed to update hostname' });
+    console.error("VPS hostname update error:", err);
+    res.status(500).json({ error: err.message || "Failed to update hostname" });
   }
 });
 
 // Delete instance
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
     const user = (req as any).user;
     const organizationId = user.organizationId;
-    
+
     // Verify password before allowing deletion
     if (!password) {
-      return res.status(400).json({ error: 'Password is required for VPS deletion' });
+      return res
+        .status(400)
+        .json({ error: "Password is required for VPS deletion" });
     }
-    
+
     try {
       await AuthService.login({ email: user.email, password });
     } catch {
-      return res.status(400).json({ error: 'Invalid password' });
+      return res.status(400).json({ error: "Invalid password" });
     }
-    
-    const rowRes = await query('SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2', [id, organizationId]);
-    if (rowRes.rows.length === 0) return res.status(404).json({ error: 'Instance not found' });
+
+    const rowRes = await query(
+      "SELECT * FROM vps_instances WHERE id = $1 AND organization_id = $2",
+      [id, organizationId]
+    );
+    if (rowRes.rows.length === 0)
+      return res.status(404).json({ error: "Instance not found" });
     const row = rowRes.rows[0];
     const providerId = Number(row.provider_instance_id);
     await linodeService.deleteLinodeInstance(providerId);
-    await query('DELETE FROM vps_instances WHERE id = $1', [id]);
+    await query("DELETE FROM vps_instances WHERE id = $1", [id]);
     // Log delete action
     try {
-      await logActivity({
-        userId: user.id,
-        organizationId: user.organizationId,
-        eventType: 'vps.delete',
-        entityType: 'vps',
-        entityId: String(id),
-        message: `Deleted VPS '${row.label}'`,
-        status: 'success'
-      }, req as any);
+      await logActivity(
+        {
+          userId: user.id,
+          organizationId: user.organizationId,
+          eventType: "vps.delete",
+          entityType: "vps",
+          entityId: String(id),
+          message: `Deleted VPS '${row.label}'`,
+          status: "success",
+        },
+        req as any
+      );
     } catch (logErr) {
-      console.warn('Failed to log vps.delete activity:', logErr);
+      console.warn("Failed to log vps.delete activity:", logErr);
     }
     res.json({ deleted: true });
   } catch (err: any) {
-    console.error('VPS delete error:', err);
-    res.status(500).json({ error: err.message || 'Failed to delete VPS instance' });
+    console.error("VPS delete error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to delete VPS instance" });
   }
 });
 

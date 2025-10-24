@@ -13,10 +13,12 @@ import {
   ArrowDownLeft,
   DollarSign,
   Filter,
-  X
+  X,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { paymentService, type WalletTransaction, type PaymentHistory } from '../services/paymentService';
+import { paymentService, type WalletTransaction, type PaymentHistory, type VPSUptimeSummary, type BillingSummary } from '../services/paymentService';
 import Pagination from '../components/ui/Pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // Navigation provided by AppLayout
@@ -48,6 +50,15 @@ const Billing: React.FC = () => {
     dateFrom: '',
     dateTo: ''
   });
+
+  // VPS Uptime state
+  const [vpsUptimeData, setVpsUptimeData] = useState<VPSUptimeSummary | null>(null);
+  const [uptimeLoading, setUptimeLoading] = useState(false);
+  const [uptimeError, setUptimeError] = useState<string | null>(null);
+
+  // Billing summary state
+  const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // Pagination states for each tab
   const [overviewPagination, setOverviewPagination] = useState<PaginationState>({
@@ -149,6 +160,40 @@ const Billing: React.FC = () => {
     }
   }, [historyPagination.currentPage, historyPagination.itemsPerPage, filters.status]);
 
+  const loadVPSUptimeData = React.useCallback(async () => {
+    setUptimeLoading(true);
+    setUptimeError(null);
+    try {
+      const result = await paymentService.getVPSUptimeSummary();
+      if (result.success && result.data) {
+        setVpsUptimeData(result.data);
+      } else {
+        setUptimeError(result.error || 'Failed to load VPS uptime data');
+      }
+    } catch (error) {
+      console.error('Failed to load VPS uptime data:', error);
+      setUptimeError('Failed to load VPS uptime data');
+    } finally {
+      setUptimeLoading(false);
+    }
+  }, []);
+
+  const loadBillingSummary = React.useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const result = await paymentService.getBillingSummary();
+      if (result.success && result.summary) {
+        setBillingSummary(result.summary);
+      } else {
+        console.error('Failed to load billing summary:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to load billing summary:', error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
   const loadBillingData = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -159,13 +204,19 @@ const Billing: React.FC = () => {
       
       // Load initial data based on active tab
       await loadOverviewData();
+      
+      // Load VPS uptime data and billing summary
+      await Promise.all([
+        loadVPSUptimeData(),
+        loadBillingSummary()
+      ]);
     } catch (error) {
       console.error('Failed to load billing data:', error);
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  }, [loadOverviewData]);
+  }, [loadOverviewData, loadVPSUptimeData, loadBillingSummary]);
 
   // Initial load
   useEffect(() => {
@@ -351,6 +402,39 @@ const Billing: React.FC = () => {
     exportToCSV(exportData, 'payment-history.csv', headers);
   };
 
+  const handleExportVPSUptime = () => {
+    try {
+      if (!vpsUptimeData || vpsUptimeData.vpsInstances.length === 0) {
+        toast.error('No VPS uptime data to export');
+        return;
+      }
+
+      const headers = ['VPS Label', 'Status', 'Created Date', 'Active Hours', 'Hourly Rate', 'Estimated Cost'];
+      const exportData = vpsUptimeData.vpsInstances.map(vps => ({
+        vpslabel: vps.label,
+        status: vps.status.charAt(0).toUpperCase() + vps.status.slice(1),
+        createddate: formatDate(vps.createdAt),
+        activehours: vps.activeHours.toLocaleString('en-US', {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1
+        }),
+        hourlyrate: formatCurrency(vps.hourlyRate),
+        estimatedcost: formatCurrency(vps.estimatedCost)
+      }));
+
+      // Generate filename with timestamp
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const filename = `vps-uptime-report-${dateStr}.csv`;
+
+      exportToCSV(exportData, filename, headers);
+      toast.success('VPS uptime report exported successfully');
+    } catch (error) {
+      console.error('Export VPS uptime error:', error);
+      toast.error('Failed to export VPS uptime data');
+    }
+  };
+
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -392,7 +476,7 @@ const Billing: React.FC = () => {
         </div>
 
         {/* Wallet Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -418,10 +502,12 @@ const Billing: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">This Month</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(
-                      transactions
-                        .filter(tx => tx.type === 'credit')
-                        .reduce((sum, tx) => sum + tx.amount, 0)
+                    {summaryLoading ? (
+                      <span className="text-base text-muted-foreground">Loading...</span>
+                    ) : billingSummary ? (
+                      formatCurrency(billingSummary.monthlyEstimate)
+                    ) : (
+                      formatCurrency(0)
                     )}
                   </p>
                 </div>
@@ -438,10 +524,37 @@ const Billing: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Spent This Month</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(
-                      transactions
-                        .filter(tx => tx.type === 'debit')
-                        .reduce((sum, tx) => sum + tx.amount, 0)
+                    {summaryLoading ? (
+                      <span className="text-base text-muted-foreground">Loading...</span>
+                    ) : billingSummary ? (
+                      formatCurrency(billingSummary.totalSpentThisMonth)
+                    ) : (
+                      formatCurrency(0)
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">VPS Active Hours</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {uptimeLoading ? (
+                      <span className="text-base text-muted-foreground">Loading...</span>
+                    ) : vpsUptimeData ? (
+                      `${vpsUptimeData.totalActiveHours.toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      })}h`
+                    ) : (
+                      '0h'
                     )}
                   </p>
                 </div>
@@ -491,6 +604,192 @@ const Billing: React.FC = () => {
             <p className="mt-2 text-sm text-muted-foreground">
               Funds will be added to your wallet after successful PayPal payment
             </p>
+          </CardContent>
+        </Card>
+
+        {/* VPS Uptime Summary Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center">
+                <Clock className="h-5 w-5 mr-2 text-primary" />
+                VPS Uptime Summary
+              </CardTitle>
+              {!uptimeLoading && (
+                <button
+                  onClick={loadVPSUptimeData}
+                  className="inline-flex items-center px-3 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  title="Refresh uptime data"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {uptimeLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="ml-3 text-muted-foreground">Loading VPS uptime data...</p>
+              </div>
+            ) : uptimeError ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 dark:text-red-400 mb-4">{uptimeError}</p>
+                <button
+                  onClick={loadVPSUptimeData}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </button>
+              </div>
+            ) : vpsUptimeData && vpsUptimeData.vpsInstances.length > 0 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Active Hours</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {vpsUptimeData.totalActiveHours.toLocaleString('en-US', {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1
+                      })} hours
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Estimated Cost</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatCurrency(vpsUptimeData.totalEstimatedCost)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* VPS Uptime Details Table */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-foreground mb-3">VPS Instance Details</h4>
+                  
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            VPS Label
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Active Hours
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Hourly Rate
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Estimated Cost
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-card divide-y divide-border">
+                        {vpsUptimeData.vpsInstances.map((vps) => (
+                          <tr key={vps.id} className="hover:bg-secondary/50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                              {vps.label}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                vps.status === 'running' 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                  : vps.status === 'stopped'
+                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                              }`}>
+                                {vps.status.charAt(0).toUpperCase() + vps.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
+                              {vps.activeHours.toLocaleString('en-US', {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1
+                              })}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
+                              {formatCurrency(vps.hourlyRate)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right">
+                              {formatCurrency(vps.estimatedCost)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {vpsUptimeData.vpsInstances.map((vps) => (
+                      <div key={vps.id} className="bg-card border border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-medium text-foreground">{vps.label}</h5>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            vps.status === 'running' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                              : vps.status === 'stopped'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                          }`}>
+                            {vps.status.charAt(0).toUpperCase() + vps.status.slice(1)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Active Hours</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {vps.activeHours.toLocaleString('en-US', {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Hourly Rate</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {formatCurrency(vps.hourlyRate)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-border">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">Estimated Cost</p>
+                            <p className="text-sm font-bold text-foreground">
+                              {formatCurrency(vps.estimatedCost)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Export Button */}
+                <div className="mt-6 flex justify-end">
+                  <button 
+                    onClick={handleExportVPSUptime}
+                    className="inline-flex items-center px-4 py-2 border border shadow-sm text-sm leading-4 font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export VPS Uptime Report
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-muted-foreground">No VPS instances found</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create a VPS instance to see uptime tracking
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

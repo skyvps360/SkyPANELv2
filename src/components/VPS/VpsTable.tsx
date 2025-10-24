@@ -77,6 +77,14 @@ const formatDate = (date: string): string =>
     minute: "2-digit",
   });
 
+// Add Active Hours helper
+const calculateActiveHours = (created: string | null | undefined): number => {
+  if (!created) return NaN;
+  const createdTime = new Date(created).getTime();
+  if (!Number.isFinite(createdTime)) return NaN;
+  const hours = (Date.now() - createdTime) / 36e5; // 36e5 = 60*60*1000
+  return Math.max(0, hours);
+};
 const getStatusVariant = (status: VPSInstance["status"]) => {
   switch (status) {
     case "running":
@@ -276,6 +284,23 @@ export function VpsInstancesTable({
         },
         meta: {
           className: "min-w-[100px]"
+        }
+      },
+      {
+        id: "activeHours",
+        header: "Active Hours",
+        cell: ({ row }) => {
+          const hours = calculateActiveHours(row.original.created);
+          return (
+            <div className="text-xs text-foreground text-right min-w-[100px]">
+              {Number.isFinite(hours)
+                ? hours.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                : '—'}
+            </div>
+          );
+        },
+        meta: {
+          className: "min-w-[100px] hidden sm:table-cell"
         }
       },
       {
@@ -486,6 +511,21 @@ export function VpsInstancesTable({
               <div className="space-y-1">
                 <p className="text-muted-foreground">Monthly</p>
                 <p className="font-medium text-foreground">{formatCurrency(instance.pricing.monthly)}</p>
+              </div>
+            </div>
+
+            {/* Active Hours for mobile cards */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Active Hours</p>
+                <p className="font-medium text-foreground">
+                  {(() => {
+                    const hours = calculateActiveHours(instance.created);
+                    return Number.isFinite(hours)
+                      ? hours.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                      : '—';
+                  })()}
+                </p>
               </div>
             </div>
           </CardContent>

@@ -64,6 +64,31 @@ export interface PaymentTransactionDetail {
   updatedAt: string;
 }
 
+export interface VPSUptimeInstance {
+  id: string;
+  label: string;
+  status: string;
+  createdAt: string;
+  deletedAt: string | null;
+  activeHours: number;
+  hourlyRate: number;
+  estimatedCost: number;
+  lastBilledAt: string | null;
+}
+
+export interface VPSUptimeSummary {
+  totalActiveHours: number;
+  totalEstimatedCost: number;
+  vpsInstances: VPSUptimeInstance[];
+}
+
+export interface BillingSummary {
+  totalSpentThisMonth: number;
+  totalSpentAllTime: number;
+  activeVPSCount: number;
+  monthlyEstimate: number;
+}
+
 class PaymentService {
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token');
@@ -481,6 +506,82 @@ class PaymentService {
     } catch (error) {
       console.error('Get invoices error:', error);
       return { invoices: [], hasMore: false };
+    }
+  }
+
+  /**
+   * Get VPS uptime summary for the organization
+   */
+  async getVPSUptimeSummary(): Promise<{
+    success: boolean;
+    data?: VPSUptimeSummary;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/vps/uptime-summary`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to load VPS uptime data',
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          totalActiveHours: data.totalActiveHours,
+          totalEstimatedCost: data.totalEstimatedCost,
+          vpsInstances: data.vpsInstances,
+        },
+      };
+    } catch (error) {
+      console.error('Get VPS uptime summary error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
+    }
+  }
+
+  /**
+   * Get billing summary for the organization
+   */
+  async getBillingSummary(): Promise<{
+    success: boolean;
+    summary?: BillingSummary;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/billing/summary`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to load billing summary',
+        };
+      }
+
+      return {
+        success: true,
+        summary: data.summary,
+      };
+    } catch (error) {
+      console.error('Get billing summary error:', error);
+      return {
+        success: false,
+        error: 'Network error occurred',
+      };
     }
   }
 

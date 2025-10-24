@@ -6,6 +6,7 @@
 import express, { Request, Response } from 'express';
 import { body, param, query as queryValidator, validationResult } from 'express-validator';
 import { PayPalService } from '../services/paypalService.js';
+import { BillingService } from '../services/billingService.js';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query as dbQuery } from '../lib/database.js';
 
@@ -536,5 +537,28 @@ router.post(
     }
   }
 );
+
+/**
+ * Get billing summary for the organization
+ * Returns monthly spending totals and statistics
+ */
+router.get('/billing/summary', requireOrganization, async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = (req as AuthenticatedRequest).user;
+
+    const summary = await BillingService.getBillingSummary(organizationId);
+
+    res.json({
+      success: true,
+      summary,
+    });
+  } catch (error) {
+    console.error('Get billing summary error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load billing summary',
+    });
+  }
+});
 
 export default router;

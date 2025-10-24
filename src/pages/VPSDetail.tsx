@@ -335,6 +335,15 @@ const formatDateTime = (value: string | null): string => {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 };
 
+// Calculate elapsed hours since a timestamp
+const calculateActiveHours = (value: string | null): string => {
+  if (!value) return '—';
+  const ts = new Date(value).getTime();
+  if (!Number.isFinite(ts)) return '—';
+  const hours = (Date.now() - ts) / 36e5; // 60*60*1000
+  return hours.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+};
+
 const formatRelativeTime = (value: string | null): string => {
   if (!value) return '';
   const timestamp = new Date(value).getTime();
@@ -1730,6 +1739,10 @@ const VPSDetail: React.FC = () => {
                         <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{formatDateTime(detail?.createdAt || null)}</dd>
                       </div>
                       <div>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Active Hours</dt>
+                        <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{calculateActiveHours(detail?.createdAt || null)}</dd>
+                      </div>
+                      <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last Updated</dt>
                         <dd className="mt-1 text-xs sm:text-sm text-foreground text-muted-foreground">{formatDateTime(detail?.updatedAt || null)}</dd>
                       </div>
@@ -2930,6 +2943,10 @@ const VPSDetail: React.FC = () => {
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-muted-foreground">Created</span>
                     <span className="font-medium text-foreground sm:text-right">{formatDateTime(detail?.provider?.created || null)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-muted-foreground">Active Hours</span>
+                    <span className="font-medium text-foreground sm:text-right">{calculateActiveHours(detail?.provider?.created || null)}</span>
                   </div>
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-muted-foreground">Last update</span>
