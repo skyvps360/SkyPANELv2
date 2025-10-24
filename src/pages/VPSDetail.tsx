@@ -1744,7 +1744,7 @@ const VPSDetail: React.FC = () => {
                         <dd className="mt-1">
                           <ActiveHoursDisplay 
                             createdAt={detail?.createdAt || null}
-                            hourlyRate={detail?.pricing?.hourly}
+                            hourlyRate={detail?.plan?.pricing?.hourly}
                             context="detail"
                             className="text-xs sm:text-sm"
                           />
@@ -2957,7 +2957,7 @@ const VPSDetail: React.FC = () => {
                     <div className="sm:text-right">
                       <ActiveHoursDisplay 
                         createdAt={detail?.provider?.created || null}
-                        hourlyRate={detail?.pricing?.hourly}
+                        hourlyRate={detail?.plan?.pricing?.hourly}
                         context="detail"
                         className="text-sm font-medium"
                       />
