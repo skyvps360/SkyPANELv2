@@ -15,7 +15,8 @@ import {
   Filter,
   X,
   Clock,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory, type VPSUptimeSummary, type BillingSummary } from '../services/paymentService';
@@ -59,6 +60,12 @@ const Billing: React.FC = () => {
   // Billing summary state
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+
+  // Monthly spend calculation states
+  const [computedMonthlySpent, setComputedMonthlySpent] = useState<number | null>(null);
+  const [computingMonthlySpent, setComputingMonthlySpent] = useState<boolean>(false);
+  const [monthlySpentError, setMonthlySpentError] = useState<string | null>(null);
+  const [monthlySpentDiscrepancy, setMonthlySpentDiscrepancy] = useState<boolean>(false);
 
   // Pagination states for each tab
   const [overviewPagination, setOverviewPagination] = useState<PaginationState>({
@@ -194,6 +201,91 @@ const Billing: React.FC = () => {
     }
   }, []);
 
+  // Robust date parser for transaction createdAt values
+  const parseDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    try {
+      if (/^\d+$/.test(dateString)) {
+        const ts = parseInt(dateString, 10);
+        return new Date(ts < 10000000000 ? ts * 1000 : ts);
+      }
+      const d = new Date(dateString);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
+  // Compute monthly spent from wallet transactions with calendar month boundaries
+  const calculateMonthlySpent = React.useCallback(async () => {
+    setComputingMonthlySpent(true);
+    setMonthlySpentError(null);
+    setMonthlySpentDiscrepancy(false);
+
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      const pageSize = 100;
+      let offset = 0;
+      let hasMore = true;
+      let pagesFetched = 0;
+      const maxPages = 20; // safety cap
+      let monthlyTotal = 0;
+      let foundAny = false;
+
+      while (hasMore && pagesFetched < maxPages) {
+        const result = await paymentService.getWalletTransactions(pageSize, offset);
+        const pageTxs = result.transactions || [];
+        if (pageTxs.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        // Filter to current month boundaries
+        for (const tx of pageTxs) {
+          const created = parseDate(tx.createdAt);
+          if (!created) continue;
+          if (created >= monthStart && created <= monthEnd) {
+            foundAny = true;
+            const isDebit = tx.type === 'debit' || (typeof tx.amount === 'number' && tx.amount < 0);
+            if (isDebit) {
+              monthlyTotal += Math.abs(tx.amount || 0);
+            }
+          }
+        }
+
+        hasMore = result.hasMore;
+        offset += pageSize;
+        pagesFetched += 1;
+
+        // Optimization: if the oldest transaction in this page is before monthStart and API is sorted by date desc,
+        // additional pages are unlikely to include current month. We keep going only if hasMore remains true.
+      }
+
+      if (!foundAny) {
+        setMonthlySpentError('No current-month transactions found');
+      }
+
+      setComputedMonthlySpent(Number(monthlyTotal.toFixed(2)));
+
+      // Compare against server summary if available and flag discrepancies beyond small threshold
+      const serverValue = billingSummary?.totalSpentThisMonth;
+      if (typeof serverValue === 'number') {
+        const diff = Math.abs(serverValue - monthlyTotal);
+        const threshold = Math.max(0.01, serverValue * 0.005); // 0.5% or $0.01
+        setMonthlySpentDiscrepancy(diff > threshold);
+      }
+    } catch (err) {
+      console.error('Monthly spend calculation error:', err);
+      setMonthlySpentError('Failed to calculate monthly spend');
+      setComputedMonthlySpent(null);
+    } finally {
+      setComputingMonthlySpent(false);
+    }
+  }, [billingSummary]);
+
   const loadBillingData = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -201,27 +293,25 @@ const Billing: React.FC = () => {
       if (balance) {
         setWalletBalance(balance.balance);
       }
-      
-      // Load initial data based on active tab
       await loadOverviewData();
-      
-      // Load VPS uptime data and billing summary
       await Promise.all([
         loadVPSUptimeData(),
         loadBillingSummary()
       ]);
+      // After summary loads, compute local monthly spend as verification/fallback
+      await calculateMonthlySpent();
     } catch (error) {
       console.error('Failed to load billing data:', error);
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  }, [loadOverviewData, loadVPSUptimeData, loadBillingSummary]);
+  }, [loadOverviewData, loadVPSUptimeData, loadBillingSummary, calculateMonthlySpent]);
 
   // Initial load
   useEffect(() => {
     loadBillingData();
-  }, [loadBillingData]);
+  }, []);
 
   // Reload data when filter status changes
   useEffect(() => {
@@ -523,15 +613,28 @@ const Billing: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Spent This Month</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {summaryLoading ? (
-                      <span className="text-base text-muted-foreground">Loading...</span>
-                    ) : billingSummary ? (
-                      formatCurrency(billingSummary.totalSpentThisMonth)
-                    ) : (
-                      formatCurrency(0)
+                  <div className="flex items-center space-x-2">
+                    <p className="text-2xl font-bold text-foreground">
+                      {summaryLoading || computingMonthlySpent ? (
+                        <span className="text-base text-muted-foreground">{computingMonthlySpent ? 'Calculating...' : 'Loading...'}</span>
+                      ) : (() => {
+                        const serverValue = billingSummary?.totalSpentThisMonth;
+                        const displayValue = (computedMonthlySpent ?? serverValue ?? 0);
+                        return formatCurrency(displayValue);
+                      })()}
+                    </p>
+                    {monthlySpentDiscrepancy && (
+                      <span title="Data discrepancy detected between server summary and local calculation" className="inline-flex items-center text-yellow-600 dark:text-yellow-400">
+                        <AlertTriangle className="h-5 w-5" />
+                      </span>
                     )}
-                  </p>
+                  </div>
+                  {monthlySpentError && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{monthlySpentError}</p>
+                  )}
+                  {!monthlySpentError && computedMonthlySpent !== null && billingSummary && (
+                    <p className="mt-1 text-xs text-muted-foreground">Calculated from current-month debits</p>
+                  )}
                 </div>
               </div>
             </CardContent>

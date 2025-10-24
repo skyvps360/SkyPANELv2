@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getMonthlySpendWithFallback } from '../lib/billingUtils';
 
 // Mock data interfaces
 interface ContainerStats {
@@ -179,9 +180,13 @@ const Dashboard: React.FC = () => {
       setVpsInstances(vpsWithMetrics);
 
       const lastPaymentItem = (paymentsData.payments || [])[0];
+      
+      // Calculate monthly spent using the same logic as the Billing page
+      const monthlySpend = await getMonthlySpendWithFallback();
+      
       setBilling({
         walletBalance: walletData.balance ?? 0,
-        monthlySpend: 0,
+        monthlySpend,
         lastPayment: {
           amount: lastPaymentItem?.amount ?? 0,
           date: lastPaymentItem?.created_at ?? ''
@@ -317,7 +322,7 @@ const Dashboard: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">VPS Instances</p>
                 <p className="text-2xl font-bold">
-                  {vpsInstances.filter(v => v.status === 'running').length}
+                  {vpsInstances.length}
                 </p>
               </div>
             </div>
@@ -347,7 +352,7 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Monthly Spend</p>
+                <p className="text-sm font-medium text-muted-foreground">Monthly Spent</p>
                 <p className="text-2xl font-bold">
                   {billing ? formatCurrency(billing.monthlySpend) : '$0.00'}
                 </p>
