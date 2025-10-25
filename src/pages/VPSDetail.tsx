@@ -2956,7 +2956,7 @@ const VPSDetail: React.FC = () => {
                     <span className="text-muted-foreground">Active Hours</span>
                     <div className="sm:text-right">
                       <ActiveHoursDisplay 
-                        createdAt={detail?.provider?.created || null}
+                        createdAt={detail?.createdAt || detail?.provider?.created || null}
                         hourlyRate={detail?.plan?.pricing?.hourly}
                         context="detail"
                         className="text-sm font-medium"
