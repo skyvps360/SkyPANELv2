@@ -475,7 +475,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <Card>
+      <Card className="hidden">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
