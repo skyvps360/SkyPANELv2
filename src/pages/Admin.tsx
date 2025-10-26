@@ -608,51 +608,42 @@ const Admin: React.FC = () => {
   const filteredPlanTypes = useMemo(() => {
     if (planTypeFilter === 'all') return linodeTypes;
     
-    return linodeTypes.filter(type => {
-      const typeClass = (type.type_class || '').toLowerCase();
-      const slug = (type.id || '').toLowerCase();
-      const label = (type.label || '').toLowerCase();
+    // Mapping for backward compatibility if backend hasn't been restarted
+    const FALLBACK_TYPE_CLASS_MAP: Record<string, string> = {
+      'nanode': 'standard',
+      'standard': 'standard',
+      'dedicated': 'cpu',
+      'highmem': 'memory',
+      'premium': 'premium',
+      'gpu': 'gpu',
+      'accelerated': 'accelerated',
+    };
+    
+    const filtered = linodeTypes.filter(type => {
+      let typeClass = (type.type_class || '').toLowerCase().trim();
       
-      switch (planTypeFilter) {
-        case 'standard':
-        case 'basic':
-          // Linode: standard and nanode type_class
-          // DigitalOcean: s- prefix (basic droplets)
-          return typeClass === 'standard' || 
-                 typeClass === 'nanode' || 
-                 slug.startsWith('s-');
-                 
-        case 'cpu':
-          // Linode: dedicated type_class
-          // DigitalOcean: c-, c2- prefixes (CPU-optimized)
-          return typeClass === 'dedicated' || 
-                 slug.startsWith('c-') ||
-                 slug.startsWith('c2-');
-                 
-        case 'memory':
-          // Linode: highmem type_class  
-          // DigitalOcean: m-, m3-, m6- prefixes (memory-optimized)
-          return typeClass === 'highmem' || 
-                 slug.startsWith('m-') ||
-                 slug.startsWith('m3-') ||
-                 slug.startsWith('m6-');
-                 
-        case 'storage':
-          // DigitalOcean only: so- and so1_5- prefixes (storage-optimized)
-          return slug.startsWith('so-') || 
-                 slug.startsWith('so1_5-');
-                 
-        case 'premium':
-          // Linode: premium type_class
-          // DigitalOcean: g-, gd- prefixes (premium AMD/Intel)
-          return typeClass === 'premium' ||
-                 slug.startsWith('g-') || 
-                 slug.startsWith('gd-');
-                 
-        default:
-          return true;
+      // Apply fallback mapping if backend returns unmapped values
+      if (FALLBACK_TYPE_CLASS_MAP[typeClass]) {
+        typeClass = FALLBACK_TYPE_CLASS_MAP[typeClass];
       }
+      
+      return typeClass === planTypeFilter.toLowerCase();
     });
+    
+    // Enhanced debug logging
+    console.log('Filter Debug:', {
+      planTypeFilter,
+      totalPlans: linodeTypes.length,
+      filteredCount: filtered.length,
+      allTypeClasses: [...new Set(linodeTypes.map(t => t.type_class))],
+      samplePlans: linodeTypes.slice(0, 3).map(t => ({ 
+        id: t.id, 
+        label: t.label,
+        type_class: t.type_class 
+      }))
+    });
+    
+    return filtered;
   }, [linodeTypes, planTypeFilter]);
 
   const filteredAvailableStackscripts = useMemo(() => {
@@ -1161,13 +1152,25 @@ const Admin: React.FC = () => {
     }
   };
 
+  // Type class mapping configuration for provider-specific classifications
+  // Maps DigitalOcean description values to standardized type classes
+  const DIGITALOCEAN_TYPE_CLASS_MAP: Record<string, string> = {
+    'basic': 'standard',
+    'general purpose': 'standard',
+    'cpu-optimized': 'cpu',
+    'memory-optimized': 'memory',
+    'storage-optimized': 'storage',
+  };
+
   const fetchLinodeTypes = async () => {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/admin/upstream/plans`, { headers: authHeader });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load upstream provider plans');
-      setLinodeTypes(data.plans);
+      
+      // Backend now handles type_class mapping, so we can use the data directly
+      setLinodeTypes(data.plans || []);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -1180,21 +1183,32 @@ const Admin: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load DigitalOcean sizes');
       // Map DigitalOcean sizes to LinodeType format for consistent UI
-      const mappedSizes: LinodeType[] = (data.sizes || []).map((size: any) => ({
-        id: size.slug,
-        label: size.description || size.slug,
-        disk: size.disk * 1024, // Convert GB to MB
-        memory: size.memory,
-        vcpus: size.vcpus,
-        transfer: size.transfer * 1024, // Convert TB to GB
-        price: {
-          hourly: size.price_hourly,
-          monthly: size.price_monthly
-        },
-        type_class: size.slug.startsWith('s-') ? 'standard' : 
-                    size.slug.startsWith('c-') ? 'cpu' : 
-                    size.slug.startsWith('m-') ? 'memory' : 'standard'
-      }));
+      const mappedSizes: LinodeType[] = (data.sizes || []).map((size: any) => {
+        // Extract description and normalize it
+        const description = (size.description || '').toLowerCase().trim();
+        
+        // Map to type class using the mapping table
+        const typeClass = DIGITALOCEAN_TYPE_CLASS_MAP[description] || 'standard';
+        
+        // Log warning if unmapped
+        if (!DIGITALOCEAN_TYPE_CLASS_MAP[description] && description) {
+          console.warn(`Unmapped DigitalOcean description: "${size.description}"`);
+        }
+        
+        return {
+          id: size.slug,
+          label: size.description || size.slug,
+          disk: size.disk * 1024, // Convert GB to MB
+          memory: size.memory,
+          vcpus: size.vcpus,
+          transfer: size.transfer * 1024, // Convert TB to GB
+          price: {
+            hourly: size.price_hourly,
+            monthly: size.price_monthly
+          },
+          type_class: typeClass
+        };
+      });
       setLinodeTypes(mappedSizes);
     } catch (e: any) {
       toast.error(e.message);
@@ -2423,11 +2437,44 @@ const Admin: React.FC = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="standard">Standard / Basic</SelectItem>
-                          <SelectItem value="cpu">CPU-Optimized</SelectItem>
-                          <SelectItem value="memory">Memory-Optimized</SelectItem>
-                          <SelectItem value="storage">Storage-Optimized</SelectItem>
-                          <SelectItem value="premium">Premium (AMD/Intel)</SelectItem>
+                          {(() => {
+                            const selectedProvider = providers.find(p => p.id === newVPSPlan.selectedProviderId);
+                            
+                            if (selectedProvider?.type === 'linode') {
+                              // Linode-specific filters based on their type_class values
+                              return (
+                                <>
+                                  <SelectItem value="standard">Shared CPU (Standard/Nanode)</SelectItem>
+                                  <SelectItem value="cpu">Dedicated CPU</SelectItem>
+                                  <SelectItem value="memory">High Memory</SelectItem>
+                                  <SelectItem value="premium">Premium CPU</SelectItem>
+                                  <SelectItem value="gpu">GPU</SelectItem>
+                                </>
+                              );
+                            } else if (selectedProvider?.type === 'digitalocean') {
+                              // DigitalOcean-specific filters
+                              return (
+                                <>
+                                  <SelectItem value="standard">Basic / Standard</SelectItem>
+                                  <SelectItem value="cpu">CPU-Optimized</SelectItem>
+                                  <SelectItem value="memory">Memory-Optimized</SelectItem>
+                                  <SelectItem value="storage">Storage-Optimized</SelectItem>
+                                  <SelectItem value="premium">Premium (Intel/AMD)</SelectItem>
+                                </>
+                              );
+                            } else {
+                              // Generic fallback
+                              return (
+                                <>
+                                  <SelectItem value="standard">Standard / Basic</SelectItem>
+                                  <SelectItem value="cpu">CPU-Optimized</SelectItem>
+                                  <SelectItem value="memory">Memory-Optimized</SelectItem>
+                                  <SelectItem value="storage">Storage-Optimized</SelectItem>
+                                  <SelectItem value="premium">Premium</SelectItem>
+                                </>
+                              );
+                            }
+                          })()}
                         </SelectContent>
                       </Select>
                       {filteredPlanTypes.length === 0 && planTypeFilter !== 'all' ? (

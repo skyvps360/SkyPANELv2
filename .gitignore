@@ -57,6 +57,3 @@ coverage/
 # Build artifacts
 build/
 
-# IDE specific files
-.kiro/
-.trae/

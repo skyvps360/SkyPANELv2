@@ -444,17 +444,39 @@ class LinodeService {
       if (isDebug) {
         console.log('Fetched Linode types:', data.data.length)
       }
-      return data.data.map((type: any) => ({
-        id: type.id,
-        label: type.label,
-        disk: type.disk,
-        memory: type.memory,
-        vcpus: type.vcpus,
-        transfer: type.transfer,
-        price: type.price,
-        type_class: type.type_class,
-        successor: type.successor,
-      }));
+      
+      // Map Linode type_class values to standardized categories
+      const TYPE_CLASS_MAP: Record<string, string> = {
+        'nanode': 'standard',
+        'standard': 'standard',
+        'dedicated': 'cpu',
+        'highmem': 'memory',
+        'premium': 'premium',
+        'gpu': 'gpu',
+        'accelerated': 'accelerated',
+      };
+      
+      return data.data.map((type: any) => {
+        const rawTypeClass = (type.class || type.type_class || '').toLowerCase().trim();
+        const mappedTypeClass = TYPE_CLASS_MAP[rawTypeClass] || 'standard';
+        
+        // Log warning for unmapped type classes
+        if (!TYPE_CLASS_MAP[rawTypeClass] && rawTypeClass) {
+          console.warn(`Unmapped Linode type class: "${type.class || type.type_class}" for plan "${type.id}"`);
+        }
+        
+        return {
+          id: type.id,
+          label: type.label,
+          disk: type.disk,
+          memory: type.memory,
+          vcpus: type.vcpus,
+          transfer: type.transfer,
+          price: type.price,
+          type_class: mappedTypeClass,
+          successor: type.successor,
+        };
+      });
     } catch (error) {
       console.error('Error fetching Linode types:', error);
       throw error;
