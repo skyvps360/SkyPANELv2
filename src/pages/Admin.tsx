@@ -388,6 +388,7 @@ const Admin: React.FC = () => {
     markupPrice: 0,
     active: true
   });
+  const [planTypeFilter, setPlanTypeFilter] = useState<string>('all');
   const [showAddProvider, setShowAddProvider] = useState(false);
   const [newProvider, setNewProvider] = useState({
     name: '',
@@ -582,11 +583,77 @@ const Admin: React.FC = () => {
   }, [providers]);
 
   const allowedLinodeRegions = useMemo(() => {
-    // If admin hasn't configured allowed regions, fall back to all regions from Linode API
-    if (!allowedRegionIds || allowedRegionIds.length === 0) return linodeRegions;
-    const set = new Set(allowedRegionIds);
-    return linodeRegions.filter(r => set.has(r.id));
-  }, [linodeRegions, allowedRegionIds]);
+    // If admin hasn't configured allowed regions, fall back to all regions from API
+    // Check if selected provider is DigitalOcean or Linode to apply appropriate filtering
+    const selectedProvider = providers.find(p => p.id === newVPSPlan.selectedProviderId);
+    
+    if (selectedProvider?.type === 'digitalocean') {
+      // For DigitalOcean, check its configuration for allowed regions
+      const doAllowedRegions = (selectedProvider.configuration && Array.isArray(selectedProvider.configuration.allowed_regions))
+        ? selectedProvider.configuration.allowed_regions as string[]
+        : [];
+      
+      if (doAllowedRegions.length === 0) return linodeRegions; // Show all if not configured
+      const set = new Set(doAllowedRegions);
+      return linodeRegions.filter(r => set.has(r.id));
+    } else {
+      // For Linode or other providers, use original logic
+      if (!allowedRegionIds || allowedRegionIds.length === 0) return linodeRegions;
+      const set = new Set(allowedRegionIds);
+      return linodeRegions.filter(r => set.has(r.id));
+    }
+  }, [linodeRegions, allowedRegionIds, providers, newVPSPlan.selectedProviderId]);
+
+  // Filter plan types by category
+  const filteredPlanTypes = useMemo(() => {
+    if (planTypeFilter === 'all') return linodeTypes;
+    
+    return linodeTypes.filter(type => {
+      const typeClass = (type.type_class || '').toLowerCase();
+      const slug = (type.id || '').toLowerCase();
+      const label = (type.label || '').toLowerCase();
+      
+      switch (planTypeFilter) {
+        case 'standard':
+        case 'basic':
+          // Linode: standard and nanode type_class
+          // DigitalOcean: s- prefix (basic droplets)
+          return typeClass === 'standard' || 
+                 typeClass === 'nanode' || 
+                 slug.startsWith('s-');
+                 
+        case 'cpu':
+          // Linode: dedicated type_class
+          // DigitalOcean: c-, c2- prefixes (CPU-optimized)
+          return typeClass === 'dedicated' || 
+                 slug.startsWith('c-') ||
+                 slug.startsWith('c2-');
+                 
+        case 'memory':
+          // Linode: highmem type_class  
+          // DigitalOcean: m-, m3-, m6- prefixes (memory-optimized)
+          return typeClass === 'highmem' || 
+                 slug.startsWith('m-') ||
+                 slug.startsWith('m3-') ||
+                 slug.startsWith('m6-');
+                 
+        case 'storage':
+          // DigitalOcean only: so- and so1_5- prefixes (storage-optimized)
+          return slug.startsWith('so-') || 
+                 slug.startsWith('so1_5-');
+                 
+        case 'premium':
+          // Linode: premium type_class
+          // DigitalOcean: g-, gd- prefixes (premium AMD/Intel)
+          return typeClass === 'premium' ||
+                 slug.startsWith('g-') || 
+                 slug.startsWith('gd-');
+                 
+        default:
+          return true;
+      }
+    });
+  }, [linodeTypes, planTypeFilter]);
 
   const filteredAvailableStackscripts = useMemo(() => {
     const searchTerm = stackscriptSearch.trim().toLowerCase();
@@ -2318,6 +2385,7 @@ const Admin: React.FC = () => {
                             selectedType: '',
                             selectedRegion: ''
                           }));
+                          setPlanTypeFilter('all'); // Reset filter when changing provider
                           // Fetch plans for this provider
                           const provider = providers.find(p => p.id === value);
                           if (provider) {
@@ -2334,7 +2402,7 @@ const Admin: React.FC = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Select a provider" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[200px] overflow-y-auto">
                           {providers.filter(p => p.active).map((provider) => (
                             <SelectItem key={provider.id} value={provider.id}>
                               {provider.name} ({provider.type})
@@ -2342,6 +2410,29 @@ const Admin: React.FC = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Filter by Category</Label>
+                      <Select
+                        value={planTypeFilter}
+                        onValueChange={(value) => setPlanTypeFilter(value)}
+                        disabled={!newVPSPlan.selectedProviderId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All plan types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="standard">Standard / Basic</SelectItem>
+                          <SelectItem value="cpu">CPU-Optimized</SelectItem>
+                          <SelectItem value="memory">Memory-Optimized</SelectItem>
+                          <SelectItem value="storage">Storage-Optimized</SelectItem>
+                          <SelectItem value="premium">Premium (AMD/Intel)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {filteredPlanTypes.length === 0 && planTypeFilter !== 'all' ? (
+                        <p className="text-xs text-muted-foreground">No plans in this category. Try "All Types".</p>
+                      ) : null}
                     </div>
                     <div className="grid gap-2">
                       <Label>Plan type</Label>
@@ -2353,8 +2444,8 @@ const Admin: React.FC = () => {
                         <SelectTrigger>
                           <SelectValue placeholder={newVPSPlan.selectedProviderId ? "Select a plan type" : "Select provider first"} />
                         </SelectTrigger>
-                        <SelectContent>
-                          {linodeTypes.map((type) => (
+                        <SelectContent position="popper" sideOffset={5}>
+                          {filteredPlanTypes.map((type) => (
                             <SelectItem key={type.id} value={type.id}>
                               {type.label} · {type.vcpus} vCPU · {type.memory}MB RAM · {Math.round(type.disk / 1024)}GB Disk · ${type.price.monthly}/mo
                             </SelectItem>
@@ -2371,7 +2462,7 @@ const Admin: React.FC = () => {
                         <SelectTrigger disabled={allowedLinodeRegions.length === 0}>
                           <SelectValue placeholder="Select a region" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" sideOffset={5}>
                           {allowedLinodeRegions.map((region) => (
                             <SelectItem key={region.id} value={region.id}>
                               {region.label} ({region.country})

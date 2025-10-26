@@ -177,7 +177,7 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/sizes`, {
+      const response = await fetch(`${this.baseUrl}/sizes?per_page=200`, {
         headers: this.getHeaders(apiToken),
       });
 
@@ -201,7 +201,7 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/regions`, {
+      const response = await fetch(`${this.baseUrl}/regions?per_page=200`, {
         headers: this.getHeaders(apiToken),
       });
 
