@@ -9,6 +9,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
+import { digitalOceanService } from '../services/digitaloceanService.js';
 import { logActivity } from '../services/activityLogger.js';
 import { themeService, type StoredThemePreset } from '../services/themeService.js';
 import jwt from 'jsonwebtoken';
@@ -1431,6 +1432,110 @@ router.get('/upstream/stackscripts', authenticateToken, requireAdmin, async (req
     res.status(500).json({ 
       error: err.message || 'Failed to fetch StackScripts',
       details: 'Make sure upstream provider API token is configured in environment variables'
+    });
+  }
+});
+
+// DigitalOcean API endpoints (parallel to Linode endpoints above)
+// Get DigitalOcean sizes (droplet plans)
+router.get('/digitalocean/sizes', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Get DigitalOcean provider from database
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean provider not found or not active',
+        details: 'Please configure DigitalOcean provider in /admin#providers'
+      });
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+    if (!apiToken) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean API token not configured',
+        details: 'Please add your API token in /admin#providers'
+      });
+    }
+
+    const sizes = await digitalOceanService.getDigitalOceanSizes(apiToken);
+    res.json({ sizes });
+  } catch (err: any) {
+    console.error('Error fetching DigitalOcean sizes:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to fetch DigitalOcean sizes',
+      details: 'Check that your DigitalOcean API token is valid in /admin#providers'
+    });
+  }
+});
+
+// Get DigitalOcean regions
+router.get('/digitalocean/regions', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Get DigitalOcean provider from database
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean provider not found or not active',
+        details: 'Please configure DigitalOcean provider in /admin#providers'
+      });
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+    if (!apiToken) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean API token not configured',
+        details: 'Please add your API token in /admin#providers'
+      });
+    }
+
+    const regions = await digitalOceanService.getDigitalOceanRegions(apiToken);
+    res.json({ regions });
+  } catch (err: any) {
+    console.error('Error fetching DigitalOcean regions:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to fetch DigitalOcean regions',
+      details: 'Check that your DigitalOcean API token is valid in /admin#providers'
+    });
+  }
+});
+
+// Get DigitalOcean images
+router.get('/digitalocean/images', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Get DigitalOcean provider from database
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean provider not found or not active',
+        details: 'Please configure DigitalOcean provider in /admin#providers'
+      });
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+    if (!apiToken) {
+      return res.status(400).json({ 
+        error: 'DigitalOcean API token not configured',
+        details: 'Please add your API token in /admin#providers'
+      });
+    }
+
+    const type = req.query.type as 'distribution' | 'application' | undefined;
+    const images = await digitalOceanService.getDigitalOceanImages(apiToken, type);
+    res.json({ images });
+  } catch (err: any) {
+    console.error('Error fetching DigitalOcean images:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to fetch DigitalOcean images',
+      details: 'Check that your DigitalOcean API token is valid in /admin#providers'
     });
   }
 });

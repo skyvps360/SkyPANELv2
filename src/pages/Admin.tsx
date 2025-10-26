@@ -382,6 +382,7 @@ const Admin: React.FC = () => {
   const [showAddVPSPlan, setShowAddVPSPlan] = useState(false);
   const [newVPSPlan, setNewVPSPlan] = useState({
     name: '',
+    selectedProviderId: '',
     selectedType: '',
     selectedRegion: '',
     markupPrice: 0,
@@ -1105,6 +1106,34 @@ const Admin: React.FC = () => {
     }
   };
 
+  const fetchDigitalOceanSizes = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/digitalocean/sizes`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load DigitalOcean sizes');
+      // Map DigitalOcean sizes to LinodeType format for consistent UI
+      const mappedSizes: LinodeType[] = (data.sizes || []).map((size: any) => ({
+        id: size.slug,
+        label: size.description || size.slug,
+        disk: size.disk * 1024, // Convert GB to MB
+        memory: size.memory,
+        vcpus: size.vcpus,
+        transfer: size.transfer * 1024, // Convert TB to GB
+        price: {
+          hourly: size.price_hourly,
+          monthly: size.price_monthly
+        },
+        type_class: size.slug.startsWith('s-') ? 'standard' : 
+                    size.slug.startsWith('c-') ? 'cpu' : 
+                    size.slug.startsWith('m-') ? 'memory' : 'standard'
+      }));
+      setLinodeTypes(mappedSizes);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const fetchLinodeRegions = async () => {
     if (!token) return;
     try {
@@ -1112,6 +1141,26 @@ const Admin: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load upstream provider regions');
       setLinodeRegions(data.regions);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const fetchDigitalOceanRegions = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/digitalocean/regions`, { headers: authHeader });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load DigitalOcean regions');
+      // Map DigitalOcean regions to LinodeRegion format
+      const mappedRegions: LinodeRegion[] = (data.regions || []).filter((r: any) => r.available).map((region: any) => ({
+        id: region.slug,
+        label: region.name,
+        country: region.slug.split('-')[0] || 'unknown',
+        capabilities: region.features || [],
+        status: region.available ? 'ok' : 'unavailable'
+      }));
+      setLinodeRegions(mappedRegions);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -1295,6 +1344,11 @@ const Admin: React.FC = () => {
   };
 
   const createVPSPlan = async () => {
+    if (!newVPSPlan.selectedProviderId) {
+      toast.error('Please select a provider');
+      return;
+    }
+
     if (!newVPSPlan.selectedType || !newVPSPlan.selectedRegion) {
       toast.error('Please select both a plan type and region');
       return;
@@ -1306,9 +1360,9 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const linodeProvider = providers.find(p => p.type === 'linode' && p.active);
-    if (!linodeProvider) {
-      toast.error('No Linode provider configured. Please add one first.');
+    const selectedProvider = providers.find(p => p.id === newVPSPlan.selectedProviderId);
+    if (!selectedProvider) {
+      toast.error('Selected provider not found. Please refresh and try again.');
       return;
     }
 
@@ -1317,7 +1371,7 @@ const Admin: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
-          provider_id: linodeProvider.id,
+          provider_id: selectedProvider.id,
           name: (newVPSPlan.name && newVPSPlan.name.trim().length > 0)
             ? newVPSPlan.name.trim()
             : `${selectedType.label} - ${newVPSPlan.selectedRegion}`,
@@ -1340,6 +1394,7 @@ const Admin: React.FC = () => {
       setPlans(prev => [data.plan, ...prev]);
       setNewVPSPlan({
         name: '',
+        selectedProviderId: '',
         selectedType: '',
         selectedRegion: '',
         markupPrice: 0,
@@ -2078,6 +2133,7 @@ const Admin: React.FC = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="min-w-[12rem]">Name</TableHead>
+                          <TableHead className="min-w-[10rem]">Provider</TableHead>
                           <TableHead className="min-w-[10rem]">Provider Plan ID</TableHead>
                           <TableHead className="min-w-[8rem]">Base Price</TableHead>
                           <TableHead className="min-w-[8rem]">Markup</TableHead>
@@ -2088,13 +2144,14 @@ const Admin: React.FC = () => {
                       <TableBody>
                         {plans.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                            <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                               No plans available
                             </TableCell>
                           </TableRow>
                         ) : (
                           plans.map(plan => {
                             const isEditing = editPlanId === plan.id;
+                            const planProvider = providers.find(p => p.id === plan.provider_id);
 
                             return (
                               <TableRow key={plan.id} className="align-top">
@@ -2108,6 +2165,16 @@ const Admin: React.FC = () => {
                                   ) : (
                                     <span className="text-sm text-foreground">{plan.name}</span>
                                   )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <span className="text-sm text-foreground font-medium">
+                                      {planProvider?.name || 'Unknown'}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {planProvider?.type || 'unknown'}
+                                    </span>
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <span className="text-sm text-muted-foreground">{plan.provider_plan_id}</span>
@@ -2214,6 +2281,7 @@ const Admin: React.FC = () => {
                   if (!open) {
                     setNewVPSPlan({
                       name: '',
+                      selectedProviderId: '',
                       selectedType: '',
                       selectedRegion: '',
                       markupPrice: 0,
@@ -2240,13 +2308,50 @@ const Admin: React.FC = () => {
                       />
                     </div>
                     <div className="grid gap-2">
+                      <Label>Provider</Label>
+                      <Select
+                        value={newVPSPlan.selectedProviderId}
+                        onValueChange={(value) => {
+                          setNewVPSPlan(prev => ({ 
+                            ...prev, 
+                            selectedProviderId: value,
+                            selectedType: '',
+                            selectedRegion: ''
+                          }));
+                          // Fetch plans for this provider
+                          const provider = providers.find(p => p.id === value);
+                          if (provider) {
+                            if (provider.type === 'digitalocean') {
+                              fetchDigitalOceanSizes();
+                              fetchDigitalOceanRegions();
+                            } else if (provider.type === 'linode') {
+                              fetchLinodeTypes();
+                              fetchLinodeRegions();
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {providers.filter(p => p.active).map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id}>
+                              {provider.name} ({provider.type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
                       <Label>Plan type</Label>
                       <Select
                         value={newVPSPlan.selectedType}
                         onValueChange={(value) => setNewVPSPlan(prev => ({ ...prev, selectedType: value }))}
+                        disabled={!newVPSPlan.selectedProviderId}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a plan type" />
+                          <SelectValue placeholder={newVPSPlan.selectedProviderId ? "Select a plan type" : "Select provider first"} />
                         </SelectTrigger>
                         <SelectContent>
                           {linodeTypes.map((type) => (
@@ -2308,6 +2413,7 @@ const Admin: React.FC = () => {
                         setShowAddVPSPlan(false);
                         setNewVPSPlan({
                           name: '',
+                          selectedProviderId: '',
                           selectedType: '',
                           selectedRegion: '',
                           markupPrice: 0,
@@ -3667,6 +3773,7 @@ const Admin: React.FC = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="linode">Linode</SelectItem>
+                          <SelectItem value="digitalocean">DigitalOcean</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
