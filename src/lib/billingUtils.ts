@@ -199,7 +199,7 @@ export const formatResetDate = (resetDate: Date): string => {
  * Get reset indicator text based on current date
  */
 export const getResetIndicatorText = (): string => {
-  const { resetDate, daysIntoMonth, isNewMonth } = getMonthlyResetInfo();
+  const { resetDate, daysIntoMonth: _daysIntoMonth, isNewMonth } = getMonthlyResetInfo();
   
   if (isNewMonth) {
     return 'Recently reset';

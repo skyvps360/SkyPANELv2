@@ -180,6 +180,11 @@ router.delete(
   [param('id').isUUID()],
   async (req: Request, res: Response) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Invalid input', details: errors.array() });
+      }
+
       const { id } = req.params;
       await query('DELETE FROM support_tickets WHERE id = $1', [id]);
       res.status(204).send();
@@ -405,6 +410,11 @@ router.delete(
   [param('id').isUUID()],
   async (req: Request, res: Response) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
       const { id } = req.params;
       await query('DELETE FROM vps_plans WHERE id = $1', [id]);
       res.status(204).send();
@@ -595,6 +605,11 @@ router.delete(
   [param('id').isUUID()],
   async (req: Request, res: Response) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Invalid input', details: errors.array() });
+      }
+
       const { id } = req.params;
       await query('DELETE FROM service_providers WHERE id = $1', [id]);
       res.status(204).send();
@@ -897,6 +912,11 @@ router.delete(
   [param('id').isUUID()],
   async (req: Request, res: Response) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Invalid input', details: errors.array() });
+      }
+
       const { id } = req.params;
       await query(
         'DELETE FROM container_plans WHERE id = $1',

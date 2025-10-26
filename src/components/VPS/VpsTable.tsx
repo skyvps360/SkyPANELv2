@@ -79,7 +79,7 @@ const formatDate = (date: string): string =>
   });
 
 // Add Active Hours helper
-const calculateActiveHours = (created: string | null | undefined): number => {
+const _calculateActiveHours = (created: string | null | undefined): number => {
   if (!created) return NaN;
   const createdTime = new Date(created).getTime();
   if (!Number.isFinite(createdTime)) return NaN;

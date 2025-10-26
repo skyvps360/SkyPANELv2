@@ -337,7 +337,7 @@ const formatDateTime = (value: string | null): string => {
 };
 
 // Calculate elapsed hours since a timestamp
-const calculateActiveHours = (value: string | null): string => {
+const _calculateActiveHours = (value: string | null): string => {
   if (!value) return '—';
   const ts = new Date(value).getTime();
   if (!Number.isFinite(ts)) return '—';

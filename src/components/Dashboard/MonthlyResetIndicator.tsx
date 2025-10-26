@@ -107,7 +107,7 @@ export const MonthlyResetIndicator: React.FC<MonthlyResetIndicatorProps> = ({
  * Compact version for smaller spaces
  */
 export const MonthlyResetIndicatorCompact: React.FC<Omit<MonthlyResetIndicatorProps, 'showAnimation'>> = ({
-  monthlySpend,
+  monthlySpend: _monthlySpend,
   className
 }) => {
   const { isNewMonth } = getMonthlyResetInfo();

@@ -311,7 +311,7 @@ const Billing: React.FC = () => {
   // Initial load
   useEffect(() => {
     loadBillingData();
-  }, []);
+  }, [loadBillingData]);
 
   // Reload data when filter status changes
   useEffect(() => {
