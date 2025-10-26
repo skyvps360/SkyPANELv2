@@ -134,7 +134,7 @@ const NotificationDropdown: React.FC = () => {
   const loadUnreadCount = useCallback(async () => {
     if (!token) return;
     try {
-      const response = await fetch(buildApiUrl("/api/notifications/unread-count"), {
+      const response = await fetch(buildApiUrl("/notifications/unread-count"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -167,8 +167,8 @@ const NotificationDropdown: React.FC = () => {
 
       // EventSource doesn't support custom headers, so we pass the token as a query parameter
       const url = token 
-        ? buildApiUrl(`/api/notifications/stream?token=${encodeURIComponent(token)}`)
-        : buildApiUrl("/api/notifications/stream");
+        ? buildApiUrl(`/notifications/stream?token=${encodeURIComponent(token)}`)
+        : buildApiUrl("/notifications/stream");
 
       eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;

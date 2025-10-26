@@ -217,7 +217,7 @@ const Billing: React.FC = () => {
   };
 
   // Compute monthly spent from wallet transactions with calendar month boundaries
-  const calculateMonthlySpent = React.useCallback(async () => {
+  const calculateMonthlySpent = React.useCallback(async (summaryData?: BillingSummary | null) => {
     setComputingMonthlySpent(true);
     setMonthlySpentError(null);
     setMonthlySpentDiscrepancy(false);
@@ -271,7 +271,7 @@ const Billing: React.FC = () => {
       setComputedMonthlySpent(Number(monthlyTotal.toFixed(2)));
 
       // Compare against server summary if available and flag discrepancies beyond small threshold
-      const serverValue = billingSummary?.totalSpentThisMonth;
+      const serverValue = summaryData?.totalSpentThisMonth;
       if (typeof serverValue === 'number') {
         const diff = Math.abs(serverValue - monthlyTotal);
         const threshold = Math.max(0.01, serverValue * 0.005); // 0.5% or $0.01
@@ -284,7 +284,7 @@ const Billing: React.FC = () => {
     } finally {
       setComputingMonthlySpent(false);
     }
-  }, [billingSummary]);
+  }, []);
 
   const loadBillingData = React.useCallback(async () => {
     setLoading(true);
@@ -298,15 +298,20 @@ const Billing: React.FC = () => {
         loadVPSUptimeData(),
         loadBillingSummary()
       ]);
-      // After summary loads, compute local monthly spend as verification/fallback
-      await calculateMonthlySpent();
     } catch (error) {
       console.error('Failed to load billing data:', error);
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  }, [loadOverviewData, loadVPSUptimeData, loadBillingSummary, calculateMonthlySpent]);
+  }, [loadOverviewData, loadVPSUptimeData, loadBillingSummary]);
+
+  // Separate effect to calculate monthly spend after billing summary is loaded
+  useEffect(() => {
+    if (billingSummary) {
+      calculateMonthlySpent(billingSummary);
+    }
+  }, [billingSummary, calculateMonthlySpent]);
 
   // Initial load
   useEffect(() => {

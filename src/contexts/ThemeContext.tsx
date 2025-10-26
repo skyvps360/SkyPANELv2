@@ -208,7 +208,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      const response = await fetch(buildApiUrl('/api/theme'));
+      const response = await fetch(buildApiUrl('/theme'));
       if (!response.ok) {
         throw new Error(`Failed to load theme configuration: ${response.status}`);
       }
