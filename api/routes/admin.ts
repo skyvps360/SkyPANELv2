@@ -9,7 +9,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { query } from '../lib/database.js';
 import { linodeService } from '../services/linodeService.js';
-import { digitalOceanService } from '../services/digitaloceanService.js';
+import { digitalOceanService } from '../services/DigitalOceanService.js';
 import { logActivity } from '../services/activityLogger.js';
 import { themeService, type StoredThemePreset } from '../services/themeService.js';
 import jwt from 'jsonwebtoken';
