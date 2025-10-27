@@ -319,7 +319,7 @@ export default function ApiDocs() {
             path: '/:id', 
             description: 'Get detailed container information',
             auth: true,
-            response: { id: 'cont_123', name: 'my-app', status: 'running', image: 'nginx:latest', port: 80, url: 'https://my-app.containerstacks.com' }
+            response: { id: 'cont_123', name: 'my-app', status: 'running', image: 'nginx:latest', port: 80, url: 'https://my-app.apps.skypanelv2.com' }
           },
           { 
             method: 'POST', 
@@ -669,7 +669,7 @@ export default function ApiDocs() {
               id: 'reply_123', 
               ticket_id: 'ticket_123',
               message: 'Thank you for contacting support. We are looking into your issue.',
-              author: 'support@containerstacks.com',
+              author: 'support@skypanelv2.com',
               author_type: 'staff',
               created_at: '2024-01-01T13:00:00Z'
             }]
@@ -863,7 +863,7 @@ export default function ApiDocs() {
             description: 'Export activity logs as CSV or JSON',
             auth: true,
             response: { 
-              download_url: 'https://api.containerstacks.com/downloads/activity_export_123.csv',
+              download_url: 'https://api.skypanelv2.com/downloads/activity_export_123.csv',
               expires_at: '2024-01-01T23:59:59Z'
             }
           },
@@ -1234,7 +1234,7 @@ export default function ApiDocs() {
             description: 'Get platform configuration and settings',
             auth: true,
             response: { 
-              platform_name: 'ContainerStacks',
+              platform_name: 'SkyPanelV2',
               maintenance_mode: false,
               registration_enabled: true,
               max_containers_per_user: 10,

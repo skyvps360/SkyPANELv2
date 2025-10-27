@@ -1,5 +1,5 @@
 /**
- * Payment Routes for ContainerStacks
+ * Payment Routes for SkyPanelV2
  * Handles PayPal payments, wallet management, and billing
  */
 
@@ -53,7 +53,7 @@ router.get('/config', requireOrganization, (req: Request, res: Response) => {
       intent: 'capture',
       mode: config.PAYPAL_MODE === 'production' || config.PAYPAL_MODE === 'live' ? 'live' : 'sandbox',
       disableFunding,
-      brandName: 'ContainerStacks',
+      brandName: 'SkyPanelV2',
     },
   });
 });

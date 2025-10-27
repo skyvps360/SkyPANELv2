@@ -1,5 +1,5 @@
--- ContainerStacks PostgreSQL Migration Script
--- This script creates all the necessary tables for the ContainerStacks application
+-- SkyPanelV2 PostgreSQL Migration Script
+-- This script creates all the necessary tables for the SkyPanelV2 application
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -197,7 +197,7 @@ BEGIN
     INSERT INTO users (id, email, password_hash, name, role) 
     VALUES (
         uuid_generate_v4(),
-        'admin@containerstacks.com',
+        'admin@skypanelv2.com',
         '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uO9G',
         'System Administrator',
         'admin'
@@ -206,22 +206,22 @@ BEGIN
     
     -- Get admin user id if it already exists
     IF admin_user_id IS NULL THEN
-        SELECT id INTO admin_user_id FROM users WHERE email = 'admin@containerstacks.com';
+        SELECT id INTO admin_user_id FROM users WHERE email = 'admin@skypanelv2.com';
     END IF;
     
     -- Insert default organization for admin user
     INSERT INTO organizations (id, name, slug, owner_id)
     VALUES (
         uuid_generate_v4(),
-        'ContainerStacks Admin',
-        'containerstacks-admin',
+        'skypanelv2 Admin',
+        'skypanelv2-admin',
         admin_user_id
     ) ON CONFLICT (slug) DO NOTHING
     RETURNING id INTO admin_org_id;
     
     -- Get organization id if it already exists
     IF admin_org_id IS NULL THEN
-        SELECT id INTO admin_org_id FROM organizations WHERE slug = 'containerstacks-admin';
+        SELECT id INTO admin_org_id FROM organizations WHERE slug = 'skypanelv2-admin';
     END IF;
     
     -- Add admin user to organization members

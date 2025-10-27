@@ -2,7 +2,7 @@
  * Test script for VPS hourly billing system
  * 
  * This script:
- * 1. Logs in as john@example.com
+ * 1. Logs in as admin@skypanelv2.com
  * 2. Adds $100 to the wallet
  * 3. Creates a VPS instance
  * 4. Simulates 6 hours of billing
@@ -22,8 +22,8 @@ const pool = new Pool({
 
 // Test credentials
 const TEST_USER = {
-  email: 'john@example.com',
-  password: 'testing123'
+  email: 'admin@skypanelv2.com',
+  password: 'admin123'
 };
 
 // Colors for console output

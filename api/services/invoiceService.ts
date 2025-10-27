@@ -1,5 +1,5 @@
 /**
- * Invoice Service for ContainerStacks
+ * Invoice Service for SkyPanelV2
  * Handles invoice generation, storage, and export
  */
 

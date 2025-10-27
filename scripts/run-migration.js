@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Migration Runner for ContainerStacks PostgreSQL
+ * Migration Runner for SkyPanelV2 PostgreSQL
  * This script runs the database migration and tests the connection
  */
 
@@ -20,13 +20,13 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 const { Pool } = pg;
 
 async function runMigration() {
-  console.log('🚀 Starting ContainerStacks PostgreSQL Migration...\n');
+  console.log('🚀 Starting SkyPanelV2 PostgreSQL Migration...\n');
 
   // Check if DATABASE_URL is set
   if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL environment variable is not set!');
     console.log('Please set your PostgreSQL connection string in the .env file:');
-    console.log('DATABASE_URL=postgresql://username:password@localhost:5432/containerstacks');
+    console.log('DATABASE_URL=postgresql://username:password@localhost:5432/skypanelv2_db_name');
     process.exit(1);
   }
 
@@ -88,7 +88,7 @@ async function runMigration() {
 
     // Check if admin user was created
     const adminResult = await pool.query(
-      "SELECT email, name, role FROM users WHERE email = 'admin@containerstacks.com'"
+      "SELECT email, name, role FROM users WHERE email = 'admin@skypanelv2.com'"
     );
 
     if (adminResult.rows.length > 0) {
@@ -100,7 +100,7 @@ async function runMigration() {
     }
 
     console.log('\n🎉 Migration completed successfully!');
-    console.log('Your ContainerStacks application is now ready to use PostgreSQL.');
+    console.log('Your SkyPanelV2 application is now ready to use PostgreSQL.');
 
   } catch (error) {
     console.error('❌ Migration failed:', error.message);

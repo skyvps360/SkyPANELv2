@@ -2,6 +2,8 @@ import nodemailer from 'nodemailer';
 import 'dotenv/config';
 
 async function testSMTP() {
+  const brandName = process.env.COMPANY_BRAND_NAME || process.env.COMPANY_NAME || 'SkyPanelV2';
+
   console.log('='.repeat(60));
   console.log('SMTP2GO Connection Test');
   console.log('='.repeat(60));
@@ -11,7 +13,7 @@ async function testSMTP() {
   console.log('SMTP2GO_USERNAME:', process.env.SMTP2GO_USERNAME ? '✅ Set' : '❌ Missing');
   console.log('SMTP2GO_PASSWORD:', process.env.SMTP2GO_PASSWORD ? '✅ Set' : '❌ Missing');
   console.log('FROM_EMAIL:', process.env.FROM_EMAIL || '❌ Missing');
-  console.log('FROM_NAME:', process.env.FROM_NAME || 'SkyVPS360');
+  console.log('FROM_NAME:', process.env.FROM_NAME || brandName);
   console.log('CLIENT_URL:', process.env.CLIENT_URL || 'http://localhost:5173');
   
   if (!process.env.SMTP2GO_USERNAME || !process.env.SMTP2GO_PASSWORD) {
@@ -49,7 +51,7 @@ async function testSMTP() {
     logger: true
   });
 
-  const from = `${process.env.FROM_NAME || 'SkyVPS360'} <${process.env.FROM_EMAIL}>`;
+  const from = `${process.env.FROM_NAME || brandName} <${process.env.FROM_EMAIL}>`;
   
   console.log('\n📧 Test Email Details:');
   console.log('From:', from);
@@ -63,7 +65,7 @@ async function testSMTP() {
       from,
       to: testEmail,
       subject: `SMTP2GO Test from ${process.env.NODE_ENV || 'development'}`,
-      text: `This is a test email from your ContainerStacks application.
+      text: `This is a test email from your ${brandName} application.
 
 Environment: ${process.env.NODE_ENV || 'development'}
 Timestamp: ${new Date().toISOString()}
@@ -72,7 +74,7 @@ If you received this email, SMTP2GO is configured correctly and working!`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #0066cc;">✅ SMTP2GO Test Successful</h2>
-          <p>This is a test email from your ContainerStacks application.</p>
+          <p>This is a test email from your ${brandName} application.</p>
           <ul style="line-height: 1.8;">
             <li><strong>Environment:</strong> ${process.env.NODE_ENV || 'development'}</li>
             <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>

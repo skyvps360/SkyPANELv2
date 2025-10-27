@@ -1,5 +1,5 @@
 /**
- * Platform Statistics Service for ContainerStacks
+ * Platform Statistics Service for SkyPanelV2
  * Provides aggregated statistics for VPS infrastructure and platform-wide metrics
  */
 

@@ -1936,8 +1936,8 @@ router.post("/", async (req: Request, res: Response) => {
           private_ip: privateIP,
           stackscript_id: stackscriptId,
           stackscript_data: stackscriptData,
-          tags: ["containerstacks"],
-          group: "containerstacks",
+          tags: ["skypanelv2"],
+          group: "skypanelv2",
         });
 
     // Persist instance record

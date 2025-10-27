@@ -1,5 +1,5 @@
 /**
- * Configuration module for ContainerStacks API
+ * Configuration module for SkyPanelV2 API
  */
 
 export interface RateLimitConfig {
@@ -42,6 +42,7 @@ export interface Config {
   LINODE_API_TOKEN?: string;
   SSH_CRED_SECRET?: string;
   CONTACT_FORM_RECIPIENT?: string;
+  COMPANY_BRAND_NAME: string;
 }
 
 /**
@@ -155,6 +156,10 @@ function getConfig(): Config {
     LINODE_API_TOKEN: process.env.LINODE_API_TOKEN,
     SSH_CRED_SECRET: process.env.SSH_CRED_SECRET,
     CONTACT_FORM_RECIPIENT: process.env.CONTACT_FORM_RECIPIENT,
+    COMPANY_BRAND_NAME:
+      process.env.COMPANY_BRAND_NAME?.trim() ||
+      process.env.COMPANY_NAME?.trim() ||
+      'SkyPanelV2',
   };
 
   // Debug logging
@@ -169,7 +174,8 @@ function getConfig(): Config {
       authenticated: `${config.rateLimiting.authenticatedMaxRequests}/${config.rateLimiting.authenticatedWindowMs}ms`,
       admin: `${config.rateLimiting.adminMaxRequests}/${config.rateLimiting.adminWindowMs}ms`,
       trustProxy: config.rateLimiting.trustProxy
-    }
+    },
+    companyBrandName: config.COMPANY_BRAND_NAME
   });
 
   return config;

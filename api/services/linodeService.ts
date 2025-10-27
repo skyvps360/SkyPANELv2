@@ -1,5 +1,5 @@
 /**
- * Linode API Service for ContainerStacks
+ * Linode API Service for SkyPanelV2
  * Handles integration with Linode API for VPS management
  */
 
@@ -627,7 +627,7 @@ class LinodeService {
         script: req.script,
         images: req.images,
         is_public: req.is_public ?? false,
-        rev_note: req.rev_note ?? 'Initial version created via ContainerStacks',
+        rev_note: req.rev_note ?? 'Initial version created via SkyPanelV2',
         description: req.description ?? req.label,
         user_defined_fields: req.user_defined_fields ?? [],
       };

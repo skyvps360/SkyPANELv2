@@ -18,7 +18,7 @@ async function run() {
 
     const { rows } = await client.query(
       'SELECT id, email, name, role, password_hash FROM users WHERE email = $1',
-      ['admin@containerstacks.com']
+      ['admin@skyPanelv2.com']
     );
 
     if (rows.length === 0) {

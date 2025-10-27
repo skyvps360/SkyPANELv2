@@ -1,5 +1,5 @@
 /**
- * PayPal Service for ContainerStacks
+ * PayPal Service for SkyPanelV2
  * Handles wallet management, payments, and PayPal integration
  */
 
@@ -175,7 +175,7 @@ export class PayPalService {
             },
           ],
           applicationContext: {
-            brandName: 'ContainerStacks',
+            brandName: config.COMPANY_BRAND_NAME || 'SkyPanelV2',
             returnUrl: `${clientBaseUrl}/billing/payment/success`,
             cancelUrl: `${clientBaseUrl}/billing/payment/cancel`,
             userAction: OrderApplicationContextUserAction.PAYNOW,
@@ -555,7 +555,7 @@ export class PayPalService {
         body: {
           senderBatchHeader: {
             senderBatchId: `batch_${Date.now()}`,
-            emailSubject: 'ContainerStacks Payout',
+            emailSubject: `${config.COMPANY_BRAND_NAME} Payout`,
             emailMessage: note,
           },
           items: [

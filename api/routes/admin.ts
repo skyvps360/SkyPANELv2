@@ -1,5 +1,5 @@
 /**
- * Admin Routes for ContainerStacks
+ * Admin Routes for SkyPanelV2
  * Manage support tickets and VPS plans
  */
 import express, { Request, Response } from 'express';

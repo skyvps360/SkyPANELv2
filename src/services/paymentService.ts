@@ -1,5 +1,5 @@
 /**
- * Payment Service for ContainerStacks Frontend
+ * Payment Service for SkyPanelV2 Frontend
  * Handles PayPal payments and wallet management
  */
 

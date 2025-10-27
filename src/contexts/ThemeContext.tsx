@@ -40,8 +40,8 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "containerstacks:theme";
-const STYLE_ELEMENT_ID = "containerstacks-theme-style";
+const STORAGE_KEY = "skypanelv2:theme";
+const STYLE_ELEMENT_ID = "skypanelv2-theme-style";
 const BASE_THEME_IDS = new Set(themePresets.map((preset) => preset.id));
 
 const serializeVariables = (vars: ThemeVariables): string =>

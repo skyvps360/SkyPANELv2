@@ -12,7 +12,7 @@ function getKey(): Buffer {
   if (!raw || raw.length < 16) {
     console.warn('SSH_CRED_SECRET not set or too short; falling back to insecure dev key. Set SSH_CRED_SECRET in .env to a strong 32-byte value.');
     // Derive a deterministic dev key from JWT_SECRET to avoid total failure locally
-    const seed = (config.JWT_SECRET || 'containerstacks-dev-secret').padEnd(32, '0');
+    const seed = (config.JWT_SECRET || 'skypanelv2-dev-secret').padEnd(32, '0');
     return crypto.createHash('sha256').update(seed).digest();
   }
   // Normalize to 32 bytes via SHA-256

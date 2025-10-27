@@ -102,7 +102,7 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
       intent: config.intent,
       components: 'buttons',
       'disable-funding': config.disableFunding?.join(',') || undefined,
-      'data-sdk-integration-source': 'containerstacks_checkout',
+      'data-sdk-integration-source': 'skypanelv2_checkout',
     };
 
     return options;

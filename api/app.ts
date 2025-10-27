@@ -1,5 +1,5 @@
 /**
- * ContainerStacks API Server
+ * SkyPanelV2 API Server
  */
 
 // Load environment variables FIRST before any other imports

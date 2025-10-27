@@ -1,5 +1,5 @@
 /**
- * Billing Service for ContainerStacks
+ * Billing Service for SkyPanelV2
  * Handles automated VPS billing, hourly charges, and billing cycle management
  */
 

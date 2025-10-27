@@ -1,11 +1,11 @@
-# ContainerStacks
+# skypanelv2
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-ContainerStacks is an open-source cloud service reseller billing panel that enables service providers to resell cloud infrastructure from multiple providers (Linode, DigitalOcean, dedicated server providers) with custom billing, markup pricing, and white-label branding.
+SkyPanelV2 is an open-source cloud service reseller billing panel that enables service providers to resell cloud infrastructure from multiple providers (Linode, DigitalOcean, dedicated server providers) with custom billing, markup pricing, and white-label branding.
 
 ## 💝 Support Our Work
 If you find my work helpful, consider supporting me:
@@ -143,8 +143,8 @@ If you find my work helpful, consider supporting me:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/skyvps360/containerstacks
-   cd containerstacks
+   git clone https://github.com/skyvps360/skypanelv2
+   cd skypanelv2
    ```
 
 2. **Install dependencies**
@@ -166,9 +166,9 @@ If you find my work helpful, consider supporting me:
    JWT_EXPIRES_IN=7d
 
    # PostgreSQL
-   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/containerstacks
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/skypanelv2
    # For Neon/Cloud Postgres:
-   # DATABASE_URL=postgresql://username:password@ep-example.us-east-1.aws.neon.tech/containerstacks?sslmode=require
+   # DATABASE_URL=postgresql://username:password@ep-example.us-east-1.aws.neon.tech/skypanelv2?sslmode=require
 
    # PayPal
    PAYPAL_CLIENT_ID=your-paypal-client-id
@@ -179,8 +179,8 @@ If you find my work helpful, consider supporting me:
    SMTP2GO_API_KEY=your-smtp2go-api-key
    SMTP2GO_USERNAME=your-smtp2go-username
    SMTP2GO_PASSWORD=your-smtp2go-password
-   FROM_EMAIL=noreply@containerstacks.com
-   FROM_NAME=ContainerStacks
+   FROM_EMAIL=noreply@skypanelv2.com
+   FROM_NAME=SkyPanelV2 Support
 
    # Linode (VPS)
    LINODE_API_TOKEN=your-linode-api-token
@@ -191,7 +191,7 @@ If you find my work helpful, consider supporting me:
 
    # Docker
    DOCKER_HOST=unix:///var/run/docker.sock
-   DOCKER_REGISTRY_URL=registry.containerstacks.com
+   DOCKER_REGISTRY_URL=registry.skypanelv2.com
 
    # Redis
    REDIS_URL=redis://localhost:6379
@@ -211,7 +211,7 @@ If you find my work helpful, consider supporting me:
    # Metrics (optional)
    INFLUXDB_URL=http://localhost:8086
    INFLUXDB_TOKEN=your-influxdb-token
-   INFLUXDB_ORG=containerstacks
+   INFLUXDB_ORG=skypanelv2
    INFLUXDB_BUCKET=metrics
 
    # Backups
@@ -250,7 +250,7 @@ If you find my work helpful, consider supporting me:
    
    **Important Notes:**
    - Row Level Security (RLS) policies are automatically applied during migrations
-   - The initial schema creates default admin user (email: `admin@containerstacks.com`, password: `admin123`)
+   - The initial schema creates default admin user (email: `admin@skypanelv2.com`, password: `admin123`)
    - Change the default admin password immediately after first login
 
 6. **Start the development servers**
@@ -281,13 +281,6 @@ If you find my work helpful, consider supporting me:
 3. **Billing Management**: Add funds via PayPal and track usage
 4. **Monitoring**: View metrics, logs, and set up alerts
 5. **Collaboration**: Invite team members and manage permissions
-
-## 📚 Documentation
-
-- **[Technical Architecture](./.trae/documents/ContainerStacks_Technical_Architecture.md)**: Detailed system design and API specifications
-- **[Product Requirements](./.trae/documents/ContainerStacks_PRD.md)**: Feature descriptions and user flows
-- **[Windsurf Rules](./.windsurf/rules.json)**: Development guidelines for the project
-- **[Trae Project Rules](./.trae/rules/project_rules.md)**: IDE automation and workflow conventions
 
 ## 🚦 Development
 

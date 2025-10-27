@@ -1,5 +1,5 @@
 /**
- * DigitalOcean API Service for ContainerStacks
+ * DigitalOcean API Service for SkyPanelV2
  * Handles integration with DigitalOcean API for VPS management
  * Parallel to linodeService.ts - does NOT replace it
  */

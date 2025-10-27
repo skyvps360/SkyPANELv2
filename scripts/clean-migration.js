@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Clean Migration Runner for ContainerStacks PostgreSQL
+ * Clean Migration Runner for SkyPanelV2 PostgreSQL
  * This script drops existing tables and runs a fresh migration
  */
 
@@ -20,7 +20,7 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 const { Pool } = pg;
 
 async function cleanMigration() {
-  console.log('🧹 Starting Clean ContainerStacks PostgreSQL Migration...\n');
+  console.log('🧹 Starting Clean SkyPanelV2 PostgreSQL Migration...\n');
 
   if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL environment variable is not set!');
@@ -96,7 +96,7 @@ async function cleanMigration() {
     console.log('\n📝 Next steps:');
     console.log('1. Start the application: npm run dev');
     console.log('2. Login with admin credentials:');
-    console.log('   Email: admin@containerstacks.com');
+    console.log('   Email: admin@skypanelv2.com');
     console.log('   Password: admin123');
 
   } catch (error) {

@@ -80,8 +80,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO faq_items (category_id, question, answer, display_order, is_active)
 SELECT 
     id,
-    'What is ContainerStacks?',
-    'ContainerStacks is a cloud infrastructure platform that provides VPS hosting, container deployment, and managed services. We offer flexible, scalable solutions for businesses of all sizes.',
+    'What is SkyPanelV2?',
+    'SkyPanelV2 is a cloud infrastructure platform that provides VPS hosting, dedicated servers, container deployment, and managed services. We offer flexible, scalable solutions for businesses of all sizes.',
     0,
     TRUE
 FROM faq_categories WHERE name = 'Getting Started'

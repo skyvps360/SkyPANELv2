@@ -84,7 +84,7 @@ INSERT INTO contact_methods (method_type, title, description, is_active, config)
     'For general questions and account help',
     TRUE,
     jsonb_build_object(
-        'email_address', 'support@containerstacks.com',
+        'email_address', 'support@skypanelv2.com',
         'response_time', 'We reply within one business day.'
     )
 )
@@ -163,7 +163,7 @@ INSERT INTO platform_settings (key, value) VALUES
 (
     'emergency_support_text',
     jsonb_build_object(
-        'text', 'Emergency support: Available 24/7 for customers with enterprise SLAs. Call the hotline in your runbook for immediate response.'
+        'text', 'Emergency support: Available 24/7 for customers with enterprise SLAs.'
     )
 )
 ON CONFLICT (key) DO NOTHING;

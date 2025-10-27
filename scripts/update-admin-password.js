@@ -21,7 +21,7 @@ async function run() {
 
     const { rowCount } = await client.query(
       'UPDATE users SET password_hash = $1 WHERE email = $2',
-      [hash, 'admin@containerstacks.com']
+      [hash, 'admin@skypanelv2.com']
     );
 
     if (rowCount === 0) {
@@ -30,7 +30,7 @@ async function run() {
       console.log('✅ Admin password updated');
       const { rows } = await client.query(
         'SELECT password_hash FROM users WHERE email = $1',
-        ['admin@containerstacks.com']
+        ['admin@skypanelv2.com']
       );
       const ok = await bcrypt.compare(password, rows[0].password_hash);
       console.log('🧪 Post-update compare("admin123") =>', ok);
