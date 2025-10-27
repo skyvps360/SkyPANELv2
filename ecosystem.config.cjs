@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'containerstacks-api',
+      name: 'skypanelv2-api',
       script: 'api/server.ts',
       cwd: __dirname,
       interpreter: 'node',
@@ -25,7 +25,7 @@ module.exports = {
       max_restarts: 10
     },
     {
-      name: 'containerstacks-ui',
+      name: 'skypanelv2-ui',
       script: 'node_modules/vite/bin/vite.js',
       args: 'preview --port 5173 --strictPort',
       cwd: __dirname,

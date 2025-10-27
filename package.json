@@ -1,8 +1,8 @@
 {
-  "name": "containerstacks",
+  "name": "skypanelv2",
   "description": "Open-source cloud service reseller billing panel with multi-provider support and white-label branding",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "kill-ports": "npx kill-port 3001 5173",
@@ -19,7 +19,7 @@
     "start": "concurrently \"node --import tsx api/server.ts\" \"vite preview --port 5173 --strictPort\"",
     "pm2:start": "npm run kill-ports && npm run build && pm2 start ecosystem.config.cjs --env production",
     "pm2:reload": "pm2 reload ecosystem.config.cjs --env production",
-    "pm2:stop": "pm2 stop containerstacks-api containerstacks-ui && pm2 delete containerstacks-api containerstacks-ui",
+    "pm2:stop": "pm2 stop skypanelv2-api skypanelv2-ui && pm2 delete skypanelv2-api skypanelv2-ui",
     "pm2:list": "pm2 ls",
     "seed:admin": "node scripts/seed-admin.js"
   },
