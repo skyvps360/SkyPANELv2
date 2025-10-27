@@ -9,6 +9,7 @@ import { PayPalService } from '../services/paypalService.js';
 import { BillingService } from '../services/billingService.js';
 import { authenticateToken, requireOrganization } from '../middleware/auth.js';
 import { query as dbQuery } from '../lib/database.js';
+import { config } from '../config/index.js';
 
 const router = express.Router();
 
@@ -33,6 +34,29 @@ const safeParseNumber = (value: unknown): number | null => {
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
+
+router.get('/config', requireOrganization, (req: Request, res: Response) => {
+  if (!config.PAYPAL_CLIENT_ID) {
+    return res.status(503).json({
+      success: false,
+      error: 'PayPal configuration is unavailable. Please contact support.',
+    });
+  }
+
+  const disableFunding = ['paylater'];
+
+  res.json({
+    success: true,
+    config: {
+      clientId: config.PAYPAL_CLIENT_ID,
+      currency: 'USD',
+      intent: 'capture',
+      mode: config.PAYPAL_MODE === 'production' || config.PAYPAL_MODE === 'live' ? 'live' : 'sandbox',
+      disableFunding,
+      brandName: 'ContainerStacks',
+    },
+  });
+});
 
 /**
  * Create a payment intent for adding funds to wallet
@@ -63,6 +87,13 @@ router.post(
       }
 
     const { amount, currency, description } = req.body;
+    const amountValue = safeParseNumber(amount);
+    if (amountValue === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment amount',
+      });
+    }
     const { id: userId, organizationId } = (req as AuthenticatedRequest).user;
 
       const originHeader = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
@@ -85,7 +116,7 @@ router.post(
       }
 
       const result = await PayPalService.createPayment({
-        amount: parseFloat(amount),
+        amount: amountValue,
         currency,
         description,
         organizationId,

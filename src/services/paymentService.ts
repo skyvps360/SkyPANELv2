@@ -18,6 +18,15 @@ export interface PaymentResult {
   error?: string;
 }
 
+export interface PayPalClientConfig {
+  clientId: string;
+  currency: string;
+  intent: 'capture' | 'authorize';
+  mode: 'sandbox' | 'live';
+  disableFunding?: string[];
+  brandName?: string;
+}
+
 export interface WalletBalance {
   balance: number;
 }
@@ -160,6 +169,64 @@ class PaymentService {
       return {
         success: false,
         error: 'Network error occurred',
+      };
+    }
+  }
+
+  /**
+   * Load PayPal checkout configuration for the authenticated organization
+   */
+  async getPayPalConfig(): Promise<{
+    success: boolean;
+    config?: PayPalClientConfig;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/config`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to load PayPal configuration',
+        };
+      }
+
+      const configData = (data.config ?? {}) as Record<string, unknown>;
+      const clientId = typeof configData.clientId === 'string' ? configData.clientId : '';
+
+      if (!clientId) {
+        return {
+          success: false,
+          error: 'PayPal configuration is incomplete. Please contact support.',
+        };
+      }
+
+      const disableFundingRaw = configData.disableFunding;
+      const disableFunding = Array.isArray(disableFundingRaw)
+        ? disableFundingRaw.filter((value) => typeof value === 'string') as string[]
+        : undefined;
+
+      return {
+        success: true,
+        config: {
+          clientId,
+          currency: typeof configData.currency === 'string' ? configData.currency : 'USD',
+          intent: configData.intent === 'authorize' ? 'authorize' : 'capture',
+          mode: configData.mode === 'live' ? 'live' : 'sandbox',
+          disableFunding,
+          brandName: typeof configData.brandName === 'string' ? configData.brandName : undefined,
+        },
+      };
+    } catch (error) {
+      console.error('Get PayPal config error:', error);
+      return {
+        success: false,
+        error: 'Failed to load PayPal configuration',
       };
     }
   }
@@ -585,29 +652,6 @@ class PaymentService {
     }
   }
 
-  /**
-   * Open PayPal payment window
-   */
-  openPayPalPayment(approvalUrl: string): void {
-    const popup = window.open(
-      approvalUrl,
-      'paypal-payment',
-      'width=600,height=700,scrollbars=yes,resizable=yes'
-    );
-
-    if (!popup) {
-      throw new Error('Popup blocked. Please allow popups for this site.');
-    }
-
-    // Listen for popup close or completion
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        // Refresh wallet balance after payment
-        this.getWalletBalance();
-      }
-    }, 1000);
-  }
 }
 
 export const paymentService = new PaymentService();

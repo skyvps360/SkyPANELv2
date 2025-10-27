@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory, type VPSUptimeSummary, type BillingSummary } from '../services/paymentService';
 import Pagination from '../components/ui/Pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import PayPalCheckoutDialog from '@/components/billing/PayPalCheckoutDialog';
 // Navigation provided by AppLayout
 
 interface FilterState {
@@ -43,8 +44,10 @@ const Billing: React.FC = () => {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [addFundsAmount, setAddFundsAmount] = useState('');
-  const [addFundsLoading, setAddFundsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'history'>('overview');
+  const [isPayPalDialogOpen, setIsPayPalDialogOpen] = useState(false);
+  const [pendingPaymentAmount, setPendingPaymentAmount] = useState<number | null>(null);
+  const [pendingPaymentDescription, setPendingPaymentDescription] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     status: '',
@@ -336,34 +339,44 @@ const Billing: React.FC = () => {
     }
   }, [activeTab, loadOverviewData, loadTransactionsData, loadHistoryData]);
 
-  const handleAddFunds = async () => {
-    if (!addFundsAmount || parseFloat(addFundsAmount) <= 0) {
+  const handlePayPalDialogOpenChange = React.useCallback((nextOpen: boolean) => {
+    setIsPayPalDialogOpen(nextOpen);
+    if (!nextOpen) {
+      setPendingPaymentAmount(null);
+      setPendingPaymentDescription('');
+    }
+  }, []);
+
+  const handlePayPalSuccess = React.useCallback(async () => {
+    toast.success('Payment completed. Wallet updated.');
+    setAddFundsAmount('');
+    await loadBillingData();
+  }, [loadBillingData]);
+
+  const handlePayPalCancel = React.useCallback(() => {
+    toast.info('PayPal checkout cancelled.');
+  }, []);
+
+  const handlePayPalError = React.useCallback((message: string) => {
+    toast.error(message);
+  }, []);
+
+  const handleAddFunds = () => {
+    if (!addFundsAmount) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    setAddFundsLoading(true);
-    try {
-      const result = await paymentService.createPayment({
-        amount: parseFloat(addFundsAmount),
-        currency: 'USD',
-        description: `Add $${addFundsAmount} to wallet`
-      });
-
-      if (result.success && result.approvalUrl) {
-        // Open PayPal payment window
-        paymentService.openPayPalPayment(result.approvalUrl);
-        setAddFundsAmount('');
-        toast.success('Payment window opened. Complete the payment to add funds.');
-      } else {
-        toast.error(result.error || 'Failed to create payment');
-      }
-    } catch (error) {
-      console.error('Add funds error:', error);
-      toast.error('Failed to initiate payment');
-    } finally {
-      setAddFundsLoading(false);
+    const parsed = parseFloat(addFundsAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
     }
+
+    const normalizedAmount = Math.round(parsed * 100) / 100;
+    setPendingPaymentAmount(normalizedAmount);
+    setPendingPaymentDescription(`Add ${formatCurrency(normalizedAmount)} to wallet`);
+    setIsPayPalDialogOpen(true);
   };
 
   const formatCurrency = (amount: number | null | undefined): string => {
@@ -697,15 +710,11 @@ const Billing: React.FC = () => {
               </div>
             </div>
             <button
+              type="button"
               onClick={handleAddFunds}
-              disabled={addFundsLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             >
-              {addFundsLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
+              <Plus className="h-4 w-4 mr-2" />
               Add Funds via PayPal
             </button>
             </div>
@@ -714,6 +723,16 @@ const Billing: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+
+        <PayPalCheckoutDialog
+          open={isPayPalDialogOpen}
+          amount={pendingPaymentAmount}
+          description={pendingPaymentDescription}
+          onOpenChange={handlePayPalDialogOpenChange}
+          onPaymentSuccess={handlePayPalSuccess}
+          onPaymentCancel={handlePayPalCancel}
+          onError={handlePayPalError}
+        />
 
         {/* VPS Uptime Summary Section */}
         <Card className="mb-8">
