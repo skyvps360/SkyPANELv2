@@ -191,7 +191,6 @@ export default function Contact() {
                 {ticketMethod.description && <CardDescription>{ticketMethod.description}</CardDescription>}
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
-                {ticketMethod.description && <p>{ticketMethod.description}</p>}
                 {(ticketMethod.config as TicketConfig).priority_queues.length > 0 && (
                   <>
                     <Separator />
