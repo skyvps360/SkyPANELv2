@@ -57,3 +57,5 @@ coverage/
 # Build artifacts
 build/
 
+# AI IDE directories
+.trae
