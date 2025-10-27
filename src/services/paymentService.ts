@@ -27,6 +27,11 @@ export interface PayPalClientConfig {
   brandName?: string;
 }
 
+export interface CancelPaymentResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface WalletBalance {
   balance: number;
 }
@@ -227,6 +232,36 @@ class PaymentService {
       return {
         success: false,
         error: 'Failed to load PayPal configuration',
+      };
+    }
+  }
+
+  /**
+   * Cancel a PayPal payment order that is still pending
+   */
+  async cancelPayment(orderId: string, reason?: string): Promise<CancelPaymentResult> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/cancel-payment/${orderId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ reason }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to cancel PayPal payment',
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Cancel PayPal payment error:', error);
+      return {
+        success: false,
+        error: 'Failed to cancel PayPal payment',
       };
     }
   }

@@ -702,4 +702,64 @@ export class PayPalService {
       console.error('Failed to record PayPal capture failure metadata for order:', orderId, error);
     }
   }
+
+  static async cancelPayment(
+    orderId: string,
+    organizationId: string,
+    reason?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const cancellationMetadata = {
+        cancel_reason: reason ?? 'user_cancelled',
+        cancelled_at: new Date().toISOString(),
+      };
+
+      const result = await query(
+        `UPDATE payment_transactions
+           SET status = 'cancelled',
+               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+               updated_at = NOW()
+         WHERE provider_transaction_id = $1
+           AND organization_id = $2
+           AND status = 'pending'
+         RETURNING id`,
+        [orderId, organizationId, JSON.stringify(cancellationMetadata)]
+      );
+
+      if (result.rowCount === 0) {
+        const existing = await query(
+          `SELECT status FROM payment_transactions WHERE provider_transaction_id = $1 AND organization_id = $2`,
+          [orderId, organizationId]
+        );
+
+        if (existing.rowCount === 0) {
+          return {
+            success: false,
+            error: 'Payment not found',
+          };
+        }
+
+        if (existing.rows[0].status === 'cancelled') {
+          return {
+            success: true,
+          };
+        }
+
+        return {
+          success: false,
+          error: 'Payment is no longer pending',
+        };
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error('Failed to cancel PayPal payment:', orderId, error);
+      return {
+        success: false,
+        error: 'Failed to cancel payment',
+      };
+    }
+  }
 }

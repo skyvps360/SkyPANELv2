@@ -192,6 +192,56 @@ router.post(
   }
 );
 
+router.post(
+  '/cancel-payment/:orderId',
+  [
+    param('orderId')
+      .isLength({ min: 1 })
+      .withMessage('Order ID is required'),
+    body('reason')
+      .optional()
+      .isString()
+      .isLength({ max: 255 })
+      .withMessage('Reason must be a string up to 255 characters'),
+  ],
+  requireOrganization,
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
+      const { orderId } = req.params;
+      const reason = typeof req.body.reason === 'string' ? req.body.reason : undefined;
+      const { organizationId } = (req as AuthenticatedRequest).user;
+
+      const result = await PayPalService.cancelPayment(orderId, organizationId, reason);
+
+      if (!result.success) {
+        return res.status(result.error === 'Payment not found' ? 404 : 400).json({
+          success: false,
+          error: result.error || 'Failed to cancel payment',
+        });
+      }
+
+      return res.json({
+        success: true,
+      });
+    } catch (error) {
+      console.error('Cancel payment error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+);
+
 /**
  * Get wallet balance for the organization
  */

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { paymentService, type WalletTransaction, type PaymentHistory, type VPSUptimeSummary, type BillingSummary } from '../services/paymentService';
 import Pagination from '../components/ui/Pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import PayPalCheckoutDialog from '@/components/billing/PayPalCheckoutDialog';
 // Navigation provided by AppLayout
 
@@ -432,20 +433,20 @@ const Billing: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string): string => {
+  const getStatusBadgeClasses = (status: string): string => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
+        return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20 dark:text-emerald-400';
       case 'pending':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
+        return 'bg-amber-500/15 text-amber-600 border border-amber-500/20 dark:text-amber-400';
       case 'failed':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
+        return 'bg-destructive/10 text-destructive border border-destructive/20';
       case 'cancelled':
-        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
+        return 'bg-muted text-muted-foreground border border-border/60';
       case 'refunded':
-        return 'text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/20';
+        return 'bg-purple-500/15 text-purple-600 border border-purple-500/20 dark:text-purple-300';
       default:
-        return 'text-muted-foreground bg-gray-100 text-muted-foreground bg-card';
+        return 'bg-muted text-muted-foreground border border-border/60';
     }
   };
 
@@ -1217,9 +1218,9 @@ const Billing: React.FC = () => {
                             {formatCurrency(payment.amount)} {payment.currency}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
+                            <Badge variant="outline" className={getStatusBadgeClasses(payment.status)}>
                               {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                            </span>
+                            </Badge>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1)}

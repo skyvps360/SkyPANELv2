@@ -45,6 +45,7 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
   const [isCapturing, setIsCapturing] = React.useState(false);
 
   const paymentCompletedRef = React.useRef(false);
+  const createdOrderIdRef = React.useRef<string | null>(null);
 
   const loadConfig = React.useCallback(async () => {
     setIsConfigLoading(true);
@@ -125,18 +126,44 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
     }
   }, [amount, config?.currency]);
 
+  const cancelPendingOrder = React.useCallback(
+    async (orderId: string, reason: string = 'user_cancelled') => {
+      try {
+        const result = await paymentService.cancelPayment(orderId, reason);
+        if (!result.success) {
+          const message = result.error || 'Failed to cancel PayPal payment.';
+          setButtonError(message);
+          onError?.(message);
+        }
+      } catch (error) {
+        console.error('Error cancelling PayPal payment:', error);
+        const message = 'An unexpected error occurred while cancelling the PayPal payment.';
+        setButtonError(message);
+        onError?.(message);
+      }
+    },
+    [onError]
+  );
+
   const handleDialogOpenChange = React.useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
+        const pendingOrderId = createdOrderIdRef.current;
+        if (!paymentCompletedRef.current && pendingOrderId) {
+          createdOrderIdRef.current = null;
+          void cancelPendingOrder(pendingOrderId, 'dialog_closed');
+        }
+
         if (!paymentCompletedRef.current) {
           onPaymentCancel?.();
         }
+
         paymentCompletedRef.current = false;
         setButtonError(null);
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange, onPaymentCancel]
+    [cancelPendingOrder, onOpenChange, onPaymentCancel]
   );
 
   const handleApprove = React.useCallback(
@@ -156,6 +183,7 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
 
         if (result.success) {
           paymentCompletedRef.current = true;
+          createdOrderIdRef.current = null;
           await onPaymentSuccess();
           handleDialogOpenChange(false);
           return;
@@ -239,6 +267,7 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
                       });
 
                       if (result.success && result.paymentId) {
+                        createdOrderIdRef.current = result.paymentId;
                         return result.paymentId;
                       }
 
@@ -253,7 +282,13 @@ export const PayPalCheckoutDialog: React.FC<PayPalCheckoutDialogProps> = ({
                   onApprove={async (data) => {
                     await handleApprove(data.orderID);
                   }}
-                  onCancel={() => {
+                  onCancel={(data) => {
+                    const orderIdCandidate = data?.orderID ?? createdOrderIdRef.current;
+                    const orderId = typeof orderIdCandidate === 'string' ? orderIdCandidate : null;
+                    if (orderId) {
+                      createdOrderIdRef.current = null;
+                      void cancelPendingOrder(orderId, 'paypal_cancelled');
+                    }
                     setButtonError('PayPal checkout was cancelled. You can try again when ready.');
                     onPaymentCancel?.();
                   }}
