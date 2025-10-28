@@ -2622,18 +2622,56 @@ router.post("/:id/boot", async (req: Request, res: Response) => {
     );
     if (rowRes.rows.length === 0)
       return res.status(404).json({ error: "Instance not found" });
+
     const row = rowRes.rows[0];
-    const providerId = Number(row.provider_instance_id);
-    await linodeService.bootLinodeInstance(providerId);
-    const detail = await linodeService.getLinodeInstance(providerId);
-    const ip =
-      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
-        ? detail.ipv4[0]
-        : null;
+    const providerType = row.provider_type || "linode";
+    const providerInstanceId = Number(row.provider_instance_id);
+
+    let status: string;
+    let ip: string | null = null;
+
+    if (providerType === "digitalocean" && row.provider_id) {
+      // Boot DigitalOcean Droplet
+      const providerResult = await query(
+        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
+        [row.provider_id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res
+          .status(503)
+          .json({ error: "DigitalOcean provider not found or inactive" });
+      }
+
+      const apiToken = providerResult.rows[0].api_key_encrypted;
+      const { digitalOceanService } = await import(
+        "../services/DigitalOceanService.js"
+      );
+
+      await digitalOceanService.powerOnDroplet(apiToken, providerInstanceId);
+      const droplet = await digitalOceanService.getDigitalOceanDroplet(
+        apiToken,
+        providerInstanceId
+      );
+
+      status = droplet.status;
+      ip = droplet.networks?.v4?.[0]?.ip_address || null;
+    } else {
+      // Boot Linode instance (default)
+      await linodeService.bootLinodeInstance(providerInstanceId);
+      const detail = await linodeService.getLinodeInstance(providerInstanceId);
+      status = detail.status;
+      ip =
+        Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+          ? detail.ipv4[0]
+          : null;
+    }
+
     await query(
       "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
-      [detail.status, ip, id]
+      [status, ip, id]
     );
+
     // Log boot action
     try {
       const user = (req as any).user;
@@ -2644,7 +2682,7 @@ router.post("/:id/boot", async (req: Request, res: Response) => {
           eventType: "vps.boot",
           entityType: "vps",
           entityId: String(id),
-          message: `Booted VPS '${row.label}'`,
+          message: `Booted VPS '${row.label}' on ${providerType}`,
           status: "success",
         },
         req as any
@@ -2652,7 +2690,7 @@ router.post("/:id/boot", async (req: Request, res: Response) => {
     } catch (logErr) {
       console.warn("Failed to log vps.boot activity:", logErr);
     }
-    res.json({ status: detail.status });
+    res.json({ status });
   } catch (err: any) {
     console.error("VPS boot error:", err);
     res
@@ -2672,18 +2710,56 @@ router.post("/:id/shutdown", async (req: Request, res: Response) => {
     );
     if (rowRes.rows.length === 0)
       return res.status(404).json({ error: "Instance not found" });
+
     const row = rowRes.rows[0];
-    const providerId = Number(row.provider_instance_id);
-    await linodeService.shutdownLinodeInstance(providerId);
-    const detail = await linodeService.getLinodeInstance(providerId);
-    const ip =
-      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
-        ? detail.ipv4[0]
-        : null;
+    const providerType = row.provider_type || "linode";
+    const providerInstanceId = Number(row.provider_instance_id);
+
+    let status: string;
+    let ip: string | null = null;
+
+    if (providerType === "digitalocean" && row.provider_id) {
+      // Shutdown DigitalOcean Droplet
+      const providerResult = await query(
+        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
+        [row.provider_id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res
+          .status(503)
+          .json({ error: "DigitalOcean provider not found or inactive" });
+      }
+
+      const apiToken = providerResult.rows[0].api_key_encrypted;
+      const { digitalOceanService } = await import(
+        "../services/DigitalOceanService.js"
+      );
+
+      await digitalOceanService.shutdownDroplet(apiToken, providerInstanceId);
+      const droplet = await digitalOceanService.getDigitalOceanDroplet(
+        apiToken,
+        providerInstanceId
+      );
+
+      status = droplet.status;
+      ip = droplet.networks?.v4?.[0]?.ip_address || null;
+    } else {
+      // Shutdown Linode instance (default)
+      await linodeService.shutdownLinodeInstance(providerInstanceId);
+      const detail = await linodeService.getLinodeInstance(providerInstanceId);
+      status = detail.status;
+      ip =
+        Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+          ? detail.ipv4[0]
+          : null;
+    }
+
     await query(
       "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
-      [detail.status, ip, id]
+      [status, ip, id]
     );
+
     // Log shutdown action
     try {
       const user = (req as any).user;
@@ -2694,7 +2770,7 @@ router.post("/:id/shutdown", async (req: Request, res: Response) => {
           eventType: "vps.shutdown",
           entityType: "vps",
           entityId: String(id),
-          message: `Shutdown VPS '${row.label}'`,
+          message: `Shutdown VPS '${row.label}' on ${providerType}`,
           status: "success",
         },
         req as any
@@ -2702,7 +2778,7 @@ router.post("/:id/shutdown", async (req: Request, res: Response) => {
     } catch (logErr) {
       console.warn("Failed to log vps.shutdown activity:", logErr);
     }
-    res.json({ status: detail.status });
+    res.json({ status });
   } catch (err: any) {
     console.error("VPS shutdown error:", err);
     res
@@ -2722,18 +2798,56 @@ router.post("/:id/reboot", async (req: Request, res: Response) => {
     );
     if (rowRes.rows.length === 0)
       return res.status(404).json({ error: "Instance not found" });
+
     const row = rowRes.rows[0];
-    const providerId = Number(row.provider_instance_id);
-    await linodeService.rebootLinodeInstance(providerId);
-    const detail = await linodeService.getLinodeInstance(providerId);
-    const ip =
-      Array.isArray(detail.ipv4) && detail.ipv4.length > 0
-        ? detail.ipv4[0]
-        : null;
+    const providerType = row.provider_type || "linode";
+    const providerInstanceId = Number(row.provider_instance_id);
+
+    let status: string;
+    let ip: string | null = null;
+
+    if (providerType === "digitalocean" && row.provider_id) {
+      // Reboot DigitalOcean Droplet
+      const providerResult = await query(
+        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
+        [row.provider_id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res
+          .status(503)
+          .json({ error: "DigitalOcean provider not found or inactive" });
+      }
+
+      const apiToken = providerResult.rows[0].api_key_encrypted;
+      const { digitalOceanService } = await import(
+        "../services/DigitalOceanService.js"
+      );
+
+      await digitalOceanService.rebootDroplet(apiToken, providerInstanceId);
+      const droplet = await digitalOceanService.getDigitalOceanDroplet(
+        apiToken,
+        providerInstanceId
+      );
+
+      status = droplet.status;
+      ip = droplet.networks?.v4?.[0]?.ip_address || null;
+    } else {
+      // Reboot Linode instance (default)
+      await linodeService.rebootLinodeInstance(providerInstanceId);
+      const detail = await linodeService.getLinodeInstance(providerInstanceId);
+      status = detail.status;
+      ip =
+        Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+          ? detail.ipv4[0]
+          : null;
+    }
+
     await query(
       "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
-      [detail.status, ip, id]
+      [status, ip, id]
     );
+
     // Log reboot action
     try {
       const user = (req as any).user;
@@ -2744,7 +2858,7 @@ router.post("/:id/reboot", async (req: Request, res: Response) => {
           eventType: "vps.reboot",
           entityType: "vps",
           entityId: String(id),
-          message: `Rebooted VPS '${row.label}'`,
+          message: `Rebooted VPS '${row.label}' on ${providerType}`,
           status: "success",
         },
         req as any
@@ -2752,7 +2866,7 @@ router.post("/:id/reboot", async (req: Request, res: Response) => {
     } catch (logErr) {
       console.warn("Failed to log vps.reboot activity:", logErr);
     }
-    res.json({ status: detail.status });
+    res.json({ status });
   } catch (err: any) {
     console.error("VPS reboot error:", err);
     res
@@ -3422,10 +3536,47 @@ router.delete("/:id", async (req: Request, res: Response) => {
     );
     if (rowRes.rows.length === 0)
       return res.status(404).json({ error: "Instance not found" });
+
     const row = rowRes.rows[0];
-    const providerId = Number(row.provider_instance_id);
-    await linodeService.deleteLinodeInstance(providerId);
+    const providerType = row.provider_type || "linode";
+    const providerInstanceId = Number(row.provider_instance_id);
+
+    // Delete from provider based on provider_type
+    if (providerType === "digitalocean" && row.provider_id) {
+      // Delete DigitalOcean Droplet
+      try {
+        const providerResult = await query(
+          "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
+          [row.provider_id]
+        );
+
+        if (providerResult.rows.length === 0) {
+          throw new Error("DigitalOcean provider not found or inactive");
+        }
+
+        const apiToken = providerResult.rows[0].api_key_encrypted;
+        const { digitalOceanService } = await import(
+          "../services/DigitalOceanService.js"
+        );
+
+        await digitalOceanService.deleteDigitalOceanDroplet(
+          apiToken,
+          providerInstanceId
+        );
+      } catch (providerErr: any) {
+        console.error("Failed to delete DigitalOcean droplet:", providerErr);
+        throw new Error(
+          `Failed to delete from DigitalOcean: ${providerErr.message}`
+        );
+      }
+    } else {
+      // Delete Linode instance (default)
+      await linodeService.deleteLinodeInstance(providerInstanceId);
+    }
+
+    // Delete from database
     await query("DELETE FROM vps_instances WHERE id = $1", [id]);
+
     // Log delete action
     try {
       await logActivity(
@@ -3435,8 +3586,12 @@ router.delete("/:id", async (req: Request, res: Response) => {
           eventType: "vps.delete",
           entityType: "vps",
           entityId: String(id),
-          message: `Deleted VPS '${row.label}'`,
+          message: `Deleted VPS '${row.label}' from ${providerType}`,
           status: "success",
+          metadata: {
+            provider_type: providerType,
+            provider_instance_id: providerInstanceId,
+          },
         },
         req as any
       );
