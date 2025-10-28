@@ -171,6 +171,19 @@ export default function DigitalOceanOSSelection({
         />
       </div>
 
+      {/* Total image count display */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>
+          {filteredImages.length} operating system{filteredImages.length !== 1 ? 's' : ''} available
+          {searchTerm && ` (filtered from ${images.length} total)`}
+        </span>
+        {distributions.length > 0 && (
+          <span>
+            {distributions.length} distribution{distributions.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
       {/* Compatibility notice */}
       {compatibleWith && compatibleWith.length > 0 && (
         <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 p-3">

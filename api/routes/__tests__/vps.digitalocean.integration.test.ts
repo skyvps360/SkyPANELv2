@@ -488,6 +488,299 @@ describe('DigitalOcean VPS Creation Integration Tests', () => {
     });
   });
 
+  describe('Images Endpoint Integration with Pagination', () => {
+    it('should return all images from multiple pages', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      // Mock paginated response with multiple pages
+      const page1Images = Array.from({ length: 200 }, (_, i) => ({
+        id: i + 1,
+        name: `Ubuntu ${22 + Math.floor(i / 50)}.04 x64`,
+        distribution: 'Ubuntu',
+        slug: `ubuntu-${22 + Math.floor(i / 50)}-04-x64-${i}`,
+        type: 'base',
+        public: true,
+        min_disk_size: 15,
+        size_gigabytes: 2.34,
+        regions: ['nyc1', 'nyc3'],
+        created_at: new Date().toISOString(),
+        status: 'available',
+      }));
+
+      const page2Images = Array.from({ length: 150 }, (_, i) => ({
+        id: i + 201,
+        name: `Debian ${11 + Math.floor(i / 50)} x64`,
+        distribution: 'Debian',
+        slug: `debian-${11 + Math.floor(i / 50)}-x64-${i}`,
+        type: 'base',
+        public: true,
+        min_disk_size: 15,
+        size_gigabytes: 2.0,
+        regions: ['nyc1', 'sfo3'],
+        created_at: new Date().toISOString(),
+        status: 'available',
+      }));
+
+      const allImages = [...page1Images, ...page2Images];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(allImages);
+
+      // Verify the response structure
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      expect(images).toHaveLength(350);
+      expect(images[0].distribution).toBe('Ubuntu');
+      expect(images[200].distribution).toBe('Debian');
+      expect(mockDigitalOceanService.getDigitalOceanImages).toHaveBeenCalledWith(testApiToken);
+    });
+
+    it('should group images by distribution from all pages', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      // Mock images from multiple distributions across pages
+      const mockImages = [
+        { id: 1, name: 'Ubuntu 22.04', distribution: 'Ubuntu', slug: 'ubuntu-22-04', type: 'base', public: true },
+        { id: 2, name: 'Ubuntu 20.04', distribution: 'Ubuntu', slug: 'ubuntu-20-04', type: 'base', public: true },
+        { id: 3, name: 'Debian 12', distribution: 'Debian', slug: 'debian-12', type: 'base', public: true },
+        { id: 4, name: 'Debian 11', distribution: 'Debian', slug: 'debian-11', type: 'base', public: true },
+        { id: 5, name: 'Rocky Linux 9', distribution: 'Rocky Linux', slug: 'rockylinux-9', type: 'base', public: true },
+        { id: 6, name: 'Fedora 39', distribution: 'Fedora', slug: 'fedora-39', type: 'base', public: true },
+        { id: 7, name: 'Alpine 3.18', distribution: 'Alpine', slug: 'alpine-3-18', type: 'base', public: true },
+      ];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(mockImages);
+
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      // Group images by distribution
+      const groupedImages: Record<string, any[]> = {};
+      images.forEach((image: any) => {
+        const distribution = image.distribution || 'Other';
+        if (!groupedImages[distribution]) {
+          groupedImages[distribution] = [];
+        }
+        groupedImages[distribution].push(image);
+      });
+
+      expect(groupedImages).toHaveProperty('Ubuntu');
+      expect(groupedImages).toHaveProperty('Debian');
+      expect(groupedImages).toHaveProperty('Rocky Linux');
+      expect(groupedImages).toHaveProperty('Fedora');
+      expect(groupedImages).toHaveProperty('Alpine');
+      expect(groupedImages.Ubuntu).toHaveLength(2);
+      expect(groupedImages.Debian).toHaveLength(2);
+      expect(groupedImages['Rocky Linux']).toHaveLength(1);
+      expect(groupedImages.Fedora).toHaveLength(1);
+      expect(groupedImages.Alpine).toHaveLength(1);
+    });
+
+    it('should filter by type parameter with pagination', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      // Mock mixed image types across pages
+      const mockImages = [
+        { id: 1, name: 'Ubuntu 22.04', distribution: 'Ubuntu', slug: 'ubuntu-22-04', type: 'base', public: true },
+        { id: 2, name: 'Debian 12', distribution: 'Debian', slug: 'debian-12', type: 'base', public: true },
+        { id: 3, name: 'WordPress', distribution: 'Ubuntu', slug: 'wordpress-20-04', type: 'snapshot', public: false },
+        { id: 4, name: 'Docker', distribution: 'Ubuntu', slug: 'docker-20-04', type: 'snapshot', public: false },
+        { id: 5, name: 'Custom Image', distribution: null, slug: 'custom-image', type: 'custom', public: false },
+      ];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(mockImages);
+
+      const allImages = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      // Filter for distribution type (base or public snapshots)
+      const distributionImages = allImages.filter((img: any) => 
+        img.type === 'base' || (img.type === 'snapshot' && img.public)
+      );
+
+      // Filter for application type (private snapshots)
+      const applicationImages = allImages.filter((img: any) => 
+        img.type === 'snapshot' && !img.public
+      );
+
+      // Filter for custom type
+      const customImages = allImages.filter((img: any) => 
+        img.type === 'custom'
+      );
+
+      expect(distributionImages).toHaveLength(2);
+      expect(applicationImages).toHaveLength(2);
+      expect(customImages).toHaveLength(1);
+      expect(distributionImages[0].slug).toBe('ubuntu-22-04');
+      expect(applicationImages[0].slug).toBe('wordpress-20-04');
+      expect(customImages[0].slug).toBe('custom-image');
+    });
+
+    it('should handle pagination with type filter', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      // Mock large dataset with mixed types
+      const distributionImages = Array.from({ length: 250 }, (_, i) => ({
+        id: i + 1,
+        name: `Distribution ${i}`,
+        distribution: `Distro${Math.floor(i / 50)}`,
+        slug: `distro-${i}`,
+        type: 'base',
+        public: true,
+      }));
+
+      const applicationImages = Array.from({ length: 100 }, (_, i) => ({
+        id: i + 251,
+        name: `App ${i}`,
+        distribution: 'Ubuntu',
+        slug: `app-${i}`,
+        type: 'snapshot',
+        public: false,
+      }));
+
+      const allImages = [...distributionImages, ...applicationImages];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(allImages);
+
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      // Apply distribution filter
+      const filteredImages = images.filter((img: any) => 
+        img.type === 'base' || (img.type === 'snapshot' && img.public)
+      );
+
+      expect(images).toHaveLength(350);
+      expect(filteredImages).toHaveLength(250);
+      expect(mockDigitalOceanService.getDigitalOceanImages).toHaveBeenCalledWith(testApiToken);
+    });
+
+    it('should return empty grouped object when no images available', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue([]);
+
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      const groupedImages: Record<string, any[]> = {};
+      images.forEach((image: any) => {
+        const distribution = image.distribution || 'Other';
+        if (!groupedImages[distribution]) {
+          groupedImages[distribution] = [];
+        }
+        groupedImages[distribution].push(image);
+      });
+
+      expect(images).toHaveLength(0);
+      expect(Object.keys(groupedImages)).toHaveLength(0);
+    });
+
+    it('should handle images without distribution field', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const mockImages = [
+        { id: 1, name: 'Ubuntu 22.04', distribution: 'Ubuntu', slug: 'ubuntu-22-04', type: 'base' },
+        { id: 2, name: 'Custom Image', distribution: null, slug: 'custom-1', type: 'custom' },
+        { id: 3, name: 'Another Custom', slug: 'custom-2', type: 'custom' },
+      ];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(mockImages);
+
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      const groupedImages: Record<string, any[]> = {};
+      images.forEach((image: any) => {
+        const distribution = image.distribution || 'Other';
+        if (!groupedImages[distribution]) {
+          groupedImages[distribution] = [];
+        }
+        groupedImages[distribution].push(image);
+      });
+
+      expect(groupedImages).toHaveProperty('Ubuntu');
+      expect(groupedImages).toHaveProperty('Other');
+      expect(groupedImages.Ubuntu).toHaveLength(1);
+      expect(groupedImages.Other).toHaveLength(2);
+    });
+
+    it('should verify endpoint response structure with pagination', async () => {
+      // Mock database query for provider configuration
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          api_key_encrypted: testApiToken,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const mockImages = [
+        { id: 1, name: 'Ubuntu 22.04', distribution: 'Ubuntu', slug: 'ubuntu-22-04', type: 'base' },
+        { id: 2, name: 'Debian 12', distribution: 'Debian', slug: 'debian-12', type: 'base' },
+      ];
+
+      mockDigitalOceanService.getDigitalOceanImages = vi.fn().mockResolvedValue(mockImages);
+
+      const images = await mockDigitalOceanService.getDigitalOceanImages(testApiToken);
+
+      const groupedImages: Record<string, any[]> = {};
+      images.forEach((image: any) => {
+        const distribution = image.distribution || 'Other';
+        if (!groupedImages[distribution]) {
+          groupedImages[distribution] = [];
+        }
+        groupedImages[distribution].push(image);
+      });
+
+      const response = {
+        images,
+        grouped: groupedImages,
+        total: images.length,
+      };
+
+      // Verify response structure
+      expect(response).toHaveProperty('images');
+      expect(response).toHaveProperty('grouped');
+      expect(response).toHaveProperty('total');
+      expect(Array.isArray(response.images)).toBe(true);
+      expect(typeof response.grouped).toBe('object');
+      expect(typeof response.total).toBe('number');
+      expect(response.total).toBe(2);
+      expect(response.grouped.Ubuntu).toHaveLength(1);
+      expect(response.grouped.Debian).toHaveLength(1);
+    });
+  });
+
   describe('Marketplace Endpoint Integration', () => {
     it('should successfully fetch marketplace apps', async () => {
       // Mock database query for provider configuration

@@ -2393,41 +2393,29 @@ router.post("/", async (req: Request, res: Response) => {
       } else if (provider_type === "digitalocean") {
         // DigitalOcean: Use marketplace apps if provided
         const createParams: any = {
-          name: label,
-          size: providerPlanId,
+          label: label,
+          type: providerPlanId,
           region: regionToUse,
           image,
+          rootPassword,
+          sshKeys: sshKeys || [],
           backups: backups || false,
           ipv6: ipv6 || false,
           monitoring: monitoring || false,
           tags: ["skypanelv2"],
         };
 
-        // Add SSH keys if provided
-        if (sshKeys && sshKeys.length > 0) {
-          createParams.ssh_keys = sshKeys;
-        }
-
         // Add VPC if provided
         if (vpc_uuid) {
           createParams.vpc_uuid = vpc_uuid;
         }
-
-        // Add user data for root password (DigitalOcean uses cloud-init)
-        createParams.user_data = `#cloud-config
-password: ${rootPassword}
-chpasswd: { expire: False }
-ssh_pwauth: True`;
 
         // Handle marketplace app if provided
         if (appSlug) {
           // DigitalOcean marketplace apps are specified via image slug
           createParams.image = appSlug;
           if (appData && Object.keys(appData).length > 0) {
-            // Add app-specific configuration to user data
-            createParams.user_data += `\n# App configuration\n${JSON.stringify(
-              appData
-            )}`;
+            createParams.appData = appData;
           }
         }
 

@@ -45,6 +45,17 @@ export class DigitalOceanProviderService extends BaseProviderService {
     this.validateToken();
 
     try {
+      // Build user_data for root password configuration
+      let userData = `#cloud-config
+password: ${params.rootPassword}
+chpasswd: { expire: False }
+ssh_pwauth: True`;
+
+      // Add app-specific configuration if provided
+      if (params.appData && Object.keys(params.appData).length > 0) {
+        userData += `\n# App configuration\n${JSON.stringify(params.appData)}`;
+      }
+
       const createRequest = {
         name: params.label,
         region: params.region,
@@ -56,6 +67,7 @@ export class DigitalOceanProviderService extends BaseProviderService {
         monitoring: params.monitoring,
         tags: params.tags,
         vpc_uuid: params.vpc_uuid,
+        user_data: userData,
       };
 
       const droplet = await digitalOceanService.createDigitalOceanDroplet(this.apiToken, createRequest);
@@ -237,7 +249,7 @@ export class DigitalOceanProviderService extends BaseProviderService {
     }
 
     try {
-      const apps = await digitalOceanService.getMarketplaceApps(this.apiToken);
+      const apps = await digitalOceanService.get1ClickApps(this.apiToken);
       
       // Cache the results
       ProviderResourceCache.setCachedMarketplace(this.providerId, apps);

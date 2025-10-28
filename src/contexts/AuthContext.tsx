@@ -51,11 +51,44 @@ export const useAuth = () => {
   return context;
 };
 
+// Check if token is expired
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
+    
+    if (decoded.exp) {
+      // JWT exp is in seconds, Date.now() is in milliseconds
+      const expirationTime = decoded.exp * 1000;
+      return Date.now() >= expirationTime;
+    }
+    
+    return false;
+  } catch {
+    return true; // If we can't decode, assume expired
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isImpersonating, setIsImpersonating] = useState(false);
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setIsImpersonating(false);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+  };
 
   useEffect(() => {
     // Check for existing token in localStorage
@@ -63,12 +96,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedUser = localStorage.getItem('auth_user');
 
     if (storedToken && storedUser) {
+      // Check if token is expired
+      if (isTokenExpired(storedToken)) {
+        logout();
+        window.location.href = '/';
+        setLoading(false);
+        return;
+      }
+
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
       
       // Check if this is an impersonation token
       try {
-        // Simple JWT decode without verification (client-side)
         const base64Url = storedToken.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jsonPayload = decodeURIComponent(
@@ -85,6 +125,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setLoading(false);
+
+    // Set up periodic token expiration check (every minute)
+    const tokenCheckInterval = setInterval(() => {
+      const currentToken = localStorage.getItem('auth_token');
+      if (currentToken && isTokenExpired(currentToken)) {
+        logout();
+        window.location.href = '/';
+      }
+    }, 60000); // Check every 60 seconds
+
+    return () => {
+      clearInterval(tokenCheckInterval);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -143,14 +196,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Registration error:', error);
       throw error;
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setIsImpersonating(false);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
   };
 
   const refreshToken = async () => {

@@ -1,11 +1,21 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { ImpersonationProvider, useImpersonation } from "./contexts/ImpersonationContext";
+import {
+  ImpersonationProvider,
+  useImpersonation,
+} from "./contexts/ImpersonationContext";
 import { ImpersonationBanner } from "./components/admin/ImpersonationBanner";
 import { ImpersonationLoadingOverlay } from "./components/admin/ImpersonationLoadingOverlay";
+import { setupAutoLogout } from "@/lib/api";
+import { useEffect } from "react";
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -48,15 +58,15 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Component to handle impersonation banner display
 function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
-  const { 
-    isImpersonating, 
-    impersonatedUser, 
-    exitImpersonation, 
+  const {
+    isImpersonating,
+    impersonatedUser,
+    exitImpersonation,
     isExiting,
     isStarting,
     startingProgress,
     startingMessage,
-    startingTargetUser
+    startingTargetUser,
   } = useImpersonation();
 
   return (
@@ -70,12 +80,19 @@ function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
       )}
       {isStarting && (
         <ImpersonationLoadingOverlay
-          targetUser={startingTargetUser || impersonatedUser || { name: 'User', email: 'Loading...', role: 'user' }}
+          targetUser={
+            startingTargetUser ||
+            impersonatedUser || {
+              name: "User",
+              email: "Loading...",
+              role: "user",
+            }
+          }
           progress={startingProgress}
           message={startingMessage}
         />
       )}
-      <div style={{ paddingTop: isImpersonating ? '60px' : '0' }}>
+      <div style={{ paddingTop: isImpersonating ? "60px" : "0" }}>
         {children}
       </div>
     </>
@@ -120,11 +137,7 @@ function StandaloneProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return (
-    <ImpersonationWrapper>
-      {children}
-    </ImpersonationWrapper>
-  );
+  return <ImpersonationWrapper>{children}</ImpersonationWrapper>;
 }
 
 // Admin Route Component (requires authenticated admin role)
@@ -143,7 +156,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== 'admin') {
+  if (user.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -173,178 +186,192 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Component to setup auto-logout inside Router context
+function AutoLogoutSetup() {
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    setupAutoLogout(logout);
+  }, [logout]);
+
+  return null;
+}
+
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route 
-        path="/login" 
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        } 
-      />
-      <Route 
-        path="/register" 
-        element={
-          <PublicRoute>
-            <Register />
-          </PublicRoute>
-        } 
-      />
-      <Route 
-        path="/forgot-password" 
-        element={
-          <PublicRoute>
-            <ForgotPassword />
-          </PublicRoute>
-        } 
-      />
-      <Route 
-        path="/reset-password" 
-        element={
-          <PublicRoute>
-            <ResetPassword />
-          </PublicRoute>
-        } 
-      />
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/containers" 
-        element={
-          <ProtectedRoute>
-            <Containers />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/containers/:id" 
-        element={
-          <ProtectedRoute>
-            <ContainerDetail />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/vps" 
-        element={
-          <ProtectedRoute>
-            <VPS />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/vps/:id" 
-        element={
-          <ProtectedRoute>
-            <VPSDetail />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/vps/:id/ssh" 
-        element={
-          <StandaloneProtectedRoute>
-            <VpsSshConsole />
-          </StandaloneProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/billing" 
-        element={
-          <ProtectedRoute>
-            <Billing />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/billing/invoice/:id" 
-        element={
-          <ProtectedRoute>
-            <InvoiceDetail />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/billing/transaction/:id" 
-        element={
-          <ProtectedRoute>
-            <TransactionDetail />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/billing/payment/success" 
-        element={
-          <ProtectedRoute>
-            <BillingPaymentSuccess />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/billing/payment/cancel" 
-        element={
-          <ProtectedRoute>
-            <BillingPaymentCancel />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/support" 
-        element={
-          <ProtectedRoute>
-            <Support />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings" 
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/activity" 
-        element={
-          <ProtectedRoute>
-            <ActivityPage />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin" 
-        element={
-          <AdminRoute>
-            <Admin />
-          </AdminRoute>
-        } 
-      />
-      <Route 
-        path="/api-docs" 
-        element={
-          <ProtectedRoute>
-            <ApiDocs />
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="/faq" element={<FAQ />} />
-      <Route path="/about" element={<AboutUs />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/status" element={<Status />} />
-      <Route path="/terms" element={<TermsOfService />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <AutoLogoutSetup />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicRoute>
+              <ResetPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/containers"
+          element={
+            <ProtectedRoute>
+              <Containers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/containers/:id"
+          element={
+            <ProtectedRoute>
+              <ContainerDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vps"
+          element={
+            <ProtectedRoute>
+              <VPS />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vps/:id"
+          element={
+            <ProtectedRoute>
+              <VPSDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vps/:id/ssh"
+          element={
+            <StandaloneProtectedRoute>
+              <VpsSshConsole />
+            </StandaloneProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing"
+          element={
+            <ProtectedRoute>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/invoice/:id"
+          element={
+            <ProtectedRoute>
+              <InvoiceDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/transaction/:id"
+          element={
+            <ProtectedRoute>
+              <TransactionDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/payment/success"
+          element={
+            <ProtectedRoute>
+              <BillingPaymentSuccess />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/payment/cancel"
+          element={
+            <ProtectedRoute>
+              <BillingPaymentCancel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/support"
+          element={
+            <ProtectedRoute>
+              <Support />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/activity"
+          element={
+            <ProtectedRoute>
+              <ActivityPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/api-docs"
+          element={
+            <ProtectedRoute>
+              <ApiDocs />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/status" element={<Status />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
@@ -356,11 +383,7 @@ export default function App() {
           <ImpersonationProvider>
             <Router>
               <AppRoutes />
-              <Toaster 
-                position="bottom-right"
-                richColors
-                closeButton
-              />
+              <Toaster position="bottom-right" richColors closeButton />
             </Router>
           </ImpersonationProvider>
         </AuthProvider>

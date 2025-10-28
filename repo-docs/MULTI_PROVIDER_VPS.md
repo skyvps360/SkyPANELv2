@@ -17,18 +17,21 @@ SkyPanelV2 supports multiple cloud infrastructure providers (Linode and DigitalO
 ## Supported Providers
 
 ### Linode (Akamai)
+
 - **Status**: Fully supported (required)
 - **Features**: StackScripts, backups, private IP, SSH keys
 - **API**: Linode API v4
 - **Documentation**: [Linode API Docs](https://www.linode.com/docs/api/)
 
 ### DigitalOcean
+
 - **Status**: Fully supported (optional)
 - **Features**: Marketplace apps, monitoring, IPv6, VPC, backups
 - **API**: DigitalOcean API v2
 - **Documentation**: [DigitalOcean API Docs](https://docs.digitalocean.com/reference/api/)
 
 ### Future Providers
+
 - AWS EC2 (planned)
 - Google Cloud Compute Engine (planned)
 
@@ -37,6 +40,7 @@ SkyPanelV2 supports multiple cloud infrastructure providers (Linode and DigitalO
 ### For Administrators
 
 1. **Configure Provider**
+
    - Navigate to Admin → Providers
    - Click "Add Provider"
    - Select provider type (Linode or DigitalOcean)
@@ -45,6 +49,7 @@ SkyPanelV2 supports multiple cloud infrastructure providers (Linode and DigitalO
    - Enable provider
 
 2. **Create VPS Plans**
+
    - Navigate to Admin → VPS Plans
    - Click "Add Plan"
    - Select provider
@@ -59,6 +64,7 @@ SkyPanelV2 supports multiple cloud infrastructure providers (Linode and DigitalO
 ### For Users
 
 1. **Create VPS Instance**
+
    - Navigate to VPS page
    - Click "Create VPS"
    - Select provider from dropdown
@@ -151,6 +157,7 @@ Provider instances are created through a factory that handles:
 ### Backend
 
 #### Provider Service Layer (`api/services/providers/`)
+
 - `IProviderService.ts` - Common interface
 - `BaseProviderService.ts` - Base implementation
 - `ProviderFactory.ts` - Factory for creating providers
@@ -159,18 +166,21 @@ Provider instances are created through a factory that handles:
 - `errorNormalizer.ts` - Error normalization
 
 #### High-Level Service (`api/services/`)
+
 - `providerService.ts` - Database integration and provider management
 - `providerResourceCache.ts` - Resource caching
 - `linodeService.ts` - Linode API client
 - `DigitalOceanService.ts` - DigitalOcean API client
 
 #### API Routes (`api/routes/`)
+
 - `vps.ts` - VPS management endpoints
 - `admin.ts` - Provider management endpoints
 
 ### Frontend
 
 #### Components (`src/components/VPS/`)
+
 - `ProviderSelector.tsx` - Provider selection dropdown
 - `CreateVPSSteps.tsx` - Dynamic step rendering
 - `DigitalOceanMarketplace.tsx` - Marketplace app selection
@@ -180,9 +190,11 @@ Provider instances are created through a factory that handles:
 - `ProviderErrorDisplay.tsx` - Error display component
 
 #### Services (`src/services/`)
+
 - API service wrappers for provider endpoints
 
 #### Types (`src/types/`)
+
 - `vps.ts` - VPS and provider type definitions
 - `provider.ts` - Provider-specific types
 
@@ -210,7 +222,7 @@ CREATE TABLE service_providers (
 Enhanced with provider tracking:
 
 ```sql
-ALTER TABLE vps_instances 
+ALTER TABLE vps_instances
   ADD COLUMN provider_type VARCHAR(50),
   ADD COLUMN provider_id UUID REFERENCES service_providers(id) ON DELETE SET NULL;
 ```
@@ -262,11 +274,13 @@ CREATE TABLE vps_plans (
 ### Environment Variables
 
 #### Linode (Required)
+
 ```env
 LINODE_API_TOKEN=your-linode-token
 ```
 
 #### DigitalOcean (Optional)
+
 ```env
 DIGITALOCEAN_API_TOKEN=your-digitalocean-token
 ```
@@ -285,16 +299,19 @@ VALUES ('DigitalOcean Production', 'digitalocean', 'your-api-token', true);
 ### Migrating from Linode-Only
 
 1. **Run Migrations**
+
    ```bash
    node scripts/run-migration.js
    ```
 
 2. **Migrate Existing Data**
+
    ```bash
    node scripts/migrate-vps-provider-data.js
    ```
 
 3. **Verify Migration**
+
    - Check that existing instances have `provider_type='linode'`
    - Verify Linode provider exists in `service_providers`
    - Test existing VPS functionality
@@ -333,6 +350,7 @@ npm test -- api/routes/__tests__/vps.digitalocean.integration.test.ts
 **Symptom**: Provider doesn't appear in provider selector
 
 **Solutions**:
+
 - Verify provider is marked as `active` in database
 - Check API credentials are configured
 - Validate credentials in admin interface
@@ -342,6 +360,7 @@ npm test -- api/routes/__tests__/vps.digitalocean.integration.test.ts
 **Symptom**: Provider API calls fail
 
 **Solutions**:
+
 - Verify API token is correct and not expired
 - Check provider account status
 - Review rate limiting status
@@ -352,6 +371,7 @@ npm test -- api/routes/__tests__/vps.digitalocean.integration.test.ts
 **Symptom**: Stale data in dropdowns
 
 **Solutions**:
+
 - Update provider configuration to invalidate cache
 - Wait for cache TTL to expire
 - Restart application to clear cache
@@ -361,6 +381,7 @@ npm test -- api/routes/__tests__/vps.digitalocean.integration.test.ts
 **Symptom**: VPS creation fails with error
 
 **Solutions**:
+
 - Verify all required fields are provided
 - Check provider account has sufficient resources
 - Verify region/plan/image compatibility
@@ -426,15 +447,18 @@ npm test -- api/routes/__tests__/vps.digitalocean.integration.test.ts
 ## Support
 
 ### Documentation
+
 - [Architecture Guide](./api/services/providers/ARCHITECTURE.md)
 - [API Documentation](./api/services/providers/API_DOCUMENTATION.md)
 - [DigitalOcean Configuration](./api/services/providers/DIGITALOCEAN_CONFIGURATION.md)
 
 ### Provider Documentation
+
 - [Linode API](https://www.linode.com/docs/api/)
 - [DigitalOcean API](https://docs.digitalocean.com/reference/api/)
 
 ### Community
+
 - GitHub Issues
 - Project Documentation
 - Provider Support Channels

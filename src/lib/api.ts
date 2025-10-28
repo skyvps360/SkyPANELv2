@@ -3,7 +3,7 @@
  * Handles PayPal payments and wallet management
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Export API_BASE_URL for use in other modules
 export { API_BASE_URL };
@@ -16,22 +16,22 @@ export { API_BASE_URL };
  */
 export function buildApiUrl(path: string, baseUrl?: string): string {
   const base = baseUrl || API_BASE_URL;
-  
+
   // If path already starts with the base URL, return as is
   if (path.startsWith(base)) {
     return path;
   }
-  
+
   // If path already starts with http/https, return as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
-  
+
   // Ensure path starts with /
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
   // Combine base URL with path, avoiding double slashes
-  return base.endsWith('/') 
+  return base.endsWith("/")
     ? `${base.slice(0, -1)}${normalizedPath}`
     : `${base}${normalizedPath}`;
 }
@@ -52,8 +52,8 @@ export interface PaymentResult {
 export interface PayPalClientConfig {
   clientId: string;
   currency: string;
-  intent: 'capture' | 'authorize';
-  mode: 'sandbox' | 'live';
+  intent: "capture" | "authorize";
+  mode: "sandbox" | "live";
   disableFunding?: string[];
   brandName?: string;
 }
@@ -71,7 +71,7 @@ export interface WalletTransaction {
   id: string;
   amount: number;
   currency: string;
-  type: 'credit' | 'debit';
+  type: "credit" | "debit";
   description: string;
   paymentId?: string;
   balanceBefore?: number | null;
@@ -84,7 +84,7 @@ export interface PaymentHistory {
   amount: number;
   currency: string;
   description: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
+  status: "pending" | "completed" | "failed" | "cancelled" | "refunded";
   provider: string;
   providerPaymentId?: string;
   createdAt: string;
@@ -97,11 +97,11 @@ export interface PaymentTransactionDetail {
   amount: number;
   currency: string;
   description: string;
-  status: PaymentHistory['status'];
+  status: PaymentHistory["status"];
   provider: string;
   paymentMethod: string;
   providerPaymentId?: string;
-  type: 'credit' | 'debit';
+  type: "credit" | "debit";
   balanceBefore: number | null;
   balanceAfter: number | null;
   metadata: Record<string, unknown> | null;
@@ -111,10 +111,10 @@ export interface PaymentTransactionDetail {
 
 class PaymentService {
   private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem("auth_token");
     return {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : '',
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : "",
     };
   }
 
@@ -124,7 +124,7 @@ class PaymentService {
   async createPayment(paymentIntent: PaymentIntent): Promise<PaymentResult> {
     try {
       const response = await fetch(`${API_BASE_URL}/payments/create-payment`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
         body: JSON.stringify(paymentIntent),
       });
@@ -134,7 +134,7 @@ class PaymentService {
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to create payment',
+          error: data.error || "Failed to create payment",
         };
       }
 
@@ -144,10 +144,10 @@ class PaymentService {
         approvalUrl: data.approvalUrl,
       };
     } catch (error) {
-      console.error('Create payment error:', error);
+      console.error("Create payment error:", error);
       return {
         success: false,
-        error: 'Network error occurred',
+        error: "Network error occurred",
       };
     }
   }
@@ -157,17 +157,20 @@ class PaymentService {
    */
   async capturePayment(orderId: string): Promise<PaymentResult> {
     try {
-      const response = await fetch(`${API_BASE_URL}/payments/capture-payment/${orderId}`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/payments/capture-payment/${orderId}`,
+        {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to capture payment',
+          error: data.error || "Failed to capture payment",
         };
       }
 
@@ -176,10 +179,10 @@ class PaymentService {
         paymentId: data.paymentId,
       };
     } catch (error) {
-      console.error('Capture payment error:', error);
+      console.error("Capture payment error:", error);
       return {
         success: false,
-        error: 'Network error occurred',
+        error: "Network error occurred",
       };
     }
   }
@@ -194,7 +197,7 @@ class PaymentService {
   }> {
     try {
       const response = await fetch(`${API_BASE_URL}/payments/config`, {
-        method: 'GET',
+        method: "GET",
         headers: this.getAuthHeaders(),
       });
 
@@ -203,41 +206,50 @@ class PaymentService {
       if (!response.ok || !data.success) {
         return {
           success: false,
-          error: data?.error || 'Failed to load PayPal configuration',
+          error: data?.error || "Failed to load PayPal configuration",
         };
       }
 
       const configData = (data.config ?? {}) as Record<string, unknown>;
-      const clientId = typeof configData.clientId === 'string' ? configData.clientId : '';
+      const clientId =
+        typeof configData.clientId === "string" ? configData.clientId : "";
 
       if (!clientId) {
         return {
           success: false,
-          error: 'PayPal configuration is incomplete. Please contact support.',
+          error: "PayPal configuration is incomplete. Please contact support.",
         };
       }
 
       const disableFundingRaw = configData.disableFunding;
       const disableFunding = Array.isArray(disableFundingRaw)
-        ? disableFundingRaw.filter((value) => typeof value === 'string') as string[]
+        ? (disableFundingRaw.filter(
+            (value) => typeof value === "string"
+          ) as string[])
         : undefined;
 
       return {
         success: true,
         config: {
           clientId,
-          currency: typeof configData.currency === 'string' ? configData.currency : 'USD',
-          intent: configData.intent === 'authorize' ? 'authorize' : 'capture',
-          mode: configData.mode === 'live' ? 'live' : 'sandbox',
+          currency:
+            typeof configData.currency === "string"
+              ? configData.currency
+              : "USD",
+          intent: configData.intent === "authorize" ? "authorize" : "capture",
+          mode: configData.mode === "live" ? "live" : "sandbox",
           disableFunding,
-          brandName: typeof configData.brandName === 'string' ? configData.brandName : undefined,
+          brandName:
+            typeof configData.brandName === "string"
+              ? configData.brandName
+              : undefined,
         },
       };
     } catch (error) {
-      console.error('Get PayPal config error:', error);
+      console.error("Get PayPal config error:", error);
       return {
         success: false,
-        error: 'Failed to load PayPal configuration',
+        error: "Failed to load PayPal configuration",
       };
     }
   }
@@ -245,29 +257,35 @@ class PaymentService {
   /**
    * Cancel a PayPal payment order that is still pending
    */
-  async cancelPayment(orderId: string, reason?: string): Promise<CancelPaymentResult> {
+  async cancelPayment(
+    orderId: string,
+    reason?: string
+  ): Promise<CancelPaymentResult> {
     try {
-      const response = await fetch(`${API_BASE_URL}/payments/cancel-payment/${orderId}`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ reason }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/payments/cancel-payment/${orderId}`,
+        {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ reason }),
+        }
+      );
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to cancel PayPal payment',
+          error: data.error || "Failed to cancel PayPal payment",
         };
       }
 
       return { success: true };
     } catch (error) {
-      console.error('Cancel PayPal payment error:', error);
+      console.error("Cancel PayPal payment error:", error);
       return {
         success: false,
-        error: 'Failed to cancel PayPal payment',
+        error: "Failed to cancel PayPal payment",
       };
     }
   }
@@ -278,14 +296,14 @@ class PaymentService {
   async getWalletBalance(): Promise<WalletBalance | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/payments/wallet/balance`, {
-        method: 'GET',
+        method: "GET",
         headers: this.getAuthHeaders(),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Failed to get wallet balance:', data.error);
+        console.error("Failed to get wallet balance:", data.error);
         return null;
       }
 
@@ -293,7 +311,7 @@ class PaymentService {
         balance: data.balance,
       };
     } catch (error) {
-      console.error('Get wallet balance error:', error);
+      console.error("Get wallet balance error:", error);
       return null;
     }
   }
@@ -312,7 +330,7 @@ class PaymentService {
       const response = await fetch(
         `${API_BASE_URL}/payments/wallet/transactions?limit=${limit}&offset=${offset}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: this.getAuthHeaders(),
         }
       );
@@ -320,50 +338,71 @@ class PaymentService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Failed to get wallet transactions:', data.error);
+        console.error("Failed to get wallet transactions:", data.error);
         return { transactions: [], hasMore: false };
       }
 
-      const transactionsSource = (Array.isArray(data.transactions) ? data.transactions : []) as Array<Record<string, unknown>>;
+      const transactionsSource = (
+        Array.isArray(data.transactions) ? data.transactions : []
+      ) as Array<Record<string, unknown>>;
 
       return {
         transactions: transactionsSource.map((tx) => {
           const amountRaw = tx.amount;
-          const amountValue = typeof amountRaw === 'string'
-            ? parseFloat(amountRaw)
-            : typeof amountRaw === 'number'
+          const amountValue =
+            typeof amountRaw === "string"
+              ? parseFloat(amountRaw)
+              : typeof amountRaw === "number"
               ? amountRaw
               : null;
-          const amount = amountValue !== null && Number.isFinite(amountValue) ? amountValue : 0;
+          const amount =
+            amountValue !== null && Number.isFinite(amountValue)
+              ? amountValue
+              : 0;
           const txRecord = tx as Record<string, unknown>;
           const balanceRaw = txRecord.balanceAfter ?? txRecord.balance_after;
-          const balanceBeforeRaw = txRecord.balanceBefore ?? txRecord.balance_before;
+          const balanceBeforeRaw =
+            txRecord.balanceBefore ?? txRecord.balance_before;
           const balanceAfter =
-            typeof balanceRaw === 'string'
+            typeof balanceRaw === "string"
               ? parseFloat(balanceRaw)
-              : typeof balanceRaw === 'number' && Number.isFinite(balanceRaw)
-                ? balanceRaw
-                : null;
+              : typeof balanceRaw === "number" && Number.isFinite(balanceRaw)
+              ? balanceRaw
+              : null;
           const balanceBefore =
-            typeof balanceBeforeRaw === 'string'
+            typeof balanceBeforeRaw === "string"
               ? parseFloat(balanceBeforeRaw)
-              : typeof balanceBeforeRaw === 'number' && Number.isFinite(balanceBeforeRaw)
-                ? balanceBeforeRaw
-                : balanceAfter !== null
-                  ? parseFloat((balanceAfter - amount).toFixed(2))
-                  : null;
+              : typeof balanceBeforeRaw === "number" &&
+                Number.isFinite(balanceBeforeRaw)
+              ? balanceBeforeRaw
+              : balanceAfter !== null
+              ? parseFloat((balanceAfter - amount).toFixed(2))
+              : null;
           const typeValue = (tx as Record<string, unknown>).type;
-          const type = typeValue === 'credit' || typeValue === 'debit' ? typeValue : (amount >= 0 ? 'credit' : 'debit');
-          const createdAtValue = (tx as Record<string, unknown>).createdAt ?? (tx as Record<string, unknown>).created_at;
-          const createdAt = typeof createdAtValue === 'string' ? createdAtValue : '';
+          const type =
+            typeValue === "credit" || typeValue === "debit"
+              ? typeValue
+              : amount >= 0
+              ? "credit"
+              : "debit";
+          const createdAtValue =
+            (tx as Record<string, unknown>).createdAt ??
+            (tx as Record<string, unknown>).created_at;
+          const createdAt =
+            typeof createdAtValue === "string" ? createdAtValue : "";
           const descriptionValue = txRecord.description;
-          const description = typeof descriptionValue === 'string' ? descriptionValue : 'Unknown transaction';
+          const description =
+            typeof descriptionValue === "string"
+              ? descriptionValue
+              : "Unknown transaction";
           const paymentIdValue = txRecord.paymentId ?? txRecord.payment_id;
-          const paymentId = typeof paymentIdValue === 'string' ? paymentIdValue : undefined;
-          const currencyValue = typeof txRecord.currency === 'string' ? txRecord.currency : 'USD';
+          const paymentId =
+            typeof paymentIdValue === "string" ? paymentIdValue : undefined;
+          const currencyValue =
+            typeof txRecord.currency === "string" ? txRecord.currency : "USD";
 
           return {
-            id: String(txRecord.id ?? ''),
+            id: String(txRecord.id ?? ""),
             amount,
             type,
             description,
@@ -377,7 +416,7 @@ class PaymentService {
         hasMore: Boolean(data.pagination?.hasMore),
       };
     } catch (error) {
-      console.error('Get wallet transactions error:', error);
+      console.error("Get wallet transactions error:", error);
       return { transactions: [], hasMore: false };
     }
   }
@@ -400,13 +439,13 @@ class PaymentService {
       });
 
       if (status) {
-        params.append('status', status);
+        params.append("status", status);
       }
 
       const response = await fetch(
         `${API_BASE_URL}/payments/history?${params.toString()}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: this.getAuthHeaders(),
         }
       );
@@ -414,28 +453,43 @@ class PaymentService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Failed to get payment history:', data.error);
+        console.error("Failed to get payment history:", data.error);
         return { payments: [], hasMore: false };
       }
 
-      const paymentsSource = (Array.isArray(data.payments) ? data.payments : []) as Array<Record<string, unknown>>;
+      const paymentsSource = (
+        Array.isArray(data.payments) ? data.payments : []
+      ) as Array<Record<string, unknown>>;
 
       return {
         payments: paymentsSource.map((payment) => ({
-          id: String(payment.id ?? ''),
-          amount: typeof payment.amount === 'string' ? parseFloat(payment.amount) : Number(payment.amount ?? 0),
-          currency: typeof payment.currency === 'string' ? payment.currency : 'USD',
-          description: typeof payment.description === 'string' ? payment.description : 'Payment',
-          status: (payment.status as PaymentHistory['status']) ?? 'pending',
-          provider: typeof payment.provider === 'string' ? payment.provider : 'unknown',
-          providerPaymentId: typeof payment.provider_payment_id === 'string' ? payment.provider_payment_id : undefined,
-          createdAt: typeof payment.created_at === 'string' ? payment.created_at : '',
-          updatedAt: typeof payment.updated_at === 'string' ? payment.updated_at : '',
+          id: String(payment.id ?? ""),
+          amount:
+            typeof payment.amount === "string"
+              ? parseFloat(payment.amount)
+              : Number(payment.amount ?? 0),
+          currency:
+            typeof payment.currency === "string" ? payment.currency : "USD",
+          description:
+            typeof payment.description === "string"
+              ? payment.description
+              : "Payment",
+          status: (payment.status as PaymentHistory["status"]) ?? "pending",
+          provider:
+            typeof payment.provider === "string" ? payment.provider : "unknown",
+          providerPaymentId:
+            typeof payment.provider_payment_id === "string"
+              ? payment.provider_payment_id
+              : undefined,
+          createdAt:
+            typeof payment.created_at === "string" ? payment.created_at : "",
+          updatedAt:
+            typeof payment.updated_at === "string" ? payment.updated_at : "",
         })),
         hasMore: Boolean(data.pagination?.hasMore),
       };
     } catch (error) {
-      console.error('Get payment history error:', error);
+      console.error("Get payment history error:", error);
       return { payments: [], hasMore: false };
     }
   }
@@ -449,17 +503,20 @@ class PaymentService {
     error?: string;
   }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/payments/transactions/${transactionId}`, {
-        method: 'GET',
-        headers: this.getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/payments/transactions/${transactionId}`,
+        {
+          method: "GET",
+          headers: this.getAuthHeaders(),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to load transaction',
+          error: data.error || "Failed to load transaction",
         };
       }
 
@@ -486,10 +543,10 @@ class PaymentService {
         },
       };
     } catch (error) {
-      console.error('Get transaction error:', error);
+      console.error("Get transaction error:", error);
       return {
         success: false,
-        error: 'Network error occurred',
+        error: "Network error occurred",
       };
     }
   }
@@ -504,17 +561,20 @@ class PaymentService {
     error?: string;
   }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/invoices/from-transaction/${transactionId}`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/invoices/from-transaction/${transactionId}`,
+        {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to generate invoice',
+          error: data.error || "Failed to generate invoice",
         };
       }
 
@@ -524,10 +584,10 @@ class PaymentService {
         invoiceNumber: data.invoiceNumber,
       };
     } catch (error) {
-      console.error('Create transaction invoice error:', error);
+      console.error("Create transaction invoice error:", error);
       return {
         success: false,
-        error: 'Network error occurred',
+        error: "Network error occurred",
       };
     }
   }
@@ -543,7 +603,7 @@ class PaymentService {
   ): Promise<PaymentResult> {
     try {
       const response = await fetch(`${API_BASE_URL}/payments/refund`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
         body: JSON.stringify({
           email,
@@ -558,7 +618,7 @@ class PaymentService {
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Failed to create refund',
+          error: data.error || "Failed to create refund",
         };
       }
 
@@ -567,10 +627,10 @@ class PaymentService {
         paymentId: data.payoutId,
       };
     } catch (error) {
-      console.error('Create refund error:', error);
+      console.error("Create refund error:", error);
       return {
         success: false,
-        error: 'Network error occurred',
+        error: "Network error occurred",
       };
     }
   }
@@ -595,7 +655,7 @@ class PaymentService {
       const response = await fetch(
         `${API_BASE_URL}/invoices?limit=${limit}&offset=${offset}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: this.getAuthHeaders(),
         }
       );
@@ -603,7 +663,7 @@ class PaymentService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Failed to get invoices:', data.error);
+        console.error("Failed to get invoices:", data.error);
         return { invoices: [], hasMore: false };
       }
 
@@ -612,11 +672,10 @@ class PaymentService {
         hasMore: data.pagination.hasMore,
       };
     } catch (error) {
-      console.error('Get invoices error:', error);
+      console.error("Get invoices error:", error);
       return { invoices: [], hasMore: false };
     }
   }
-
 }
 
 export const paymentService = new PaymentService();
@@ -627,18 +686,28 @@ export const paymentService = new PaymentService();
  */
 class ApiClient {
   private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem("auth_token");
     return {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+      // Handle 401 Unauthorized - token expired or invalid
+      if (response.status === 401) {
+        const logoutCallback = (window as any).__autoLogoutCallback;
+
+        if (logoutCallback) {
+          logoutCallback();
+          window.location.href = "/";
+        }
+      }
+
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      
+
       try {
         const errorData = JSON.parse(errorText);
         errorMessage = errorData.message || errorData.error || errorMessage;
@@ -646,15 +715,15 @@ class ApiClient {
         // If not JSON, use the text as error message
         errorMessage = errorText || errorMessage;
       }
-      
+
       throw new Error(errorMessage);
     }
 
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
       return response.json();
     }
-    
+
     // For non-JSON responses, return the text
     return response.text() as unknown as T;
   }
@@ -662,7 +731,7 @@ class ApiClient {
   async get<T = any>(path: string): Promise<T> {
     const url = buildApiUrl(path);
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: this.getAuthHeaders(),
     });
     return this.handleResponse<T>(response);
@@ -671,7 +740,7 @@ class ApiClient {
   async post<T = any>(path: string, data?: any): Promise<T> {
     const url = buildApiUrl(path);
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: this.getAuthHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
@@ -681,7 +750,7 @@ class ApiClient {
   async put<T = any>(path: string, data?: any): Promise<T> {
     const url = buildApiUrl(path);
     const response = await fetch(url, {
-      method: 'PUT',
+      method: "PUT",
       headers: this.getAuthHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
@@ -691,7 +760,7 @@ class ApiClient {
   async patch<T = any>(path: string, data?: any): Promise<T> {
     const url = buildApiUrl(path);
     const response = await fetch(url, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: this.getAuthHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
@@ -701,11 +770,20 @@ class ApiClient {
   async delete<T = any>(path: string): Promise<T> {
     const url = buildApiUrl(path);
     const response = await fetch(url, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: this.getAuthHeaders(),
     });
     return this.handleResponse<T>(response);
   }
+}
+
+/**
+ * Setup auto-logout on token expiration
+ * This function should be called once during app initialization
+ */
+export function setupAutoLogout(logoutCallback: () => void) {
+  // Store the callback globally so ApiClient can access it
+  (window as any).__autoLogoutCallback = logoutCallback;
 }
 
 // Create and export the API client instance

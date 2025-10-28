@@ -103,6 +103,28 @@ export interface DigitalOceanImage {
   status: string;
 }
 
+// Pagination Links Structure
+export interface DigitalOceanPaginationLinks {
+  first?: string;
+  prev?: string;
+  next?: string;
+  last?: string;
+}
+
+// Pagination Meta Structure
+export interface DigitalOceanPaginationMeta {
+  total?: number;
+}
+
+// Generic Paginated Response Structure
+export interface DigitalOceanPaginatedResponse<T> {
+  links?: {
+    pages?: DigitalOceanPaginationLinks;
+  };
+  meta?: DigitalOceanPaginationMeta;
+  [key: string]: T | any;
+}
+
 // Create Droplet Request
 export interface CreateDigitalOceanDropletRequest {
   name: string;
@@ -354,7 +376,7 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const data = await this.makeRequest<{ sizes: DigitalOceanSize[] }>(
+      const data = await this.makeRequest<DigitalOceanPaginatedResponse<DigitalOceanSize[]> & { sizes: DigitalOceanSize[] }>(
         `${this.baseUrl}/sizes?per_page=200`,
         { method: 'GET' },
         apiToken
@@ -374,7 +396,7 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const data = await this.makeRequest<{ regions: DigitalOceanRegion[] }>(
+      const data = await this.makeRequest<DigitalOceanPaginatedResponse<DigitalOceanRegion[]> & { regions: DigitalOceanRegion[] }>(
         `${this.baseUrl}/regions?per_page=200`,
         { method: 'GET' },
         apiToken
@@ -388,26 +410,131 @@ class DigitalOceanService {
   }
 
   /**
-   * Get all available images
+   * Get all available images with pagination support
    */
   async getDigitalOceanImages(apiToken: string, type?: 'distribution' | 'application'): Promise<DigitalOceanImage[]> {
+    const startTime = Date.now();
+    
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      let url = `${this.baseUrl}/images?per_page=100`;
+      console.log(`Starting DigitalOcean images fetch${type ? ` (type: ${type})` : ''}`);
+
+      const allImages: DigitalOceanImage[] = [];
+      let url = `${this.baseUrl}/images?per_page=200`;
       if (type) {
         url += `&type=${type}`;
       }
 
-      const data = await this.makeRequest<{ images: DigitalOceanImage[] }>(
-        url,
-        { method: 'GET' },
-        apiToken
-      );
+      let pageCount = 0;
+      let hasPartialResults = false;
 
-      return data.images || [];
+      while (url) {
+        pageCount++;
+        const pageStartTime = Date.now();
+        
+        try {
+          const data = await this.makeRequest<DigitalOceanPaginatedResponse<DigitalOceanImage[]> & { images: DigitalOceanImage[] }>(
+            url,
+            { method: 'GET' },
+            apiToken
+          );
+
+          const pageTime = Date.now() - pageStartTime;
+          const imagesInPage = data.images?.length || 0;
+
+          console.log(`Fetched page ${pageCount}: ${imagesInPage} images in ${pageTime}ms`);
+
+          if (data.images && data.images.length > 0) {
+            allImages.push(...data.images);
+          }
+
+          // Check for next page and validate URL
+          if (data.links?.pages?.next) {
+            try {
+              // Validate pagination URL before following it
+              const nextUrl = new URL(data.links.pages.next);
+              
+              // Additional validation: ensure it's a DigitalOcean API URL
+              if (!nextUrl.hostname.includes('digitalocean.com')) {
+                console.warn(`Invalid pagination URL domain: ${nextUrl.hostname}, stopping pagination`);
+                hasPartialResults = allImages.length > 0;
+                break;
+              }
+              
+              url = data.links.pages.next;
+            } catch (urlError) {
+              console.warn('Invalid pagination URL format, stopping pagination', {
+                url: data.links.pages.next,
+                error: urlError instanceof Error ? urlError.message : String(urlError)
+              });
+              hasPartialResults = allImages.length > 0;
+              break;
+            }
+          } else {
+            url = '';
+          }
+        } catch (pageError) {
+          // Handle pagination failure gracefully
+          const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+          const errorStatus = (pageError as any)?.status;
+          
+          console.error(`Failed to fetch page ${pageCount} of DigitalOcean images`, {
+            page: pageCount,
+            error: errorMessage,
+            status: errorStatus,
+            imagesCollectedSoFar: allImages.length
+          });
+
+          // If we have partial results, return them with a warning
+          if (allImages.length > 0) {
+            console.warn(`WARNING: Returning partial results - ${allImages.length} images from ${pageCount - 1} successfully fetched page(s). Pagination failed at page ${pageCount}.`);
+            hasPartialResults = true;
+            break;
+          }
+
+          // If no results yet, re-throw the error
+          throw pageError;
+        }
+      }
+
+      const totalTime = Date.now() - startTime;
+      const avgTimePerPage = pageCount > 0 ? Math.round(totalTime / pageCount) : 0;
+
+      if (hasPartialResults) {
+        console.warn(`DigitalOcean images fetch completed with PARTIAL RESULTS:`, {
+          totalImages: allImages.length,
+          pagesRetrieved: pageCount - 1,
+          totalTime: `${totalTime}ms`,
+          avgTimePerPage: `${avgTimePerPage}ms`,
+          type: type || 'all',
+          status: 'partial'
+        });
+      } else {
+        console.log(`DigitalOcean images fetch completed successfully:`, {
+          totalImages: allImages.length,
+          pagesRetrieved: pageCount,
+          totalTime: `${totalTime}ms`,
+          avgTimePerPage: `${avgTimePerPage}ms`,
+          type: type || 'all',
+          status: 'complete'
+        });
+      }
+      
+      return allImages;
     } catch (error) {
-      console.error('Error fetching DigitalOcean images:', error);
+      const totalTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStatus = (error as any)?.status;
+      
+      console.error('Error fetching DigitalOcean images', {
+        error: errorMessage,
+        httpStatus: errorStatus,
+        type: type || 'all',
+        totalTime: `${totalTime}ms`,
+        status: 'failed'
+      });
+      
       throw error;
     }
   }
@@ -462,7 +589,7 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const data = await this.makeRequest<{ droplets: DigitalOceanDroplet[] }>(
+      const data = await this.makeRequest<DigitalOceanPaginatedResponse<DigitalOceanDroplet[]> & { droplets: DigitalOceanDroplet[] }>(
         `${this.baseUrl}/droplets?per_page=200`,
         { method: 'GET' },
         apiToken
