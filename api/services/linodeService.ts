@@ -16,6 +16,14 @@ export interface LinodeType {
     hourly: number;
     monthly: number;
   };
+  addons?: {
+    backups?: {
+      price?: {
+        hourly: number;
+        monthly: number;
+      };
+    };
+  };
   type_class: string;
   successor?: string;
 }
@@ -512,6 +520,7 @@ class LinodeService {
           vcpus: type.vcpus,
           transfer: type.transfer,
           price: type.price,
+          addons: type.addons, // Include addons for backup pricing
           type_class: mappedTypeClass,
           successor: type.successor,
         };

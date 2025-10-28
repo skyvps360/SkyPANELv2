@@ -13,6 +13,10 @@ export interface DigitalOceanSize {
   transfer: number;
   price_monthly: number;
   price_hourly: number;
+  backup_price_monthly_weekly?: number;  // 20% of base price
+  backup_price_monthly_daily?: number;   // 30% of base price
+  backup_price_hourly_weekly?: number;
+  backup_price_hourly_daily?: number;
   regions: string[];
   available: boolean;
   description: string;
@@ -382,7 +386,17 @@ class DigitalOceanService {
         apiToken
       );
 
-      return data.sizes || [];
+      const sizes = data.sizes || [];
+      
+      // Calculate backup pricing for each size
+      // DigitalOcean charges 20% for weekly backups and 30% for daily backups
+      return sizes.map(size => ({
+        ...size,
+        backup_price_monthly_weekly: size.price_monthly * 0.20,
+        backup_price_monthly_daily: size.price_monthly * 0.30,
+        backup_price_hourly_weekly: size.price_hourly * 0.20,
+        backup_price_hourly_daily: size.price_hourly * 0.30,
+      }));
     } catch (error) {
       console.error('Error fetching DigitalOcean sizes:', error);
       throw error;

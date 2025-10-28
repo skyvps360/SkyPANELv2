@@ -9,7 +9,8 @@ SkyPanelV2 is an open-source control plane for cloud service resellers. It packa
 
 ## Feature Highlights
 
-- **Multi-provider VPS management**: Unified interface for Linode and DigitalOcean with provider abstraction, normalized APIs, and intelligent caching. See [MULTI_PROVIDER_VPS.md](./MULTI_PROVIDER_VPS.md) for details.
+- **Multi-provider VPS management**: Unified interface for Linode and DigitalOcean with provider abstraction, normalized APIs, and intelligent caching. See [MULTI_PROVIDER_VPS.md](./repo-docs/MULTI_PROVIDER_VPS.md) for details.
+- **Flexible backup pricing**: Provider-specific backup options (daily vs weekly for DigitalOcean), transparent pricing with admin-configurable upcharges, and user-driven region selection. See [FLEXIBLE_BACKUP_PRICING_API.md](./repo-docs/FLEXIBLE_BACKUP_PRICING_API.md) for API documentation.
 - **Provider provisioning**: Linode and DigitalOcean services orchestrate instance creation, plan catalogs, stackscript automation, and activity logging.
 - **Billing & wallets**: PayPal prepaid wallets, hourly reconciliation via `BillingService`, invoices, and downloadable billing artifacts.
 - **Real-time notifications**: PostgreSQL LISTEN/NOTIFY feeds a Server-Sent Events stream surfaced in the UI for activity, billing, and support updates.
@@ -31,6 +32,7 @@ SkyPanelV2 is an open-source control plane for cloud service resellers. It packa
 - `migrations/` – Versioned SQL migrations for schema and data changes.
 - `scripts/` – Node utilities for migrations, admin seeding, billing, SMTP, and diagnostics.
 - `public/` – Static assets served by Vite.
+- `repo-docs/` – Feature documentation and API references.
 
 ## Tech Stack
 
@@ -139,6 +141,18 @@ SkyPanelV2 is an open-source control plane for cloud service resellers. It packa
 - Rate limiting lives in `api/middleware/rateLimiting.ts`; reuse `smartRateLimit` or `createCustomRateLimiter` for new routes.
 - Frontend API calls should go through `src/lib/api.ts` or service wrappers so environment-aware URLs and auth headers stay consistent.
 - Update `.env` branding keys and restart dev servers to refresh marketing copy and theming tokens.
+
+## Documentation
+
+### API Documentation
+
+- **[API Reference](./repo-docs/API_REFERENCE.md)** - Complete API endpoint reference
+- **[Flexible Backup Pricing API](./repo-docs/FLEXIBLE_BACKUP_PRICING_API.md)** - Backup configuration and pricing endpoints
+- **[Multi-Provider VPS](./repo-docs/MULTI_PROVIDER_VPS.md)** - Multi-provider VPS management
+
+### Feature Documentation
+
+Detailed documentation for specific features is available in the `repo-docs/` directory.
 
 ## Testing & Quality
 

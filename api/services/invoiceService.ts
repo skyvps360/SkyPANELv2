@@ -523,6 +523,79 @@ export class InvoiceService {
   }
 
   /**
+   * Generate invoice from VPS billing cycles with itemized backup costs
+   */
+  static generateInvoiceFromBillingCycles(
+    organizationId: string,
+    billingCycles: Array<{
+      vpsLabel: string;
+      billingPeriodStart: Date;
+      billingPeriodEnd: Date;
+      hoursCharged: number;
+      baseHourlyRate: number;
+      backupHourlyRate: number;
+      backupFrequency: string;
+      totalAmount: number;
+    }>,
+    invoiceNumber: string,
+    currency: string = 'USD'
+  ): InvoiceData {
+    const items: InvoiceItem[] = [];
+
+    // Group billing cycles by VPS and create separate line items for base and backup costs
+    billingCycles.forEach(cycle => {
+      const baseAmount = cycle.baseHourlyRate * cycle.hoursCharged;
+      
+      // Add base VPS cost line item
+      items.push({
+        description: `${cycle.vpsLabel} - VPS Service (${cycle.hoursCharged}h)`,
+        quantity: cycle.hoursCharged,
+        unitPrice: cycle.baseHourlyRate,
+        amount: baseAmount,
+      });
+
+      // Add backup cost line item if backups are enabled
+      if (cycle.backupHourlyRate > 0 && cycle.backupFrequency !== 'none') {
+        const backupAmount = cycle.backupHourlyRate * cycle.hoursCharged;
+        const frequencyLabel = cycle.backupFrequency === 'daily' ? 'Daily' : 'Weekly';
+        
+        items.push({
+          description: `${cycle.vpsLabel} - ${frequencyLabel} Backups (${cycle.hoursCharged}h)`,
+          quantity: cycle.hoursCharged,
+          unitPrice: cycle.backupHourlyRate,
+          amount: backupAmount,
+        });
+      }
+    });
+
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const tax = 0;
+    const total = subtotal + tax;
+
+    const periodStart = billingCycles.length > 0 
+      ? billingCycles[billingCycles.length - 1].billingPeriodStart 
+      : new Date();
+    const periodEnd = billingCycles.length > 0 
+      ? billingCycles[0].billingPeriodEnd 
+      : new Date();
+
+    return {
+      id: `inv-${Date.now()}`,
+      invoiceNumber,
+      organizationId,
+      title: 'VPS Billing Statement',
+      description: `Hourly VPS billing from ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`,
+      items,
+      subtotal,
+      tax,
+      total,
+      currency,
+      createdAt: new Date(),
+      status: 'issued',
+    };
+  }
+
+  /**
    * Generate invoice from payment transactions
    */
   static generateInvoiceFromTransactions(

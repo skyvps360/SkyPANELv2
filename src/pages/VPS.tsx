@@ -51,6 +51,7 @@ import type { ProviderType } from "@/types/provider";
 import { generateUniqueVPSLabel } from "@/lib/vpsLabelGenerator";
 import { ProviderSelector } from "@/components/VPS/ProviderSelector";
 import { CreateVPSSteps } from "@/components/VPS/CreateVPSSteps";
+import { RegionSelector } from "@/components/VPS/RegionSelector";
 import {
   getActiveSteps,
   getNextStep,
@@ -1083,10 +1084,29 @@ const VPS: React.FC = () => {
       return;
     }
 
-    let totalHourlyCost = selectedType.price.hourly;
-    if (createForm.backups) {
-      totalHourlyCost += selectedType.price.hourly * 0.4; // 40% additional for backups
+    // Fetch plan details for backup pricing
+    let backupCostHourly = 0;
+    if (createForm.backups && createForm.backup_frequency && createForm.backup_frequency !== 'none') {
+      try {
+        const planRes = await fetch("/api/vps/plans", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const planData = await planRes.json();
+        const plan = (planData.plans || []).find((p: any) => p.id === createForm.type);
+        
+        if (plan) {
+          const baseBackupHourly = plan.backup_price_hourly || 0;
+          const backupUpchargeHourly = plan.backup_upcharge_hourly || 0;
+          const dailyMultiplier = createForm.backup_frequency === 'daily' ? 1.5 : 1;
+          backupCostHourly = (baseBackupHourly + backupUpchargeHourly) * dailyMultiplier;
+        }
+      } catch (err) {
+        console.error("Failed to fetch backup pricing:", err);
+        // Continue with 0 backup cost if fetch fails
+      }
     }
+
+    const totalHourlyCost = selectedType.price.hourly + backupCostHourly;
 
     // Show mobile loading state
     mobileLoading.showLoading(
@@ -1175,6 +1195,7 @@ const VPS: React.FC = () => {
         rootPassword: createForm.rootPassword,
         sshKeys: createForm.sshKeys,
         backups: createForm.backups,
+        backup_frequency: createForm.backup_frequency || (createForm.backups ? 'weekly' : 'none'),
         privateIP: createForm.privateIP,
       };
       
@@ -1317,7 +1338,7 @@ const VPS: React.FC = () => {
         createForm.provider_id &&
           createForm.label &&
           createForm.type &&
-          createForm.region
+          createForm.region // Region is now required
       );
     if (createStep === 3) return Boolean(createForm.image);
     return true;
@@ -1416,14 +1437,10 @@ const VPS: React.FC = () => {
                 value={createForm.type}
                 onChange={(e) => {
                   const newType = e.target.value;
-                  const selectedType = filteredLinodeTypes.find(
-                    (t) => t.id === newType
-                  );
-                  const newRegion = selectedType?.region || "";
-
+                  // Don't auto-select region anymore - user will select it separately
                   setCreateForm({
                     type: newType,
-                    region: newRegion,
+                    region: "", // Clear region when plan changes
                   });
                 }}
                 className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
@@ -1469,40 +1486,24 @@ const VPS: React.FC = () => {
                 })()}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Region
-              </label>
-              <div className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-muted text-foreground flex items-center">
-                {createForm.type && createForm.region ? (
-                  (() => {
-                    const selectedRegion = allowedRegions.find(
-                      (r) => r.id === createForm.region
-                    );
-                    return (
-                      <div className="flex items-center w-full">
-                        <MapPin className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
-                        <div className="flex flex-col sm:flex-row sm:items-center min-w-0 flex-1">
-                          <span className="font-medium truncate">
-                            {selectedRegion
-                              ? selectedRegion.label
-                              : createForm.region}
-                          </span>
-                          <span className="text-sm text-muted-foreground sm:ml-2 mt-1 sm:mt-0">
-                            (Auto-selected based on plan)
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="flex items-center text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span>Select a plan to see the region</span>
-                  </div>
-                )}
+            {/* Region Selection */}
+            {createForm.provider_id && createForm.type && (
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Region *
+                </label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Select the datacenter location for your VPS
+                </p>
+                <RegionSelector
+                  providerType={createForm.provider_type}
+                  providerId={createForm.provider_id}
+                  selectedRegion={createForm.region}
+                  onSelect={(regionId) => setCreateForm({ region: regionId })}
+                  token={token || ""}
+                />
               </div>
-            </div>
+            )}
           </div>
         </div>
       ),
@@ -1566,121 +1567,15 @@ const VPS: React.FC = () => {
       description:
         getStepInfo(4)?.description ||
         "Set credentials and optional add-ons before provisioning.",
-      content:
-        createForm.provider_type === "digitalocean" ? (
-          <CreateVPSSteps
-            step={4}
-            providerType={createForm.provider_type}
-            formData={createForm}
-            onFormChange={setCreateForm}
-            token={token || ""}
-          />
-        ) : (
-          <div className="space-y-5">
-            <form onSubmit={(e) => e.preventDefault()}>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Root Password *
-              </label>
-              <input
-                type="password"
-                value={createForm.rootPassword}
-                onChange={(e) =>
-                  setCreateForm({ rootPassword: e.target.value })
-                }
-                className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
-                placeholder="Enter a strong password"
-                autoComplete="new-password"
-              />
-            </form>
-
-            <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
-              <label className="flex items-center min-h-[44px] touch-manipulation">
-                <input
-                  type="checkbox"
-                  checked={createForm.backups}
-                  onChange={(e) => setCreateForm({ backups: e.target.checked })}
-                  className="h-5 w-5 text-primary focus:ring-primary border rounded bg-secondary"
-                />
-                <span className="ml-3 text-sm text-muted-foreground">
-                  Enable Backups (+40%)
-                </span>
-              </label>
-              <label className="flex items-center min-h-[44px] touch-manipulation">
-                <input
-                  type="checkbox"
-                  checked={createForm.privateIP}
-                  onChange={(e) =>
-                    setCreateForm({ privateIP: e.target.checked })
-                  }
-                  className="h-5 w-5 text-primary focus:ring-primary border rounded bg-secondary"
-                />
-                <span className="ml-3 text-sm text-muted-foreground">
-                  Private IP
-                </span>
-              </label>
-            </div>
-
-            <div className="bg-muted rounded-lg p-4">
-              <h4 className="text-sm font-medium text-foreground mb-2">
-                Plan Details
-              </h4>
-              {createForm.type && linodeTypes.length > 0 ? (
-                (() => {
-                  const selectedType = linodeTypes.find(
-                    (t) => t.id === createForm.type
-                  );
-                  if (!selectedType) return null;
-                  const selectedRegion = selectedType.region
-                    ? allowedRegions.find((r) => r.id === selectedType.region)
-                    : null;
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">vCPUs:</span>
-                        <span className="ml-2 font-medium text-foreground">
-                          {selectedType.vcpus}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Memory:</span>
-                        <span className="ml-2 font-medium text-foreground">
-                          {formatBytes(selectedType.memory)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Storage:</span>
-                        <span className="ml-2 font-medium text-foreground">
-                          {Math.round(selectedType.disk / 1024)} GB
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Transfer:</span>
-                        <span className="ml-2 font-medium text-foreground">
-                          {selectedType.transfer} GB
-                        </span>
-                      </div>
-                      {selectedRegion && (
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Region:</span>
-                          <span className="ml-2 font-medium text-foreground">
-                            {selectedRegion.label}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-muted-foreground">
-                    Select a plan above to view specifications and pricing
-                    details
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        ),
+      content: (
+        <CreateVPSSteps
+          step={4}
+          providerType={createForm.provider_type}
+          formData={createForm}
+          onFormChange={setCreateForm}
+          token={token || ""}
+        />
+      ),
     },
   ];
 

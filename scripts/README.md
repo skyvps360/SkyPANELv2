@@ -42,6 +42,16 @@ node scripts/run-migration.js
 node scripts/apply-single-migration.js migrations/001_initial_schema.sql
 ```
 
+### Data Migration Scripts
+
+```bash
+# Migrate VPS provider data (add provider_id to existing instances)
+node scripts/migrate-vps-provider-data.js
+
+# Migrate backup pricing data (set default backup configuration)
+node scripts/migrate-backup-pricing-data.js
+```
+
 ### Test Database Connection
 
 ```bash
@@ -101,8 +111,13 @@ npm run db:fresh
 # 2. Create your admin user (if not using default)
 node scripts/create-test-admin.js --email your@email.com --password yourpassword
 
+
 # 3. Start development servers
 npm run dev
+```
+```md 
+you may not use special characters for this password you may reset it via the dashboard afterwards
+and allow the use of special character passwords.
 ```
 
 ### Fixing Encryption Key Issues

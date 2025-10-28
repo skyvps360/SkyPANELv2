@@ -150,11 +150,22 @@ export class BillingService {
         vi.status,
         vi.last_billed_at,
         vi.created_at,
+        vi.backup_frequency,
         COALESCE(
-          -- Try to get hourly rate from VPS plan
-          (SELECT (base_price + markup_price) / 730 
-           FROM vps_plans 
-           WHERE id::text = vi.plan_id OR provider_plan_id = vi.plan_id
+          -- Calculate total hourly rate including backup costs
+          (SELECT 
+            -- Base VPS hourly rate
+            ((vp.base_price + vp.markup_price) / 730) +
+            -- Backup hourly rate (if backups enabled)
+            CASE 
+              WHEN vi.backup_frequency = 'daily' THEN 
+                ((vp.backup_price_hourly + vp.backup_upcharge_hourly) * 1.5)
+              WHEN vi.backup_frequency = 'weekly' THEN 
+                (vp.backup_price_hourly + vp.backup_upcharge_hourly)
+              ELSE 0
+            END
+           FROM vps_plans vp
+           WHERE vp.id::text = vi.plan_id OR vp.provider_plan_id = vi.plan_id
            LIMIT 1),
           -- Fallback to a default rate if plan not found
           0.027
@@ -197,7 +208,41 @@ export class BillingService {
         }
 
         const billingPeriodEnd = new Date(billingPeriodStart.getTime() + hoursToCharge * MS_PER_HOUR);
-        const totalAmount = Number((instance.hourlyRate * hoursToCharge).toFixed(4));
+        
+        // Fetch detailed pricing breakdown from plan
+        const planResult = await client.query(`
+          SELECT 
+            vp.base_price,
+            vp.markup_price,
+            vp.backup_price_monthly,
+            vp.backup_price_hourly,
+            vp.backup_upcharge_monthly,
+            vp.backup_upcharge_hourly,
+            vi.backup_frequency
+          FROM vps_plans vp
+          JOIN vps_instances vi ON (vp.id::text = vi.plan_id OR vp.provider_plan_id = vi.plan_id)
+          WHERE vi.id = $1
+          LIMIT 1
+        `, [instance.id]);
+
+        const plan = planResult.rows[0];
+        const baseHourlyRate = plan ? ((parseFloat(plan.base_price) + parseFloat(plan.markup_price)) / 730) : instance.hourlyRate;
+        
+        let backupHourlyRate = 0;
+        let backupFrequency = plan?.backup_frequency || 'none';
+        
+        if (plan && backupFrequency !== 'none') {
+          const baseBackupHourly = parseFloat(plan.backup_price_hourly || 0);
+          const backupUpchargeHourly = parseFloat(plan.backup_upcharge_hourly || 0);
+          
+          if (backupFrequency === 'daily') {
+            backupHourlyRate = (baseBackupHourly + backupUpchargeHourly) * 1.5;
+          } else if (backupFrequency === 'weekly') {
+            backupHourlyRate = baseBackupHourly + backupUpchargeHourly;
+          }
+        }
+        
+        const totalAmount = Number(((baseHourlyRate + backupHourlyRate) * hoursToCharge).toFixed(4));
 
         const walletResult = await client.query(
           'SELECT balance FROM wallets WHERE organization_id = $1',
@@ -228,7 +273,14 @@ export class BillingService {
             instance.hourlyRate,
             totalAmount,
             'failed',
-            JSON.stringify({ reason: 'insufficient_balance', hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
+            JSON.stringify({ 
+              reason: 'insufficient_balance', 
+              hours_charged: hoursToCharge, 
+              elapsed_hours: rawHoursElapsed,
+              base_hourly_rate: baseHourlyRate,
+              backup_hourly_rate: backupHourlyRate,
+              backup_frequency: backupFrequency
+            })
           ]);
 
           return { success: false, amountCharged: 0, hoursCharged: hoursToCharge };
@@ -256,7 +308,14 @@ export class BillingService {
             instance.hourlyRate,
             totalAmount,
             'failed',
-            JSON.stringify({ reason: 'wallet_deduction_failed', hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
+            JSON.stringify({ 
+              reason: 'wallet_deduction_failed', 
+              hours_charged: hoursToCharge, 
+              elapsed_hours: rawHoursElapsed,
+              base_hourly_rate: baseHourlyRate,
+              backup_hourly_rate: backupHourlyRate,
+              backup_frequency: backupFrequency
+            })
           ]);
 
           return { success: false, amountCharged: 0, hoursCharged: hoursToCharge };
@@ -287,7 +346,14 @@ export class BillingService {
           totalAmount,
           'billed',
           paymentTransactionId,
-          JSON.stringify({ hours_charged: hoursToCharge, elapsed_hours: rawHoursElapsed })
+          JSON.stringify({ 
+            hours_charged: hoursToCharge, 
+            elapsed_hours: rawHoursElapsed,
+            base_hourly_rate: baseHourlyRate,
+            backup_hourly_rate: backupHourlyRate,
+            backup_frequency: backupFrequency,
+            vps_label: instance.label
+          })
         ]);
 
         await client.query(
@@ -381,7 +447,16 @@ export class BillingService {
       const activeVPSResult = await query(`
         SELECT 
           COUNT(*) as count,
-          COALESCE(SUM((base_price + markup_price)), 0) as monthly_estimate
+          COALESCE(SUM(
+            (vp.base_price + vp.markup_price) +
+            CASE 
+              WHEN vi.backup_frequency = 'daily' THEN 
+                ((vp.backup_price_monthly + vp.backup_upcharge_monthly) * 1.5)
+              WHEN vi.backup_frequency = 'weekly' THEN 
+                (vp.backup_price_monthly + vp.backup_upcharge_monthly)
+              ELSE 0
+            END
+          ), 0) as monthly_estimate
         FROM vps_instances vi
         LEFT JOIN vps_plans vp ON (vp.id::text = vi.plan_id OR vp.provider_plan_id = vi.plan_id)
         WHERE vi.organization_id = $1

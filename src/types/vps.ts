@@ -17,6 +17,7 @@ export interface VPSInstance {
   created: string;
   provider_id?: string | null;
   provider_type?: ProviderType | null;
+  backup_frequency?: 'daily' | 'weekly' | 'none';
   specs: {
     vcpus: number;
     memory: number;
@@ -56,6 +57,7 @@ export interface CreateVPSForm {
   rootPassword: string;
   sshKeys: string[];
   backups: boolean;
+  backup_frequency?: 'daily' | 'weekly' | 'none';
   privateIP: boolean;
   // DigitalOcean-specific
   monitoring?: boolean;
@@ -66,4 +68,42 @@ export interface CreateVPSForm {
   appData?: Record<string, any>;
   stackscriptId?: number;
   stackscriptData?: Record<string, any>;
+}
+
+export interface VPSPlan {
+  id: string;
+  name: string;
+  description?: string;
+  provider_id: string;
+  provider_plan_id: string;
+  base_price: number;
+  markup_price: number;
+  backup_price_monthly: number;
+  backup_price_hourly: number;
+  backup_upcharge_monthly: number;
+  backup_upcharge_hourly: number;
+  daily_backups_enabled: boolean;
+  weekly_backups_enabled: boolean;
+  region_id?: string;
+  specifications: {
+    vcpus?: number;
+    memory?: number;
+    memory_gb?: number;
+    disk?: number;
+    storage_gb?: number;
+    transfer?: number;
+    transfer_gb?: number;
+    bandwidth_gb?: number;
+    cpu_cores?: number;
+    region?: string;
+    [key: string]: any;
+  };
+}
+
+export interface ProviderRegion {
+  id: string;
+  label: string;
+  country: string;
+  capabilities?: string[];
+  status?: string;
 }

@@ -136,6 +136,21 @@ router.get("/providers", async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/vps/plans
+ * 
+ * Retrieve available VPS plans for users with backup pricing information.
+ * 
+ * Authentication: User authentication required
+ * 
+ * Response includes:
+ * - Plan details (name, provider, pricing)
+ * - Backup pricing breakdown (base + upcharge)
+ * - Available backup frequencies (daily/weekly)
+ * - Total costs for different backup options
+ * 
+ * See: repo-docs/FLEXIBLE_BACKUP_PRICING_API.md for detailed documentation
+ */
 router.get("/plans", async (_req: Request, res: Response) => {
   try {
     const result = await query(
@@ -147,6 +162,12 @@ router.get("/plans", async (_req: Request, res: Response) => {
          provider_plan_id,
          base_price,
          markup_price,
+         backup_price_monthly,
+         backup_price_hourly,
+         backup_upcharge_monthly,
+         backup_upcharge_hourly,
+         daily_backups_enabled,
+         weekly_backups_enabled,
          COALESCE(specifications->>'region_id', specifications->>'region') AS region_id,
          specifications
        FROM vps_plans
@@ -162,6 +183,12 @@ router.get("/plans", async (_req: Request, res: Response) => {
       provider_plan_id: row.provider_plan_id,
       base_price: row.base_price,
       markup_price: row.markup_price,
+      backup_price_monthly: row.backup_price_monthly || 0,
+      backup_price_hourly: row.backup_price_hourly || 0,
+      backup_upcharge_monthly: row.backup_upcharge_monthly || 0,
+      backup_upcharge_hourly: row.backup_upcharge_hourly || 0,
+      daily_backups_enabled: row.daily_backups_enabled || false,
+      weekly_backups_enabled: row.weekly_backups_enabled !== false,
       region_id: row.region_id,
       specifications: row.specifications,
     }));
@@ -932,6 +959,58 @@ router.get("/images", async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Images fetch error:", err);
     res.status(500).json({ error: err.message || "Failed to fetch images" });
+  }
+});
+
+// Get available regions for a specific provider
+router.get("/providers/:providerId/regions", async (req: Request, res: Response) => {
+  try {
+    const { providerId } = req.params;
+
+    // Fetch provider details
+    const providerResult = await query(
+      "SELECT id, type, api_key_encrypted, allowed_regions FROM service_providers WHERE id = $1 AND active = true LIMIT 1",
+      [providerId]
+    );
+
+    if (providerResult.rows.length === 0) {
+      return res.status(404).json({ error: "Provider not found or inactive" });
+    }
+
+    const provider = providerResult.rows[0];
+    const providerType = provider.type as "linode" | "digitalocean";
+    const allowedRegions = provider.allowed_regions || null;
+
+    // Get provider token
+    const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
+
+    if (!token) {
+      return res.status(503).json({ error: "Provider credentials not available" });
+    }
+
+    // Fetch regions from provider API
+    let allRegions: any[] = [];
+
+    if (providerType === "linode") {
+      allRegions = await linodeService.getLinodeRegions();
+    } else if (providerType === "digitalocean") {
+      const { digitalOceanService } = await import("../services/DigitalOceanService.js");
+      allRegions = await digitalOceanService.getDigitalOceanRegions(token);
+    } else {
+      return res.status(400).json({ error: "Unsupported provider type" });
+    }
+
+    // Filter regions based on allowed_regions configuration
+    let regions = allRegions;
+    if (allowedRegions && Array.isArray(allowedRegions) && allowedRegions.length > 0) {
+      const allowedSet = new Set(allowedRegions);
+      regions = allRegions.filter((region) => allowedSet.has(region.id));
+    }
+
+    res.json({ regions });
+  } catch (err: any) {
+    console.error("Regions fetch error:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch regions" });
   }
 });
 
@@ -2237,7 +2316,34 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-// Create a new VPS instance via provider API (Linode or DigitalOcean)
+/**
+ * POST /api/vps
+ * 
+ * Create a new VPS instance with region and backup frequency selection.
+ * 
+ * Authentication: User authentication required
+ * 
+ * Required fields:
+ * - plan_id: UUID of the VPS plan
+ * - region: Datacenter region (now required from user, not from plan)
+ * - label: Instance name
+ * - root_password: Root password for the instance
+ * 
+ * Optional fields:
+ * - backup_frequency: "daily" or "weekly" (required if backups_enabled is true)
+ * - backups_enabled: Enable backup service
+ * - ssh_keys: Array of SSH public keys
+ * - image: OS image identifier
+ * - stackscript_id: Linode StackScript ID
+ * - private_ip: Enable private IP
+ * 
+ * Validation:
+ * - Region must be available for the provider
+ * - Backup frequency must be supported by the plan
+ * - Sufficient wallet balance required
+ * 
+ * See: repo-docs/FLEXIBLE_BACKUP_PRICING_API.md for detailed documentation
+ */
 router.post("/", async (req: Request, res: Response) => {
   try {
     const organizationId = (req as any).user.organizationId;
@@ -2251,6 +2357,7 @@ router.post("/", async (req: Request, res: Response) => {
       rootPassword,
       sshKeys = [],
       backups = false,
+      backup_frequency = 'weekly',
       privateIP = false,
       appSlug,
       appData,
@@ -2387,19 +2494,67 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // Calculate hourly rate for pre-billing validation
-    let hourlyRate = 0.027; // Default fallback rate
-    try {
-      if (planIdForInstance) {
+    // Validate backup frequency against plan configuration
+    let validatedBackupFrequency = 'none';
+    if (backups && planIdForInstance) {
+      try {
         const planResult = await query(
-          "SELECT base_price, markup_price FROM vps_plans WHERE id = $1",
+          "SELECT daily_backups_enabled, weekly_backups_enabled FROM vps_plans WHERE id = $1",
           [planIdForInstance]
         );
         if (planResult.rows.length > 0) {
           const plan = planResult.rows[0];
-          const monthlyPrice =
-            parseFloat(plan.base_price) + parseFloat(plan.markup_price);
-          hourlyRate = monthlyPrice / 730; // Convert monthly to hourly (730 hours per month average)
+          if (backup_frequency === 'daily' && !plan.daily_backups_enabled) {
+            res.status(400).json({
+              error: 'Daily backups not available for this plan',
+              code: 'INVALID_BACKUP_FREQUENCY'
+            });
+            return;
+          }
+          if (backup_frequency === 'weekly' && !plan.weekly_backups_enabled) {
+            res.status(400).json({
+              error: 'Weekly backups not available for this plan',
+              code: 'INVALID_BACKUP_FREQUENCY'
+            });
+            return;
+          }
+          validatedBackupFrequency = backup_frequency;
+        }
+      } catch (validationErr) {
+        console.warn("Failed to validate backup frequency:", validationErr);
+      }
+    }
+
+    // Calculate hourly rate for pre-billing validation including backup costs
+    let hourlyRate = 0.027; // Default fallback rate
+    try {
+      if (planIdForInstance) {
+        const planResult = await query(
+          `SELECT 
+            base_price, markup_price,
+            backup_price_hourly, backup_upcharge_hourly
+           FROM vps_plans WHERE id = $1`,
+          [planIdForInstance]
+        );
+        if (planResult.rows.length > 0) {
+          const plan = planResult.rows[0];
+          const baseMonthlyCost = parseFloat(plan.base_price) + parseFloat(plan.markup_price);
+          let baseHourlyRate = baseMonthlyCost / 730;
+          
+          // Add backup costs if backups are enabled
+          if (backups && validatedBackupFrequency !== 'none') {
+            const baseBackupHourly = validatedBackupFrequency === 'daily'
+              ? (parseFloat(plan.backup_price_hourly) || 0) * 1.5
+              : (parseFloat(plan.backup_price_hourly) || 0);
+            
+            const backupUpchargeHourly = validatedBackupFrequency === 'daily'
+              ? (parseFloat(plan.backup_upcharge_hourly) || 0) * 1.5
+              : (parseFloat(plan.backup_upcharge_hourly) || 0);
+            
+            baseHourlyRate += baseBackupHourly + backupUpchargeHourly;
+          }
+          
+          hourlyRate = baseHourlyRate;
         }
       }
     } catch (planErr) {
@@ -2604,6 +2759,7 @@ router.post("/", async (req: Request, res: Response) => {
       region: regionToUse,
       image, // For DigitalOcean, this contains either OS image or marketplace app slug
       backups,
+      backup_frequency: validatedBackupFrequency,
       privateIP,
       // Linode-specific fields
       stackscriptId: provider_type === 'linode' ? stackscriptId : undefined,
@@ -2641,8 +2797,8 @@ router.post("/", async (req: Request, res: Response) => {
     const status = created.status || "provisioning";
 
     const insertRes = await query(
-      `INSERT INTO vps_instances (organization_id, plan_id, provider_id, provider_type, provider_instance_id, label, status, ip_address, configuration)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO vps_instances (organization_id, plan_id, provider_id, provider_type, provider_instance_id, label, status, ip_address, configuration, backup_frequency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         organizationId,
@@ -2654,6 +2810,7 @@ router.post("/", async (req: Request, res: Response) => {
         status,
         ip,
         configuration,
+        validatedBackupFrequency,
       ]
     );
     const instance = insertRes.rows[0];

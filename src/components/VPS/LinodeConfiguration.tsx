@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2, Eye, EyeOff, Key, Shield, Globe, Network as NetworkIcon, AlertTriangle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Key, Shield, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CreateVPSForm } from '@/types/vps';
@@ -10,38 +10,26 @@ import { CostSummary } from './CostSummary';
 
 interface SSHKey {
   id: number;
-  name: string;
-  fingerprint: string;
-  public_key: string;
+  label: string;
+  ssh_key: string;
+  created: string;
 }
 
-interface VPC {
-  id: string;
-  name: string;
-  region: string;
-  ip_range: string;
-}
-
-interface DigitalOceanConfigurationProps {
+interface LinodeConfigurationProps {
   formData: Partial<CreateVPSForm>;
   onChange: (updates: Partial<CreateVPSForm>) => void;
   token: string;
-  region?: string; // Current selected region to filter VPCs
 }
 
-export default function DigitalOceanConfiguration({
+export default function LinodeConfiguration({
   formData,
   onChange,
   token,
-  region
-}: DigitalOceanConfigurationProps) {
+}: LinodeConfigurationProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [sshKeys, setSshKeys] = useState<SSHKey[]>([]);
-  const [vpcs, setVpcs] = useState<VPC[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
-  const [loadingVpcs, setLoadingVpcs] = useState(false);
   const [keysError, setKeysError] = useState<any>(null);
-  const [vpcsError, setVpcsError] = useState<any>(null);
   const [passwordError, setPasswordError] = useState<string>('');
 
   // Fetch SSH keys on mount
@@ -50,7 +38,7 @@ export default function DigitalOceanConfiguration({
       try {
         setLoadingKeys(true);
         setKeysError(null);
-        const response = await fetch('/api/vps/digitalocean/ssh-keys', {
+        const response = await fetch('/api/vps/linode/ssh-keys', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -74,39 +62,6 @@ export default function DigitalOceanConfiguration({
 
     fetchSSHKeys();
   }, [token]);
-
-  // Fetch VPCs when region changes
-  useEffect(() => {
-    if (!region) return;
-
-    const fetchVPCs = async () => {
-      try {
-        setLoadingVpcs(true);
-        setVpcsError(null);
-        const response = await fetch(`/api/vps/digitalocean/vpcs?region=${region}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw data.error || { message: 'Failed to fetch VPCs' };
-        }
-
-        setVpcs(data.vpcs || []);
-      } catch (err: any) {
-        console.error('Failed to fetch VPCs:', err);
-        setVpcsError(err);
-        // Don't show toast for VPCs as they're optional
-      } finally {
-        setLoadingVpcs(false);
-      }
-    };
-
-    fetchVPCs();
-  }, [token, region]);
 
   // Validate password strength
   const validatePassword = (password: string): string => {
@@ -244,7 +199,7 @@ export default function DigitalOceanConfiguration({
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  {getUserFriendlyErrorMessage(keysError, 'digitalocean')}
+                  {getUserFriendlyErrorMessage(keysError, 'linode')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   SSH keys are optional. You can continue without them.
@@ -255,7 +210,7 @@ export default function DigitalOceanConfiguration({
         ) : sshKeys.length === 0 ? (
           <div className="rounded-lg border border-dashed p-4 text-center">
             <p className="text-sm text-muted-foreground">
-              No SSH keys found. You can add SSH keys in your DigitalOcean account.
+              No SSH keys found. You can add SSH keys in the SSH Keys page.
             </p>
           </div>
         ) : (
@@ -282,10 +237,10 @@ export default function DigitalOceanConfiguration({
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">
-                      {key.name}
+                      {key.label}
                     </p>
                     <p className="text-xs text-muted-foreground font-mono truncate">
-                      {key.fingerprint}
+                      {key.ssh_key.substring(0, 50)}...
                     </p>
                   </div>
                 </div>
@@ -295,7 +250,7 @@ export default function DigitalOceanConfiguration({
         )}
       </div>
 
-      {/* DigitalOcean-specific options */}
+      {/* Linode-specific options */}
       <div className="space-y-4 pt-2 border-t">
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Shield className="h-4 w-4" />
@@ -314,102 +269,23 @@ export default function DigitalOceanConfiguration({
           />
         )}
 
-        {/* Monitoring */}
+        {/* Private IP */}
         <label className="flex items-start gap-3 cursor-pointer group">
           <input
             type="checkbox"
-            checked={formData.monitoring || false}
-            onChange={(e) => onChange({ monitoring: e.target.checked })}
+            checked={formData.privateIP || false}
+            onChange={(e) => onChange({ privateIP: e.target.checked })}
             className="mt-0.5 h-4 w-4 text-primary focus:ring-primary border rounded"
           />
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-              Enable Monitoring
+              Private IP
             </p>
             <p className="text-xs text-muted-foreground">
-              Free detailed graphs and alerting for CPU, bandwidth, and disk usage
+              Assign a private IP address for internal networking (free)
             </p>
           </div>
         </label>
-
-        {/* IPv6 */}
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={formData.ipv6 || false}
-            onChange={(e) => onChange({ ipv6: e.target.checked })}
-            className="mt-0.5 h-4 w-4 text-primary focus:ring-primary border rounded"
-          />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                Enable IPv6
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Assign an IPv6 address to your server (free)
-            </p>
-          </div>
-        </label>
-
-        {/* VPC */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <NetworkIcon className="h-4 w-4 text-muted-foreground" />
-            <Label htmlFor="vpc-select" className="text-sm font-medium text-foreground">
-              VPC Network (Optional)
-            </Label>
-          </div>
-          
-          {loadingVpcs ? (
-            <div className="flex items-center justify-center py-4 space-x-2">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Loading VPCs...</span>
-            </div>
-          ) : vpcsError ? (
-            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    {getUserFriendlyErrorMessage(vpcsError, 'digitalocean')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Default VPC will be used automatically.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <select
-              id="vpc-select"
-              value={formData.vpc_uuid || ''}
-              onChange={(e) => onChange({ vpc_uuid: e.target.value || undefined })}
-              className="w-full px-4 py-3 min-h-[48px] border rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base"
-              disabled={!region}
-            >
-              <option value="">Default VPC (Automatic)</option>
-              {vpcs.map(vpc => (
-                <option key={vpc.id} value={vpc.id}>
-                  {vpc.name} ({vpc.ip_range})
-                </option>
-              ))}
-            </select>
-          )}
-          
-          {!region && !vpcsError && (
-            <p className="text-xs text-muted-foreground">
-              Select a region first to see available VPCs
-            </p>
-          )}
-          
-          {region && vpcs.length === 0 && !loadingVpcs && !vpcsError && (
-            <p className="text-xs text-muted-foreground">
-              No custom VPCs found in this region. Default VPC will be used.
-            </p>
-          )}
-        </div>
       </div>
 
       {/* Cost Summary */}
@@ -447,25 +323,11 @@ export default function DigitalOceanConfiguration({
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Monitoring:</span>
+            <span>Private IP:</span>
             <span className="font-medium text-foreground">
-              {formData.monitoring ? 'Enabled (Free)' : 'Disabled'}
+              {formData.privateIP ? 'Enabled' : 'Disabled'}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span>IPv6:</span>
-            <span className="font-medium text-foreground">
-              {formData.ipv6 ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
-          {formData.vpc_uuid && (
-            <div className="flex justify-between">
-              <span>VPC:</span>
-              <span className="font-medium text-foreground">
-                {vpcs.find(v => v.id === formData.vpc_uuid)?.name || 'Custom VPC'}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>

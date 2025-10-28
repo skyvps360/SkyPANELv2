@@ -384,7 +384,22 @@ router.get(
   }
 );
 
-// List VPS plans
+/**
+ * GET /api/admin/vps-plans
+ * 
+ * Retrieve all VPS plans with backup pricing information for admin management.
+ * 
+ * Authentication: Admin role required
+ * 
+ * Response includes:
+ * - Plan configuration (name, provider, active status)
+ * - Base pricing from provider
+ * - Backup pricing (base + upcharge)
+ * - Backup frequency configuration (daily/weekly enabled)
+ * - Plan specifications and metadata
+ * 
+ * See: repo-docs/FLEXIBLE_BACKUP_PRICING_API.md for detailed documentation
+ */
 router.get(
   "/plans",
   authenticateToken,
@@ -392,7 +407,16 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const result = await query(
-        "SELECT * FROM vps_plans WHERE active = true ORDER BY created_at DESC"
+        `SELECT 
+          id, name, provider_id, provider_plan_id, 
+          base_price, markup_price,
+          backup_price_monthly, backup_price_hourly,
+          backup_upcharge_monthly, backup_upcharge_hourly,
+          daily_backups_enabled, weekly_backups_enabled,
+          specifications, active, created_at, updated_at
+         FROM vps_plans 
+         WHERE active = true 
+         ORDER BY created_at DESC`
       );
 
       res.json({ plans: result.rows || [] });
@@ -403,7 +427,24 @@ router.get(
   }
 );
 
-// Update VPS plan pricing/active state
+/**
+ * PUT /api/admin/vps-plans/:id
+ * 
+ * Update an existing VPS plan's backup configuration and pricing.
+ * 
+ * Authentication: Admin role required
+ * 
+ * Accepts same fields as POST endpoint for updates:
+ * - Pricing updates (base_price, markup_price)
+ * - Backup configuration (backup frequencies, upcharges)
+ * - Plan metadata (name, active status)
+ * 
+ * Validation:
+ * - Same validation rules as plan creation
+ * - Plan must exist and belong to valid provider
+ * 
+ * See: repo-docs/FLEXIBLE_BACKUP_PRICING_API.md for detailed documentation
+ */
 router.put(
   "/plans/:id",
   authenticateToken,
@@ -415,6 +456,12 @@ router.put(
     body("base_price").optional().isFloat({ min: 0 }),
     body("markup_price").optional().isFloat({ min: 0 }),
     body("active").optional().isBoolean(),
+    body("backup_price_monthly").optional().isFloat({ min: 0 }),
+    body("backup_price_hourly").optional().isFloat({ min: 0 }),
+    body("backup_upcharge_monthly").optional().isFloat({ min: 0 }),
+    body("backup_upcharge_hourly").optional().isFloat({ min: 0 }),
+    body("daily_backups_enabled").optional().isBoolean(),
+    body("weekly_backups_enabled").optional().isBoolean(),
   ],
   async (req: Request, res: Response) => {
     try {
@@ -427,8 +474,19 @@ router.put(
       const { id } = req.params;
       const updateFields: any = {};
 
-      const { name, provider_id, base_price, markup_price, active } =
-        req.body as any;
+      const { 
+        name, 
+        provider_id, 
+        base_price, 
+        markup_price, 
+        active,
+        backup_price_monthly,
+        backup_price_hourly,
+        backup_upcharge_monthly,
+        backup_upcharge_hourly,
+        daily_backups_enabled,
+        weekly_backups_enabled
+      } = req.body as any;
 
       // If provider_id is being updated, validate it exists
       if (typeof provider_id !== "undefined") {
@@ -444,12 +502,57 @@ router.put(
         updateFields.provider_id = provider_id;
       }
 
+      // Validate backup frequency configuration
+      // If both are being updated, check that at least one is enabled
+      if (typeof daily_backups_enabled !== "undefined" && typeof weekly_backups_enabled !== "undefined") {
+        if (!daily_backups_enabled && !weekly_backups_enabled) {
+          res.status(400).json({ error: "At least one backup frequency must be enabled" });
+          return;
+        }
+      } else if (typeof daily_backups_enabled !== "undefined" || typeof weekly_backups_enabled !== "undefined") {
+        // If only one is being updated, fetch current values to validate
+        const currentPlanResult = await query(
+          "SELECT daily_backups_enabled, weekly_backups_enabled FROM vps_plans WHERE id = $1",
+          [id]
+        );
+        
+        if (currentPlanResult.rows.length === 0) {
+          res.status(404).json({ error: "Plan not found" });
+          return;
+        }
+        
+        const currentPlan = currentPlanResult.rows[0];
+        const newDailyEnabled = typeof daily_backups_enabled !== "undefined" 
+          ? daily_backups_enabled 
+          : currentPlan.daily_backups_enabled;
+        const newWeeklyEnabled = typeof weekly_backups_enabled !== "undefined" 
+          ? weekly_backups_enabled 
+          : currentPlan.weekly_backups_enabled;
+        
+        if (!newDailyEnabled && !newWeeklyEnabled) {
+          res.status(400).json({ error: "At least one backup frequency must be enabled" });
+          return;
+        }
+      }
+
       if (typeof name !== "undefined") updateFields.name = name;
       if (typeof base_price !== "undefined")
         updateFields.base_price = base_price;
       if (typeof markup_price !== "undefined")
         updateFields.markup_price = markup_price;
       if (typeof active !== "undefined") updateFields.active = active;
+      if (typeof backup_price_monthly !== "undefined")
+        updateFields.backup_price_monthly = backup_price_monthly;
+      if (typeof backup_price_hourly !== "undefined")
+        updateFields.backup_price_hourly = backup_price_hourly;
+      if (typeof backup_upcharge_monthly !== "undefined")
+        updateFields.backup_upcharge_monthly = backup_upcharge_monthly;
+      if (typeof backup_upcharge_hourly !== "undefined")
+        updateFields.backup_upcharge_hourly = backup_upcharge_hourly;
+      if (typeof daily_backups_enabled !== "undefined")
+        updateFields.daily_backups_enabled = daily_backups_enabled;
+      if (typeof weekly_backups_enabled !== "undefined")
+        updateFields.weekly_backups_enabled = weekly_backups_enabled;
       updateFields.updated_at = new Date().toISOString();
 
       const setClauses: string[] = [];
@@ -506,7 +609,33 @@ router.delete(
   }
 );
 
-// Create a new VPS plan
+/**
+ * POST /api/admin/vps-plans
+ * 
+ * Create a new VPS plan with backup configuration.
+ * 
+ * Authentication: Admin role required
+ * 
+ * Required fields:
+ * - name: Plan display name
+ * - provider_id: UUID of the service provider
+ * - provider_plan_id: Provider's plan identifier
+ * - base_price: Base monthly cost from provider
+ * - markup_price: Admin markup on base price
+ * 
+ * Optional backup fields:
+ * - backup_price_monthly/hourly: Base backup cost from provider
+ * - backup_upcharge_monthly/hourly: Admin markup on backup cost
+ * - daily_backups_enabled: Allow daily backups (DigitalOcean only)
+ * - weekly_backups_enabled: Allow weekly backups (default: true)
+ * 
+ * Validation:
+ * - At least one backup frequency must be enabled if backups offered
+ * - Provider must exist and be active
+ * - Hourly prices should equal monthly / 730
+ * 
+ * See: repo-docs/FLEXIBLE_BACKUP_PRICING_API.md for detailed documentation
+ */
 router.post(
   "/plans",
   authenticateToken,
@@ -536,6 +665,12 @@ router.post(
         markup_price,
         active = true,
         specifications = {},
+        backup_price_monthly = 0,
+        backup_price_hourly = 0,
+        backup_upcharge_monthly = 0,
+        backup_upcharge_hourly = 0,
+        daily_backups_enabled = false,
+        weekly_backups_enabled = true,
       } = req.body as any;
 
       // Ensure provider exists
@@ -549,16 +684,35 @@ router.post(
         return;
       }
 
+      // Validate backup frequency configuration
+      if (!daily_backups_enabled && !weekly_backups_enabled) {
+        res.status(400).json({ error: "At least one backup frequency must be enabled" });
+        return;
+      }
+
       const now = new Date().toISOString();
       const insertResult = await query(
-        `INSERT INTO vps_plans (name, provider_id, provider_plan_id, base_price, markup_price, specifications, active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        `INSERT INTO vps_plans (
+          name, provider_id, provider_plan_id, base_price, markup_price,
+          backup_price_monthly, backup_price_hourly,
+          backup_upcharge_monthly, backup_upcharge_hourly,
+          daily_backups_enabled, weekly_backups_enabled,
+          specifications, active, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+         RETURNING *`,
         [
           name,
           provider_id,
           provider_plan_id,
           base_price,
           markup_price,
+          backup_price_monthly,
+          backup_price_hourly,
+          backup_upcharge_monthly,
+          backup_upcharge_hourly,
+          daily_backups_enabled,
+          weekly_backups_enabled,
           specifications,
           active,
           now,
@@ -1879,7 +2033,16 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const plans = await linodeService.getLinodeTypes();
-      res.json({ plans });
+      
+      // Linode API includes backup pricing in the response
+      // Map it to our format for consistency
+      const plansWithBackupPricing = plans.map((plan: any) => ({
+        ...plan,
+        backup_price_monthly: plan.addons?.backups?.price?.monthly || 0,
+        backup_price_hourly: plan.addons?.backups?.price?.hourly || 0,
+      }));
+      
+      res.json({ plans: plansWithBackupPricing });
     } catch (err: any) {
       console.error("Error fetching upstream provider plans:", err);
       res.status(500).json({
@@ -1952,7 +2115,19 @@ router.get(
       const sizes = await digitalOceanService.getDigitalOceanSizes(
         providerToken.token
       );
-      res.json({ sizes });
+      
+      // DigitalOcean backup pricing:
+      // - Weekly backups: 20% of droplet cost (4 weeks retention)
+      // - Daily backups: 30% of droplet cost (7 days retention)
+      // We default to weekly (20%) as it's the most common choice
+      const sizesWithBackupPricing = sizes.map((size: any) => ({
+        ...size,
+        backup_price_monthly: size.price_monthly * 0.20, // 20% for weekly backups (default)
+        backup_price_hourly: size.price_hourly * 0.20,
+        // Note: Admins can manually adjust to 30% for daily backups if needed
+      }));
+      
+      res.json({ sizes: sizesWithBackupPricing });
     } catch (err: any) {
       console.error("Error fetching DigitalOcean sizes:", err);
       res.status(500).json({

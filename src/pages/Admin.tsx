@@ -245,6 +245,12 @@ interface VPSPlan {
   provider_plan_id: string;
   base_price: number;
   markup_price: number;
+  backup_price_monthly?: number;
+  backup_price_hourly?: number;
+  backup_upcharge_monthly?: number;
+  backup_upcharge_hourly?: number;
+  daily_backups_enabled?: boolean;
+  weekly_backups_enabled?: boolean;
   specifications: any;
   active: boolean;
   created_at: string;
@@ -377,6 +383,8 @@ interface LinodeType {
     hourly: number;
     monthly: number;
   };
+  backup_price_monthly?: number;
+  backup_price_hourly?: number;
   type_class: string;
 }
 
@@ -513,10 +521,10 @@ const SortableProviderRow: React.FC<SortableProviderRowProps> = ({
         )}
         {(!provider.validation_status ||
           provider.validation_status === "unknown") && (
-          <Badge variant="secondary" className="gap-1">
-            <HelpCircle className="h-3 w-3" /> Unknown
-          </Badge>
-        )}
+            <Badge variant="secondary" className="gap-1">
+              <HelpCircle className="h-3 w-3" /> Unknown
+            </Badge>
+          )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {provider.last_api_call ? (
@@ -659,6 +667,12 @@ const Admin: React.FC = () => {
     selectedType: "",
     selectedRegion: "",
     markupPrice: 0,
+    backupPriceMonthly: 0,
+    backupPriceHourly: 0,
+    backupUpchargeMonthly: 0,
+    backupUpchargeHourly: 0,
+    dailyBackupsEnabled: false,
+    weeklyBackupsEnabled: true,
     active: true,
   });
   const [planTypeFilter, setPlanTypeFilter] = useState<string>("all");
@@ -892,8 +906,8 @@ const Admin: React.FC = () => {
     );
     const list =
       linodeProvider &&
-      linodeProvider.configuration &&
-      Array.isArray(linodeProvider.configuration.allowed_regions)
+        linodeProvider.configuration &&
+        Array.isArray(linodeProvider.configuration.allowed_regions)
         ? (linodeProvider.configuration.allowed_regions as string[])
         : [];
     return list;
@@ -910,7 +924,7 @@ const Admin: React.FC = () => {
       // For DigitalOcean, check its configuration for allowed regions
       const doAllowedRegions =
         selectedProvider.configuration &&
-        Array.isArray(selectedProvider.configuration.allowed_regions)
+          Array.isArray(selectedProvider.configuration.allowed_regions)
           ? (selectedProvider.configuration.allowed_regions as string[])
           : [];
 
@@ -978,9 +992,8 @@ const Admin: React.FC = () => {
     return availableStackscripts
       .filter((script) => {
         if (!searchTerm) return true;
-        const haystack = `${script.label} ${
-          script.description ?? ""
-        }`.toLowerCase();
+        const haystack = `${script.label} ${script.description ?? ""
+          }`.toLowerCase();
         return haystack.includes(searchTerm);
       })
       .sort((a, b) => a.label.localeCompare(b.label));
@@ -1019,7 +1032,7 @@ const Admin: React.FC = () => {
       const matchesStatus =
         containerStatusFilter === "all" ||
         (instance.status ?? "").toLowerCase() ===
-          containerStatusFilter.toLowerCase();
+        containerStatusFilter.toLowerCase();
       if (!matchesStatus) {
         return false;
       }
@@ -1060,7 +1073,7 @@ const Admin: React.FC = () => {
       const matchesStatus =
         serverStatusFilter === "all" ||
         (server.status ?? "").toLowerCase() ===
-          serverStatusFilter.toLowerCase();
+        serverStatusFilter.toLowerCase();
       if (!matchesStatus) {
         return false;
       }
@@ -1114,12 +1127,12 @@ const Admin: React.FC = () => {
 
       const orgText = Array.isArray(user.organizations)
         ? user.organizations
-            .map(
-              (org) =>
-                `${org.organizationName} ${org.organizationSlug} ${org.role}`
-            )
-            .join(" ")
-            .toLowerCase()
+          .map(
+            (org) =>
+              `${org.organizationName} ${org.organizationSlug} ${org.role}`
+          )
+          .join(" ")
+          .toLowerCase()
         : "";
 
       const haystack = `${user.name} ${user.email} ${orgText}`.toLowerCase();
@@ -1646,6 +1659,8 @@ const Admin: React.FC = () => {
             hourly: size.price_hourly,
             monthly: size.price_monthly,
           },
+          backup_price_monthly: size.backup_price_monthly || 0,
+          backup_price_hourly: size.backup_price_hourly || 0,
           type_class: typeClass,
         };
       });
@@ -1781,17 +1796,17 @@ const Admin: React.FC = () => {
       if (!res.ok) throw new Error(data.error || "Failed to load servers");
       const rows: AdminServerInstance[] = Array.isArray(data.servers)
         ? data.servers.map((server: any) => ({
-            ...server,
-            configuration:
-              server.configuration && typeof server.configuration === "object"
-                ? server.configuration
-                : null,
-            plan_specifications:
-              server.plan_specifications &&
+          ...server,
+          configuration:
+            server.configuration && typeof server.configuration === "object"
+              ? server.configuration
+              : null,
+          plan_specifications:
+            server.plan_specifications &&
               typeof server.plan_specifications === "object"
-                ? server.plan_specifications
-                : null,
-          }))
+              ? server.plan_specifications
+              : null,
+        }))
         : [];
       setServers(rows);
     } catch (e: any) {
@@ -1904,6 +1919,22 @@ const Admin: React.FC = () => {
 
   const savePlan = async () => {
     if (!editPlanId) return;
+    
+    // Find the plan being edited to get its provider
+    const planBeingEdited = plans.find(p => p.id === editPlanId);
+    const planProvider = planBeingEdited ? providers.find(p => p.id === planBeingEdited.provider_id) : null;
+    
+    // Validate backup frequency for DigitalOcean
+    if (planProvider?.type === 'digitalocean') {
+      const weeklyEnabled = editPlan.weekly_backups_enabled ?? planBeingEdited?.weekly_backups_enabled ?? true;
+      const dailyEnabled = editPlan.daily_backups_enabled ?? planBeingEdited?.daily_backups_enabled ?? false;
+      
+      if (!weeklyEnabled && !dailyEnabled) {
+        toast.error("Please select at least one backup frequency option");
+        return;
+      }
+    }
+    
     try {
       const res = await fetch(`${API_BASE_URL}/admin/plans/${editPlanId}`, {
         method: "PUT",
@@ -1912,6 +1943,12 @@ const Admin: React.FC = () => {
           name: editPlan.name,
           base_price: editPlan.base_price,
           markup_price: editPlan.markup_price,
+          backup_price_monthly: editPlan.backup_price_monthly || 0,
+          backup_price_hourly: editPlan.backup_price_hourly || 0,
+          backup_upcharge_monthly: editPlan.backup_upcharge_monthly || 0,
+          backup_upcharge_hourly: editPlan.backup_upcharge_hourly || 0,
+          daily_backups_enabled: editPlan.daily_backups_enabled,
+          weekly_backups_enabled: editPlan.weekly_backups_enabled,
           active: editPlan.active,
         }),
       });
@@ -1955,6 +1992,14 @@ const Admin: React.FC = () => {
       return;
     }
 
+    // Validate backup frequency for DigitalOcean
+    if (selectedProvider.type === 'digitalocean') {
+      if (!newVPSPlan.dailyBackupsEnabled && !newVPSPlan.weeklyBackupsEnabled) {
+        toast.error("Please select at least one backup frequency option");
+        return;
+      }
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/admin/plans`, {
         method: "POST",
@@ -1968,6 +2013,12 @@ const Admin: React.FC = () => {
           provider_plan_id: selectedType.id,
           base_price: selectedType.price.monthly,
           markup_price: newVPSPlan.markupPrice,
+          backup_price_monthly: newVPSPlan.backupPriceMonthly || selectedType.backup_price_monthly || 0,
+          backup_price_hourly: newVPSPlan.backupPriceHourly || selectedType.backup_price_hourly || 0,
+          backup_upcharge_monthly: newVPSPlan.backupUpchargeMonthly || 0,
+          backup_upcharge_hourly: newVPSPlan.backupUpchargeHourly || 0,
+          daily_backups_enabled: selectedProvider.type === 'digitalocean' ? newVPSPlan.dailyBackupsEnabled : false,
+          weekly_backups_enabled: selectedProvider.type === 'digitalocean' ? newVPSPlan.weeklyBackupsEnabled : true,
           specifications: {
             vcpus: selectedType.vcpus,
             memory: selectedType.memory,
@@ -1988,6 +2039,12 @@ const Admin: React.FC = () => {
         selectedType: "",
         selectedRegion: "",
         markupPrice: 0,
+        backupPriceMonthly: 0,
+        backupPriceHourly: 0,
+        backupUpchargeMonthly: 0,
+        backupUpchargeHourly: 0,
+        dailyBackupsEnabled: false,
+        weeklyBackupsEnabled: true,
         active: true,
       });
       setShowAddVPSPlan(false);
@@ -2206,11 +2263,11 @@ const Admin: React.FC = () => {
         providers.map((p) =>
           p.id === providerId
             ? {
-                ...p,
-                validation_status: data.validation_status,
-                validation_message: data.validation_message,
-                last_api_call: data.last_api_call,
-              }
+              ...p,
+              validation_status: data.validation_status,
+              validation_message: data.validation_message,
+              last_api_call: data.last_api_call,
+            }
             : p
         )
       );
@@ -2575,11 +2632,10 @@ const Admin: React.FC = () => {
                           type="button"
                           onClick={() => handlePresetSelection(preset)}
                           disabled={disabled}
-                          className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                            isActive
-                              ? "border-primary ring-2 ring-primary ring-opacity-20"
-                              : "border-border hover:border-primary"
-                          } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                          className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive
+                            ? "border-primary ring-2 ring-primary ring-opacity-20"
+                            : "border-border hover:border-primary"
+                            } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
@@ -2594,8 +2650,8 @@ const Admin: React.FC = () => {
                               {isSaving
                                 ? "Saving..."
                                 : isActive
-                                ? "Active"
-                                : "Preview"}
+                                  ? "Active"
+                                  : "Preview"}
                             </Badge>
                           </div>
                           <div className="mt-4 flex gap-4">
@@ -2868,7 +2924,7 @@ const Admin: React.FC = () => {
                       <ScrollArea className="flex-1">
                         <div className="space-y-4 px-6 pb-6">
                           {selectedTicket.messages &&
-                          selectedTicket.messages.length > 0 ? (
+                            selectedTicket.messages.length > 0 ? (
                             selectedTicket.messages.map((m) => (
                               <div
                                 key={m.id}
@@ -3017,6 +3073,8 @@ const Admin: React.FC = () => {
                           Base Price
                         </TableHead>
                         <TableHead className="min-w-[8rem]">Markup</TableHead>
+                        <TableHead className="min-w-[10rem]">Backup Price</TableHead>
+                        <TableHead className="min-w-[10rem]">Backup Frequencies</TableHead>
                         <TableHead className="w-32">Active</TableHead>
                         <TableHead className="w-36 text-right">
                           Actions
@@ -3027,7 +3085,7 @@ const Admin: React.FC = () => {
                       {filteredPlans.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={7}
+                            colSpan={9}
                             className="py-10 text-center text-muted-foreground"
                           >
                             {planProviderFilter === "all"
@@ -3058,7 +3116,7 @@ const Admin: React.FC = () => {
                               <React.Fragment key={providerId}>
                                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                                   <TableCell
-                                    colSpan={7}
+                                    colSpan={9}
                                     className="py-3 font-semibold"
                                   >
                                     <div className="flex items-center justify-between">
@@ -3228,6 +3286,159 @@ const Admin: React.FC = () => {
                                       </TableCell>
                                       <TableCell>
                                         {isEditing ? (
+                                          <div className="space-y-2">
+                                            <div className="text-xs text-muted-foreground mb-1">Base Price</div>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              placeholder="Monthly"
+                                              value={
+                                                (editPlan.backup_price_monthly as
+                                                  | number
+                                                  | undefined) ??
+                                                plan.backup_price_monthly ?? 0
+                                              }
+                                              onChange={(e) =>
+                                                setEditPlan((prev) => ({
+                                                  ...prev,
+                                                  backup_price_monthly: parseFloat(
+                                                    e.target.value
+                                                  ) || 0,
+                                                }))
+                                              }
+                                              className="max-w-[8rem]"
+                                            />
+                                            <Input
+                                              type="number"
+                                              step="0.000001"
+                                              placeholder="Hourly"
+                                              value={
+                                                (editPlan.backup_price_hourly as
+                                                  | number
+                                                  | undefined) ??
+                                                plan.backup_price_hourly ?? 0
+                                              }
+                                              onChange={(e) =>
+                                                setEditPlan((prev) => ({
+                                                  ...prev,
+                                                  backup_price_hourly: parseFloat(
+                                                    e.target.value
+                                                  ) || 0,
+                                                }))
+                                              }
+                                              className="max-w-[8rem]"
+                                            />
+                                            <div className="text-xs text-muted-foreground mt-2 mb-1">Upcharge</div>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              placeholder="Monthly upcharge"
+                                              value={
+                                                (editPlan.backup_upcharge_monthly as
+                                                  | number
+                                                  | undefined) ??
+                                                plan.backup_upcharge_monthly ?? 0
+                                              }
+                                              onChange={(e) => {
+                                                const monthlyUpcharge = parseFloat(e.target.value) || 0;
+                                                setEditPlan((prev) => ({
+                                                  ...prev,
+                                                  backup_upcharge_monthly: monthlyUpcharge,
+                                                  backup_upcharge_hourly: monthlyUpcharge / 730,
+                                                }));
+                                              }}
+                                              className="max-w-[8rem]"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className="text-sm">
+                                            {(Number(plan.backup_price_monthly) || 0) > 0 || (Number(plan.backup_upcharge_monthly) || 0) > 0 ? (
+                                              <>
+                                                <div className="text-muted-foreground">
+                                                  ${((Number(plan.backup_price_monthly) || 0) + (Number(plan.backup_upcharge_monthly) || 0)).toFixed(2)}/mo
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Base: ${(Number(plan.backup_price_monthly) || 0).toFixed(2)} + Upcharge: ${(Number(plan.backup_upcharge_monthly) || 0).toFixed(2)}
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <span className="text-xs text-muted-foreground">
+                                                Not configured
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {isEditing && planProvider?.type === 'digitalocean' ? (
+                                          <div className="space-y-2">
+                                            <div className="flex items-center space-x-2">
+                                              <Checkbox
+                                                id={`edit-weekly-${plan.id}`}
+                                                checked={
+                                                  (editPlan.weekly_backups_enabled as boolean | undefined) ??
+                                                  plan.weekly_backups_enabled ??
+                                                  true
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                  setEditPlan((prev) => ({
+                                                    ...prev,
+                                                    weekly_backups_enabled: !!checked,
+                                                  }))
+                                                }
+                                              />
+                                              <Label htmlFor={`edit-weekly-${plan.id}`} className="text-xs font-normal cursor-pointer">
+                                                Weekly
+                                              </Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                              <Checkbox
+                                                id={`edit-daily-${plan.id}`}
+                                                checked={
+                                                  (editPlan.daily_backups_enabled as boolean | undefined) ??
+                                                  plan.daily_backups_enabled ??
+                                                  false
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                  setEditPlan((prev) => ({
+                                                    ...prev,
+                                                    daily_backups_enabled: !!checked,
+                                                  }))
+                                                }
+                                              />
+                                              <Label htmlFor={`edit-daily-${plan.id}`} className="text-xs font-normal cursor-pointer">
+                                                Daily
+                                              </Label>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="text-sm">
+                                            {planProvider?.type === 'digitalocean' ? (
+                                              <div className="flex flex-col gap-1">
+                                                {plan.weekly_backups_enabled && (
+                                                  <Badge variant="outline" className="w-fit text-xs">
+                                                    Weekly
+                                                  </Badge>
+                                                )}
+                                                {plan.daily_backups_enabled && (
+                                                  <Badge variant="outline" className="w-fit text-xs">
+                                                    Daily
+                                                  </Badge>
+                                                )}
+                                                {!plan.weekly_backups_enabled && !plan.daily_backups_enabled && (
+                                                  <span className="text-xs text-muted-foreground">None</span>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-xs text-muted-foreground">
+                                                Weekly (default)
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {isEditing ? (
                                           <div className="flex items-center gap-2">
                                             <Switch
                                               checked={
@@ -3296,6 +3507,18 @@ const Admin: React.FC = () => {
                                                   base_price: plan.base_price,
                                                   markup_price:
                                                     plan.markup_price,
+                                                  backup_price_monthly:
+                                                    plan.backup_price_monthly || 0,
+                                                  backup_price_hourly:
+                                                    plan.backup_price_hourly || 0,
+                                                  backup_upcharge_monthly:
+                                                    plan.backup_upcharge_monthly || 0,
+                                                  backup_upcharge_hourly:
+                                                    plan.backup_upcharge_hourly || 0,
+                                                  daily_backups_enabled:
+                                                    plan.daily_backups_enabled ?? false,
+                                                  weekly_backups_enabled:
+                                                    plan.weekly_backups_enabled ?? true,
                                                   active: plan.active,
                                                 });
                                               }}
@@ -3342,6 +3565,12 @@ const Admin: React.FC = () => {
                     selectedType: "",
                     selectedRegion: "",
                     markupPrice: 0,
+                    backupPriceMonthly: 0,
+                    backupPriceHourly: 0,
+                    backupUpchargeMonthly: 0,
+                    backupUpchargeHourly: 0,
+                    dailyBackupsEnabled: false,
+                    weeklyBackupsEnabled: true,
                     active: true,
                   });
                 }
@@ -3492,7 +3721,7 @@ const Admin: React.FC = () => {
                       </SelectContent>
                     </Select>
                     {filteredPlanTypes.length === 0 &&
-                    planTypeFilter !== "all" ? (
+                      planTypeFilter !== "all" ? (
                       <p className="text-xs text-muted-foreground">
                         No plans in this category. Try "All Types".
                       </p>
@@ -3502,12 +3731,17 @@ const Admin: React.FC = () => {
                     <Label>Plan type</Label>
                     <Select
                       value={newVPSPlan.selectedType}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        // Find the selected type to get backup pricing
+                        const selectedType = linodeTypes.find(t => t.id === value);
                         setNewVPSPlan((prev) => ({
                           ...prev,
                           selectedType: value,
-                        }))
-                      }
+                          // Auto-populate backup pricing from provider defaults
+                          backupPriceMonthly: selectedType?.backup_price_monthly || 0,
+                          backupPriceHourly: selectedType?.backup_price_hourly || 0,
+                        }));
+                      }}
                       disabled={!newVPSPlan.selectedProviderId}
                     >
                       <SelectTrigger>
@@ -3580,6 +3814,157 @@ const Admin: React.FC = () => {
                       }
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <Label>Base Backup Price (from provider)</Label>
+                    <Input
+                      id="backup-price-monthly"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      placeholder={(() => {
+                        const selectedType = linodeTypes.find(t => t.id === newVPSPlan.selectedType);
+                        return selectedType?.backup_price_monthly
+                          ? `Default: $${(Number(selectedType.backup_price_monthly) || 0).toFixed(2)}`
+                          : "0.00";
+                      })()}
+                      value={newVPSPlan.backupPriceMonthly || ""}
+                      onChange={(e) =>
+                        setNewVPSPlan((prev) => ({
+                          ...prev,
+                          backupPriceMonthly: Number(e.target.value) || 0,
+                        }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {(() => {
+                        const selectedType = linodeTypes.find(t => t.id === newVPSPlan.selectedType);
+                        const selectedProvider = providers.find(p => p.id === newVPSPlan.selectedProviderId);
+                        
+                        if (selectedType?.backup_price_monthly && Number(selectedType.backup_price_monthly) > 0) {
+                          if (selectedProvider?.type === 'digitalocean') {
+                            return `Auto-filled: $${(Number(selectedType.backup_price_monthly) || 0).toFixed(2)}/mo (Weekly backups - 20%). For daily backups (30%), multiply by 1.5`;
+                          }
+                          return `Auto-filled from provider: $${(Number(selectedType.backup_price_monthly) || 0).toFixed(2)}/mo (Weekly backups)`;
+                        }
+                        return "Monthly cost for backup service (auto-filled from provider)";
+                      })()}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="backup-price-hourly">Backup Price - Hourly (USD)</Label>
+                    <Input
+                      id="backup-price-hourly"
+                      type="number"
+                      step="0.000001"
+                      min={0}
+                      placeholder={(() => {
+                        const selectedType = linodeTypes.find(t => t.id === newVPSPlan.selectedType);
+                        return selectedType?.backup_price_hourly
+                          ? `Default: $${(Number(selectedType.backup_price_hourly) || 0).toFixed(6)}`
+                          : "0.000000";
+                      })()}
+                      value={newVPSPlan.backupPriceHourly || ""}
+                      onChange={(e) =>
+                        setNewVPSPlan((prev) => ({
+                          ...prev,
+                          backupPriceHourly: Number(e.target.value) || 0,
+                        }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {(() => {
+                        const selectedType = linodeTypes.find(t => t.id === newVPSPlan.selectedType);
+                        if (selectedType?.backup_price_hourly && Number(selectedType.backup_price_hourly) > 0) {
+                          return `Auto-filled from provider: $${(Number(selectedType.backup_price_hourly) || 0).toFixed(6)}/hr`;
+                        }
+                        return "Hourly cost for backup service (auto-filled from provider)";
+                      })()}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="backup-upcharge-monthly">Backup Upcharge - Monthly (USD)</Label>
+                    <Input
+                      id="backup-upcharge-monthly"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      placeholder="0.00"
+                      value={newVPSPlan.backupUpchargeMonthly || ""}
+                      onChange={(e) => {
+                        const monthlyUpcharge = Number(e.target.value) || 0;
+                        setNewVPSPlan((prev) => ({
+                          ...prev,
+                          backupUpchargeMonthly: monthlyUpcharge,
+                          backupUpchargeHourly: monthlyUpcharge / 730,
+                        }));
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Additional markup you charge for backups (hourly: ${((Number(newVPSPlan.backupUpchargeMonthly) || 0) / 730).toFixed(6)}/hr)
+                    </p>
+                  </div>
+                  {(() => {
+                    const selectedProvider = providers.find(p => p.id === newVPSPlan.selectedProviderId);
+                    const selectedType = linodeTypes.find(t => t.id === newVPSPlan.selectedType);
+                    const baseBackupPrice = newVPSPlan.backupPriceMonthly || 0;
+                    const upcharge = newVPSPlan.backupUpchargeMonthly || 0;
+                    const totalWeekly = baseBackupPrice + upcharge;
+                    const totalDaily = totalWeekly * 1.5;
+
+                    if (selectedProvider?.type === 'digitalocean' && selectedType) {
+                      return (
+                        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                          <Label className="text-sm font-medium">Available Backup Frequencies</Label>
+                          <div className="space-y-2">
+                            <div className="flex items-start space-x-2">
+                              <Checkbox
+                                id="weekly-backups"
+                                checked={newVPSPlan.weeklyBackupsEnabled}
+                                onCheckedChange={(checked) =>
+                                  setNewVPSPlan((prev) => ({
+                                    ...prev,
+                                    weeklyBackupsEnabled: !!checked,
+                                  }))
+                                }
+                              />
+                              <div className="grid gap-1">
+                                <Label htmlFor="weekly-backups" className="font-normal cursor-pointer">
+                                  Weekly backups
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Base price: ${totalWeekly.toFixed(2)}/mo
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start space-x-2">
+                              <Checkbox
+                                id="daily-backups"
+                                checked={newVPSPlan.dailyBackupsEnabled}
+                                onCheckedChange={(checked) =>
+                                  setNewVPSPlan((prev) => ({
+                                    ...prev,
+                                    dailyBackupsEnabled: !!checked,
+                                  }))
+                                }
+                              />
+                              <div className="grid gap-1">
+                                <Label htmlFor="daily-backups" className="font-normal cursor-pointer">
+                                  Daily backups (+50% of weekly price)
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Total price: ${totalDaily.toFixed(2)}/mo
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Select which backup frequencies users can choose from. At least one must be selected.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
                     <div>
                       <p className="text-sm font-medium text-foreground">
@@ -3609,6 +3994,12 @@ const Admin: React.FC = () => {
                         selectedType: "",
                         selectedRegion: "",
                         markupPrice: 0,
+                        backupPriceMonthly: 0,
+                        backupPriceHourly: 0,
+                        backupUpchargeMonthly: 0,
+                        backupUpchargeHourly: 0,
+                        dailyBackupsEnabled: false,
+                        weeklyBackupsEnabled: true,
                         active: true,
                       });
                     }}
@@ -3850,7 +4241,7 @@ const Admin: React.FC = () => {
                                 className={cn(
                                   "border-slate-400/30 bg-slate-400/10 text-slate-300 transition-all duration-200",
                                   user.role === "admin" &&
-                                    "border-red-400/30 bg-red-400/10 text-red-400"
+                                  "border-red-400/30 bg-red-400/10 text-red-400"
                                 )}
                               >
                                 {user.role.charAt(0).toUpperCase() +
@@ -3859,7 +4250,7 @@ const Admin: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               {Array.isArray(user.organizations) &&
-                              user.organizations.length > 0 ? (
+                                user.organizations.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                   {user.organizations.map((org, orgIndex) => (
                                     <Badge
@@ -3870,9 +4261,8 @@ const Admin: React.FC = () => {
                                         "animate-in zoom-in-95 duration-200"
                                       )}
                                       style={{
-                                        animationDelay: `${
-                                          index * 50 + orgIndex * 100
-                                        }ms`,
+                                        animationDelay: `${index * 50 + orgIndex * 100
+                                          }ms`,
                                       }}
                                     >
                                       <span>
@@ -4015,15 +4405,13 @@ const Admin: React.FC = () => {
                                 type="button"
                                 onClick={() => handlePresetSelection(preset)}
                                 disabled={disabled}
-                                className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                                  isActive
-                                    ? "border-primary ring-2 ring-primary ring-opacity-20"
-                                    : "border-border hover:border-primary"
-                                } ${
-                                  disabled
+                                className={`relative w-full rounded-lg border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive
+                                  ? "border-primary ring-2 ring-primary ring-opacity-20"
+                                  : "border-border hover:border-primary"
+                                  } ${disabled
                                     ? "cursor-not-allowed opacity-60"
                                     : ""
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-start justify-between gap-4">
                                   <div>
@@ -4040,8 +4428,8 @@ const Admin: React.FC = () => {
                                     {isSaving
                                       ? "Saving..."
                                       : isActive
-                                      ? "Active"
-                                      : "Preview"}
+                                        ? "Active"
+                                        : "Preview"}
                                   </Badge>
                                 </div>
                                 <div className="mt-4 flex gap-4">
@@ -4312,8 +4700,8 @@ const Admin: React.FC = () => {
                                 {savingStackscriptId === script.id
                                   ? "Saving…"
                                   : isNew
-                                  ? "Save & Enable"
-                                  : "Save changes"}
+                                    ? "Save & Enable"
+                                    : "Save changes"}
                               </Button>
                             </div>
                           </div>
@@ -4868,11 +5256,11 @@ const Admin: React.FC = () => {
                         filteredServers.map((server) => {
                           const specRecord =
                             server.plan_specifications &&
-                            typeof server.plan_specifications === "object"
+                              typeof server.plan_specifications === "object"
                               ? (server.plan_specifications as Record<
-                                  string,
-                                  unknown
-                                >)
+                                string,
+                                unknown
+                              >)
                               : null;
                           const readNumber = (key: string) => {
                             if (!specRecord) return undefined;
@@ -4915,11 +5303,11 @@ const Admin: React.FC = () => {
                             specParts.length > 0 ? specParts.join(" • ") : "—";
                           const configurationRecord =
                             server.configuration &&
-                            typeof server.configuration === "object"
+                              typeof server.configuration === "object"
                               ? (server.configuration as Record<
-                                  string,
-                                  unknown
-                                >)
+                                string,
+                                unknown
+                              >)
                               : null;
                           const regionValue = configurationRecord
                             ? configurationRecord["region"]
@@ -5209,7 +5597,7 @@ const Admin: React.FC = () => {
                                       <TableCell className="text-sm">
                                         {String(
                                           server.configuration?.region ||
-                                            "Unknown"
+                                          "Unknown"
                                         )}
                                       </TableCell>
                                       <TableCell>
@@ -5424,8 +5812,8 @@ const Admin: React.FC = () => {
                         newProvider.type === "digitalocean"
                           ? "dop_v1_..."
                           : newProvider.type === "linode"
-                          ? "Enter Linode API token"
-                          : "Enter API credentials"
+                            ? "Enter Linode API token"
+                            : "Enter API credentials"
                       }
                       value={newProvider.apiKey}
                       onChange={(e) =>

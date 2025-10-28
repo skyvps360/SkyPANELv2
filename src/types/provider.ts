@@ -26,6 +26,15 @@ export interface ProviderPlan {
     hourly: number;
     monthly: number;
   };
+  backup_price?: {
+    hourly: number;
+    monthly: number;
+    // DigitalOcean-specific: separate pricing for daily vs weekly
+    hourly_weekly?: number;
+    monthly_weekly?: number;
+    hourly_daily?: number;
+    monthly_daily?: number;
+  };
   regions: string[];
 }
 

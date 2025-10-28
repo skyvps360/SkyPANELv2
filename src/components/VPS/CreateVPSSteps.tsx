@@ -11,6 +11,7 @@ import type { ProviderType } from "@/types/provider";
 import LazyOSSelection from "@/components/VPS/LazyOSSelection";
 import LazyDeploymentSelection from "@/components/VPS/LazyDeploymentSelection";
 import LazyStackScriptConfig from "@/components/VPS/LazyStackScriptConfig";
+import LinodeConfiguration from "@/components/VPS/LinodeConfiguration";
 
 // DigitalOcean components
 import DigitalOceanMarketplace from "@/components/VPS/DigitalOceanMarketplace";
@@ -227,8 +228,16 @@ export const CreateVPSSteps: React.FC<CreateVPSStepsProps> = ({
         </div>
       );
     } else {
-      // Linode: Standard configuration (handled in parent for now)
-      return null;
+      // Linode: Configuration with SSH keys
+      return (
+        <div className="space-y-4">
+          <LinodeConfiguration
+            token={token}
+            formData={formData}
+            onChange={onFormChange}
+          />
+        </div>
+      );
     }
   }
 

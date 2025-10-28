@@ -359,4 +359,132 @@ router.post(
   }
 );
 
+/**
+ * Create invoice from VPS billing cycles with itemized backup costs
+ */
+router.post(
+  '/from-billing-cycles',
+  [
+    queryValidator('startDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Start date must be a valid ISO 8601 date'),
+    queryValidator('endDate')
+      .optional()
+      .isISO8601()
+      .withMessage('End date must be a valid ISO 8601 date'),
+  ],
+  requireOrganization,
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
+      const organizationId = (req as AuthenticatedRequest).user.organizationId;
+      const invoiceNumber = `INV-VPS-${Date.now()}`;
+
+      // Get date range from query params or default to last 30 days
+      const endDate = req.query.endDate 
+        ? new Date(req.query.endDate as string) 
+        : new Date();
+      const startDate = req.query.startDate 
+        ? new Date(req.query.startDate as string) 
+        : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Get billing cycles for the period
+      const result = await query(`
+        SELECT 
+          bc.id,
+          bc.vps_instance_id,
+          bc.billing_period_start,
+          bc.billing_period_end,
+          bc.total_amount,
+          bc.metadata,
+          vi.label as vps_label
+        FROM vps_billing_cycles bc
+        JOIN vps_instances vi ON vi.id = bc.vps_instance_id
+        WHERE bc.organization_id = $1
+          AND bc.status = 'billed'
+          AND bc.created_at >= $2
+          AND bc.created_at <= $3
+        ORDER BY bc.created_at DESC
+      `, [organizationId, startDate, endDate]);
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No billing cycles found for the specified period',
+        });
+      }
+
+      // Parse billing cycles with backup information
+      const billingCycles = result.rows.map(row => {
+        const metadata = typeof row.metadata === 'string' 
+          ? JSON.parse(row.metadata) 
+          : row.metadata;
+
+        return {
+          vpsLabel: row.vps_label || 'Unknown VPS',
+          billingPeriodStart: new Date(row.billing_period_start),
+          billingPeriodEnd: new Date(row.billing_period_end),
+          hoursCharged: metadata.hours_charged || 0,
+          baseHourlyRate: metadata.base_hourly_rate || 0,
+          backupHourlyRate: metadata.backup_hourly_rate || 0,
+          backupFrequency: metadata.backup_frequency || 'none',
+          totalAmount: parseFloat(row.total_amount),
+        };
+      });
+
+      // Generate invoice data with itemized backup costs
+      const invoiceData = InvoiceService.generateInvoiceFromBillingCycles(
+        organizationId,
+        billingCycles,
+        invoiceNumber,
+        'USD'
+      );
+
+      // Generate HTML with organization theme
+      const themeConfig = await themeService.getThemeConfig();
+      const themePalette = resolveThemePalette(themeConfig);
+
+      const htmlContent = InvoiceService.generateInvoiceHTML(
+        invoiceData,
+        resolveCompanyName(),
+        resolveCompanyLogo(),
+        themePalette
+      );
+
+      // Store invoice
+      const invoiceId = await InvoiceService.createInvoice(
+        organizationId,
+        invoiceNumber,
+        htmlContent,
+        invoiceData as unknown as Record<string, unknown>,
+        invoiceData.total,
+        invoiceData.currency || 'USD'
+      );
+
+      res.json({
+        success: true,
+        invoiceId,
+        invoiceNumber,
+        itemCount: invoiceData.items.length,
+        total: invoiceData.total,
+      });
+    } catch (error) {
+      console.error('Create invoice from billing cycles error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+);
+
 export default router;
