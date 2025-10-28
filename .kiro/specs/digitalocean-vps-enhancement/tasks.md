@@ -1,119 +1,185 @@
 # Implementation Plan
 
-- [ ] 1. Create step configuration system for conditional VPS creation workflow
-  - Implement `getActiveSteps` function that returns active steps based on provider type and marketplace app selection
-  - Create TypeScript interfaces for `StepConfiguration` and `StepConfigurationOptions`
-  - Add logic to handle step numbering when step 3 (OS selection) is skipped for DigitalOcean marketplace apps
-  - _Requirements: 1.1, 1.3, 1.4, 8.1, 8.2_
+## Overview
+This implementation plan addresses three critical enhancements to the DigitalOcean VPS creation workflow:
+1. Conditional step logic to skip OS selection when a marketplace app is selected
+2. Per-user SSH key filtering for security and usability
+3. Dedicated SSH key management page with cross-provider synchronization
 
-- [ ] 2. Enhance VPS creation modal with conditional step logic
-  - [ ] 2.1 Update CreateVPSSteps component to use step configuration system
-    - Modify component to accept and use active steps configuration
-    - Implement conditional rendering based on step configuration
-    - Update step indicators to show correct step numbers when steps are skipped
-    - _Requirements: 1.1, 1.2, 1.3, 7.1, 7.2_
+## Tasks
 
-  - [ ] 2.2 Implement enhanced navigation logic for step skipping
-    - Update navigation handlers to respect active steps configuration
-    - Implement proper back navigation that skips inactive steps
-    - Add validation to prevent navigation to inactive steps
-    - _Requirements: 1.5, 7.4, 8.3_
+- [ ] 1. Implement step configuration system for conditional workflow
+  - Create `src/lib/vpsStepConfiguration.ts` with step configuration logic
+  - Implement `getActiveSteps()` function that determines which steps to display based on provider type and marketplace app selection
+  - Implement step renumbering logic to maintain sequential display numbers
+  - Add TypeScript interfaces for `StepConfiguration` and `StepConfigurationOptions`
+  - _Requirements: 1.1, 1.3, 1.4, 7.1, 7.2, 8.1, 8.2_
 
-  - [ ] 2.3 Update step indicators and visual feedback
-    - Modify step indicators to show correct total step count
-    - Add visual indication for skipped steps in navigation sidebar
-    - Update step description text to reflect conditional workflow
+- [ ] 2. Update VPS creation modal to use conditional step logic
+  - [ ] 2.1 Integrate step configuration system into VPS.tsx
+    - Import and use `getActiveSteps()` function in VPS page component
+    - Add state management for active steps based on provider and marketplace selection
+    - Update step navigation handlers (`handleNext`, `handleBack`) to respect active steps only
+    - Implement logic to recalculate active steps when provider or marketplace app changes
+    - _Requirements: 1.1, 1.2, 1.5, 7.4, 8.3_
+
+  - [ ] 2.2 Enhance step indicator and navigation UI
+    - Update step indicator component to show correct step numbers (e.g., "Step 3 of 3" instead of "Step 4 of 4")
+    - Add visual indicators for skipped steps in navigation sidebar
+    - Implement dynamic step descriptions based on marketplace app selection
+    - Add "Skipped" badge for inactive steps in step navigation
     - _Requirements: 7.1, 7.2, 7.3, 7.5_
 
-- [ ] 3. Implement marketplace app integration with automatic OS handling
-  - [ ] 3.1 Update form handling for marketplace app selection
-    - Modify form change handlers to automatically set image field when marketplace app is selected
-    - Clear marketplace app selection when provider changes from DigitalOcean
-    - Update form validation to handle conditional field requirements
-    - _Requirements: 2.1, 2.5_
+  - [ ] 2.3 Update marketplace app selection handler
+    - Modify `onFormChange` handler to automatically set image field when marketplace app is selected
+    - Clear marketplace app selection when provider changes from DigitalOcean to another provider
+    - Trigger step recalculation when marketplace app selection changes
+    - _Requirements: 1.1, 1.2, 2.1, 2.5_
 
-  - [ ] 3.2 Update VPS creation API payload handling
-    - Modify backend VPS creation to handle marketplace app slug in request payload
-    - Ensure OS image parameter is not included when marketplace app is provided
-    - Update DigitalOcean provider service to use marketplace app for droplet creation
+- [ ] 3. Update VPS creation API payload handling
+  - [ ] 3.1 Modify frontend VPS creation request
+    - Update `handleCreateInstance` in VPS.tsx to correctly set image field for marketplace apps
+    - Ensure marketplace app slug is used as the image parameter when app is selected
+    - Remove redundant `appSlug` field in favor of using `image` field directly
+    - _Requirements: 2.1, 2.2_
+
+  - [ ] 3.2 Update backend VPS creation endpoint
+    - Modify `api/routes/vps.ts` POST `/api/vps` endpoint to handle marketplace app image parameter
+    - Update DigitalOcean payload construction to use image field for both OS and marketplace apps
+    - Ensure no separate OS image parameter is included when marketplace app is provided
+    - Add validation to prevent conflicting image and marketplace app parameters
     - _Requirements: 2.2, 2.3, 2.4_
 
-- [ ] 4. Implement per-user SSH key filtering
-  - [ ] 4.1 Create database schema for user SSH key associations
-    - Create migration for `user_ssh_keys` table with proper indexes
-    - Add foreign key relationships to users table
-    - Include fields for both Linode and DigitalOcean key IDs
-    - _Requirements: 3.5, 5.3_
+- [ ] 4. Implement database schema for user SSH keys
+  - Create migration file `migrations/018_user_ssh_keys.sql`
+  - Define `user_ssh_keys` table with columns: id, user_id, name, public_key, fingerprint, linode_key_id, digitalocean_key_id, created_at, updated_at
+  - Add foreign key constraint to users table with CASCADE delete
+  - Create indexes on user_id and fingerprint columns for efficient queries
+  - Add unique constraint on (user_id, fingerprint) to prevent duplicate keys
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-  - [ ] 4.2 Update SSH key API endpoints with user filtering
-    - Modify existing SSH key endpoints to accept and use user_id parameter
-    - Add authorization checks to prevent cross-user key access
-    - Return 403 Forbidden error for unauthorized key access attempts
-    - Filter out provider keys not associated with any platform user
-    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+- [ ] 5. Implement backend SSH key management API
+  - [ ] 5.1 Create SSH key routes file
+    - Create `api/routes/sshKeys.ts` with route definitions
+    - Add authentication middleware to all SSH key routes
+    - Register SSH key routes in `api/app.ts`
+    - _Requirements: 3.3, 3.4, 4.1, 4.2_
 
-  - [ ] 4.3 Update frontend SSH key components with user filtering
-    - Modify DigitalOceanConfiguration component to use user-filtered keys
-    - Update Linode SSH key components to use user-filtered keys
-    - Add proper error handling for SSH key fetch failures
-    - _Requirements: 3.1, 3.2_
+  - [ ] 5.2 Implement GET /api/ssh-keys endpoint
+    - Add user-based filtering using authenticated user ID from JWT token
+    - Query `user_ssh_keys` table with user_id filter
+    - Return SSH keys with provider-specific IDs and status
+    - Add authorization check to prevent cross-user access (403 Forbidden)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.2_
 
-- [ ] 5. Create SSH key management page and functionality
-  - [ ] 5.1 Create SSH key management page component
-    - Create new page component at `/ssh-keys` route
-    - Implement layout with key list, add form, and management actions
-    - Add proper loading states and error handling
-    - Display SSH keys with provider-specific status indicators
-    - _Requirements: 4.1, 4.2, 5.5_
+  - [ ] 5.3 Implement POST /api/ssh-keys endpoint
+    - Accept name and public_key in request body
+    - Generate SSH key fingerprint for uniqueness validation
+    - Call Linode API to add SSH key and capture key ID
+    - Call DigitalOcean API to add SSH key and capture key ID
+    - Store SSH key in database with both provider IDs
+    - Handle partial success when one provider fails
+    - Return success status with provider-specific errors if any
+    - _Requirements: 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ] 5.2 Implement SSH key CRUD operations
-    - Create add SSH key form with name and public key validation
-    - Implement delete SSH key functionality with confirmation dialog
-    - Add proper error handling for partial provider failures
-    - Display success/error messages for operations
-    - _Requirements: 4.3, 4.5, 6.1_
+  - [ ] 5.4 Implement DELETE /api/ssh-keys/:keyId endpoint
+    - Verify SSH key belongs to authenticated user
+    - Retrieve provider-specific key IDs from database
+    - Call Linode API to delete SSH key using linode_key_id
+    - Call DigitalOcean API to delete SSH key using digitalocean_key_id
+    - Delete SSH key record from database
+    - Handle partial success when one provider fails
+    - Return success status with provider-specific warnings if any
+    - _Requirements: 4.5, 6.2, 6.3, 6.4, 6.5_
 
-  - [ ] 5.3 Create SSH key synchronization service
-    - Implement service to add SSH keys to both Linode and DigitalOcean
-    - Handle partial failures gracefully with appropriate user feedback
-    - Store provider-specific key IDs in database
-    - Implement deletion from both providers with error handling
-    - _Requirements: 5.1, 5.2, 5.4, 6.2, 6.3, 6.4, 6.5_
+- [ ] 6. Update existing SSH key endpoints with user filtering
+  - [ ] 6.1 Update Linode SSH key endpoint
+    - Modify GET `/api/vps/linode/ssh-keys` to accept user_id parameter
+    - Add database query to filter SSH keys by user_id
+    - Return only SSH keys associated with the authenticated user
+    - Add authorization check to prevent unauthorized access
+    - _Requirements: 3.1, 3.3, 3.4_
 
-  - [ ] 5.4 Add SSH key management route to application
-    - Add `/ssh-keys` route to App.tsx with proper authentication
-    - Update navigation menu to include SSH key management link
-    - Ensure proper access control for authenticated users only
-    - _Requirements: 4.1_
+  - [ ] 6.2 Update DigitalOcean SSH key endpoint
+    - Modify GET `/api/vps/digitalocean/ssh-keys` to accept user_id parameter
+    - Add database query to filter SSH keys by user_id
+    - Return only SSH keys associated with the authenticated user
+    - Add authorization check to prevent unauthorized access
+    - _Requirements: 3.2, 3.3, 3.4_
 
-- [ ] 6. Add comprehensive error handling and validation
-  - [ ] 6.1 Implement step navigation error handling
-    - Add validation for step navigation attempts
-    - Implement automatic step correction for invalid navigation
-    - Add fallback mechanisms for step configuration errors
-    - _Requirements: 8.4_
+- [ ] 7. Create SSH key management page
+  - [ ] 7.1 Create SSH key management page component
+    - Create `src/pages/SSHKeys.tsx` with page layout
+    - Add route `/ssh-keys` in `src/App.tsx` with ProtectedRoute wrapper
+    - Implement page header with title and description
+    - Add "Add SSH Key" button to trigger creation modal
+    - _Requirements: 4.1, 4.2_
 
-  - [ ] 6.2 Add marketplace app validation
-    - Validate marketplace app compatibility with selected region
-    - Add error handling for invalid app slugs
-    - Implement proper error messages for app-related failures
+  - [ ] 7.2 Implement SSH key list display
+    - Use TanStack Query to fetch SSH keys from GET `/api/ssh-keys`
+    - Display SSH keys in a table or card layout
+    - Show key name, fingerprint, creation date, and provider status
+    - Display provider-specific key IDs for Linode and DigitalOcean
+    - Add visual indicators for provider sync status (active/error)
+    - Implement loading and error states
+    - _Requirements: 4.2, 5.5_
+
+  - [ ] 7.3 Create SSH key form component
+    - Create `src/components/SSHKeys/SSHKeyForm.tsx`
+    - Add form fields for key name and public key content
+    - Implement validation using React Hook Form and Zod
+    - Validate SSH public key format
+    - Add submit handler to call POST `/api/ssh-keys`
+    - Display success/error messages with provider-specific details
+    - Handle partial success scenarios with appropriate messaging
+    - _Requirements: 4.3, 4.4, 5.4_
+
+  - [ ] 7.4 Implement SSH key deletion with confirmation
+    - Create `src/components/SSHKeys/DeleteSSHKeyDialog.tsx`
+    - Add delete button to each SSH key in the list
+    - Show confirmation dialog with warning about cross-provider deletion
+    - Display which providers the key will be removed from
+    - Call DELETE `/api/ssh-keys/:keyId` on confirmation
+    - Handle partial success with warning messages
+    - Refresh SSH key list after successful deletion
+    - _Requirements: 4.5, 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [ ] 8. Update VPS creation modal to use filtered SSH keys
+  - [ ] 8.1 Update Linode SSH key fetching
+    - Modify SSH key fetch in VPS.tsx to pass user_id parameter
+    - Update API call to use filtered endpoint
+    - Ensure only user's SSH keys are displayed in VPS creation modal
+    - _Requirements: 3.1, 3.3_
+
+  - [ ] 8.2 Update DigitalOcean SSH key fetching
+    - Modify SSH key fetch in DigitalOceanConfiguration component to pass user_id parameter
+    - Update API call to use filtered endpoint
+    - Ensure only user's SSH keys are displayed in VPS creation modal
+    - _Requirements: 3.2, 3.3_
+
+- [ ] 9. Add navigation menu item for SSH key management
+  - Update navigation menu in `src/components/Navigation.tsx` or `src/components/AppLayout.tsx`
+  - Add "SSH Keys" menu item with appropriate icon (Key icon from lucide-react)
+  - Position menu item logically near VPS or Settings sections
+  - Ensure menu item is visible to authenticated users
+  - _Requirements: 4.1_
+
+- [ ] 10. Add comprehensive error handling and validation
+  - [ ] 10.1 Add frontend validation
+    - Validate SSH public key format before submission
+    - Add client-side validation for marketplace app and region compatibility
+    - Display user-friendly error messages for validation failures
+    - _Requirements: 2.1, 4.3_
+
+  - [ ] 10.2 Add backend error handling
+    - Implement error handling for provider API failures
+    - Add retry logic for transient API errors
+    - Log errors with appropriate context for debugging
+    - Return structured error responses with error codes
+    - _Requirements: 5.4, 6.5_
+
+  - [ ] 10.3 Add marketplace app validation
+    - Validate marketplace app availability before VPS creation
+    - Check region compatibility for selected marketplace apps
+    - Display clear error messages when app is not available in selected region
     - _Requirements: 2.1, 2.4_
-
-  - [ ] 6.3 Implement SSH key operation error handling
-    - Add comprehensive error handling for provider API failures
-    - Implement retry mechanisms for transient failures
-    - Display appropriate error messages for different failure types
-    - Handle partial success scenarios with clear user feedback
-    - _Requirements: 5.4, 6.4, 6.5_
-
-- [ ]* 7. Add unit tests for step configuration logic
-  - Write unit tests for `getActiveSteps` function with various scenarios
-  - Test step navigation logic with different provider and app combinations
-  - Add tests for edge cases like provider switching mid-flow
-  - _Requirements: 8.5_
-
-- [ ]* 8. Add integration tests for SSH key management
-  - Create integration tests for user-filtered SSH key endpoints
-  - Test cross-provider synchronization operations
-  - Add tests for error scenarios and recovery mechanisms
-  - _Requirements: 3.4, 5.1, 5.2, 6.2, 6.3_
