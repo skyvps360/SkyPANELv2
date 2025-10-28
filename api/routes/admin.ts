@@ -23,6 +23,8 @@ import {
   adminSecurityHeaders,
   requestSizeLimit,
 } from "../middleware/security.js";
+import { encryptSecret } from "../lib/crypto.js";
+import { normalizeProviderToken, getProviderTokenByType } from "../lib/providerTokens.js";
 
 const router = express.Router();
 
@@ -619,12 +621,21 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, type, apiKey, active = true } = req.body;
+  const { name, type, apiKey, active = true } = req.body;
+
+  const encryptedApiKey = encryptSecret(apiKey);
+      
+      // Get the next display_order value
+      const maxOrderResult = await query(
+        "SELECT COALESCE(MAX(display_order), 0) + 1 as next_order FROM service_providers"
+      );
+      const nextOrder = maxOrderResult.rows[0].next_order;
+      
       const result = await query(
-        `INSERT INTO service_providers (name, type, api_key_encrypted, active)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO service_providers (name, type, api_key_encrypted, active, display_order)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [name, type, apiKey, active]
+        [name, type, encryptedApiKey, active, nextOrder]
       );
 
       const newProvider = result.rows[0];
@@ -809,6 +820,16 @@ router.post(
       }
 
       const provider = providerResult.rows[0];
+      const apiToken = await normalizeProviderToken(
+        provider.id,
+        provider.api_key_encrypted
+      );
+
+      if (!apiToken) {
+        return res.status(400).json({
+          error: "Provider API token is not configured",
+        });
+      }
       let validationStatus: "valid" | "invalid" = "invalid";
       let validationMessage = "";
 
@@ -816,15 +837,13 @@ router.post(
         // Test API connectivity based on provider type
         if (provider.type === "linode") {
           // Test Linode API
-          const testResult = await linodeService.testConnection(
-            provider.api_key_encrypted
-          );
+          const testResult = await linodeService.testConnection(apiToken);
           validationStatus = testResult.success ? "valid" : "invalid";
           validationMessage = testResult.message || "";
         } else if (provider.type === "digitalocean") {
           // Test DigitalOcean API
           const testResult = await digitalOceanService.testConnection(
-            provider.api_key_encrypted
+            apiToken
           );
           validationStatus = testResult.success ? "valid" : "invalid";
           validationMessage = testResult.message || "";
@@ -1921,27 +1940,18 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      // Get DigitalOcean provider from database
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-      );
+      const providerToken = await getProviderTokenByType("digitalocean");
 
-      if (providerResult.rows.length === 0) {
+      if (!providerToken) {
         return res.status(400).json({
           error: "DigitalOcean provider not found or not active",
           details: "Please configure DigitalOcean provider in /admin#providers",
         });
       }
 
-      const apiToken = providerResult.rows[0].api_key_encrypted;
-      if (!apiToken) {
-        return res.status(400).json({
-          error: "DigitalOcean API token not configured",
-          details: "Please add your API token in /admin#providers",
-        });
-      }
-
-      const sizes = await digitalOceanService.getDigitalOceanSizes(apiToken);
+      const sizes = await digitalOceanService.getDigitalOceanSizes(
+        providerToken.token
+      );
       res.json({ sizes });
     } catch (err: any) {
       console.error("Error fetching DigitalOcean sizes:", err);
@@ -1961,28 +1971,17 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      // Get DigitalOcean provider from database
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-      );
+      const providerToken = await getProviderTokenByType("digitalocean");
 
-      if (providerResult.rows.length === 0) {
+      if (!providerToken) {
         return res.status(400).json({
           error: "DigitalOcean provider not found or not active",
           details: "Please configure DigitalOcean provider in /admin#providers",
         });
       }
 
-      const apiToken = providerResult.rows[0].api_key_encrypted;
-      if (!apiToken) {
-        return res.status(400).json({
-          error: "DigitalOcean API token not configured",
-          details: "Please add your API token in /admin#providers",
-        });
-      }
-
       const regions = await digitalOceanService.getDigitalOceanRegions(
-        apiToken
+        providerToken.token
       );
       res.json({ regions });
     } catch (err: any) {
@@ -2003,29 +2002,18 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      // Get DigitalOcean provider from database
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-      );
+      const providerToken = await getProviderTokenByType("digitalocean");
 
-      if (providerResult.rows.length === 0) {
+      if (!providerToken) {
         return res.status(400).json({
           error: "DigitalOcean provider not found or not active",
           details: "Please configure DigitalOcean provider in /admin#providers",
         });
       }
-
-      const apiToken = providerResult.rows[0].api_key_encrypted;
-      if (!apiToken) {
-        return res.status(400).json({
-          error: "DigitalOcean API token not configured",
-          details: "Please add your API token in /admin#providers",
-        });
-      }
-
+ 
       const type = req.query.type as "distribution" | "application" | undefined;
       const images = await digitalOceanService.getDigitalOceanImages(
-        apiToken,
+        providerToken.token,
         type
       );
       res.json({ images });

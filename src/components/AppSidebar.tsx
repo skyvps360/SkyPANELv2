@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Activity,
   CreditCard,
+  Key,
   LayoutDashboard,
   LifeBuoy,
   Search,
@@ -46,6 +47,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
   const isContainersActive = pathname.startsWith("/containers");
   const isActivityActive = pathname.startsWith("/activity");
   const isBillingActive = pathname.startsWith("/billing");
+  const isSshKeysActive = pathname.startsWith("/ssh-keys");
   const isAdminRoute = pathname.startsWith("/admin");
 
   const navMainItems = React.useMemo(
@@ -141,6 +143,12 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
           ],
         },
         {
+          title: "SSH Keys",
+          url: "/ssh-keys",
+          icon: Key,
+          isActive: isSshKeysActive,
+        },
+        {
           title: "Activity",
           url: "/activity",
           icon: Activity,
@@ -161,6 +169,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
       isBillingActive,
       isContainersActive,
       isDashboardActive,
+      isSshKeysActive,
       isVpsActive,
     ],
   );

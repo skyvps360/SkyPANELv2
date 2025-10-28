@@ -727,6 +727,24 @@ class DigitalOceanService {
   }
 
   /**
+   * Delete an SSH key
+   */
+  async deleteSSHKey(apiToken: string, keyId: number): Promise<void> {
+    try {
+      if (!apiToken) throw new Error('DigitalOcean API token not provided');
+
+      await this.makeRequest<void>(
+        `${this.baseUrl}/account/keys/${keyId}`,
+        { method: 'DELETE' },
+        apiToken
+      );
+    } catch (error) {
+      console.error('Error deleting DigitalOcean SSH key:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get VPCs (Virtual Private Clouds)
    */
   async getVPCs(apiToken: string): Promise<any[]> {

@@ -93,11 +93,24 @@ export const CreateVPSSteps: React.FC<CreateVPSStepsProps> = ({
             <DigitalOceanMarketplace
               token={token}
               selectedApp={formData.appSlug || null}
-              onSelect={(appSlug: string, appData: Record<string, any>) => {
-                onFormChange({
+              region={formData.region}
+              onSelect={(appSlug: string | null, appData: any) => {
+                // When a marketplace app is selected, automatically set the image field
+                // When "None" is selected (appSlug is null), clear the image field
+                const updates: any = {
                   appSlug,
                   appData,
-                });
+                };
+
+                // Set image to the marketplace app's image slug if available
+                if (appSlug && appData?.image_slug) {
+                  updates.image = appData.image_slug;
+                } else if (!appSlug) {
+                  // Clear image when "None" is selected
+                  updates.image = null;
+                }
+
+                onFormChange(updates);
               }}
             />
           </div>

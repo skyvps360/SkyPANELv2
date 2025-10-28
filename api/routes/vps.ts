@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import { authenticateToken, requireOrganization } from "../middleware/auth.js";
 import { query } from "../lib/database.js";
 import { linodeService } from "../services/linodeService.js";
+import { handleProviderError, logError, ErrorCodes } from "../lib/errorHandling.js";
 import type {
   LinodeInstance,
   LinodeInstanceBackupsResponse,
@@ -12,6 +13,7 @@ import type {
 } from "../services/linodeService.js";
 import { logActivity } from "../services/activityLogger.js";
 import { encryptSecret } from "../lib/crypto.js";
+import { normalizeProviderToken, getProviderTokenByType } from "../lib/providerTokens.js";
 import { BillingService } from "../services/billingService.js";
 import { AuthService } from "../services/authService.js";
 
@@ -20,6 +22,77 @@ const router = express.Router();
 router.use(authenticateToken, requireOrganization);
 
 const DEFAULT_RDNS_BASE_DOMAIN = "ip.rev.skyvps360.xyz";
+
+async function loadActiveProviderToken(
+  providerType: "linode" | "digitalocean"
+): Promise<string | null> {
+  const providerInfo = await getProviderTokenByType(providerType);
+  return providerInfo?.token ?? null;
+}
+
+async function loadProviderTokenById(
+  providerId: string,
+  providerType: "linode" | "digitalocean"
+): Promise<string | null> {
+  const providerResult = await query(
+    "SELECT id, api_key_encrypted FROM service_providers WHERE id = $1 AND type = $2 AND active = true LIMIT 1",
+    [providerId, providerType]
+  );
+
+  if (providerResult.rows.length === 0) {
+    return null;
+  }
+
+  const providerRow = providerResult.rows[0];
+  return normalizeProviderToken(
+    providerRow.id,
+    providerRow.api_key_encrypted
+  );
+}
+
+async function resolveProviderTokenOrRespond(
+  res: Response,
+  providerType: "linode" | "digitalocean",
+  providerId?: string
+): Promise<string | null> {
+  try {
+    const token = providerId
+      ? await loadProviderTokenById(providerId, providerType)
+      : await loadActiveProviderToken(providerType);
+
+    if (!token) {
+      const isSpecificProvider = Boolean(providerId);
+      res.status(503).json({
+        error: {
+          code: isSpecificProvider ? "PROVIDER_INACTIVE" : "MISSING_CREDENTIALS",
+          message: isSpecificProvider
+            ? `Selected ${
+                providerType === "linode" ? "Linode" : "DigitalOcean"
+              } provider is not configured or inactive.`
+            : `${
+                providerType === "linode" ? "Linode" : "DigitalOcean"
+              } provider is not configured or inactive.`,
+          provider: providerType,
+        },
+      });
+      return null;
+    }
+
+    return token;
+  } catch (err) {
+    console.error(`${providerType} provider token error:`, err);
+    res.status(500).json({
+      error: {
+        code: "TOKEN_DECRYPT_FAILED",
+        message: `Failed to load ${
+          providerType === "linode" ? "Linode" : "DigitalOcean"
+        } provider credentials.`,
+        provider: providerType,
+      },
+    });
+    return null;
+  }
+}
 
 router.get("/networking/config", async (_req: Request, res: Response) => {
   try {
@@ -979,6 +1052,62 @@ router.get("/stackscripts", async (req: Request, res: Response) => {
   }
 });
 
+// Get Linode SSH keys (filtered by user)
+router.get("/linode/ssh-keys", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const apiToken = await resolveProviderTokenOrRespond(res, "linode");
+    if (!apiToken) {
+      return;
+    }
+
+    // Fetch all SSH keys from Linode API
+    const allLinodeKeys = await linodeService.getSSHKeys(apiToken);
+
+    // Get user's SSH keys from database to filter
+    const userKeysResult = await query(
+      `SELECT linode_key_id 
+       FROM user_ssh_keys 
+       WHERE user_id = $1 AND linode_key_id IS NOT NULL`,
+      [userId]
+    );
+
+    // Create a set of user's Linode key IDs for efficient filtering
+    const userLinodeKeyIds = new Set(
+      userKeysResult.rows.map((row: any) => String(row.linode_key_id))
+    );
+
+    // Filter Linode keys to only include user's keys
+    const filteredKeys = allLinodeKeys.filter((key: any) => 
+      userLinodeKeyIds.has(String(key.id))
+    );
+
+    res.json({
+      ssh_keys: filteredKeys,
+      total: filteredKeys.length,
+    });
+  } catch (err: any) {
+    console.error("Linode SSH keys fetch error:", err);
+
+    // Determine appropriate status code
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+      error: {
+        code: err.code || "API_ERROR",
+        message: err.message || "Failed to fetch SSH keys",
+        provider: "linode",
+      },
+    });
+  }
+});
+
 // DigitalOcean-specific endpoints
 
 // Get DigitalOcean marketplace apps (1-Click applications)
@@ -986,33 +1115,20 @@ router.get(
   "/digitalocean/marketplace",
   async (_req: Request, res: Response) => {
     try {
-      // Fetch the DigitalOcean provider configuration
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+      const apiToken = await resolveProviderTokenOrRespond(
+        res,
+        "digitalocean"
       );
-
-      if (providerResult.rows.length === 0) {
-        res.status(503).json({
-          error: {
-            code: "MISSING_CREDENTIALS",
-            message: "DigitalOcean provider is not configured or inactive.",
-            provider: "digitalocean",
-          },
-        });
+      if (!apiToken) {
         return;
       }
 
-      const apiToken = providerResult.rows[0].api_key_encrypted;
-
-      // Import DigitalOcean service
       const { digitalOceanService } = await import(
         "../services/DigitalOceanService.js"
       );
 
-      // Fetch 1-Click Apps using new method
       const apps = await digitalOceanService.get1ClickApps(apiToken);
 
-      // Group apps by category for better organization
       const categorizedApps: Record<string, any[]> = {};
       apps.forEach((app: any) => {
         const category = app.category || "Other";
@@ -1048,51 +1164,37 @@ router.get(
 // Get DigitalOcean OS images
 router.get("/digitalocean/images", async (req: Request, res: Response) => {
   try {
-    // Fetch the DigitalOcean provider configuration
-    const providerResult = await query(
-      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-    );
-
-    if (providerResult.rows.length === 0) {
-      res.status(503).json({
-        error: {
-          code: "MISSING_CREDENTIALS",
-          message: "DigitalOcean provider is not configured or inactive.",
-          provider: "digitalocean",
-        },
-      });
+    const apiToken = await resolveProviderTokenOrRespond(res, "digitalocean");
+    if (!apiToken) {
       return;
     }
 
-    const apiToken = providerResult.rows[0].api_key_encrypted;
-
-    // Import DigitalOcean service
     const { digitalOceanService } = await import(
       "../services/DigitalOceanService.js"
     );
 
-    // Get optional type filter from query params
     const typeFilter = req.query.type as string | undefined;
 
-    // Fetch images
     let images = await digitalOceanService.getDigitalOceanImages(apiToken);
 
-    // Apply type filter if provided (distribution, application, custom)
     if (typeFilter) {
       const filterLower = typeFilter.toLowerCase();
       images = images.filter((img: any) => {
         if (filterLower === "distribution") {
-          return img.type === "base" || (img.type === "snapshot" && img.public);
-        } else if (filterLower === "application") {
+          return (
+            img.type === "base" || (img.type === "snapshot" && img.public)
+          );
+        }
+        if (filterLower === "application") {
           return img.type === "snapshot" && !img.public;
-        } else if (filterLower === "custom") {
+        }
+        if (filterLower === "custom") {
           return img.type === "custom";
         }
         return true;
       });
     }
 
-    // Group images by distribution for better organization
     const groupedImages: Record<string, any[]> = {};
     images.forEach((image: any) => {
       const distribution = image.distribution || "Other";
@@ -1126,23 +1228,10 @@ router.get("/digitalocean/images", async (req: Request, res: Response) => {
 // Get DigitalOcean Droplet sizes (plans)
 router.get("/digitalocean/sizes", async (_req: Request, res: Response) => {
   try {
-    // Fetch the DigitalOcean provider configuration
-    const providerResult = await query(
-      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-    );
-
-    if (providerResult.rows.length === 0) {
-      res.status(503).json({
-        error: {
-          code: "MISSING_CREDENTIALS",
-          message: "DigitalOcean provider is not configured or inactive.",
-          provider: "digitalocean",
-        },
-      });
+    const apiToken = await resolveProviderTokenOrRespond(res, "digitalocean");
+    if (!apiToken) {
       return;
     }
-
-    const apiToken = providerResult.rows[0].api_key_encrypted;
 
     // Import DigitalOcean service
     const { digitalOceanService } = await import(
@@ -1196,38 +1285,50 @@ router.get("/digitalocean/sizes", async (_req: Request, res: Response) => {
   }
 });
 
-// Get DigitalOcean SSH keys
-router.get("/digitalocean/ssh-keys", async (_req: Request, res: Response) => {
+// Get DigitalOcean SSH keys (filtered by user)
+router.get("/digitalocean/ssh-keys", async (req: Request, res: Response) => {
   try {
-    // Fetch the DigitalOcean provider configuration
-    const providerResult = await query(
-      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-    );
-
-    if (providerResult.rows.length === 0) {
-      res.status(503).json({
-        error: {
-          code: "MISSING_CREDENTIALS",
-          message: "DigitalOcean provider is not configured or inactive.",
-          provider: "digitalocean",
-        },
-      });
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    const apiToken = providerResult.rows[0].api_key_encrypted;
+    const apiToken = await resolveProviderTokenOrRespond(res, "digitalocean");
+    if (!apiToken) {
+      return;
+    }
 
     // Import DigitalOcean service
     const { digitalOceanService } = await import(
       "../services/DigitalOceanService.js"
     );
 
-    // Fetch SSH keys
-    const sshKeys = await digitalOceanService.getSSHKeys(apiToken);
+    // Fetch all SSH keys from DigitalOcean API
+    const allDigitalOceanKeys = await digitalOceanService.getSSHKeys(apiToken);
+
+    // Get user's SSH keys from database to filter
+    const userKeysResult = await query(
+      `SELECT digitalocean_key_id 
+       FROM user_ssh_keys 
+       WHERE user_id = $1 AND digitalocean_key_id IS NOT NULL`,
+      [userId]
+    );
+
+    // Create a set of user's DigitalOcean key IDs for efficient filtering
+    const userDigitalOceanKeyIds = new Set(
+      userKeysResult.rows.map((row: any) => Number(row.digitalocean_key_id))
+    );
+
+    // Filter DigitalOcean keys to only include user's keys
+    const filteredKeys = allDigitalOceanKeys.filter((key: any) => 
+      userDigitalOceanKeyIds.has(Number(key.id))
+    );
 
     res.json({
-      ssh_keys: sshKeys,
-      total: sshKeys.length,
+      ssh_keys: filteredKeys,
+      total: filteredKeys.length,
     });
   } catch (err: any) {
     console.error("DigitalOcean SSH keys fetch error:", err);
@@ -1248,23 +1349,10 @@ router.get("/digitalocean/ssh-keys", async (_req: Request, res: Response) => {
 // Get DigitalOcean VPCs
 router.get("/digitalocean/vpcs", async (req: Request, res: Response) => {
   try {
-    // Fetch the DigitalOcean provider configuration
-    const providerResult = await query(
-      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
-    );
-
-    if (providerResult.rows.length === 0) {
-      res.status(503).json({
-        error: {
-          code: "MISSING_CREDENTIALS",
-          message: "DigitalOcean provider is not configured or inactive.",
-          provider: "digitalocean",
-        },
-      });
+    const apiToken = await resolveProviderTokenOrRespond(res, "digitalocean");
+    if (!apiToken) {
       return;
     }
-
-    const apiToken = providerResult.rows[0].api_key_encrypted;
 
     // Import DigitalOcean service
     const { digitalOceanService } = await import(
@@ -2190,6 +2278,17 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate that appSlug is not provided for DigitalOcean (should use image field instead)
+    if (provider_type === 'digitalocean' && appSlug) {
+      res
+        .status(400)
+        .json({ 
+          error: "For DigitalOcean marketplace apps, use the 'image' field instead of 'appSlug'",
+          code: "INVALID_MARKETPLACE_PARAMETER"
+        });
+      return;
+    }
+
     // Fetch provider details from database
     let providerDetails: any = null;
     try {
@@ -2346,6 +2445,61 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    // Validate marketplace app for DigitalOcean
+    if (provider_type === "digitalocean" && image) {
+      try {
+        // Check if the image is a marketplace app by fetching marketplace apps
+        const { digitalOceanService } = await import(
+          "../services/DigitalOceanService.js"
+        );
+        
+        // Get DigitalOcean API token
+        const apiToken = await normalizeProviderToken(
+          providerDetails.id,
+          providerDetails.api_key_encrypted
+        );
+        if (!apiToken) {
+          res.status(503).json({
+            error: {
+              code: "PROVIDER_INACTIVE",
+              message:
+                "Selected DigitalOcean provider is not configured or inactive.",
+              provider: "digitalocean",
+            },
+          });
+          return;
+        }
+        
+        // Fetch marketplace apps to validate
+        const marketplaceApps = await digitalOceanService.get1ClickApps(apiToken);
+        const isMarketplaceApp = marketplaceApps.some((app: any) => app.slug === image || app.image_slug === image);
+        
+        if (isMarketplaceApp) {
+          // Validate that the marketplace app exists
+          const app = marketplaceApps.find((a: any) => a.slug === image || a.image_slug === image);
+          
+          if (!app) {
+            res.status(400).json({
+              error: `Marketplace app "${image}" not found`,
+              code: ErrorCodes.MARKETPLACE_APP_INVALID
+            });
+            return;
+          }
+          
+          // Log marketplace app selection
+          console.log(`Creating DigitalOcean VPS with marketplace app: ${app.name || image} in region ${regionToUse}`);
+        }
+      } catch (validationErr: any) {
+        // Log validation error but don't fail the request
+        // The provider API will validate and return an error if needed
+        logError('Marketplace app validation', validationErr, {
+          provider_type,
+          image,
+          region: regionToUse
+        });
+      }
+    }
+
     // Create VPS instance through provider service
     let created: any;
     let providerInstanceId: string;
@@ -2391,12 +2545,13 @@ router.post("/", async (req: Request, res: Response) => {
         }
         providerInstanceId = String(created.id);
       } else if (provider_type === "digitalocean") {
-        // DigitalOcean: Use marketplace apps if provided
+        // DigitalOcean: The image field contains either OS image or marketplace app slug
+        // No separate handling needed - the image field is used directly
         const createParams: any = {
           label: label,
           type: providerPlanId,
           region: regionToUse,
-          image,
+          image, // This will be either an OS image or marketplace app slug
           rootPassword,
           sshKeys: sshKeys || [],
           backups: backups || false,
@@ -2410,15 +2565,6 @@ router.post("/", async (req: Request, res: Response) => {
           createParams.vpc_uuid = vpc_uuid;
         }
 
-        // Handle marketplace app if provided
-        if (appSlug) {
-          // DigitalOcean marketplace apps are specified via image slug
-          createParams.image = appSlug;
-          if (appData && Object.keys(appData).length > 0) {
-            createParams.appData = appData;
-          }
-        }
-
         created = await providerService.createInstance(createParams);
         providerInstanceId = String(created.id);
       } else {
@@ -2428,10 +2574,26 @@ router.post("/", async (req: Request, res: Response) => {
         return;
       }
     } catch (createErr: any) {
-      console.error("VPS creation error:", createErr);
-      res.status(500).json({
-        error:
-          createErr.message || "Failed to create VPS instance with provider",
+      logError('VPS creation', createErr, {
+        organizationId,
+        provider_type,
+        provider_id,
+        label,
+        region: regionToUse,
+        image
+      });
+      
+      // Handle provider-specific errors
+      const structuredError = handleProviderError(
+        createErr,
+        provider_type as 'linode' | 'digitalocean',
+        'create VPS instance'
+      );
+      
+      res.status(structuredError.statusCode).json({
+        error: structuredError.message,
+        code: structuredError.code,
+        details: structuredError.details
       });
       return;
     }
@@ -2440,17 +2602,18 @@ router.post("/", async (req: Request, res: Response) => {
     const configuration = {
       type: providerPlanId,
       region: regionToUse,
-      image,
+      image, // For DigitalOcean, this contains either OS image or marketplace app slug
       backups,
       privateIP,
-      stackscriptId,
-      stackscriptData,
-      appSlug,
-      appData,
+      // Linode-specific fields
+      stackscriptId: provider_type === 'linode' ? stackscriptId : undefined,
+      stackscriptData: provider_type === 'linode' ? stackscriptData : undefined,
+      appSlug: provider_type === 'linode' ? appSlug : undefined,
+      appData: provider_type === 'linode' ? appData : undefined,
       // DigitalOcean-specific options
-      monitoring,
-      ipv6,
-      vpc_uuid,
+      monitoring: provider_type === 'digitalocean' ? monitoring : undefined,
+      ipv6: provider_type === 'digitalocean' ? ipv6 : undefined,
+      vpc_uuid: provider_type === 'digitalocean' ? vpc_uuid : undefined,
       auth: {
         method: "password",
         user: "root",
@@ -2632,18 +2795,14 @@ router.post("/:id/boot", async (req: Request, res: Response) => {
 
     if (providerType === "digitalocean" && row.provider_id) {
       // Boot DigitalOcean Droplet
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
-        [row.provider_id]
+      const apiToken = await resolveProviderTokenOrRespond(
+        res,
+        "digitalocean",
+        String(row.provider_id)
       );
-
-      if (providerResult.rows.length === 0) {
-        return res
-          .status(503)
-          .json({ error: "DigitalOcean provider not found or inactive" });
+      if (!apiToken) {
+        return;
       }
-
-      const apiToken = providerResult.rows[0].api_key_encrypted;
       const { digitalOceanService } = await import(
         "../services/DigitalOceanService.js"
       );
@@ -2720,18 +2879,14 @@ router.post("/:id/shutdown", async (req: Request, res: Response) => {
 
     if (providerType === "digitalocean" && row.provider_id) {
       // Shutdown DigitalOcean Droplet
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
-        [row.provider_id]
+      const apiToken = await resolveProviderTokenOrRespond(
+        res,
+        "digitalocean",
+        String(row.provider_id)
       );
-
-      if (providerResult.rows.length === 0) {
-        return res
-          .status(503)
-          .json({ error: "DigitalOcean provider not found or inactive" });
+      if (!apiToken) {
+        return;
       }
-
-      const apiToken = providerResult.rows[0].api_key_encrypted;
       const { digitalOceanService } = await import(
         "../services/DigitalOceanService.js"
       );
@@ -2808,18 +2963,14 @@ router.post("/:id/reboot", async (req: Request, res: Response) => {
 
     if (providerType === "digitalocean" && row.provider_id) {
       // Reboot DigitalOcean Droplet
-      const providerResult = await query(
-        "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
-        [row.provider_id]
+      const apiToken = await resolveProviderTokenOrRespond(
+        res,
+        "digitalocean",
+        String(row.provider_id)
       );
-
-      if (providerResult.rows.length === 0) {
-        return res
-          .status(503)
-          .json({ error: "DigitalOcean provider not found or inactive" });
+      if (!apiToken) {
+        return;
       }
-
-      const apiToken = providerResult.rows[0].api_key_encrypted;
       const { digitalOceanService } = await import(
         "../services/DigitalOceanService.js"
       );
@@ -3545,16 +3696,15 @@ router.delete("/:id", async (req: Request, res: Response) => {
     if (providerType === "digitalocean" && row.provider_id) {
       // Delete DigitalOcean Droplet
       try {
-        const providerResult = await query(
-          "SELECT api_key_encrypted FROM service_providers WHERE id = $1 AND type = 'digitalocean' AND active = true LIMIT 1",
-          [row.provider_id]
+        const apiToken = await resolveProviderTokenOrRespond(
+          res,
+          "digitalocean",
+          String(row.provider_id)
         );
 
-        if (providerResult.rows.length === 0) {
-          throw new Error("DigitalOcean provider not found or inactive");
+        if (!apiToken) {
+          return;
         }
-
-        const apiToken = providerResult.rows[0].api_key_encrypted;
         const { digitalOceanService } = await import(
           "../services/DigitalOceanService.js"
         );

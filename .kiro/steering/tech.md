@@ -81,6 +81,9 @@ npm run pm2:list         # List PM2 processes
 node scripts/run-migration.js                           # Apply all pending migrations
 node scripts/apply-single-migration.js <file>           # Apply specific migration
 node scripts/test-connection.js                         # Test database connectivity
+npm run db:reset                                        # Reset database (with confirmation prompt)
+npm run db:reset:confirm                                # Reset database (auto-confirm, no prompt)
+npm run db:fresh                                        # Reset database and run all migrations
 ```
 
 ### Admin Utilities

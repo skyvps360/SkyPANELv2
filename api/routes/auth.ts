@@ -739,10 +739,9 @@ router.get('/api-keys', authenticateToken, async (req: AuthenticatedRequest, res
       return;
     }
 
-    // Support both legacy schema ('name') and current schema ('key_name')
     const apiKeysRes = await query(
       `SELECT id,
-              COALESCE(key_name, name) AS name,
+              key_name AS name,
               key_prefix AS key_preview,
               created_at,
               last_used_at,

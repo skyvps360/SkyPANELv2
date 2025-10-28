@@ -51,6 +51,12 @@ import type { ProviderType } from "@/types/provider";
 import { generateUniqueVPSLabel } from "@/lib/vpsLabelGenerator";
 import { ProviderSelector } from "@/components/VPS/ProviderSelector";
 import { CreateVPSSteps } from "@/components/VPS/CreateVPSSteps";
+import {
+  getActiveSteps,
+  getNextStep,
+  getPreviousStep,
+  type StepConfiguration,
+} from "@/lib/vpsStepConfiguration";
 
 interface LinodeType {
   id: string;
@@ -87,6 +93,7 @@ const VPS: React.FC = () => {
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState<number>(1);
+  const [activeSteps, setActiveSteps] = useState<StepConfiguration[]>([]);
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     id: string;
@@ -672,6 +679,27 @@ const VPS: React.FC = () => {
     return () => clearInterval(interval);
   }, [instances, loadInstances]);
 
+  // Calculate active steps based on provider and marketplace selection
+  useEffect(() => {
+    const hasMarketplaceApp = Boolean(
+      createForm.provider_type === "digitalocean" &&
+        (createForm.appSlug || (selectedStackScript as any)?.isMarketplace)
+    );
+
+    const steps = getActiveSteps({
+      providerType: createForm.provider_type,
+      hasMarketplaceApp,
+      formData: createForm,
+    });
+
+    setActiveSteps(steps);
+  }, [
+    createForm.provider_type,
+    createForm.appSlug,
+    selectedStackScript,
+    createForm,
+  ]);
+
   // Load images and stack scripts when create modal opens
   useEffect(() => {
     if (showCreateModal) {
@@ -1131,22 +1159,31 @@ const VPS: React.FC = () => {
       const isMarketplace = Boolean(
         (selectedStackScript as any)?.isMarketplace
       );
+      
+      // For DigitalOcean marketplace apps, use the app slug as the image parameter
+      const imageToUse = isMarketplace && createForm.provider_type === 'digitalocean' && (selectedStackScript as any)?.appSlug
+        ? (selectedStackScript as any).appSlug
+        : createForm.image;
+      
       const body: any = {
         provider_id: createForm.provider_id,
         provider_type: createForm.provider_type,
         label: createForm.label,
         type: createForm.type,
         region: createForm.region,
-        image: createForm.image,
+        image: imageToUse,
         rootPassword: createForm.rootPassword,
         sshKeys: createForm.sshKeys,
         backups: createForm.backups,
         privateIP: createForm.privateIP,
       };
-      if (isMarketplace) {
+      
+      // For Linode marketplace apps, still use appSlug field
+      if (isMarketplace && createForm.provider_type === 'linode') {
         body.appSlug = (selectedStackScript as any)?.appSlug;
         body.appData = stackscriptData;
-      } else {
+      } else if (!isMarketplace) {
+        // For regular StackScripts (non-marketplace)
         body.stackscriptId = selectedStackScript?.id || undefined;
         body.stackscriptData = selectedStackScript
           ? stackscriptData
@@ -1273,7 +1310,7 @@ const VPS: React.FC = () => {
   }, [linodeTypes, createForm.provider_id]);
 
   // Multi-step modal helpers
-  const totalSteps = 4;
+  const totalSteps = activeSteps.length > 0 ? activeSteps.length : 4;
   const canProceed = useMemo(() => {
     if (createStep === 1)
       return Boolean(
@@ -1293,14 +1330,34 @@ const VPS: React.FC = () => {
     createForm.image,
   ]);
 
-  const handleNext = () => setCreateStep((s) => Math.min(s + 1, totalSteps));
-  const handleBack = () => setCreateStep((s) => Math.max(1, s - 1));
+  const handleNext = () => {
+    const nextStep = getNextStep(createStep, activeSteps);
+    if (nextStep !== null) {
+      setCreateStep(nextStep);
+    }
+  };
+
+  const handleBack = () => {
+    const prevStep = getPreviousStep(createStep, activeSteps);
+    if (prevStep !== null) {
+      setCreateStep(prevStep);
+    }
+  };
+
+  // Get dynamic step information from active steps configuration
+  const getStepInfo = (originalStepNumber: number) => {
+    const stepConfig = activeSteps.find(
+      (s) => s.originalStepNumber === originalStepNumber
+    );
+    return stepConfig || null;
+  };
 
   const creationSteps = [
     {
       id: "plan",
-      title: "Plan & Label",
+      title: getStepInfo(1)?.title || "Plan & Label",
       description:
+        getStepInfo(1)?.description ||
         "Configure the server label and pricing plan before provisioning.",
       content: (
         <div className="space-y-4">
@@ -1308,12 +1365,24 @@ const VPS: React.FC = () => {
             <ProviderSelector
               value={createForm.provider_id}
               onChange={(providerId: string, providerType: ProviderType) => {
-                setCreateForm({
+                // Clear marketplace app selection when switching away from DigitalOcean
+                const updates: Partial<CreateVPSForm> = {
                   provider_id: providerId,
                   provider_type: providerType,
                   type: "", // Reset plan selection when provider changes
                   region: "", // Reset region when provider changes
-                });
+                };
+
+                // Clear marketplace app when switching away from DigitalOcean
+                if (providerType !== "digitalocean") {
+                  updates.appSlug = undefined;
+                  updates.appData = undefined;
+                }
+
+                setCreateForm(updates);
+
+                // Reset to step 1 when provider changes
+                setCreateStep(1);
               }}
               disabled={false}
               token={token || ""}
@@ -1441,13 +1510,15 @@ const VPS: React.FC = () => {
     {
       id: "deployments",
       title:
-        createForm.provider_type === "digitalocean"
+        getStepInfo(2)?.title ||
+        (createForm.provider_type === "digitalocean"
           ? "Marketplace Apps"
-          : "1-Click Deployments",
+          : "1-Click Deployments"),
       description:
-        createForm.provider_type === "digitalocean"
+        getStepInfo(2)?.description ||
+        (createForm.provider_type === "digitalocean"
           ? "Optionally deploy a pre-configured application."
-          : "Optionally provision with a StackScript or continue without one.",
+          : "Optionally provision with a StackScript or continue without one."),
       content: (
         <CreateVPSSteps
           step={2}
@@ -1466,8 +1537,10 @@ const VPS: React.FC = () => {
     },
     {
       id: "os",
-      title: "Operating System",
-      description: "Pick the base operating system for this VPS.",
+      title: getStepInfo(3)?.title || "Operating System",
+      description:
+        getStepInfo(3)?.description ||
+        "Pick the base operating system for this VPS.",
       content: (
         <CreateVPSSteps
           step={3}
@@ -1489,8 +1562,10 @@ const VPS: React.FC = () => {
     },
     {
       id: "finalize",
-      title: "Finalize & Review",
-      description: "Set credentials and optional add-ons before provisioning.",
+      title: getStepInfo(4)?.title || "Finalize & Review",
+      description:
+        getStepInfo(4)?.description ||
+        "Set credentials and optional add-ons before provisioning.",
       content:
         createForm.provider_type === "digitalocean" ? (
           <CreateVPSSteps
@@ -1982,9 +2057,27 @@ const VPS: React.FC = () => {
             setShowCreateModal(isOpen);
             if (!isOpen) setCreateStep(1);
           }}
-          steps={creationSteps}
-          activeStep={createStep - 1}
-          onStepChange={(index) => setCreateStep(index + 1)}
+          steps={creationSteps.filter((step) => {
+            // Filter steps based on active steps configuration
+            const stepNumber =
+              step.id === "plan"
+                ? 1
+                : step.id === "deployments"
+                ? 2
+                : step.id === "os"
+                ? 3
+                : 4;
+            return activeSteps.some((s) => s.originalStepNumber === stepNumber);
+          })}
+          activeStep={
+            activeSteps.findIndex((s) => s.originalStepNumber === createStep)
+          }
+          onStepChange={(index) => {
+            const step = activeSteps[index];
+            if (step) {
+              setCreateStep(step.originalStepNumber);
+            }
+          }}
           title="Create New VPS Instance"
           description={
             lastSaved

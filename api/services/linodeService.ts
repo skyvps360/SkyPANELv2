@@ -1550,6 +1550,100 @@ class LinodeService {
   }
 
   /**
+   * Get all SSH keys for the account
+   */
+  async getSSHKeys(apiToken: string): Promise<Array<{ id: number; label: string; ssh_key: string; created: string }>> {
+    try {
+      const token = apiToken || this.apiToken;
+      if (!token) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/profile/sshkeys`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error('Error fetching Linode SSH keys:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new SSH key
+   */
+  async createSSHKey(apiToken: string, label: string, publicKey: string): Promise<{ id: number; label: string; ssh_key: string }> {
+    try {
+      const token = apiToken || this.apiToken;
+      if (!token) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/profile/sshkeys`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          label,
+          ssh_key: publicKey,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error creating Linode SSH key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an SSH key
+   */
+  async deleteSSHKey(apiToken: string, keyId: string): Promise<void> {
+    try {
+      const token = apiToken || this.apiToken;
+      if (!token) {
+        throw new Error('Linode API token not configured');
+      }
+
+      const response = await fetch(`${this.baseUrl}/profile/sshkeys/${keyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`Linode API error: ${response.status} ${response.statusText} ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting Linode SSH key:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Set up custom rDNS for a newly created VPS instance (DEPRECATED - use setupCustomRDNSAsync)
    * This will set the rDNS to use skyvps360.xyz domain instead of linodeusercontent.com
    */

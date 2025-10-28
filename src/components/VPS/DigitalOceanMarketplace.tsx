@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { ProviderErrorDisplay } from './ProviderErrorDisplay';
 import { getUserFriendlyErrorMessage } from '@/lib/providerErrors';
+import { validateMarketplaceApp } from '@/lib/validation';
 
 interface MarketplaceApp {
   slug: string;
@@ -20,12 +21,14 @@ interface DigitalOceanMarketplaceProps {
   selectedApp: string | null;
   onSelect: (appSlug: string | null, appData: MarketplaceApp | null) => void;
   token: string;
+  region?: string; // Current selected region for validation
 }
 
 export default function DigitalOceanMarketplace({
   selectedApp,
   onSelect,
-  token
+  token,
+  region
 }: DigitalOceanMarketplaceProps) {
   const [apps, setApps] = useState<MarketplaceApp[]>([]);
   const [_categorized, _setCategorized] = useState<Record<string, MarketplaceApp[]>>({});
@@ -98,6 +101,15 @@ export default function DigitalOceanMarketplace({
   };
 
   const handleAppSelect = (app: MarketplaceApp) => {
+    // Validate marketplace app selection if region is provided
+    if (region) {
+      const validation = validateMarketplaceApp(app.slug, region, apps);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid marketplace app selection');
+        return;
+      }
+    }
+    
     onSelect(app.slug, app);
   };
 
@@ -189,6 +201,10 @@ export default function DigitalOceanMarketplace({
                 // Generate icon from app name
                 const iconText = app.name.substring(0, 2).toUpperCase();
                 
+                // Check if app is compatible with selected region
+                const validation = region ? validateMarketplaceApp(app.slug, region, apps) : { valid: true };
+                const isIncompatible = !validation.valid && validation.errorCode === 'REGION_INCOMPATIBLE';
+                
                 return (
                   <div
                     key={app.slug}
@@ -197,6 +213,8 @@ export default function DigitalOceanMarketplace({
                       "relative p-3 min-h-[75px] border rounded-lg cursor-pointer transition-all touch-manipulation",
                       isSelected
                         ? 'border-primary bg-primary/10 dark:bg-primary/20 dark:border-primary'
+                        : isIncompatible
+                        ? 'border-amber-500/50 bg-amber-500/5 opacity-60 cursor-not-allowed'
                         : 'border hover:border-input dark:hover:border-gray-500'
                     )}
                   >
@@ -219,6 +237,12 @@ export default function DigitalOceanMarketplace({
                       >
                         {app.description || 'Marketplace application'}
                       </p>
+                      {isIncompatible && (
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>Not available in selected region</span>
+                        </div>
+                      )}
                     </div>
                     {isSelected && (
                       <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">

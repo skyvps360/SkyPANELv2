@@ -55,6 +55,7 @@ import Contact from "./pages/Contact";
 import Status from "./pages/Status";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import SSHKeys from "./pages/SSHKeys";
 
 // Component to handle impersonation banner display
 function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
@@ -281,6 +282,14 @@ function AppRoutes() {
             <StandaloneProtectedRoute>
               <VpsSshConsole />
             </StandaloneProtectedRoute>
+          }
+        />
+        <Route
+          path="/ssh-keys"
+          element={
+            <ProtectedRoute>
+              <SSHKeys />
+            </ProtectedRoute>
           }
         />
         <Route

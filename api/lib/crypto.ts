@@ -35,15 +35,42 @@ export function encryptSecret(plaintext: string): string {
 
 export function decryptSecret(encoded: string): string {
   const key = getKey();
-  const json = Buffer.from(encoded, 'base64').toString('utf8');
-  const payload = JSON.parse(json) as EncryptedPayload;
-  const iv = Buffer.from(payload.iv, 'base64');
-  const tag = Buffer.from(payload.tag, 'base64');
-  const ciphertext = Buffer.from(payload.ciphertext, 'base64');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(tag);
-  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-  return plaintext;
+
+  let decoded: Buffer;
+  try {
+    decoded = Buffer.from(encoded, 'base64');
+  } catch (err) {
+    // Value was never encrypted (legacy behavior). Return as-is.
+    console.warn('decryptSecret: value is not base64 encoded; assuming legacy plaintext secret.');
+    return encoded;
+  }
+
+  let payload: EncryptedPayload;
+  try {
+    payload = JSON.parse(decoded.toString('utf8')) as EncryptedPayload;
+  } catch (err) {
+    // Parsed value is not an encrypted payload. Treat as legacy plaintext.
+    console.warn('decryptSecret: decoded payload is not JSON; assuming legacy plaintext secret.');
+    return encoded;
+  }
+
+  if (!payload?.iv || !payload?.tag || !payload?.ciphertext) {
+    console.warn('decryptSecret: payload missing encryption fields; assuming legacy plaintext secret.');
+    return encoded;
+  }
+
+  try {
+    const iv = Buffer.from(payload.iv, 'base64');
+    const tag = Buffer.from(payload.tag, 'base64');
+    const ciphertext = Buffer.from(payload.ciphertext, 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+    return plaintext;
+  } catch (err) {
+    console.error('decryptSecret: failed to decrypt payload. Ensure SSH_CRED_SECRET matches the key used for encryption.', err);
+    throw err;
+  }
 }
 
 export function hasEncryptionKey(): boolean {
