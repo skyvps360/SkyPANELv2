@@ -240,6 +240,38 @@ export function VpsInstancesTable({
         }
       },
       {
+        accessorKey: "provider_type",
+        header: "Provider",
+        cell: ({ row }) => {
+          const instance = row.original;
+          const providerType = instance.provider_type || 'linode';
+          let providerName: string;
+          
+          if (providerType === 'linode') {
+            providerName = 'Linode';
+          } else if (providerType === 'digitalocean') {
+            providerName = 'DigitalOcean';
+          } else if (providerType === 'aws') {
+            providerName = 'AWS';
+          } else if (providerType === 'gcp') {
+            providerName = 'GCP';
+          } else {
+            providerName = String(providerType).charAt(0).toUpperCase() + String(providerType).slice(1);
+          }
+          
+          return (
+            <div className="min-w-[100px]">
+              <Badge variant="outline" className="text-xs">
+                {providerName}
+              </Badge>
+            </div>
+          );
+        },
+        meta: {
+          className: "min-w-[100px]"
+        }
+      },
+      {
         id: "specs",
         header: "Resources",
         cell: ({ row }) => {
@@ -475,6 +507,28 @@ export function VpsInstancesTable({
                   {regionLabel}
                 </Badge>
               )}
+              {(() => {
+                const providerType = instance.provider_type || 'linode';
+                let providerName: string;
+                
+                if (providerType === 'linode') {
+                  providerName = 'Linode';
+                } else if (providerType === 'digitalocean') {
+                  providerName = 'DigitalOcean';
+                } else if (providerType === 'aws') {
+                  providerName = 'AWS';
+                } else if (providerType === 'gcp') {
+                  providerName = 'GCP';
+                } else {
+                  providerName = String(providerType).charAt(0).toUpperCase() + String(providerType).slice(1);
+                }
+                
+                return (
+                  <Badge variant="outline" className="text-[11px]">
+                    {providerName}
+                  </Badge>
+                );
+              })()}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">

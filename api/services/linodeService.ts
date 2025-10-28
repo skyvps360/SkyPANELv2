@@ -262,6 +262,45 @@ class LinodeService {
   }
 
   /**
+   * Test API connection with provided credentials
+   */
+  async testConnection(apiToken?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const token = apiToken || this.apiToken;
+      if (!token) {
+        return { success: false, message: 'API token not provided' };
+      }
+
+      // Test the connection by fetching account info
+      const response = await fetch(`${this.baseUrl}/account`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const _errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          message: `API authentication failed: ${response.status} ${response.statusText}`
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: `Connected successfully to account: ${data.email || 'Unknown'}`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Connection test failed'
+      };
+    }
+  }
+
+  /**
    * Fetch Linode Marketplace apps. Optionally filter by slug list.
    * Also fetches the underlying StackScript details to get user_defined_fields.
    */

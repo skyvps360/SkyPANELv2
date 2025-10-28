@@ -142,11 +142,69 @@ export interface DigitalOceanSSHKey {
   name: string;
 }
 
+// Marketplace App (1-Click Application)
+export interface DigitalOceanMarketplaceApp {
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  image_slug: string;
+  compatible_images?: string[];
+  type: string;
+}
+
 class DigitalOceanService {
   private readonly baseUrl = 'https://api.digitalocean.com/v2';
+  
+  // Rate limiting configuration
+  private readonly maxRequestsPerMinute = 250;
+  private readonly maxRequestsPerHour = 5000;
+  private requestTimestamps: number[] = [];
+  
+  // Retry configuration
+  private readonly maxRetries = 3;
+  private readonly retryDelay = 1000; // 1 second base delay
 
   constructor() {
     // API token comes from database via admin UI, not environment
+  }
+
+  /**
+   * Test API connection with provided credentials
+   */
+  async testConnection(apiToken: string): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!apiToken) {
+        return { success: false, message: 'API token not provided' };
+      }
+
+      // Test the connection by fetching account info
+      const response = await fetch(`${this.baseUrl}/account`, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const _errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          message: `API authentication failed: ${response.status} ${response.statusText}`
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: `Connected successfully to account: ${data.account?.email || 'Unknown'}`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Connection test failed'
+      };
+    }
   }
 
   /**
@@ -171,22 +229,137 @@ class DigitalOceanService {
   }
 
   /**
+   * Check if we're within rate limits
+   */
+  private checkRateLimit(): void {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60 * 1000;
+    const oneHourAgo = now - 60 * 60 * 1000;
+
+    // Clean up old timestamps
+    this.requestTimestamps = this.requestTimestamps.filter(ts => ts > oneHourAgo);
+
+    // Check minute limit
+    const recentRequests = this.requestTimestamps.filter(ts => ts > oneMinuteAgo);
+    if (recentRequests.length >= this.maxRequestsPerMinute) {
+      throw new Error('Rate limit exceeded: too many requests per minute');
+    }
+
+    // Check hour limit
+    if (this.requestTimestamps.length >= this.maxRequestsPerHour) {
+      throw new Error('Rate limit exceeded: too many requests per hour');
+    }
+
+    // Record this request
+    this.requestTimestamps.push(now);
+  }
+
+  /**
+   * Sleep utility for retry logic
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Make an API request with retry logic
+   */
+  private async makeRequest<T>(
+    url: string,
+    options: RequestInit,
+    apiToken: string,
+    retryCount = 0
+  ): Promise<T> {
+    try {
+      // Check rate limits before making request
+      this.checkRateLimit();
+
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...this.getHeaders(apiToken),
+          ...options.headers,
+        },
+      });
+
+      // Handle rate limiting from API
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        const delay = retryAfter ? parseInt(retryAfter) * 1000 : this.retryDelay * Math.pow(2, retryCount);
+        
+        if (retryCount < this.maxRetries) {
+          console.log(`Rate limited by DigitalOcean API, retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+          await this.sleep(delay);
+          return this.makeRequest<T>(url, options, apiToken, retryCount + 1);
+        }
+        
+        throw new Error('Rate limit exceeded and max retries reached');
+      }
+
+      // Handle server errors with retry
+      if (response.status >= 500 && retryCount < this.maxRetries) {
+        const delay = this.retryDelay * Math.pow(2, retryCount);
+        console.log(`Server error ${response.status}, retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+        await this.sleep(delay);
+        return this.makeRequest<T>(url, options, apiToken, retryCount + 1);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        
+        const error: any = new Error(`DigitalOcean API error: ${response.status} ${response.statusText}`);
+        error.status = response.status;
+        error.statusText = response.statusText;
+        error.data = errorData;
+        throw error;
+      }
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Don't retry on client errors (4xx except 429)
+      if (error instanceof Error && 'status' in error) {
+        const status = (error as any).status;
+        if (status >= 400 && status < 500 && status !== 429) {
+          throw error;
+        }
+      }
+
+      // Retry on network errors
+      if (retryCount < this.maxRetries && !(error instanceof Error && error.message.includes('Rate limit'))) {
+        const delay = this.retryDelay * Math.pow(2, retryCount);
+        console.log(`Network error, retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+        await this.sleep(delay);
+        return this.makeRequest<T>(url, options, apiToken, retryCount + 1);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Get all available sizes (instance types)
    */
   async getDigitalOceanSizes(apiToken: string): Promise<DigitalOceanSize[]> {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/sizes?per_page=200`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ sizes: DigitalOceanSize[] }>(
+        `${this.baseUrl}/sizes?per_page=200`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.sizes || [];
     } catch (error) {
       console.error('Error fetching DigitalOcean sizes:', error);
@@ -201,16 +374,12 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/regions?per_page=200`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ regions: DigitalOceanRegion[] }>(
+        `${this.baseUrl}/regions?per_page=200`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.regions || [];
     } catch (error) {
       console.error('Error fetching DigitalOcean regions:', error);
@@ -230,16 +399,12 @@ class DigitalOceanService {
         url += `&type=${type}`;
       }
 
-      const response = await fetch(url, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ images: DigitalOceanImage[] }>(
+        url,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.images || [];
     } catch (error) {
       console.error('Error fetching DigitalOcean images:', error);
@@ -254,18 +419,15 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/droplets`, {
-        method: 'POST',
-        headers: this.getHeaders(apiToken),
-        body: JSON.stringify(request),
-      });
+      const data = await this.makeRequest<{ droplet: DigitalOceanDroplet }>(
+        `${this.baseUrl}/droplets`,
+        {
+          method: 'POST',
+          body: JSON.stringify(request),
+        },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.droplet;
     } catch (error) {
       console.error('Error creating DigitalOcean droplet:', error);
@@ -280,16 +442,12 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/droplets/${dropletId}`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ droplet: DigitalOceanDroplet }>(
+        `${this.baseUrl}/droplets/${dropletId}`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.droplet;
     } catch (error) {
       console.error('Error fetching DigitalOcean droplet:', error);
@@ -304,16 +462,12 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/droplets?per_page=200`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ droplets: DigitalOceanDroplet[] }>(
+        `${this.baseUrl}/droplets?per_page=200`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.droplets || [];
     } catch (error) {
       console.error('Error listing DigitalOcean droplets:', error);
@@ -328,15 +482,11 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/droplets/${dropletId}`, {
-        method: 'DELETE',
-        headers: this.getHeaders(apiToken),
-      });
-
-      if (!response.ok && response.status !== 204) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
+      await this.makeRequest<void>(
+        `${this.baseUrl}/droplets/${dropletId}`,
+        { method: 'DELETE' },
+        apiToken
+      );
     } catch (error) {
       console.error('Error deleting DigitalOcean droplet:', error);
       throw error;
@@ -352,18 +502,15 @@ class DigitalOceanService {
 
       const body = { type: actionType, ...params };
 
-      const response = await fetch(`${this.baseUrl}/droplets/${dropletId}/actions`, {
-        method: 'POST',
-        headers: this.getHeaders(apiToken),
-        body: JSON.stringify(body),
-      });
+      const data = await this.makeRequest<{ action: DigitalOceanAction }>(
+        `${this.baseUrl}/droplets/${dropletId}/actions`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.action;
     } catch (error) {
       console.error('Error performing DigitalOcean droplet action:', error);
@@ -413,16 +560,12 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/account/keys`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ ssh_keys: DigitalOceanSSHKey[] }>(
+        `${this.baseUrl}/account/keys`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.ssh_keys || [];
     } catch (error) {
       console.error('Error fetching DigitalOcean SSH keys:', error);
@@ -437,24 +580,41 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/account/keys`, {
-        method: 'POST',
-        headers: this.getHeaders(apiToken),
-        body: JSON.stringify({
-          name,
-          public_key: publicKey,
-        }),
-      });
+      const data = await this.makeRequest<{ ssh_key: DigitalOceanSSHKey }>(
+        `${this.baseUrl}/account/keys`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            name,
+            public_key: publicKey,
+          }),
+        },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.ssh_key;
     } catch (error) {
       console.error('Error creating DigitalOcean SSH key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get VPCs (Virtual Private Clouds)
+   */
+  async getVPCs(apiToken: string): Promise<any[]> {
+    try {
+      if (!apiToken) throw new Error('DigitalOcean API token not provided');
+
+      const data = await this.makeRequest<{ vpcs: any[] }>(
+        `${this.baseUrl}/vpcs`,
+        { method: 'GET' },
+        apiToken
+      );
+
+      return data.vpcs || [];
+    } catch (error) {
+      console.error('Error fetching DigitalOcean VPCs:', error);
       throw error;
     }
   }
@@ -466,21 +626,172 @@ class DigitalOceanService {
     try {
       if (!apiToken) throw new Error('DigitalOcean API token not provided');
 
-      const response = await fetch(`${this.baseUrl}/account`, {
-        headers: this.getHeaders(apiToken),
-      });
+      const data = await this.makeRequest<{ account: any }>(
+        `${this.baseUrl}/account`,
+        { method: 'GET' },
+        apiToken
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`DigitalOcean API error: ${response.status} ${response.statusText} ${errorText}`);
-      }
-
-      const data = await response.json();
       return data.account;
     } catch (error) {
       console.error('Error fetching DigitalOcean account:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get 1-Click Apps from DigitalOcean Marketplace
+   * Uses the official /v2/1-clicks endpoint for complete catalog
+   */
+  async get1ClickApps(apiToken: string): Promise<DigitalOceanMarketplaceApp[]> {
+    try {
+      if (!apiToken) {
+        const error = new Error('DigitalOcean API token not provided');
+        console.error('Error fetching DigitalOcean 1-Click Apps: Missing API token');
+        throw error;
+      }
+
+      const data = await this.makeRequest<{ 
+        '1_clicks': Array<{
+          slug: string;
+          type: string;
+        }>
+      }>(
+        `${this.baseUrl}/1-clicks?type=droplet`,
+        { method: 'GET' },
+        apiToken
+      );
+
+      // Transform API response to MarketplaceApp format
+      return (data['1_clicks'] || []).map(app => ({
+        slug: app.slug,
+        name: this.formatAppName(app.slug),
+        description: this.getAppDescription(app.slug),
+        category: this.getAppCategory(app.slug),
+        image_slug: app.slug,
+        compatible_images: [],
+        type: app.type,
+      }));
+    } catch (error: any) {
+      // Log detailed error information
+      if (error.status) {
+        console.error(`Error fetching DigitalOcean 1-Click Apps: API returned ${error.status} ${error.statusText || ''}`, {
+          status: error.status,
+          message: error.message,
+          data: error.data
+        });
+      } else {
+        console.error('Error fetching DigitalOcean 1-Click Apps:', error.message || error);
+      }
+      
+      // Re-throw error to be handled by caller
+      throw error;
+    }
+  }
+
+  /**
+   * Format app slug into human-readable name
+   * Example: "wordpress-20-04" -> "WordPress 20 04"
+   */
+  private formatAppName(slug: string): string {
+    // Split on hyphens, capitalize words, handle version numbers
+    return slug
+      .split('-')
+      .map(word => {
+        // Keep version numbers as-is (e.g., "20", "04")
+        if (/^\d+$/.test(word)) return word;
+        // Capitalize first letter
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join(' ');
+  }
+
+  /**
+   * Get category for app based on slug patterns
+   * Uses common naming conventions in DigitalOcean marketplace
+   */
+  private getAppCategory(slug: string): string {
+    const slugLower = slug.toLowerCase();
+    
+    // Database apps
+    if (slugLower.includes('mysql') || slugLower.includes('postgres') || 
+        slugLower.includes('mongodb') || slugLower.includes('redis') ||
+        slugLower.includes('mariadb')) {
+      return 'Databases';
+    }
+    
+    // CMS platforms
+    if (slugLower.includes('wordpress') || slugLower.includes('drupal') ||
+        slugLower.includes('joomla') || slugLower.includes('ghost')) {
+      return 'CMS';
+    }
+    
+    // Container platforms
+    if (slugLower.includes('docker') || slugLower.includes('kubernetes') ||
+        slugLower.includes('k3s')) {
+      return 'Containers';
+    }
+    
+    // Development frameworks
+    if (slugLower.includes('node') || slugLower.includes('ruby') ||
+        slugLower.includes('python') || slugLower.includes('php') ||
+        slugLower.includes('django') || slugLower.includes('rails')) {
+      return 'Development';
+    }
+    
+    // Monitoring & Analytics
+    if (slugLower.includes('monitoring') || slugLower.includes('grafana') ||
+        slugLower.includes('prometheus') || slugLower.includes('elk')) {
+      return 'Monitoring';
+    }
+    
+    // Web servers
+    if (slugLower.includes('nginx') || slugLower.includes('apache') ||
+        slugLower.includes('caddy')) {
+      return 'Web Servers';
+    }
+    
+    return 'Other';
+  }
+
+  /**
+   * Get description for app based on slug
+   * Provides basic descriptions for common apps
+   */
+  private getAppDescription(slug: string): string {
+    const descriptions: Record<string, string> = {
+      'wordpress': 'Popular open-source CMS for websites and blogs',
+      'docker': 'Container platform for building and deploying applications',
+      'mongodb': 'NoSQL document database',
+      'mysql': 'Open-source relational database',
+      'nodejs': 'JavaScript runtime for server-side applications',
+      'lemp': 'Linux, Nginx, MySQL, PHP stack',
+      'lamp': 'Linux, Apache, MySQL, PHP stack',
+      'nginx': 'High-performance web server and reverse proxy',
+      'apache': 'Popular open-source web server',
+      'redis': 'In-memory data structure store',
+      'postgres': 'Advanced open-source relational database',
+      'postgresql': 'Advanced open-source relational database',
+      'drupal': 'Open-source CMS and web application framework',
+      'joomla': 'Open-source CMS for publishing web content',
+      'ghost': 'Modern open-source publishing platform',
+      'kubernetes': 'Container orchestration platform',
+      'k3s': 'Lightweight Kubernetes distribution',
+      'grafana': 'Analytics and monitoring platform',
+      'prometheus': 'Monitoring and alerting toolkit',
+      'python': 'Python programming language runtime',
+      'ruby': 'Ruby programming language runtime',
+      'php': 'PHP programming language runtime',
+      'django': 'High-level Python web framework',
+      'rails': 'Ruby on Rails web application framework',
+      'mariadb': 'Open-source relational database (MySQL fork)',
+      'elk': 'Elasticsearch, Logstash, and Kibana stack',
+      'caddy': 'Modern web server with automatic HTTPS',
+    };
+    
+    // Try exact match first
+    const baseSlug = slug.split('-')[0].toLowerCase();
+    return descriptions[baseSlug] || 'Pre-configured marketplace application';
   }
 
   /**

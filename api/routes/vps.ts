@@ -50,6 +50,19 @@ router.get("/networking/config", async (_req: Request, res: Response) => {
   }
 });
 
+// Get active providers (user-accessible, respects display_order)
+router.get("/providers", async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      "SELECT id, name, type, active, display_order FROM service_providers WHERE active = true ORDER BY display_order ASC NULLS LAST, created_at DESC"
+    );
+    res.json({ providers: result.rows || [] });
+  } catch (err: any) {
+    console.error("VPS providers list error:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch providers" });
+  }
+});
+
 router.get("/plans", async (_req: Request, res: Response) => {
   try {
     const result = await query(
@@ -57,6 +70,7 @@ router.get("/plans", async (_req: Request, res: Response) => {
          id,
          name,
          COALESCE(specifications->>'description', '') AS description,
+         provider_id,
          provider_plan_id,
          base_price,
          markup_price,
@@ -71,6 +85,7 @@ router.get("/plans", async (_req: Request, res: Response) => {
       id: row.id,
       name: row.name,
       description: row.description,
+      provider_id: row.provider_id,
       provider_plan_id: row.provider_plan_id,
       base_price: row.base_price,
       markup_price: row.markup_price,
@@ -964,6 +979,329 @@ router.get("/stackscripts", async (req: Request, res: Response) => {
   }
 });
 
+// DigitalOcean-specific endpoints
+
+// Get DigitalOcean marketplace apps (1-Click applications)
+router.get(
+  "/digitalocean/marketplace",
+  async (_req: Request, res: Response) => {
+    try {
+      // Fetch the DigitalOcean provider configuration
+      const providerResult = await query(
+        "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+      );
+
+      if (providerResult.rows.length === 0) {
+        res.status(503).json({
+          error: {
+            code: "MISSING_CREDENTIALS",
+            message: "DigitalOcean provider is not configured or inactive.",
+            provider: "digitalocean",
+          },
+        });
+        return;
+      }
+
+      const apiToken = providerResult.rows[0].api_key_encrypted;
+
+      // Import DigitalOcean service
+      const { digitalOceanService } = await import(
+        "../services/DigitalOceanService.js"
+      );
+
+      // Fetch 1-Click Apps using new method
+      const apps = await digitalOceanService.get1ClickApps(apiToken);
+
+      // Group apps by category for better organization
+      const categorizedApps: Record<string, any[]> = {};
+      apps.forEach((app: any) => {
+        const category = app.category || "Other";
+        if (!categorizedApps[category]) {
+          categorizedApps[category] = [];
+        }
+        categorizedApps[category].push(app);
+      });
+
+      res.json({
+        apps,
+        categorized: categorizedApps,
+        total: apps.length,
+      });
+    } catch (err: any) {
+      console.error("DigitalOcean marketplace fetch error:", err);
+
+      // Determine appropriate status code
+      const statusCode = err.status || err.statusCode || 500;
+
+      res.status(statusCode).json({
+        error: {
+          code: err.code || "API_ERROR",
+          message:
+            err.message || "Failed to fetch DigitalOcean marketplace apps",
+          provider: "digitalocean",
+        },
+      });
+    }
+  }
+);
+
+// Get DigitalOcean OS images
+router.get("/digitalocean/images", async (req: Request, res: Response) => {
+  try {
+    // Fetch the DigitalOcean provider configuration
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      res.status(503).json({
+        error: {
+          code: "MISSING_CREDENTIALS",
+          message: "DigitalOcean provider is not configured or inactive.",
+          provider: "digitalocean",
+        },
+      });
+      return;
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+
+    // Import DigitalOcean service
+    const { digitalOceanService } = await import(
+      "../services/DigitalOceanService.js"
+    );
+
+    // Get optional type filter from query params
+    const typeFilter = req.query.type as string | undefined;
+
+    // Fetch images
+    let images = await digitalOceanService.getDigitalOceanImages(apiToken);
+
+    // Apply type filter if provided (distribution, application, custom)
+    if (typeFilter) {
+      const filterLower = typeFilter.toLowerCase();
+      images = images.filter((img: any) => {
+        if (filterLower === "distribution") {
+          return img.type === "base" || (img.type === "snapshot" && img.public);
+        } else if (filterLower === "application") {
+          return img.type === "snapshot" && !img.public;
+        } else if (filterLower === "custom") {
+          return img.type === "custom";
+        }
+        return true;
+      });
+    }
+
+    // Group images by distribution for better organization
+    const groupedImages: Record<string, any[]> = {};
+    images.forEach((image: any) => {
+      const distribution = image.distribution || "Other";
+      if (!groupedImages[distribution]) {
+        groupedImages[distribution] = [];
+      }
+      groupedImages[distribution].push(image);
+    });
+
+    res.json({
+      images,
+      grouped: groupedImages,
+      total: images.length,
+    });
+  } catch (err: any) {
+    console.error("DigitalOcean images fetch error:", err);
+
+    // Determine appropriate status code
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+      error: {
+        code: err.code || "API_ERROR",
+        message: err.message || "Failed to fetch DigitalOcean images",
+        provider: "digitalocean",
+      },
+    });
+  }
+});
+
+// Get DigitalOcean Droplet sizes (plans)
+router.get("/digitalocean/sizes", async (_req: Request, res: Response) => {
+  try {
+    // Fetch the DigitalOcean provider configuration
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      res.status(503).json({
+        error: {
+          code: "MISSING_CREDENTIALS",
+          message: "DigitalOcean provider is not configured or inactive.",
+          provider: "digitalocean",
+        },
+      });
+      return;
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+
+    // Import DigitalOcean service
+    const { digitalOceanService } = await import(
+      "../services/DigitalOceanService.js"
+    );
+
+    // Fetch sizes
+    const sizes = await digitalOceanService.getDigitalOceanSizes(apiToken);
+
+    // Filter to only available sizes
+    const availableSizes = sizes.filter((size: any) => size.available);
+
+    // Group sizes by type/category for better organization
+    const groupedSizes: Record<string, any[]> = {};
+    availableSizes.forEach((size: any) => {
+      // Extract category from slug (e.g., 's-1vcpu-1gb' -> 's', 'c-2' -> 'c')
+      const category = size.slug.split("-")[0] || "other";
+      const categoryName =
+        {
+          s: "Basic",
+          c: "CPU-Optimized",
+          g: "General Purpose",
+          m: "Memory-Optimized",
+          so: "Storage-Optimized",
+        }[category] || "Other";
+
+      if (!groupedSizes[categoryName]) {
+        groupedSizes[categoryName] = [];
+      }
+      groupedSizes[categoryName].push(size);
+    });
+
+    res.json({
+      sizes: availableSizes,
+      grouped: groupedSizes,
+      total: availableSizes.length,
+    });
+  } catch (err: any) {
+    console.error("DigitalOcean sizes fetch error:", err);
+
+    // Determine appropriate status code
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+      error: {
+        code: err.code || "API_ERROR",
+        message: err.message || "Failed to fetch DigitalOcean sizes",
+        provider: "digitalocean",
+      },
+    });
+  }
+});
+
+// Get DigitalOcean SSH keys
+router.get("/digitalocean/ssh-keys", async (_req: Request, res: Response) => {
+  try {
+    // Fetch the DigitalOcean provider configuration
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      res.status(503).json({
+        error: {
+          code: "MISSING_CREDENTIALS",
+          message: "DigitalOcean provider is not configured or inactive.",
+          provider: "digitalocean",
+        },
+      });
+      return;
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+
+    // Import DigitalOcean service
+    const { digitalOceanService } = await import(
+      "../services/DigitalOceanService.js"
+    );
+
+    // Fetch SSH keys
+    const sshKeys = await digitalOceanService.getSSHKeys(apiToken);
+
+    res.json({
+      ssh_keys: sshKeys,
+      total: sshKeys.length,
+    });
+  } catch (err: any) {
+    console.error("DigitalOcean SSH keys fetch error:", err);
+
+    // Determine appropriate status code
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+      error: {
+        code: err.code || "API_ERROR",
+        message: err.message || "Failed to fetch SSH keys",
+        provider: "digitalocean",
+      },
+    });
+  }
+});
+
+// Get DigitalOcean VPCs
+router.get("/digitalocean/vpcs", async (req: Request, res: Response) => {
+  try {
+    // Fetch the DigitalOcean provider configuration
+    const providerResult = await query(
+      "SELECT api_key_encrypted FROM service_providers WHERE type = 'digitalocean' AND active = true LIMIT 1"
+    );
+
+    if (providerResult.rows.length === 0) {
+      res.status(503).json({
+        error: {
+          code: "MISSING_CREDENTIALS",
+          message: "DigitalOcean provider is not configured or inactive.",
+          provider: "digitalocean",
+        },
+      });
+      return;
+    }
+
+    const apiToken = providerResult.rows[0].api_key_encrypted;
+
+    // Import DigitalOcean service
+    const { digitalOceanService } = await import(
+      "../services/DigitalOceanService.js"
+    );
+
+    // Get optional region filter from query params
+    const regionFilter = req.query.region as string | undefined;
+
+    // Fetch VPCs
+    let vpcs = await digitalOceanService.getVPCs(apiToken);
+
+    // Apply region filter if provided
+    if (regionFilter) {
+      vpcs = vpcs.filter((vpc: any) => vpc.region === regionFilter);
+    }
+
+    res.json({
+      vpcs,
+      total: vpcs.length,
+    });
+  } catch (err: any) {
+    console.error("DigitalOcean VPCs fetch error:", err);
+
+    // Determine appropriate status code
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+      error: {
+        code: err.code || "API_ERROR",
+        message: err.message || "Failed to fetch VPCs",
+        provider: "digitalocean",
+      },
+    });
+  }
+});
+
 // List VPS instances for the user's organization
 router.get("/", async (req: Request, res: Response) => {
   try {
@@ -1244,6 +1582,8 @@ router.get("/uptime-summary", async (req: Request, res: Response) => {
   }
 });
 
+// Get VPS instance details with multi-provider support
+// Routes to appropriate provider API based on provider_type stored in database
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -1264,17 +1604,72 @@ router.get("/:id", async (req: Request, res: Response) => {
       typeof instanceRow.configuration === "object"
         ? instanceRow.configuration
         : {};
+
+    // Determine provider type - default to 'linode' for backward compatibility
+    const providerType = instanceRow.provider_type || "linode";
     const providerInstanceId = Number(instanceRow.provider_instance_id);
 
+    // Fetch provider name if provider_id exists
+    let providerName: string | null = null;
+    if (instanceRow.provider_id) {
+      try {
+        const providerResult = await query(
+          "SELECT name FROM service_providers WHERE id = $1",
+          [instanceRow.provider_id]
+        );
+        if (providerResult.rows.length > 0) {
+          providerName = providerResult.rows[0].name;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch provider name:", err);
+      }
+    }
+
     let providerDetail: LinodeInstance | null = null;
-    if (Number.isFinite(providerInstanceId)) {
+
+    // Route to appropriate provider based on provider_type
+    if (providerType === "linode" && Number.isFinite(providerInstanceId)) {
       try {
         providerDetail = await linodeService.getLinodeInstance(
           providerInstanceId
         );
       } catch (err) {
         console.warn(
-          `Failed to fetch provider detail for instance ${instanceRow.provider_instance_id}:`,
+          `Failed to fetch Linode provider detail for instance ${instanceRow.provider_instance_id}:`,
+          err
+        );
+      }
+    } else if (providerType === "digitalocean" && instanceRow.provider_id) {
+      // For DigitalOcean, fetch instance details through provider service
+      try {
+        const { getProviderService } = await import(
+          "../services/providerService.js"
+        );
+        const providerService = await getProviderService(
+          instanceRow.provider_id
+        );
+        const normalizedInstance = await providerService.getInstance(
+          String(instanceRow.provider_instance_id)
+        );
+
+        // Convert normalized instance to LinodeInstance-like format for compatibility
+        providerDetail = {
+          id: parseInt(normalizedInstance.id),
+          label: normalizedInstance.label,
+          status: normalizedInstance.status,
+          ipv4: normalizedInstance.ipv4,
+          ipv6: normalizedInstance.ipv6 || "",
+          region: normalizedInstance.region,
+          image: normalizedInstance.image || "",
+          type: configuration?.type || "",
+          specs: normalizedInstance.specs,
+          created: normalizedInstance.created,
+          updated: new Date().toISOString(),
+          backups: { enabled: false, available: false },
+        } as LinodeInstance;
+      } catch (err) {
+        console.warn(
+          `Failed to fetch DigitalOcean provider detail for instance ${instanceRow.provider_instance_id}:`,
           err
         );
       }
@@ -1695,6 +2090,9 @@ router.get("/:id", async (req: Request, res: Response) => {
         status: instanceRow.status,
         ipAddress: instanceRow.ip_address ?? null,
         providerInstanceId: instanceRow.provider_instance_id,
+        providerId: instanceRow.provider_id ?? null,
+        providerType: instanceRow.provider_type ?? "linode",
+        providerName: providerName,
         createdAt: instanceRow.created_at ?? null,
         updatedAt: instanceRow.updated_at ?? null,
         region: typeof regionCode === "string" ? regionCode : null,
@@ -1751,11 +2149,13 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-// Create a new VPS instance via Linode API
+// Create a new VPS instance via provider API (Linode or DigitalOcean)
 router.post("/", async (req: Request, res: Response) => {
   try {
     const organizationId = (req as any).user.organizationId;
     const {
+      provider_id,
+      provider_type,
       label,
       type,
       region,
@@ -1768,8 +2168,13 @@ router.post("/", async (req: Request, res: Response) => {
       appData,
       stackscriptId,
       stackscriptData,
+      // DigitalOcean-specific options
+      monitoring,
+      ipv6,
+      vpc_uuid,
     } = req.body || {};
 
+    // Validate required fields
     if (!label || !type || !image || !rootPassword) {
       res
         .status(400)
@@ -1777,35 +2182,66 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // Validate/normalize the requested Linode plan type
-    // Accept either a Linode type id (e.g. 'g6-standard-2') or an internal plan UUID
-    let linodeTypeId: string | undefined = undefined;
-    try {
-      const availableTypes = await linodeService.getLinodeTypes();
-      const set = new Set(availableTypes.map((t) => t.id));
-      if (set.has(type)) {
-        linodeTypeId = type;
-      }
-    } catch (e) {
-      // If Linode types cannot be fetched, we will still attempt plan lookup below
-      console.warn("Failed to fetch Linode types for validation:", e);
+    // Validate provider parameters
+    if (!provider_id || !provider_type) {
+      res
+        .status(400)
+        .json({ error: "provider_id and provider_type are required" });
+      return;
     }
 
-    // Resolve region from the pre-configured VPS plan when available
-    // Plans store Linode type id in provider_plan_id and region under specifications.region
+    // Fetch provider details from database
+    let providerDetails: any = null;
+    try {
+      const providerResult = await query(
+        "SELECT id, name, type, api_key_encrypted, active FROM service_providers WHERE id = $1",
+        [provider_id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        res.status(400).json({ error: "Provider not found" });
+        return;
+      }
+
+      providerDetails = providerResult.rows[0];
+
+      if (!providerDetails.active) {
+        res.status(400).json({
+          error:
+            "Selected provider is not active. Please contact your administrator.",
+        });
+        return;
+      }
+
+      if (providerDetails.type !== provider_type) {
+        res.status(400).json({
+          error: "Provider type mismatch",
+        });
+        return;
+      }
+    } catch (providerErr) {
+      console.error("Error fetching provider details:", providerErr);
+      res.status(500).json({ error: "Failed to validate provider" });
+      return;
+    }
+
+    // Resolve plan details from database
+    // Plans store provider plan id in provider_plan_id and region under specifications.region
     let regionToUse: string | undefined = region;
     let planIdForInstance: string | undefined = undefined;
+    let providerPlanId: string | undefined = undefined;
+
     try {
       // First, try lookup by provider_plan_id (expected frontend value)
       let planRes = await query(
-        "SELECT id, provider_plan_id, specifications FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
-        [type]
+        "SELECT id, provider_id, provider_plan_id, specifications FROM vps_plans WHERE provider_plan_id = $1 AND provider_id = $2 LIMIT 1",
+        [type, provider_id]
       );
       // If not found, user may have passed internal plan UUID; try that
       if (planRes.rows.length === 0) {
         planRes = await query(
-          "SELECT id, provider_plan_id, specifications FROM vps_plans WHERE id = $1 LIMIT 1",
-          [type]
+          "SELECT id, provider_id, provider_plan_id, specifications FROM vps_plans WHERE id = $1 AND provider_id = $2 LIMIT 1",
+          [type, provider_id]
         );
       }
 
@@ -1813,15 +2249,18 @@ router.post("/", async (req: Request, res: Response) => {
         const planRow = planRes.rows[0];
         planIdForInstance = String(planRow.id);
         const specs = planRow.specifications || {};
-        // Prefer provider_plan_id from plan row when available
+
+        // Get provider_plan_id from plan row
         if (
-          !linodeTypeId &&
           typeof planRow.provider_plan_id === "string" &&
           planRow.provider_plan_id.trim().length > 0
         ) {
-          linodeTypeId = planRow.provider_plan_id.trim();
+          providerPlanId = planRow.provider_plan_id.trim();
         }
+
+        // Get region from plan specifications if not provided
         if (
+          !regionToUse &&
           specs &&
           typeof specs.region === "string" &&
           specs.region.trim().length > 0
@@ -1833,23 +2272,19 @@ router.post("/", async (req: Request, res: Response) => {
       console.warn("Failed to lookup plan for type:", type, lookupErr);
     }
 
-    if (!linodeTypeId) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Invalid Linode plan type. Provide a valid Linode type id (e.g. g6-standard-2) or a configured plan UUID from /admin.",
-        });
+    if (!providerPlanId) {
+      res.status(400).json({
+        error:
+          "Invalid plan type. Provide a valid provider plan id or a configured plan UUID from /admin.",
+      });
       return;
     }
 
     if (!regionToUse) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Region is required (plan specifications.region or request body)",
-        });
+      res.status(400).json({
+        error:
+          "Region is required (plan specifications.region or request body)",
+      });
       return;
     }
 
@@ -1911,38 +2346,111 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // Create Linode instance (Marketplace app takes precedence when provided)
-    const created = appSlug
-      ? await linodeService.createInstanceWithMarketplaceApp({
-          label,
-          type: linodeTypeId,
-          region: regionToUse,
-          image,
-          rootPassword,
-          sshKeys,
-          backups,
-          privateIP,
-          appSlug,
-          appData: appData || {},
-        })
-      : await linodeService.createLinodeInstance({
-          type: linodeTypeId,
-          region: regionToUse,
-          image,
-          label,
-          root_pass: rootPassword,
-          authorized_keys: sshKeys,
-          backups_enabled: backups,
-          private_ip: privateIP,
-          stackscript_id: stackscriptId,
-          stackscript_data: stackscriptData,
-          tags: ["skypanelv2"],
-          group: "skypanelv2",
-        });
+    // Create VPS instance through provider service
+    let created: any;
+    let providerInstanceId: string;
 
-    // Persist instance record
+    try {
+      // Import provider service
+      const { getProviderService } = await import(
+        "../services/providerService.js"
+      );
+      const providerService = await getProviderService(provider_id);
+
+      // Handle provider-specific creation logic
+      if (provider_type === "linode") {
+        // Linode: Marketplace app takes precedence when provided
+        if (appSlug) {
+          created = await linodeService.createInstanceWithMarketplaceApp({
+            label,
+            type: providerPlanId,
+            region: regionToUse,
+            image,
+            rootPassword,
+            sshKeys,
+            backups,
+            privateIP,
+            appSlug,
+            appData: appData || {},
+          });
+        } else {
+          created = await linodeService.createLinodeInstance({
+            type: providerPlanId,
+            region: regionToUse,
+            image,
+            label,
+            root_pass: rootPassword,
+            authorized_keys: sshKeys,
+            backups_enabled: backups,
+            private_ip: privateIP,
+            stackscript_id: stackscriptId,
+            stackscript_data: stackscriptData,
+            tags: ["skypanelv2"],
+            group: "skypanelv2",
+          });
+        }
+        providerInstanceId = String(created.id);
+      } else if (provider_type === "digitalocean") {
+        // DigitalOcean: Use marketplace apps if provided
+        const createParams: any = {
+          name: label,
+          size: providerPlanId,
+          region: regionToUse,
+          image,
+          backups: backups || false,
+          ipv6: ipv6 || false,
+          monitoring: monitoring || false,
+          tags: ["skypanelv2"],
+        };
+
+        // Add SSH keys if provided
+        if (sshKeys && sshKeys.length > 0) {
+          createParams.ssh_keys = sshKeys;
+        }
+
+        // Add VPC if provided
+        if (vpc_uuid) {
+          createParams.vpc_uuid = vpc_uuid;
+        }
+
+        // Add user data for root password (DigitalOcean uses cloud-init)
+        createParams.user_data = `#cloud-config
+password: ${rootPassword}
+chpasswd: { expire: False }
+ssh_pwauth: True`;
+
+        // Handle marketplace app if provided
+        if (appSlug) {
+          // DigitalOcean marketplace apps are specified via image slug
+          createParams.image = appSlug;
+          if (appData && Object.keys(appData).length > 0) {
+            // Add app-specific configuration to user data
+            createParams.user_data += `\n# App configuration\n${JSON.stringify(
+              appData
+            )}`;
+          }
+        }
+
+        created = await providerService.createInstance(createParams);
+        providerInstanceId = String(created.id);
+      } else {
+        res.status(400).json({
+          error: `Unsupported provider type: ${provider_type}`,
+        });
+        return;
+      }
+    } catch (createErr: any) {
+      console.error("VPS creation error:", createErr);
+      res.status(500).json({
+        error:
+          createErr.message || "Failed to create VPS instance with provider",
+      });
+      return;
+    }
+
+    // Persist instance record with provider information
     const configuration = {
-      type: linodeTypeId,
+      type: providerPlanId,
       region: regionToUse,
       image,
       backups,
@@ -1951,6 +2459,10 @@ router.post("/", async (req: Request, res: Response) => {
       stackscriptData,
       appSlug,
       appData,
+      // DigitalOcean-specific options
+      monitoring,
+      ipv6,
+      vpc_uuid,
       auth: {
         method: "password",
         user: "root",
@@ -1958,21 +2470,35 @@ router.post("/", async (req: Request, res: Response) => {
       },
     };
 
-    const ip =
-      Array.isArray(created.ipv4) && created.ipv4.length > 0
-        ? created.ipv4[0]
-        : null;
+    // Extract IP address (format varies by provider)
+    let ip: string | null = null;
+    if (provider_type === "linode") {
+      ip =
+        Array.isArray(created.ipv4) && created.ipv4.length > 0
+          ? created.ipv4[0]
+          : null;
+    } else if (provider_type === "digitalocean") {
+      // DigitalOcean returns networks object
+      if (created.networks?.v4 && created.networks.v4.length > 0) {
+        const publicIp = created.networks.v4.find(
+          (net: any) => net.type === "public"
+        );
+        ip = publicIp?.ip_address || null;
+      }
+    }
+
     const status = created.status || "provisioning";
 
     const insertRes = await query(
-      `INSERT INTO vps_instances (organization_id, plan_id, provider_instance_id, label, status, ip_address, configuration)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO vps_instances (organization_id, plan_id, provider_id, provider_type, provider_instance_id, label, status, ip_address, configuration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         organizationId,
-        // Prefer actual plan row id when available; otherwise fall back to provider plan id
         planIdForInstance || type,
-        String(created.id),
+        provider_id,
+        provider_type,
+        providerInstanceId,
         label,
         status,
         ip,
@@ -1981,47 +2507,52 @@ router.post("/", async (req: Request, res: Response) => {
     );
     const instance = insertRes.rows[0];
 
-    // Schedule custom rDNS setup as a background task (non-blocking)
-    // This will run after the VPS has an IPv4 assigned
-    setImmediate(async () => {
-      try {
-        // Fetch configured base domain from admin networking config
-        let baseDomain = "ip.rev.skyvps360.xyz";
+    // Schedule custom rDNS setup as a background task (non-blocking) - Linode only
+    if (provider_type === "linode") {
+      setImmediate(async () => {
         try {
-          const cfgRes = await query(
-            "SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1"
-          );
-          const row = cfgRes.rows?.[0];
-          if (
-            row &&
-            typeof row.rdns_base_domain === "string" &&
-            row.rdns_base_domain.trim().length > 0
-          ) {
-            baseDomain = String(row.rdns_base_domain).trim();
-          }
-        } catch (cfgErr: any) {
-          // If the table is missing or any error occurs, fallback to default without failing provisioning
-          const msg = (cfgErr?.message || "").toLowerCase();
-          if (msg.includes("relation") && msg.includes("does not exist")) {
-            console.warn(
-              "networking_config table not found; using default rDNS base domain"
+          // Fetch configured base domain from admin networking config
+          let baseDomain = "ip.rev.skyvps360.xyz";
+          try {
+            const cfgRes = await query(
+              "SELECT rdns_base_domain FROM networking_config ORDER BY updated_at DESC LIMIT 1"
             );
-          } else {
-            console.warn(
-              "Failed to read networking rDNS config; using default base domain:",
-              cfgErr
-            );
+            const row = cfgRes.rows?.[0];
+            if (
+              row &&
+              typeof row.rdns_base_domain === "string" &&
+              row.rdns_base_domain.trim().length > 0
+            ) {
+              baseDomain = String(row.rdns_base_domain).trim();
+            }
+          } catch (cfgErr: any) {
+            // If the table is missing or any error occurs, fallback to default without failing provisioning
+            const msg = (cfgErr?.message || "").toLowerCase();
+            if (msg.includes("relation") && msg.includes("does not exist")) {
+              console.warn(
+                "networking_config table not found; using default rDNS base domain"
+              );
+            } else {
+              console.warn(
+                "Failed to read networking rDNS config; using default base domain:",
+                cfgErr
+              );
+            }
           }
-        }
 
-        await linodeService.setupCustomRDNSAsync(created.id, label, baseDomain);
-      } catch (rdnsErr) {
-        console.warn(
-          `Background rDNS setup failed for VPS ${label} (${created.id}):`,
-          rdnsErr
-        );
-      }
-    });
+          await linodeService.setupCustomRDNSAsync(
+            Number(providerInstanceId),
+            label,
+            baseDomain
+          );
+        } catch (rdnsErr) {
+          console.warn(
+            `Background rDNS setup failed for VPS ${label} (${providerInstanceId}):`,
+            rdnsErr
+          );
+        }
+      });
+    }
 
     // Process initial billing for VPS creation
     let billingSuccess = false;
@@ -2055,9 +2586,17 @@ router.post("/", async (req: Request, res: Response) => {
           eventType: "vps.create",
           entityType: "vps",
           entityId: String(instance.id),
-          message: `Created VPS '${label}' (${instance.provider_instance_id})`,
+          message: `Created VPS '${label}' on ${providerDetails.name} (${instance.provider_instance_id})`,
           status: "success",
-          metadata: { label, type, region: regionToUse, image, hourlyRate },
+          metadata: {
+            label,
+            type: providerPlanId,
+            region: regionToUse,
+            image,
+            hourlyRate,
+            provider_type,
+            provider_name: providerDetails.name,
+          },
         },
         req as any
       );
@@ -2800,12 +3339,10 @@ router.put("/:id/hostname", async (req: Request, res: Response) => {
 
     const hostnamePattern = /^[a-zA-Z0-9._-]+$/;
     if (!hostnamePattern.test(normalizedHostname)) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Hostname can only contain letters, numbers, hyphens, underscores, and periods",
-        });
+      return res.status(400).json({
+        error:
+          "Hostname can only contain letters, numbers, hyphens, underscores, and periods",
+      });
     }
 
     const { id } = req.params;

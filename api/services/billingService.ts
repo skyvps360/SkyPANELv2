@@ -383,7 +383,7 @@ export class BillingService {
           COUNT(*) as count,
           COALESCE(SUM((base_price + markup_price)), 0) as monthly_estimate
         FROM vps_instances vi
-        LEFT JOIN vps_plans vp ON (vp.id = vi.plan_id OR vp.provider_plan_id = vi.plan_id)
+        LEFT JOIN vps_plans vp ON (vp.id::text = vi.plan_id OR vp.provider_plan_id = vi.plan_id)
         WHERE vi.organization_id = $1
       `, [organizationId]);
 

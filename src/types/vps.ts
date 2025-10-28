@@ -1,3 +1,5 @@
+import type { ProviderType } from './provider';
+
 export interface VPSListRowSelection {
   [id: string]: boolean;
 }
@@ -13,6 +15,8 @@ export interface VPSInstance {
   ipv4: string[];
   ipv6: string;
   created: string;
+  provider_id?: string | null;
+  provider_type?: ProviderType | null;
   specs: {
     vcpus: number;
     memory: number;
@@ -40,4 +44,26 @@ export interface VPSInstance {
     message: string | null;
     created: string | null;
   };
+}
+
+export interface CreateVPSForm {
+  provider_id: string;
+  provider_type: ProviderType;
+  label: string;
+  type: string;
+  region: string;
+  image: string;
+  rootPassword: string;
+  sshKeys: string[];
+  backups: boolean;
+  privateIP: boolean;
+  // DigitalOcean-specific
+  monitoring?: boolean;
+  ipv6?: boolean;
+  vpc_uuid?: string;
+  // Marketplace/StackScript
+  appSlug?: string;
+  appData?: Record<string, any>;
+  stackscriptId?: number;
+  stackscriptData?: Record<string, any>;
 }

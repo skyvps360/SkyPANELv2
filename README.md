@@ -9,6 +9,7 @@ SkyPanelV2 is an open-source control plane for cloud service resellers. It packa
 
 ## Feature Highlights
 
+- **Multi-provider VPS management**: Unified interface for Linode and DigitalOcean with provider abstraction, normalized APIs, and intelligent caching. See [MULTI_PROVIDER_VPS.md](./MULTI_PROVIDER_VPS.md) for details.
 - **Provider provisioning**: Linode and DigitalOcean services orchestrate instance creation, plan catalogs, stackscript automation, and activity logging.
 - **Billing & wallets**: PayPal prepaid wallets, hourly reconciliation via `BillingService`, invoices, and downloadable billing artifacts.
 - **Real-time notifications**: PostgreSQL LISTEN/NOTIFY feeds a Server-Sent Events stream surfaced in the UI for activity, billing, and support updates.

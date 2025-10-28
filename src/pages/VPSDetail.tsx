@@ -289,6 +289,9 @@ interface VpsInstanceDetail {
   status: string;
   ipAddress: string | null;
   providerInstanceId: string;
+  providerId: string | null;
+  providerType: string | null;
+  providerName: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   region: string | null;
@@ -582,15 +585,24 @@ const VPSDetail: React.FC = () => {
   // rDNS base domain configuration
   const [rdnsBaseDomain, setRdnsBaseDomain] = useState<string>('ip.rev.skyvps360.xyz');
 
-  const tabDefinitions = useMemo<TabDefinition[]>(() => [
-    { id: 'overview', label: 'Overview', icon: Server },
-    { id: 'backups', label: 'Backups', icon: ShieldCheck },
-    { id: 'networking', label: 'Networking', icon: Globe2 },
-    { id: 'activity', label: 'Activity', icon: Activity },
-    { id: 'firewall', label: 'Firewalls', icon: Shield },
-    { id: 'metrics', label: 'Metrics', icon: BarChart3 },
-    { id: 'ssh', label: 'SSH', icon: TerminalIcon },
-  ], []);
+  const tabDefinitions = useMemo<TabDefinition[]>(() => {
+    const tabs: TabDefinition[] = [
+      { id: 'overview', label: 'Overview', icon: Server },
+      { id: 'backups', label: 'Backups', icon: ShieldCheck },
+      { id: 'networking', label: 'Networking', icon: Globe2 },
+      { id: 'activity', label: 'Activity', icon: Activity },
+    ];
+    
+    // Firewall and Metrics are Linode-specific features
+    if (detail?.providerType === 'linode' || !detail?.providerType) {
+      tabs.push({ id: 'firewall', label: 'Firewalls', icon: Shield });
+      tabs.push({ id: 'metrics', label: 'Metrics', icon: BarChart3 });
+    }
+    
+    tabs.push({ id: 'ssh', label: 'SSH', icon: TerminalIcon });
+    
+    return tabs;
+  }, [detail?.providerType]);
 
   const openSshConsole = useCallback(() => {
     if (!detail?.id) {
@@ -1529,11 +1541,17 @@ const VPSDetail: React.FC = () => {
             </div>
             {detail?.status && (
               <div className="mt-3 flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:text-sm font-medium w-fit ${statusStyles[detail.status] || statusStyles.unknown}`}>
                     <span className="inline-block h-2 w-2 rounded-full bg-current"></span>
                     {detail.status.toUpperCase()}
                   </span>
+                  {(detail?.providerName || detail?.providerType) && (
+                    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:text-sm font-medium w-fit border border-primary/20 text-primary bg-primary/10 dark:border-primary/60 dark:text-primary dark:bg-primary/30">
+                      <Cloud className="h-3 w-3" />
+                      {detail.providerName || (detail.providerType ? detail.providerType.charAt(0).toUpperCase() + detail.providerType.slice(1) : 'Unknown')}
+                    </span>
+                  )}
                   {detail?.updatedAt && (
                     <span className="text-xs sm:text-sm text-muted-foreground">
                       Updated {formatRelativeTime(detail.updatedAt)}
@@ -1726,6 +1744,15 @@ const VPSDetail: React.FC = () => {
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground  break-all">{detail?.providerInstanceId}</dd>
                       </div>
                       <div>
+                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Cloud Provider</dt>
+                        <dd className="mt-1 flex items-center gap-2">
+                          <Cloud className="h-4 w-4 text-primary" />
+                          <span className="text-xs sm:text-sm font-medium text-foreground">
+                            {detail?.providerName || (detail?.providerType ? detail.providerType.charAt(0).toUpperCase() + detail.providerType.slice(1) : 'Unknown')}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
                         <dt className="text-xs uppercase tracking-wide text-muted-foreground">Public IPv4</dt>
                         <dd className="mt-1 text-xs sm:text-sm font-medium text-foreground ">{detail?.ipAddress || 'Not yet assigned'}</dd>
                       </div>
@@ -1770,7 +1797,14 @@ const VPSDetail: React.FC = () => {
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     Backup Protection
                   </h2>
-                  <p className="text-sm text-muted-foreground">Automatic snapshots captured by the underlying platform.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Automatic snapshots captured by the underlying platform.
+                    {detail?.providerType && detail.providerType !== 'linode' && (
+                      <span className="block mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        Note: Backup features may vary by provider. Some options may not be available for {detail.providerName || detail.providerType}.
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="px-6 py-5 space-y-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -2936,6 +2970,15 @@ const VPSDetail: React.FC = () => {
                   The following IP details are reported directly by the cloud provider and may include public and private reachability.
                 </p>
                 <div className="space-y-4 sm:space-y-5">
+                  {(detail?.providerName || detail?.providerType) && (
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-muted-foreground">Provider</span>
+                      <span className="font-medium text-foreground flex items-center gap-2 sm:text-right">
+                        <Cloud className="h-3.5 w-3.5 text-primary" />
+                        {detail.providerName || (detail.providerType ? detail.providerType.charAt(0).toUpperCase() + detail.providerType.slice(1) : 'Unknown')}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-muted-foreground">Image</span>
                     <span className="font-medium text-foreground break-words sm:text-right">{providerImageLabel}</span>
