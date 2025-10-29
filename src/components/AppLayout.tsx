@@ -244,6 +244,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/dashboard",
         shortcut: isMac ? "⌘D" : "Ctrl+D",
         shortcutKey: "d",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: Server,
@@ -251,6 +253,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/vps",
         shortcut: isMac ? "⌘V" : "Ctrl+V",
         shortcutKey: "v",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: Container,
@@ -258,6 +262,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/containers",
         shortcut: isMac ? "⌘C" : "Ctrl+C",
         shortcutKey: "c",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: Key,
@@ -265,6 +271,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/ssh-keys",
         shortcut: isMac ? "⌘K" : "Ctrl+K",
         shortcutKey: "k",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: CreditCard,
@@ -272,6 +280,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/billing",
         shortcut: isMac ? "⌘B" : "Ctrl+B",
         shortcutKey: "b",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: CreditCard,
@@ -279,6 +289,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/billing/invoices",
         shortcut: isMac ? "⌘I" : "Ctrl+I",
         shortcutKey: "i",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: Activity,
@@ -286,6 +298,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/activity",
         shortcut: isMac ? "⌘A" : "Ctrl+A",
         shortcutKey: "a",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: MessageCircle,
@@ -293,6 +307,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/support",
         shortcut: isMac ? "⌘H" : "Ctrl+H",
         shortcutKey: "h",
+        requiresShift: false,
+        requiresAlt: false,
       },
       {
         icon: Settings,
@@ -300,9 +316,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/settings",
         shortcut: isMac ? "⌘S" : "Ctrl+S",
         shortcutKey: "s",
+        requiresShift: false,
+        requiresAlt: false,
       },
     ],
     [isMac]
+  );
+
+  const actionItems = useMemo(
+    () => [
+      {
+        label: "Toggle theme",
+        shortcut: isMac ? "⌘⇧L" : "Ctrl+Shift+L",
+        shortcutKey: "l",
+        onSelect: () => toggleTheme(),
+        icon: isDark ? Sun : Moon,
+        requiresShift: true,
+        requiresAlt: false,
+      },
+    ],
+    [isMac, toggleTheme, isDark]
   );
 
   const handleNavigate = useCallback(
@@ -320,29 +353,58 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
     const handleShortcut = (event: KeyboardEvent) => {
       const modifierActive = isMac ? event.metaKey : event.ctrlKey;
-      if (!modifierActive || event.shiftKey || event.altKey) {
+      if (!modifierActive) {
         return;
       }
 
       const pressedKey = event.key.toLowerCase();
-      const match = navigationItems.find((item) => item.shortcutKey === pressedKey);
-      if (!match) {
+      const matchesModifiers = (item: { requiresShift?: boolean; requiresAlt?: boolean }) => {
+        const needsShift = item.requiresShift === true;
+        const needsAlt = item.requiresAlt === true;
+
+        if (needsShift !== event.shiftKey) {
+          return false;
+        }
+
+        if (needsAlt !== event.altKey) {
+          return false;
+        }
+
+        return true;
+      };
+
+      const match = navigationItems.find(
+        (item) => item.shortcutKey === pressedKey && matchesModifiers(item)
+      );
+      if (match) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+        handleNavigate(match.href);
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === "function") {
-        event.stopImmediatePropagation();
+      const actionMatch = actionItems.find(
+        (item) => item.shortcutKey === pressedKey && matchesModifiers(item)
+      );
+      if (actionMatch) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+        actionMatch.onSelect();
+        setCommandOpen(false);
       }
-      handleNavigate(match.href);
     };
 
     document.addEventListener("keydown", handleShortcut, true);
     return () => {
       document.removeEventListener("keydown", handleShortcut, true);
     };
-  }, [commandOpen, navigationItems, handleNavigate, isMac]);
+  }, [commandOpen, navigationItems, handleNavigate, isMac, actionItems]);
 
   // Helper function to get status color for VPS
   const getVPSStatusColor = (status: string): string => {
@@ -577,15 +639,22 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
              <CommandSeparator />
              <CommandGroup heading="Actions">
-               <CommandItem onSelect={toggleTheme}>
-                 {isDark ? (
-                   <Sun className="mr-2 h-4 w-4" />
-                 ) : (
-                   <Moon className="mr-2 h-4 w-4" />
-                 )}
-                 <span>Toggle theme</span>
-                 <CommandShortcut>⌘T</CommandShortcut>
-               </CommandItem>
+              {actionItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem
+                    key={item.shortcutKey}
+                    onSelect={() => {
+                      item.onSelect();
+                      setCommandOpen(false);
+                    }}
+                  >
+                    <Icon className="mr-2 h-4 w-4" />
+                    <span>{item.label}</span>
+                    <CommandShortcut>{item.shortcut}</CommandShortcut>
+                  </CommandItem>
+                );
+              })}
              </CommandGroup>
            </CommandList>
          </CommandDialog>
