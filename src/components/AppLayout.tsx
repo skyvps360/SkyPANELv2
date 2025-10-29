@@ -106,6 +106,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [vpsLoading, setVpsLoading] = useState(false);
   const [containersLoading, setContainersLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const isMac = useMemo(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+    return /Mac|iPhone|iPod|iPad/.test(navigator.platform);
+  }, []);
 
   // Read sidebar state from cookie on initialization
   const getSidebarPreference = useCallback(() => {
@@ -230,67 +236,113 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   }, []);
 
   // Navigation items for command search
-  const navigationItems = [
-    {
-      icon: Home,
-      label: "Dashboard",
-      href: "/dashboard",
-      shortcut: "⌘D",
-    },
-    {
-      icon: Server,
-      label: "VPS Instances",
-      href: "/vps",
-      shortcut: "⌘V",
-    },
-    {
-      icon: Container,
-      label: "Containers",
-      href: "/containers",
-      shortcut: "⌘C",
-    },
-    {
-      icon: Key,
-      label: "SSH Keys",
-      href: "/ssh-keys",
-      shortcut: "⌘K",
-    },
-    {
-      icon: CreditCard,
-      label: "Billing",
-      href: "/billing",
-      shortcut: "⌘B",
-    },
-    {
-      icon: CreditCard,
-      label: "Invoices",
-      href: "/billing/invoices",
-      shortcut: "⌘I",
-    },
-    {
-      icon: Activity,
-      label: "Activity",
-      href: "/activity",
-      shortcut: "⌘A",
-    },
-    {
-      icon: MessageCircle,
-      label: "Support",
-      href: "/support",
-      shortcut: "⌘H",
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      href: "/settings",
-      shortcut: "⌘S",
-    },
-  ];
+  const navigationItems = useMemo(
+    () => [
+      {
+        icon: Home,
+        label: "Dashboard",
+        href: "/dashboard",
+        shortcut: isMac ? "⌘D" : "Ctrl+D",
+        shortcutKey: "d",
+      },
+      {
+        icon: Server,
+        label: "VPS Instances",
+        href: "/vps",
+        shortcut: isMac ? "⌘V" : "Ctrl+V",
+        shortcutKey: "v",
+      },
+      {
+        icon: Container,
+        label: "Containers",
+        href: "/containers",
+        shortcut: isMac ? "⌘C" : "Ctrl+C",
+        shortcutKey: "c",
+      },
+      {
+        icon: Key,
+        label: "SSH Keys",
+        href: "/ssh-keys",
+        shortcut: isMac ? "⌘K" : "Ctrl+K",
+        shortcutKey: "k",
+      },
+      {
+        icon: CreditCard,
+        label: "Billing",
+        href: "/billing",
+        shortcut: isMac ? "⌘B" : "Ctrl+B",
+        shortcutKey: "b",
+      },
+      {
+        icon: CreditCard,
+        label: "Invoices",
+        href: "/billing/invoices",
+        shortcut: isMac ? "⌘I" : "Ctrl+I",
+        shortcutKey: "i",
+      },
+      {
+        icon: Activity,
+        label: "Activity",
+        href: "/activity",
+        shortcut: isMac ? "⌘A" : "Ctrl+A",
+        shortcutKey: "a",
+      },
+      {
+        icon: MessageCircle,
+        label: "Support",
+        href: "/support",
+        shortcut: isMac ? "⌘H" : "Ctrl+H",
+        shortcutKey: "h",
+      },
+      {
+        icon: Settings,
+        label: "Settings",
+        href: "/settings",
+        shortcut: isMac ? "⌘S" : "Ctrl+S",
+        shortcutKey: "s",
+      },
+    ],
+    [isMac]
+  );
 
-  const handleNavigate = (href: string) => {
-    navigate(href);
-    setCommandOpen(false);
-  };
+  const handleNavigate = useCallback(
+    (href: string) => {
+      navigate(href);
+      setCommandOpen(false);
+    },
+    [navigate, setCommandOpen]
+  );
+
+  useEffect(() => {
+    if (!commandOpen) {
+      return;
+    }
+
+    const handleShortcut = (event: KeyboardEvent) => {
+      const modifierActive = isMac ? event.metaKey : event.ctrlKey;
+      if (!modifierActive || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const pressedKey = event.key.toLowerCase();
+      const match = navigationItems.find((item) => item.shortcutKey === pressedKey);
+      if (!match) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
+      handleNavigate(match.href);
+    };
+
+    document.addEventListener("keydown", handleShortcut, true);
+    return () => {
+      document.removeEventListener("keydown", handleShortcut, true);
+    };
+  }, [commandOpen, navigationItems, handleNavigate, isMac]);
 
   // Helper function to get status color for VPS
   const getVPSStatusColor = (status: string): string => {
