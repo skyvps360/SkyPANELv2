@@ -278,7 +278,7 @@ export function validateSSHKeyFormat(publicKey: string): { valid: boolean; error
   const trimmed = publicKey.trim();
   
   // Check format
-  const sshKeyRegex = /^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|ssh-dss)\s+[A-Za-z0-9+\/]+[=]{0,3}(\s+.*)?$/;
+  const sshKeyRegex = /^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|ssh-dss)\s+[A-Za-z0-9+/]+[=]{0,3}(\s+.*)?$/;
   
   if (!sshKeyRegex.test(trimmed)) {
     return {

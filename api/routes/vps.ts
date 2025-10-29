@@ -3,6 +3,11 @@ import { authenticateToken, requireOrganization } from "../middleware/auth.js";
 import { query } from "../lib/database.js";
 import { linodeService } from "../services/linodeService.js";
 import { handleProviderError, logError, ErrorCodes } from "../lib/errorHandling.js";
+import { getProviderService, getProviderServiceByType } from "../services/providerService.js";
+import type {
+  IProviderService,
+  ProviderType,
+} from "../services/providers/IProviderService.js";
 import type {
   CreateLinodeRequest,
   LinodeInstance,
@@ -1536,172 +1541,407 @@ router.get("/", async (req: Request, res: Response) => {
 
     const rows = result.rows || [];
 
-    // Fetch region metadata once to map id -> human label
-    let regionLabelMap: Record<string, string> = {};
-    try {
-      const regions = await linodeService.getLinodeRegions();
-      regionLabelMap = Object.fromEntries(regions.map((r) => [r.id, r.label]));
-    } catch (e) {
-      // Non-fatal: if regions fail to load, we simply won't provide labels
-      console.warn("Failed to fetch Linode regions for labeling:", e);
+    const providerIdList = Array.from(
+      new Set(
+        rows
+          .map((row) => row.provider_id)
+          .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+      )
+    );
+
+    const providerMetadata = new Map<string, { id: string; name: string | null; type: ProviderType }>();
+    if (providerIdList.length > 0) {
+      try {
+        const providersRes = await query(
+          `SELECT id, name, type FROM service_providers WHERE id = ANY($1::uuid[])`,
+          [providerIdList]
+        );
+        for (const providerRow of providersRes.rows || []) {
+          providerMetadata.set(providerRow.id, {
+            id: providerRow.id,
+            name:
+              typeof providerRow.name === "string" && providerRow.name.trim().length > 0
+                ? providerRow.name
+                : null,
+            type: (providerRow.type || "linode") as ProviderType,
+          });
+        }
+      } catch (providerErr) {
+        console.warn("Failed to fetch provider metadata:", providerErr);
+      }
     }
 
-    // Enrich each instance with latest Linode details and persist status/IP updates
+    let linodeRegionLabelMap: Record<string, string> = {};
+    const hasLinodeRows = rows.some((row) => {
+      const providerInfo = row.provider_id ? providerMetadata.get(row.provider_id) : null;
+      const inferredType = (row.provider_type || providerInfo?.type || "linode") as ProviderType;
+      return inferredType === "linode";
+    });
+    if (hasLinodeRows) {
+      try {
+        const regions = await linodeService.getLinodeRegions();
+        linodeRegionLabelMap = Object.fromEntries(regions.map((region) => [region.id, region.label]));
+      } catch (regionErr) {
+        console.warn("Failed to fetch Linode regions for labeling:", regionErr);
+      }
+    }
+
+    const providerServiceCache = new Map<string, IProviderService>();
+    const digitalOceanRegionCache = new Map<string, Record<string, string>>();
+
+    const getCachedProviderService = async (
+      providerId: string | null,
+      providerType: ProviderType
+    ): Promise<IProviderService | null> => {
+      const cacheKey = providerId ?? `__${providerType}__default__`;
+      if (providerServiceCache.has(cacheKey)) {
+        return providerServiceCache.get(cacheKey)!;
+      }
+      try {
+        const service = providerId
+          ? await getProviderService(providerId)
+          : await getProviderServiceByType(providerType);
+        providerServiceCache.set(cacheKey, service);
+        return service;
+      } catch (serviceErr) {
+        console.warn(`Failed to initialize ${providerType} provider service:`, serviceErr);
+        return null;
+      }
+    };
+
+    const getDigitalOceanRegionLabel = async (
+      providerId: string | null,
+      providerService: IProviderService | null,
+      region: string | null | undefined
+    ): Promise<string | null> => {
+      if (!region || !providerService) {
+        return null;
+      }
+      const cacheKey = providerId ?? "__digitalocean_default__";
+      let regionMap = digitalOceanRegionCache.get(cacheKey);
+      if (!regionMap) {
+        try {
+          const regions = await providerService.getRegions();
+          regionMap = Object.fromEntries(regions.map((r) => [r.id, r.label || r.id]));
+        } catch (regionErr) {
+          console.warn("Failed to fetch DigitalOcean regions:", regionErr);
+          regionMap = {};
+        }
+        digitalOceanRegionCache.set(cacheKey, regionMap);
+      }
+      return regionMap[region] ?? null;
+    };
+
     const enriched = await Promise.all(
       rows.map(async (row) => {
-        try {
-          const instanceId = Number(row.provider_instance_id);
-          if (!Number.isFinite(instanceId)) return row;
-          const detail = await linodeService.getLinodeInstance(instanceId);
+        const providerInfo = row.provider_id ? providerMetadata.get(row.provider_id) : null;
+        const providerType = (row.provider_type || providerInfo?.type || "linode") as ProviderType;
+        (row as any).provider_type = providerType;
+        const providerName = providerInfo?.name ?? null;
+        (row as any).provider_name = providerName;
+        (row as any).providerName = providerName;
 
-          // If status or IP changed, update DB
-          const currentIp =
-            Array.isArray(detail.ipv4) && detail.ipv4.length > 0
-              ? detail.ipv4[0]
-              : null;
-          // Normalize provider 'offline' to our UI 'stopped'
-          const normalized =
-            detail.status === "offline" ? "stopped" : detail.status;
-          if (row.status !== normalized || row.ip_address !== currentIp) {
-            await query(
-              "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
-              [normalized, currentIp, row.id]
-            );
-            row.status = normalized;
-            row.ip_address = currentIp;
-          }
+        const providerInstanceId = Number(row.provider_instance_id);
+        let configuration =
+          row.configuration && typeof row.configuration === "object"
+            ? row.configuration
+            : {};
 
-          // Also keep configuration in sync for image/region when available
-          const conf = row.configuration || {};
-          const newConf = {
-            ...conf,
-            image: detail.image || conf.image,
-            region: detail.region || conf.region,
-            type: detail.type || conf.type,
-          };
-          row.configuration = newConf;
-
-          // Attach region label for UI convenience
-          const regionCode = newConf.region || "";
-          (row as any).region_label = regionLabelMap[regionCode] || null;
-
-          // Attach plan specs and pricing for UI without admin dependency
-          let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
-          let planPricing = { hourly: 0, monthly: 0 };
+        if (providerType === "linode" && Number.isFinite(providerInstanceId)) {
           try {
-            // Try by stored plan_id first
-            let planRow: any = null;
-            if (row.plan_id) {
-              const byId = await query(
-                "SELECT * FROM vps_plans WHERE id = $1 LIMIT 1",
-                [row.plan_id]
+            const detail = await linodeService.getLinodeInstance(providerInstanceId);
+
+            const currentIp =
+              Array.isArray(detail.ipv4) && detail.ipv4.length > 0 ? detail.ipv4[0] : null;
+            const normalized = detail.status === "offline" ? "stopped" : detail.status;
+
+            if (row.status !== normalized || row.ip_address !== currentIp) {
+              await query(
+                "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+                [normalized, currentIp, row.id]
               );
-              planRow = byId.rows[0] || null;
-            }
-            // Fallback: lookup by provider_plan_id using configuration.type
-            if (!planRow && newConf.type) {
-              const byProviderId = await query(
-                "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
-                [newConf.type]
-              );
-              planRow = byProviderId.rows[0] || null;
+              row.status = normalized;
+              row.ip_address = currentIp;
+            } else {
+              row.status = normalized;
+              row.ip_address = currentIp;
             }
 
-            if (planRow) {
-              const specs = planRow.specifications || {};
-              const disk =
-                (typeof specs.disk === "number" ? specs.disk : undefined) ??
-                (typeof specs.storage_gb === "number"
-                  ? specs.storage_gb
-                  : undefined) ??
-                0;
-              const memoryMb =
-                (typeof specs.memory === "number" ? specs.memory : undefined) ??
-                (typeof specs.memory_gb === "number"
-                  ? specs.memory_gb * 1024
-                  : undefined) ??
-                0;
-              const vcpus =
-                (typeof specs.vcpus === "number" ? specs.vcpus : undefined) ??
-                (typeof specs.cpu_cores === "number"
-                  ? specs.cpu_cores
-                  : undefined) ??
-                0;
-              const transferGb =
-                (typeof specs.transfer === "number"
-                  ? specs.transfer
-                  : undefined) ??
-                (typeof specs.transfer_gb === "number"
-                  ? specs.transfer_gb
-                  : undefined) ??
-                (typeof specs.bandwidth_gb === "number"
-                  ? specs.bandwidth_gb
-                  : undefined) ??
-                0;
+            const newConf = {
+              ...configuration,
+              image: detail.image || configuration.image,
+              region: detail.region || configuration.region,
+              type: detail.type || configuration.type,
+            };
+            configuration = newConf;
+            row.configuration = newConf;
 
-              const basePrice = Number(planRow.base_price || 0);
-              const markupPrice = Number(planRow.markup_price || 0);
-              const monthly = basePrice + markupPrice;
+            const regionCode = newConf.region || "";
+            (row as any).region_label = linodeRegionLabelMap[regionCode] ?? null;
 
-              planSpecs = {
-                vcpus,
-                memory: memoryMb,
-                disk,
-                transfer: transferGb,
-              };
-              planPricing = { hourly: monthly / 730, monthly };
-            } else if (detail && detail.specs) {
-              // Fallback to Linode detail specs when plan is not found
-              planSpecs = {
-                vcpus: Number(detail.specs.vcpus || 0),
-                memory: Number(detail.specs.memory || 0),
-                disk: Number(detail.specs.disk || 0),
-                transfer: Number(detail.specs.transfer || 0),
-              };
-            }
-          } catch (e) {
-            console.warn("Failed to attach plan specs/pricing:", e);
-          }
-
-          (row as any).plan_specs = planSpecs;
-          (row as any).plan_pricing = planPricing;
-
-          const normalizedStatus =
-            typeof row.status === "string" ? row.status.toLowerCase() : "";
-          if (
-            ["provisioning", "rebooting", "restoring", "backing_up"].includes(
-              normalizedStatus
-            )
-          ) {
+            let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
+            let planPricing = { hourly: 0, monthly: 0 };
             try {
-              const eventsData = await linodeService.getLinodeInstanceEvents(
-                instanceId,
-                { pageSize: 50 }
-              );
-              const events = Array.isArray((eventsData as any)?.data)
-                ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
-                : [];
-              const progress = deriveProgressFromEvents(
-                normalizedStatus,
-                events
-              );
-              (row as any).provider_progress = progress;
-              (row as any).progress_percent = progress?.percent ?? null;
-            } catch (eventError) {
-              console.warn(
-                "Failed to fetch instance events for progress:",
-                eventError
-              );
+              let planRow: any = null;
+              if (row.plan_id) {
+                const byId = await query(
+                  "SELECT * FROM vps_plans WHERE id = $1 LIMIT 1",
+                  [row.plan_id]
+                );
+                planRow = byId.rows[0] || null;
+              }
+              if (!planRow && newConf.type) {
+                const byProviderId = await query(
+                  "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
+                  [newConf.type]
+                );
+                planRow = byProviderId.rows[0] || null;
+              }
+
+              if (planRow) {
+                const specs = planRow.specifications || {};
+                const disk =
+                  (typeof specs.disk === "number" ? specs.disk : undefined) ??
+                  (typeof specs.storage_gb === "number"
+                    ? specs.storage_gb
+                    : undefined) ??
+                  0;
+                const memoryMb =
+                  (typeof specs.memory === "number" ? specs.memory : undefined) ??
+                  (typeof specs.memory_gb === "number"
+                    ? specs.memory_gb * 1024
+                    : undefined) ??
+                  0;
+                const vcpus =
+                  (typeof specs.vcpus === "number" ? specs.vcpus : undefined) ??
+                  (typeof specs.cpu_cores === "number"
+                    ? specs.cpu_cores
+                    : undefined) ??
+                  0;
+                const transferGb =
+                  (typeof specs.transfer === "number"
+                    ? specs.transfer
+                    : undefined) ??
+                  (typeof specs.transfer_gb === "number"
+                    ? specs.transfer_gb
+                    : undefined) ??
+                  (typeof specs.bandwidth_gb === "number"
+                    ? specs.bandwidth_gb
+                    : undefined) ??
+                  0;
+
+                const basePrice = Number(planRow.base_price || 0);
+                const markupPrice = Number(planRow.markup_price || 0);
+                const monthly = basePrice + markupPrice;
+
+                planSpecs = {
+                  vcpus,
+                  memory: memoryMb,
+                  disk,
+                  transfer: transferGb,
+                };
+                planPricing = {
+                  hourly: monthly > 0 ? monthly / 730 : 0,
+                  monthly,
+                };
+              } else if (detail && detail.specs) {
+                planSpecs = {
+                  vcpus: Number(detail.specs.vcpus || 0),
+                  memory: Number(detail.specs.memory || 0),
+                  disk: Number(detail.specs.disk || 0),
+                  transfer: Number(detail.specs.transfer || 0),
+                };
+              }
+            } catch (planErr) {
+              console.warn("Failed to attach plan specs/pricing:", planErr);
             }
-          } else {
-            (row as any).provider_progress = null;
-            (row as any).progress_percent = null;
+
+            (row as any).plan_specs = planSpecs;
+            (row as any).plan_pricing = planPricing;
+
+            const normalizedStatus =
+              typeof row.status === "string" ? row.status.toLowerCase() : "";
+            if (
+              ["provisioning", "rebooting", "restoring", "backing_up"].includes(
+                normalizedStatus
+              )
+            ) {
+              try {
+                const eventsData = await linodeService.getLinodeInstanceEvents(
+                  providerInstanceId,
+                  { pageSize: 50 }
+                );
+                const events = Array.isArray((eventsData as any)?.data)
+                  ? (eventsData as any).data.map(mapEventSummary).filter(Boolean)
+                  : [];
+                const progress = deriveProgressFromEvents(
+                  normalizedStatus,
+                  events
+                );
+                (row as any).provider_progress = progress;
+                (row as any).progress_percent = progress?.percent ?? null;
+              } catch (eventError) {
+                console.warn(
+                  "Failed to fetch instance events for progress:",
+                  eventError
+                );
+              }
+            } else {
+              (row as any).provider_progress = null;
+              (row as any).progress_percent = null;
+            }
+          } catch (err) {
+            console.warn("Failed to enrich instance with Linode details:", err);
           }
-        } catch (e) {
-          console.warn("Failed to enrich instance with Linode details:", e);
+        } else if (providerType === "digitalocean" && Number.isFinite(providerInstanceId)) {
+          try {
+            const providerService = await getCachedProviderService(
+              row.provider_id ?? null,
+              providerType
+            );
+            if (providerService) {
+              const normalizedInstance = await providerService.getInstance(
+                String(row.provider_instance_id)
+              );
+
+              const ipv4List = Array.isArray(normalizedInstance.ipv4)
+                ? normalizedInstance.ipv4
+                : [];
+              const currentIp =
+                ipv4List.length > 0 && typeof ipv4List[0] === "string"
+                  ? ipv4List[0]
+                  : null;
+              const normalizedStatus = normalizeProviderStatus(
+                normalizedInstance.status
+              );
+
+              if (row.status !== normalizedStatus || row.ip_address !== currentIp) {
+                await query(
+                  "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+                  [normalizedStatus, currentIp, row.id]
+                );
+                row.status = normalizedStatus;
+                row.ip_address = currentIp;
+              } else {
+                row.status = normalizedStatus;
+                row.ip_address = currentIp;
+              }
+
+              const newConf = {
+                ...configuration,
+                image: normalizedInstance.image || configuration.image || null,
+                region: normalizedInstance.region || configuration.region || null,
+              };
+              if (!newConf.type && configuration.type) {
+                newConf.type = configuration.type;
+              }
+              configuration = newConf;
+              row.configuration = newConf;
+
+              const regionLabel = await getDigitalOceanRegionLabel(
+                row.provider_id ?? null,
+                providerService,
+                typeof newConf.region === "string" ? newConf.region : null
+              );
+              (row as any).region_label = regionLabel;
+
+              let planSpecs = { vcpus: 0, memory: 0, disk: 0, transfer: 0 };
+              let planPricing = { hourly: 0, monthly: 0 };
+              try {
+                let planRow: any = null;
+                if (row.plan_id) {
+                  const byId = await query(
+                    "SELECT * FROM vps_plans WHERE id = $1 LIMIT 1",
+                    [row.plan_id]
+                  );
+                  planRow = byId.rows[0] || null;
+                }
+                if (!planRow && newConf.type) {
+                  const byProviderId = await query(
+                    "SELECT * FROM vps_plans WHERE provider_plan_id = $1 LIMIT 1",
+                    [newConf.type]
+                  );
+                  planRow = byProviderId.rows[0] || null;
+                }
+
+                if (planRow) {
+                  const specs = planRow.specifications || {};
+                  const disk =
+                    (typeof specs.disk === "number" ? specs.disk : undefined) ??
+                    (typeof specs.storage_gb === "number"
+                      ? specs.storage_gb
+                      : undefined) ??
+                    0;
+                  const memoryMb =
+                    (typeof specs.memory === "number" ? specs.memory : undefined) ??
+                    (typeof specs.memory_gb === "number"
+                      ? specs.memory_gb * 1024
+                      : undefined) ??
+                    0;
+                  const vcpus =
+                    (typeof specs.vcpus === "number" ? specs.vcpus : undefined) ??
+                    (typeof specs.cpu_cores === "number"
+                      ? specs.cpu_cores
+                      : undefined) ??
+                    0;
+                  const transferGb =
+                    (typeof specs.transfer === "number"
+                      ? specs.transfer
+                      : undefined) ??
+                    (typeof specs.transfer_gb === "number"
+                      ? specs.transfer_gb
+                      : undefined) ??
+                    (typeof specs.bandwidth_gb === "number"
+                      ? specs.bandwidth_gb
+                      : undefined) ??
+                    0;
+
+                  const basePrice = Number(planRow.base_price || 0);
+                  const markupPrice = Number(planRow.markup_price || 0);
+                  const monthly = basePrice + markupPrice;
+
+                  planSpecs = {
+                    vcpus,
+                    memory: memoryMb,
+                    disk,
+                    transfer: transferGb,
+                  };
+                  planPricing = {
+                    hourly: monthly > 0 ? monthly / 730 : 0,
+                    monthly,
+                  };
+                } else if (normalizedInstance?.specs) {
+                  planSpecs = {
+                    vcpus: Number(normalizedInstance.specs.vcpus || 0),
+                    memory: Number(normalizedInstance.specs.memory || 0),
+                    disk: Number(normalizedInstance.specs.disk || 0),
+                    transfer: Number(normalizedInstance.specs.transfer || 0),
+                  };
+                }
+              } catch (planErr) {
+                console.warn("Failed to attach DigitalOcean plan specs/pricing:", planErr);
+              }
+
+              (row as any).plan_specs = planSpecs;
+              (row as any).plan_pricing = planPricing;
+              (row as any).provider_progress = null;
+              (row as any).progress_percent = null;
+            }
+          } catch (err) {
+            console.warn("Failed to enrich instance with DigitalOcean details:", err);
+          }
+        } else {
+          if (row.status === "offline") {
+            (row as any).status = "stopped";
+          }
+          (row as any).provider_progress = null;
+          (row as any).progress_percent = null;
         }
-        // Ensure normalized status is returned even if DB was already current
-        if (row.status === "offline") (row as any).status = "stopped";
+
+        if ((row as any).status === "offline") {
+          (row as any).status = "stopped";
+        }
+
         return row;
       })
     );
@@ -1832,19 +2072,32 @@ router.get("/:id", async (req: Request, res: Response) => {
     const providerType = instanceRow.provider_type || "linode";
     const providerInstanceId = Number(instanceRow.provider_instance_id);
 
-    // Fetch provider name if provider_id exists
+    // Fetch provider metadata if provider_id exists
     let providerName: string | null = null;
+    let providerApiToken: string | null = null;
     if (instanceRow.provider_id) {
       try {
         const providerResult = await query(
-          "SELECT name FROM service_providers WHERE id = $1",
+          "SELECT name, api_key_encrypted FROM service_providers WHERE id = $1",
           [instanceRow.provider_id]
         );
         if (providerResult.rows.length > 0) {
-          providerName = providerResult.rows[0].name;
+          const providerRow = providerResult.rows[0];
+          providerName = typeof providerRow.name === "string" ? providerRow.name : null;
+          providerApiToken = await normalizeProviderToken(
+            instanceRow.provider_id,
+            providerRow.api_key_encrypted
+          );
         }
       } catch (err) {
-        console.warn("Failed to fetch provider name:", err);
+        console.warn("Failed to fetch provider metadata:", err);
+      }
+    }
+    if (!providerApiToken && providerType === "digitalocean") {
+      try {
+        providerApiToken = await loadActiveProviderToken("digitalocean");
+      } catch (tokenErr) {
+        console.warn("Failed to resolve DigitalOcean provider token:", tokenErr);
       }
     }
 
@@ -1941,6 +2194,8 @@ router.get("/:id", async (req: Request, res: Response) => {
     );
 
     const planMeta = await resolvePlanMeta(instanceRow, providerDetail);
+    const isLinodeProvider = providerType === "linode";
+    const isDigitalOceanProvider = providerType === "digitalocean";
 
     let metrics: {
       timeframe: { start: number | null; end: number | null };
@@ -1957,7 +2212,11 @@ router.get("/:id", async (req: Request, res: Response) => {
       };
     } | null = null;
 
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+    if (
+      providerDetail &&
+      Number.isFinite(providerInstanceId) &&
+      isLinodeProvider
+    ) {
       try {
         const stats: LinodeInstanceStatsResponse =
           await linodeService.getLinodeInstanceStats(providerInstanceId);
@@ -2036,6 +2295,110 @@ router.get("/:id", async (req: Request, res: Response) => {
       } catch (err) {
         console.warn("Failed to fetch instance metrics:", err);
       }
+    } else if (
+      isDigitalOceanProvider &&
+      Number.isFinite(providerInstanceId) &&
+      providerApiToken
+    ) {
+      try {
+        const { digitalOceanService } = await import(
+          "../services/DigitalOceanService.js"
+        );
+
+        const sanitizeSeries = (
+          points: Array<{ timestamp: number; value: number }> | null | undefined,
+          transform: (value: number) => number = (value) => value
+        ): MetricPoint[] => {
+          if (!Array.isArray(points)) {
+            return [];
+          }
+          return points
+            .map((point) => ({
+              timestamp: Number(point.timestamp),
+              value: transform(Number(point.value)),
+            }))
+            .filter(
+              (point) =>
+                Number.isFinite(point.timestamp) && Number.isFinite(point.value)
+            );
+        };
+
+        const [cpuRaw, networkInRaw, networkOutRaw] = await Promise.all([
+          digitalOceanService.getDropletMetricSeries(
+            providerApiToken,
+            providerInstanceId,
+            "cpu"
+          ),
+          digitalOceanService.getDropletMetricSeries(
+            providerApiToken,
+            providerInstanceId,
+            "network_in"
+          ),
+          digitalOceanService.getDropletMetricSeries(
+            providerApiToken,
+            providerInstanceId,
+            "network_out"
+          ),
+        ]);
+
+        const cpuSeries = sanitizeSeries(cpuRaw);
+        const networkInSeries = sanitizeSeries(networkInRaw, (value) => value * 8);
+        const networkOutSeries = sanitizeSeries(networkOutRaw, (value) => value * 8);
+
+        const timeframe = deriveTimeframe([
+          cpuSeries,
+          networkInSeries,
+          networkOutSeries,
+        ]);
+
+        const digitalOceanMetrics: typeof metrics = {
+          timeframe,
+        };
+
+        if (cpuSeries.length > 0) {
+          digitalOceanMetrics.cpu = {
+            series: cpuSeries,
+            summary: summarizeSeries(cpuSeries),
+            unit: "percent",
+          };
+        }
+
+        const networkPayload: {
+          inbound?: MetricSeriesPayload;
+          outbound?: MetricSeriesPayload;
+          privateIn?: MetricSeriesPayload;
+          privateOut?: MetricSeriesPayload;
+        } = {};
+
+        if (networkInSeries.length > 0) {
+          networkPayload.inbound = {
+            series: networkInSeries,
+            summary: summarizeSeries(networkInSeries),
+            unit: "bitsPerSecond",
+          };
+        }
+
+        if (networkOutSeries.length > 0) {
+          networkPayload.outbound = {
+            series: networkOutSeries,
+            summary: summarizeSeries(networkOutSeries),
+            unit: "bitsPerSecond",
+          };
+        }
+
+        if (
+          networkPayload.inbound !== undefined ||
+          networkPayload.outbound !== undefined
+        ) {
+          digitalOceanMetrics.network = networkPayload;
+        }
+
+        if (digitalOceanMetrics.cpu || digitalOceanMetrics.network) {
+          metrics = digitalOceanMetrics;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch DigitalOcean instance metrics:", err);
+      }
     }
 
     let transfer: TransferPayload | null = null;
@@ -2045,7 +2408,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     let providerConfigs: any[] = [];
     let instanceEvents: any[] = [];
 
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+    if (isLinodeProvider && providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const transferData = await linodeService.getLinodeInstanceTransfer(
           providerInstanceId
@@ -2082,7 +2445,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
 
     let backups: BackupsPayload | null = null;
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+    if (isLinodeProvider && providerDetail && Number.isFinite(providerInstanceId)) {
       const providerBackups = providerDetail.backups ?? null;
       let backupCollection: LinodeInstanceBackupsResponse | null = null;
       try {
@@ -2120,7 +2483,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       };
     }
 
-    if (providerDetail && Number.isFinite(providerInstanceId)) {
+    if (isLinodeProvider && providerDetail && Number.isFinite(providerInstanceId)) {
       try {
         const catalog = await linodeService.listFirewalls();
         firewallOptions = catalog

@@ -6,11 +6,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import {
-  Server,
   Plus,
   RefreshCw,
   Search,
-  MapPin,
   DollarSign,
   Power,
   PowerOff,
@@ -18,36 +16,29 @@ import {
   Trash2,
   RotateCcw,
   Cpu,
+  Server,
   HardDrive,
-  MemoryStick,
-  Network,
+  Network
 } from "lucide-react";
-import { toast } from "sonner";
-// Navigation provided by AppLayout
-import { useAuth } from "../contexts/AuthContext";
-import { paymentService } from "../services/paymentService";
-import { VpsInstancesTable } from "@/components/VPS/VpsTable.js";
-import { BulkDeleteModal } from "@/components/VPS/BulkDeleteModal";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { DialogStack } from "@/components/ui/dialog-stack";
-import { Badge } from "@/components/ui/badge";
+import type { ProviderType } from "@/types/provider";
+import type { CreateVPSForm, VPSInstance } from "@/types/vps";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFormPersistence } from "@/hooks/use-form-persistence";
 import { useMobileNavigation } from "@/hooks/use-mobile-navigation";
+import { useLazyLoading, createMobileLoadingFallback } from "@/hooks/use-lazy-loading";
+import { useMobilePerformance } from "@/hooks/use-mobile-performance";
+import { useMobileAssets } from "@/hooks/use-mobile-assets";
 import { useMobileToast } from "@/components/ui/mobile-toast";
 import {
   MobileLoading,
-  useMobileLoading,
   MobileLoadingButton,
+  useMobileLoading,
 } from "@/components/ui/mobile-loading";
-import {
-  useLazyLoading,
-  createMobileLoadingFallback,
-} from "@/hooks/use-lazy-loading";
-import { useMobilePerformance } from "@/hooks/use-mobile-performance";
-import { useMobileAssets } from "@/hooks/use-mobile-assets";
-import type { VPSInstance, CreateVPSForm } from "@/types/vps";
-import type { ProviderType } from "@/types/provider";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogStack } from "@/components/ui/dialog-stack";
+import { VpsInstancesTable } from "@/components/VPS/VpsTable";
+import { BulkDeleteModal } from "@/components/VPS/BulkDeleteModal";
 import { generateUniqueVPSLabel } from "@/lib/vpsLabelGenerator";
 import { ProviderSelector } from "@/components/VPS/ProviderSelector";
 import { CreateVPSSteps } from "@/components/VPS/CreateVPSSteps";
@@ -564,6 +555,14 @@ const VPS: React.FC = () => {
         // Prefer API-provided plan specs/pricing; fallback to loaded plans; else zeros
         const apiSpecs = i.plan_specs || null;
         const apiPricing = i.plan_pricing || null;
+        const providerType = (i.provider_type as ProviderType | undefined) ?? "linode";
+        const providerName =
+          typeof i.provider_name === "string" && i.provider_name.trim().length > 0
+            ? i.provider_name
+            : typeof i.providerName === "string" && i.providerName.trim().length > 0
+            ? i.providerName
+            : null;
+        const providerId = typeof i.provider_id === "string" ? i.provider_id : null;
         const planForType = linodeTypes.find(
           (t) => t.id === (i.configuration?.type || "")
         );
@@ -629,6 +628,9 @@ const VPS: React.FC = () => {
           ipv4: i.ip_address ? [i.ip_address] : [],
           ipv6: "",
           created: i.created_at,
+          provider_id: providerId,
+          provider_type: providerType,
+          providerName,
           specs,
           stats: {
             cpu: 0,

@@ -17,6 +17,7 @@ export interface VPSInstance {
   created: string;
   provider_id?: string | null;
   provider_type?: ProviderType | null;
+  providerName?: string | null;
   backup_frequency?: 'daily' | 'weekly' | 'none';
   specs: {
     vcpus: number;

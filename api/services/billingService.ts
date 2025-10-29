@@ -228,8 +228,8 @@ export class BillingService {
         const plan = planResult.rows[0];
         const baseHourlyRate = plan ? ((parseFloat(plan.base_price) + parseFloat(plan.markup_price)) / 730) : instance.hourlyRate;
         
-        let backupHourlyRate = 0;
-        let backupFrequency = plan?.backup_frequency || 'none';
+  let backupHourlyRate = 0;
+  const backupFrequency = plan?.backup_frequency || 'none';
         
         if (plan && backupFrequency !== 'none') {
           const baseBackupHourly = parseFloat(plan.backup_price_hourly || 0);

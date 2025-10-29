@@ -616,6 +616,144 @@ class DigitalOceanService {
     }
   }
 
+  private normalizeMetricsResponse(response: any): Array<{ timestamp: number; value: number }> {
+    const points: Array<{ timestamp: number; value: number }> = [];
+
+    const pushPoint = (rawTimestamp: any, rawValue: any) => {
+      const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+      if (!Number.isFinite(numericValue)) {
+        return;
+      }
+
+      const convertTimestamp = (value: any): number | null => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value > 1e12 ? Math.round(value / 1000) : value;
+        }
+        if (typeof value === 'string') {
+          const numericTimestamp = Number(value);
+          if (Number.isFinite(numericTimestamp)) {
+            return numericTimestamp > 1e12
+              ? Math.round(numericTimestamp / 1000)
+              : numericTimestamp;
+          }
+          const parsed = Date.parse(value);
+          if (!Number.isNaN(parsed)) {
+            return Math.round(parsed / 1000);
+          }
+        }
+        if (value && typeof value === 'object') {
+          if ('time' in value) {
+            return convertTimestamp((value as any).time);
+          }
+          if ('timestamp' in value) {
+            return convertTimestamp((value as any).timestamp);
+          }
+        }
+        return null;
+      };
+
+      const timestamp = convertTimestamp(rawTimestamp);
+      if (timestamp !== null && Number.isFinite(timestamp)) {
+        points.push({ timestamp, value: numericValue });
+      }
+    };
+
+    const processEntry = (entry: any) => {
+      if (Array.isArray(entry)) {
+        if (entry.length >= 2) {
+          pushPoint(entry[0], entry[1]);
+        }
+        return;
+      }
+      if (entry && typeof entry === 'object') {
+        const timestamp = entry.time ?? entry.timestamp ?? entry[0] ?? entry?.values?.[0]?.[0];
+        const value = entry.value ?? entry[1] ?? entry?.values?.[0]?.[1];
+        if (timestamp !== undefined && value !== undefined) {
+          pushPoint(timestamp, value);
+        }
+      }
+    };
+
+    const processCollection = (collection: any) => {
+      if (Array.isArray(collection)) {
+        collection.forEach(processEntry);
+      }
+    };
+
+    if (!response) {
+      return points;
+    }
+
+    if (Array.isArray(response.data)) {
+      processCollection(response.data);
+    }
+
+    if (response.data && Array.isArray(response.data.result)) {
+      response.data.result.forEach((result: any) => {
+        if (Array.isArray(result.values)) {
+          processCollection(result.values);
+        }
+      });
+    }
+
+    if (Array.isArray(response.result)) {
+      response.result.forEach((result: any) => {
+        if (Array.isArray(result.values)) {
+          processCollection(result.values);
+        } else {
+          processEntry(result);
+        }
+      });
+    }
+
+    if (Array.isArray(response.values)) {
+      processCollection(response.values);
+    }
+
+    if (response.metrics && Array.isArray(response.metrics)) {
+      response.metrics.forEach((metric: any) => {
+        if (Array.isArray(metric.data)) {
+          processCollection(metric.data);
+        }
+        if (Array.isArray(metric.values)) {
+          processCollection(metric.values);
+        }
+      });
+    }
+
+    return points.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  async getDropletMetricSeries(
+    apiToken: string,
+    dropletId: number,
+    metric: string,
+    options?: { start?: Date; end?: Date; granularity?: string }
+  ): Promise<Array<{ timestamp: number; value: number }>> {
+    if (!apiToken) {
+      throw new Error('DigitalOcean API token not provided');
+    }
+    if (!Number.isFinite(dropletId)) {
+      throw new Error('Droplet ID must be a finite number');
+    }
+
+    const end = options?.end ?? new Date();
+    const start = options?.start ?? new Date(end.getTime() - 6 * 60 * 60 * 1000);
+    const granularity = options?.granularity ?? '5m';
+
+    const params = new URLSearchParams({
+      host_id: String(dropletId),
+      start: start.toISOString(),
+      end: end.toISOString(),
+      granularity,
+    });
+
+    const url = `${this.baseUrl}/monitoring/metrics/droplet/${metric}?${params.toString()}`;
+
+    const response = await this.makeRequest<any>(url, { method: 'GET' }, apiToken);
+    return this.normalizeMetricsResponse(response);
+  }
+
   /**
    * Delete a Droplet by ID
    */

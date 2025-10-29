@@ -143,6 +143,29 @@ const getProgressValue = (instance: VPSInstance) => {
   return null;
 };
 
+const getProviderDisplayName = (instance: VPSInstance): string => {
+  const trimmedName = typeof instance.providerName === "string" ? instance.providerName.trim() : "";
+  if (trimmedName.length > 0) {
+    return trimmedName;
+  }
+
+  const providerType = instance.provider_type || "linode";
+  if (providerType === "linode") {
+    return "Linode";
+  }
+  if (providerType === "digitalocean") {
+    return "DigitalOcean";
+  }
+  if (providerType === "aws") {
+    return "AWS";
+  }
+  if (providerType === "gcp") {
+    return "GCP";
+  }
+  const label = String(providerType);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
 export function VpsInstancesTable({
   instances,
   isLoading,
@@ -244,20 +267,7 @@ export function VpsInstancesTable({
         header: "Provider",
         cell: ({ row }) => {
           const instance = row.original;
-          const providerType = instance.provider_type || 'linode';
-          let providerName: string;
-          
-          if (providerType === 'linode') {
-            providerName = 'Linode';
-          } else if (providerType === 'digitalocean') {
-            providerName = 'DigitalOcean';
-          } else if (providerType === 'aws') {
-            providerName = 'AWS';
-          } else if (providerType === 'gcp') {
-            providerName = 'GCP';
-          } else {
-            providerName = String(providerType).charAt(0).toUpperCase() + String(providerType).slice(1);
-          }
+          const providerName = getProviderDisplayName(instance);
           
           return (
             <div className="min-w-[100px]">
@@ -508,24 +518,10 @@ export function VpsInstancesTable({
                 </Badge>
               )}
               {(() => {
-                const providerType = instance.provider_type || 'linode';
-                let providerName: string;
-                
-                if (providerType === 'linode') {
-                  providerName = 'Linode';
-                } else if (providerType === 'digitalocean') {
-                  providerName = 'DigitalOcean';
-                } else if (providerType === 'aws') {
-                  providerName = 'AWS';
-                } else if (providerType === 'gcp') {
-                  providerName = 'GCP';
-                } else {
-                  providerName = String(providerType).charAt(0).toUpperCase() + String(providerType).slice(1);
-                }
-                
+                const providerLabel = getProviderDisplayName(instance);
                 return (
                   <Badge variant="outline" className="text-[11px]">
-                    {providerName}
+                    {providerLabel}
                   </Badge>
                 );
               })()}

@@ -39,18 +39,18 @@ export function decryptSecret(encoded: string): string {
   let decoded: Buffer;
   try {
     decoded = Buffer.from(encoded, 'base64');
-  } catch (err) {
-    // Value was never encrypted (legacy behavior). Return as-is.
-    console.warn('decryptSecret: value is not base64 encoded; assuming legacy plaintext secret.');
+  } catch (error) {
+    // Value was never encrypted (legacy behavior). Return as-is for backward compatibility.
+    console.warn('decryptSecret: value is not base64 encoded; assuming legacy plaintext secret.', error);
     return encoded;
   }
 
   let payload: EncryptedPayload;
   try {
     payload = JSON.parse(decoded.toString('utf8')) as EncryptedPayload;
-  } catch (err) {
-    // Parsed value is not an encrypted payload. Treat as legacy plaintext.
-    console.warn('decryptSecret: decoded payload is not JSON; assuming legacy plaintext secret.');
+  } catch (error) {
+    // Parsed value is not an encrypted payload. Treat as legacy plaintext for legacy records.
+    console.warn('decryptSecret: decoded payload is not JSON; assuming legacy plaintext secret.', error);
     return encoded;
   }
 

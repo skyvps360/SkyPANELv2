@@ -16,8 +16,7 @@ import {
   handleProviderError, 
   validateSSHKeyFormat, 
   logError,
-  ErrorCodes,
-  createError
+  ErrorCodes
 } from '../lib/errorHandling.js';
 import { 
   getSSHKeySuccessMessage, 
@@ -164,7 +163,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
 router.post('/', [
   body('name').trim().isLength({ min: 1, max: 255 }).withMessage('Name is required and must be less than 255 characters'),
   body('publicKey').trim().isLength({ min: 1 }).withMessage('Public key is required')
-    .matches(/^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\s+[A-Za-z0-9+\/=]+/)
+  .matches(/^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\s+[A-Za-z0-9+/=]+/)
     .withMessage('Invalid SSH public key format')
 ], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
