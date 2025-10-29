@@ -18,8 +18,10 @@ import {
   Cpu,
   Server,
   HardDrive,
-  Network
+  Network,
+  MemoryStick,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { ProviderType } from "@/types/provider";
 import type { CreateVPSForm, VPSInstance } from "@/types/vps";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +37,7 @@ import {
   useMobileLoading,
 } from "@/components/ui/mobile-loading";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogStack } from "@/components/ui/dialog-stack";
 import { VpsInstancesTable } from "@/components/VPS/VpsTable";
@@ -49,6 +52,7 @@ import {
   getPreviousStep,
   type StepConfiguration,
 } from "@/lib/vpsStepConfiguration";
+import { paymentService } from "@/services/paymentService";
 
 interface LinodeType {
   id: string;
