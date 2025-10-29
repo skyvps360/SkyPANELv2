@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity as ActivityIcon, Filter, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Activity as ActivityIcon, Filter, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
+import Pagination from '@/components/ui/Pagination';
 
 interface ActivityRecord {
   id: string;
@@ -46,7 +47,6 @@ const ActivityPage: React.FC = () => {
     page: 1,
     totalPages: 1
   });
-  const [pageInput, setPageInput] = useState<string>('');
 
   const fetchActivities = async (page: number = currentPage) => {
     setLoading(true);
@@ -104,52 +104,6 @@ const ActivityPage: React.FC = () => {
   const handleLimitChange = (newLimit: number) => {
     setLimit(newLimit);
     setCurrentPage(1);
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    const current = pagination.page;
-    const total = pagination.totalPages;
-
-    if (total <= maxVisible) {
-      for (let i = 1; i <= total; i++) {
-        pages.push(i);
-      }
-    } else {
-      let start = Math.max(1, current - 2);
-      const end = Math.min(total, start + maxVisible - 1);
-      
-      if (end - start < maxVisible - 1) {
-        start = Math.max(1, end - maxVisible + 1);
-      }
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-    }
-    return pages;
-  };
-
-  const handleFirstPage = () => {
-    handlePageChange(1);
-  };
-
-  const handleLastPage = () => {
-    handlePageChange(pagination.totalPages);
-  };
-
-  const handlePageInputSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const pageNum = parseInt(pageInput);
-    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= pagination.totalPages) {
-      handlePageChange(pageNum);
-      setPageInput('');
-    }
-  };
-
-  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPageInput(e.target.value);
   };
 
   const exportCsv = () => {
@@ -297,126 +251,15 @@ const ActivityPage: React.FC = () => {
 
               {/* Pagination Controls */}
               {pagination.total > 0 && (
-                <div className="bg-card px-4 py-3 border-t border sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 flex justify-between sm:hidden">
-                      <button
-                        onClick={() => handlePageChange(pagination.page - 1)}
-                        disabled={pagination.page <= 1}
-                        className="relative inline-flex items-center px-4 py-2 border border text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => handlePageChange(pagination.page + 1)}
-                        disabled={pagination.page >= pagination.totalPages}
-                        className="ml-3 relative inline-flex items-center px-4 py-2 border border text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                    <div className="hidden sm:flex sm:flex-col sm:items-center sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="text-center lg:text-left">
-                        <p className="text-sm text-muted-foreground">
-                          Showing{' '}
-                          <span className="font-medium">{pagination.offset + 1}</span>
-                          {' '}to{' '}
-                          <span className="font-medium">
-                            {Math.min(pagination.offset + pagination.limit, pagination.total)}
-                          </span>
-                          {' '}of{' '}
-                          <span className="font-medium">{pagination.total}</span>
-                          {' '}results
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-center">
-                        {/* Enhanced Pagination Navigation */}
-                        <nav className="relative z-0 flex flex-wrap justify-center rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                          {/* First Page Button */}
-                          <button
-                            onClick={handleFirstPage}
-                            disabled={pagination.page <= 1}
-                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border bg-secondary text-sm font-medium text-muted-foreground hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="First page"
-                          >
-                            <span className="sr-only">First</span>
-                            <ChevronsLeft className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                          
-                          {/* Previous Page Button */}
-                          <button
-                            onClick={() => handlePageChange(pagination.page - 1)}
-                            disabled={pagination.page <= 1}
-                            className="relative inline-flex items-center px-2 py-2 border border bg-secondary text-sm font-medium text-muted-foreground hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Previous page"
-                          >
-                            <span className="sr-only">Previous</span>
-                            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                          
-                          {/* Page Number Buttons */}
-                          {getPageNumbers().map((pageNum) => (
-                            <button
-                              key={pageNum}
-                              onClick={() => handlePageChange(pageNum)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                pageNum === pagination.page
-                                  ? 'z-10 bg-primary/10 border-primary text-primary'
-                                  : 'bg-secondary border text-muted-foreground hover:bg-secondary/80'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          ))}
-                          
-                          {/* Next Page Button */}
-                          <button
-                            onClick={() => handlePageChange(pagination.page + 1)}
-                            disabled={pagination.page >= pagination.totalPages}
-                            className="relative inline-flex items-center px-2 py-2 border border bg-secondary text-sm font-medium text-muted-foreground hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Next page"
-                          >
-                            <span className="sr-only">Next</span>
-                            <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                          
-                          {/* Last Page Button */}
-                          <button
-                            onClick={handleLastPage}
-                            disabled={pagination.page >= pagination.totalPages}
-                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border bg-secondary text-sm font-medium text-muted-foreground hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Last page"
-                          >
-                            <span className="sr-only">Last</span>
-                            <ChevronsRight className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                        </nav>
-
-                        {/* Page Input Field */}
-                        <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2 justify-center lg:justify-start">
-                          <span className="text-sm text-muted-foreground">Go to:</span>
-                          <input
-                            type="number"
-                            min="1"
-                            max={pagination.totalPages}
-                            value={pageInput}
-                            onChange={handlePageInputChange}
-                            placeholder="Page"
-                            className="w-16 px-2 py-1 text-sm border border rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                          />
-                          <button
-                            type="submit"
-                            className="px-3 py-1 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={!pageInput || parseInt(pageInput) < 1 || parseInt(pageInput) > pagination.totalPages}
-                          >
-                            Go
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                    </div>
-                  </div>
-                )}
+                <Pagination
+                  currentPage={pagination.page}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleLimitChange}
+                  itemsPerPageOptions={[10, 20, 50, 100]}
+                />
+              )}
               </>
             )}
           </CardContent>
