@@ -6,6 +6,7 @@
 import { query } from '../lib/database.js';
 import { ProviderFactory } from './providers/ProviderFactory.js';
 import { IProviderService, ProviderType } from './providers/IProviderService.js';
+import { normalizeProviderToken } from '../lib/providerTokens.js';
 
 interface ServiceProvider {
   id: string;
@@ -36,8 +37,8 @@ export async function getProviderService(providerId: string): Promise<IProviderS
     throw new Error('Provider is not active');
   }
 
-  // Get API key (currently stored as plain text)
-  const apiToken = provider.api_key_encrypted;
+  // Resolve stored API token (handles encrypted and legacy plaintext values)
+  const apiToken = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
 
   if (!apiToken) {
     throw new Error('Provider API key not configured');
@@ -64,8 +65,8 @@ export async function getProviderServiceByType(providerType: ProviderType): Prom
 
   const provider = result.rows[0] as ServiceProvider;
 
-  // Get API key (currently stored as plain text)
-  const apiToken = provider.api_key_encrypted;
+  // Resolve stored API token (handles encrypted and legacy plaintext values)
+  const apiToken = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
 
   if (!apiToken) {
     throw new Error('Provider API key not configured');
