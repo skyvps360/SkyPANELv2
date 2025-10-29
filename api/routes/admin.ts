@@ -25,6 +25,13 @@ import {
 } from "../middleware/security.js";
 import { encryptSecret } from "../lib/crypto.js";
 import { normalizeProviderToken, getProviderTokenByType } from "../lib/providerTokens.js";
+import {
+  DEFAULT_DIGITALOCEAN_ALLOWED_REGIONS,
+  DEFAULT_LINODE_ALLOWED_REGIONS,
+  DIGITALOCEAN_REGION_COUNTRY_MAP,
+  normalizeRegionList,
+  parseStoredAllowedRegions,
+} from "../lib/providerRegions.js";
 
 const router = express.Router();
 
@@ -911,6 +918,304 @@ router.put(
       res
         .status(500)
         .json({ error: err.message || "Failed to update provider" });
+    }
+  }
+);
+
+// Fetch provider region configuration and availability
+router.get(
+  "/providers/:id/regions",
+  authenticateToken,
+  requireAdmin,
+  [param("id").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const providerResult = await query(
+        `SELECT id, name, type, api_key_encrypted, allowed_regions
+           FROM service_providers
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      const provider = providerResult.rows[0];
+      const providerType = provider.type as "linode" | "digitalocean";
+
+      if (!["linode", "digitalocean"].includes(providerType)) {
+        return res
+          .status(400)
+          .json({ error: "Region management is only supported for Linode and DigitalOcean" });
+      }
+
+      let allowedRegions: string[] = [];
+      try {
+        const overridesResult = await query(
+          "SELECT region FROM provider_region_overrides WHERE provider_id = $1",
+          [id]
+        );
+
+        if (overridesResult.rows.length > 0) {
+          allowedRegions = normalizeRegionList(
+            overridesResult.rows
+              .map((row) => row.region)
+              .filter((value): value is string => typeof value === "string")
+          );
+        }
+      } catch (overrideErr: any) {
+        const message = String(overrideErr?.message || "").toLowerCase();
+        const missingTable = message.includes("relation") && message.includes("provider_region_overrides");
+        if (!missingTable) {
+          throw overrideErr;
+        }
+      }
+
+      if (allowedRegions.length === 0) {
+        allowedRegions = parseStoredAllowedRegions(provider.allowed_regions ?? null);
+      }
+
+      const mode: "default" | "custom" = allowedRegions.length > 0 ? "custom" : "default";
+
+      const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
+      if (!token) {
+        return res.status(503).json({ error: "Provider credentials not available" });
+      }
+
+      let allRegions: Array<{
+        id: string;
+        label: string;
+        country: string;
+        capabilities: string[];
+        status: string;
+      }> = [];
+
+      if (providerType === "linode") {
+        const linodeRegions = await linodeService.getLinodeRegions();
+        allRegions = linodeRegions.map((region) => ({
+          id: region.id,
+          label: region.label,
+          country: region.country ?? "",
+          capabilities: Array.isArray(region.capabilities) ? region.capabilities : [],
+          status: region.status ?? "unknown",
+        }));
+      } else {
+        const digitalOceanRegions = await digitalOceanService.getDigitalOceanRegions(token);
+        allRegions = digitalOceanRegions.map((region) => ({
+          id: region.slug,
+          label: region.name,
+          country:
+            typeof region.slug === "string"
+              ? DIGITALOCEAN_REGION_COUNTRY_MAP[region.slug.toLowerCase()] ?? ""
+              : "",
+          capabilities: Array.isArray(region.features) ? region.features : [],
+          status: region.available ? "ok" : "unavailable",
+        }));
+      }
+
+      const normalizedDefaultSet = new Set(
+        (providerType === "linode"
+          ? DEFAULT_LINODE_ALLOWED_REGIONS
+          : DEFAULT_DIGITALOCEAN_ALLOWED_REGIONS
+        ).map((slug) => slug.toLowerCase())
+      );
+
+      const effectiveAllowedSet =
+        mode === "custom"
+          ? new Set(allowedRegions)
+          : new Set(
+              allRegions
+                .map((region) =>
+                  typeof region.id === "string" ? region.id.toLowerCase() : ""
+                )
+                .filter(Boolean)
+            );
+
+      const regions = allRegions.map((region) => {
+        const slug = typeof region.id === "string" ? region.id.toLowerCase() : "";
+        return {
+          id: region.id,
+          label: region.label || region.id,
+          country: region.country,
+          status: region.status,
+          capabilities: region.capabilities,
+          allowed: slug ? effectiveAllowedSet.has(slug) : false,
+          isDefault: slug ? normalizedDefaultSet.has(slug) : false,
+        };
+      });
+
+      res.json({
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          type: providerType,
+        },
+        mode,
+        allowedRegions,
+        defaultRegions: Array.from(normalizedDefaultSet),
+        regions,
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error("Admin provider regions fetch error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to fetch provider regions" });
+    }
+  }
+);
+
+// Update provider region allowlist
+router.put(
+  "/providers/:id/regions",
+  authenticateToken,
+  requireAdmin,
+  [
+    param("id").isUUID(),
+    body("mode").optional().isString(),
+    body("regions").optional().isArray(),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const modeRaw =
+        typeof req.body.mode === "string" ? req.body.mode.toLowerCase().trim() : "custom";
+      const mode: "default" | "custom" = modeRaw === "default" ? "default" : "custom";
+
+      const providerResult = await query(
+        `SELECT id, name, type, api_key_encrypted
+           FROM service_providers
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      const provider = providerResult.rows[0];
+      const providerType = provider.type as "linode" | "digitalocean";
+
+      if (!["linode", "digitalocean"].includes(providerType)) {
+        return res
+          .status(400)
+          .json({ error: "Region management is only supported for Linode and DigitalOcean" });
+      }
+
+      let requestedRegions: string[] = [];
+
+      if (mode === "custom") {
+        if (!Array.isArray(req.body.regions)) {
+          return res
+            .status(400)
+            .json({ error: "regions must be an array when mode is custom" });
+        }
+
+        requestedRegions = normalizeRegionList(
+          req.body.regions.filter((value: unknown): value is string => typeof value === "string")
+        );
+
+        if (requestedRegions.length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Select at least one region or switch to default mode" });
+        }
+      }
+
+      const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
+
+      if (mode === "custom") {
+        if (!token) {
+          return res.status(503).json({ error: "Provider credentials not available" });
+        }
+
+        let validRegionSlugs: Set<string> = new Set();
+
+        if (providerType === "linode") {
+          const linodeRegions = await linodeService.getLinodeRegions();
+          validRegionSlugs = new Set(
+            linodeRegions
+              .map((region) => region.id?.toLowerCase())
+              .filter((value): value is string => Boolean(value))
+          );
+        } else {
+          const digitalOceanRegions = await digitalOceanService.getDigitalOceanRegions(token);
+          validRegionSlugs = new Set(
+            digitalOceanRegions
+              .map((region) => region.slug?.toLowerCase())
+              .filter((value): value is string => Boolean(value))
+          );
+        }
+
+        const invalidSelections = requestedRegions.filter((region) => !validRegionSlugs.has(region));
+        if (invalidSelections.length > 0) {
+          return res.status(400).json({
+            error: "One or more selected regions are not available from the provider",
+            invalidRegions: invalidSelections,
+          });
+        }
+      }
+
+      const jsonPayload =
+        mode === "custom" ? JSON.stringify(requestedRegions) : JSON.stringify([]);
+
+      await query("BEGIN");
+      try {
+        await query("DELETE FROM provider_region_overrides WHERE provider_id = $1", [id]);
+
+        if (mode === "custom") {
+          for (const region of requestedRegions) {
+            await query(
+              `INSERT INTO provider_region_overrides (provider_id, region)
+               VALUES ($1, $2)
+               ON CONFLICT (provider_id, region)
+               DO UPDATE SET updated_at = NOW()`,
+              [id, region]
+            );
+          }
+        }
+
+        await query(
+          "UPDATE service_providers SET allowed_regions = $2::jsonb, updated_at = NOW() WHERE id = $1",
+          [id, jsonPayload]
+        );
+
+        await query("COMMIT");
+      } catch (txnError) {
+        await query("ROLLBACK");
+        throw txnError;
+      }
+
+      ProviderResourceCache.invalidateProvider(id);
+
+      res.json({
+        success: true,
+        mode,
+        allowedRegions: requestedRegions,
+        message:
+          mode === "custom"
+            ? `Configured ${requestedRegions.length} allowed region${requestedRegions.length === 1 ? "" : "s"}`
+            : "Reverted to provider defaults",
+      });
+    } catch (err: any) {
+      console.error("Admin provider regions update error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to update provider regions" });
     }
   }
 );

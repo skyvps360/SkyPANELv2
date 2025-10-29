@@ -9,6 +9,24 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { VPSPlan } from "@/types/vps";
 
+// Normalizes API values that may arrive as strings so currency math stays reliable
+const toCurrencyNumber = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const parsed = parseFloat(value.trim());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+
+  return 0;
+};
+
 interface BackupConfigurationProps {
   planId: string;
   backupsEnabled: boolean;
@@ -65,11 +83,11 @@ export const BackupConfiguration: React.FC<BackupConfigurationProps> = ({
   }, [planId, token]);
 
   // Calculate backup pricing
-  const weeklyBackupPrice = plan
-    ? (plan.backup_price_monthly || 0) + (plan.backup_upcharge_monthly || 0)
-    : 0;
-
-  const dailyBackupPrice = weeklyBackupPrice * 1.5; // Daily is 1.5x weekly
+  const baseBackupPrice = toCurrencyNumber(plan?.backup_price_monthly);
+  const backupMarkup = toCurrencyNumber(plan?.backup_upcharge_monthly);
+  const baseBackupCostMonthly = baseBackupPrice + backupMarkup;
+  const weeklyBackupPrice = baseBackupCostMonthly;
+  const dailyBackupPrice = baseBackupCostMonthly * 1.5; // Daily is 1.5x weekly
 
   // Determine available backup frequencies
   const hasWeeklyBackups = plan?.weekly_backups_enabled !== false;
@@ -265,17 +283,9 @@ export const BackupConfiguration: React.FC<BackupConfigurationProps> = ({
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Base backup cost:</span>
               <span className="font-medium text-foreground">
-                ${(plan.backup_price_monthly || 0).toFixed(2)}/mo
+                ${baseBackupCostMonthly.toFixed(2)}/mo
               </span>
             </div>
-            {(plan.backup_upcharge_monthly || 0) > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Service markup:</span>
-                <span className="font-medium text-foreground">
-                  ${(plan.backup_upcharge_monthly || 0).toFixed(2)}/mo
-                </span>
-              </div>
-            )}
             {backupFrequency === "daily" && hasDailyBackups && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Daily multiplier:</span>

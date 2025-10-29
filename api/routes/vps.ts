@@ -4,6 +4,7 @@ import { query } from "../lib/database.js";
 import { linodeService } from "../services/linodeService.js";
 import { handleProviderError, logError, ErrorCodes } from "../lib/errorHandling.js";
 import type {
+  CreateLinodeRequest,
   LinodeInstance,
   LinodeInstanceBackupsResponse,
   LinodeInstanceStatsResponse,
@@ -16,6 +17,12 @@ import { encryptSecret } from "../lib/crypto.js";
 import { normalizeProviderToken, getProviderTokenByType } from "../lib/providerTokens.js";
 import { BillingService } from "../services/billingService.js";
 import { AuthService } from "../services/authService.js";
+import {
+  DIGITALOCEAN_REGION_COUNTRY_MAP,
+  normalizeRegionList,
+  parseStoredAllowedRegions,
+  shouldFilterByAllowedRegions,
+} from "../lib/providerRegions.js";
 
 const router = express.Router();
 
@@ -979,7 +986,40 @@ router.get("/providers/:providerId/regions", async (req: Request, res: Response)
 
     const provider = providerResult.rows[0];
     const providerType = provider.type as "linode" | "digitalocean";
-    const allowedRegions = provider.allowed_regions || null;
+
+    let allowedRegions: string[] = [];
+
+    try {
+      const overridesResult = await query(
+        "SELECT region FROM provider_region_overrides WHERE provider_id = $1",
+        [providerId]
+      );
+
+      if (overridesResult.rows.length > 0) {
+        allowedRegions = normalizeRegionList(
+          overridesResult.rows
+            .map((row) => row.region)
+            .filter((value): value is string => typeof value === "string")
+        );
+      }
+    } catch (overrideErr: any) {
+      const message = String(overrideErr?.message || "").toLowerCase();
+      const relationMissing =
+        message.includes("relation") && message.includes("provider_region_overrides");
+      if (!relationMissing) {
+        throw overrideErr;
+      }
+    }
+
+    if (allowedRegions.length === 0) {
+      allowedRegions = parseStoredAllowedRegions(provider.allowed_regions ?? null);
+    }
+
+    const normalizedAllowedRegions = allowedRegions.length > 0 ? allowedRegions : [];
+    const shouldApplyAllowedRegionFilter = shouldFilterByAllowedRegions(
+      providerType,
+      normalizedAllowedRegions
+    );
 
     // Get provider token
     const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
@@ -995,16 +1035,32 @@ router.get("/providers/:providerId/regions", async (req: Request, res: Response)
       allRegions = await linodeService.getLinodeRegions();
     } else if (providerType === "digitalocean") {
       const { digitalOceanService } = await import("../services/DigitalOceanService.js");
-      allRegions = await digitalOceanService.getDigitalOceanRegions(token);
+      const digitalOceanRegions = await digitalOceanService.getDigitalOceanRegions(token);
+      // Normalize DigitalOcean regions to match front-end expectations
+      allRegions = digitalOceanRegions.map((region) => ({
+        id: region.slug,
+        label: region.name,
+        country:
+          typeof region.slug === "string"
+            ? DIGITALOCEAN_REGION_COUNTRY_MAP[region.slug.toLowerCase()] ?? ""
+            : "",
+        capabilities: region.features,
+        status: region.available ? "ok" : "unavailable",
+      }));
     } else {
       return res.status(400).json({ error: "Unsupported provider type" });
     }
 
     // Filter regions based on allowed_regions configuration
     let regions = allRegions;
-    if (allowedRegions && Array.isArray(allowedRegions) && allowedRegions.length > 0) {
-      const allowedSet = new Set(allowedRegions);
-      regions = allRegions.filter((region) => allowedSet.has(region.id));
+    if (shouldApplyAllowedRegionFilter) {
+      const allowedSet = new Set(normalizedAllowedRegions);
+      regions = allRegions.filter(
+        (region) =>
+          region &&
+          typeof region.id === "string" &&
+          allowedSet.has(region.id.toLowerCase())
+      );
     }
 
     res.json({ regions });
@@ -2398,6 +2454,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Fetch provider details from database
     let providerDetails: any = null;
+    let providerApiToken: string | null = null;
     try {
       const providerResult = await query(
         "SELECT id, name, type, api_key_encrypted, active FROM service_providers WHERE id = $1",
@@ -2422,6 +2479,27 @@ router.post("/", async (req: Request, res: Response) => {
       if (providerDetails.type !== provider_type) {
         res.status(400).json({
           error: "Provider type mismatch",
+        });
+        return;
+      }
+
+      try {
+        providerApiToken = await normalizeProviderToken(
+          providerDetails.id,
+          providerDetails.api_key_encrypted
+        );
+      } catch (tokenErr) {
+        logError("Provider token resolution", tokenErr, {
+          provider_id,
+          provider_type,
+        });
+        res.status(503).json({
+          error: {
+            code: "PROVIDER_TOKEN_UNAVAILABLE",
+            message:
+              "Unable to access provider credentials. Please verify the provider token and try again.",
+            provider: provider_type,
+          },
         });
         return;
       }
@@ -2486,10 +2564,12 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    // Region is now optional; clients select region at deployment time
+    // Ensure region is provided at provisioning time (from request body)
     if (!regionToUse) {
       res.status(400).json({
         error:
-          "Region is required (plan specifications.region or request body)",
+          "Region is required for VPS provisioning. Please select a region.",
       });
       return;
     }
@@ -2609,11 +2689,7 @@ router.post("/", async (req: Request, res: Response) => {
         );
         
         // Get DigitalOcean API token
-        const apiToken = await normalizeProviderToken(
-          providerDetails.id,
-          providerDetails.api_key_encrypted
-        );
-        if (!apiToken) {
+        if (!providerApiToken) {
           res.status(503).json({
             error: {
               code: "PROVIDER_INACTIVE",
@@ -2626,7 +2702,7 @@ router.post("/", async (req: Request, res: Response) => {
         }
         
         // Fetch marketplace apps to validate
-        const marketplaceApps = await digitalOceanService.get1ClickApps(apiToken);
+        const marketplaceApps = await digitalOceanService.get1ClickApps(providerApiToken);
         const isMarketplaceApp = marketplaceApps.some((app: any) => app.slug === image || app.image_slug === image);
         
         if (isMarketplaceApp) {
@@ -2668,6 +2744,98 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Handle provider-specific creation logic
       if (provider_type === "linode") {
+        let resolvedAuthorizedKeys: string[] | undefined;
+
+        if (Array.isArray(sshKeys) && sshKeys.length > 0) {
+          const normalizedKeys = (sshKeys as any[])
+            .map((value) => {
+              if (typeof value === "string" || typeof value === "number") {
+                return String(value).trim();
+              }
+              if (value && typeof value === "object" && "id" in value) {
+                return String((value as { id: unknown }).id).trim();
+              }
+              return "";
+            })
+            .filter((value) => value.length > 0);
+
+          const directPublicKeys: string[] = [];
+          const requestedKeyIds: string[] = [];
+
+          for (const key of normalizedKeys) {
+            if (key.startsWith("ssh-") || key.startsWith("sk-")) {
+              directPublicKeys.push(key);
+            } else {
+              requestedKeyIds.push(key);
+            }
+          }
+
+          const resolvedKeys: string[] = [...directPublicKeys];
+
+          if (requestedKeyIds.length > 0) {
+            if (providerApiToken) {
+              try {
+                const providerKeys = await linodeService.getSSHKeys(
+                  providerApiToken
+                );
+
+                const keyLookup = new Map(
+                  providerKeys.map((providerKey: any) => [
+                    String(providerKey.id),
+                    String(providerKey.ssh_key || ""),
+                  ])
+                );
+
+                for (const keyId of requestedKeyIds) {
+                  const matchedKey = keyLookup.get(keyId);
+                  if (matchedKey && matchedKey.trim().length > 0) {
+                    resolvedKeys.push(matchedKey.trim());
+                  } else {
+                    console.warn(
+                      "Selected Linode SSH key could not be resolved to a public key",
+                      {
+                        keyId,
+                        provider_id,
+                      }
+                    );
+                  }
+                }
+
+                if (
+                  resolvedKeys.length <
+                  directPublicKeys.length + requestedKeyIds.length
+                ) {
+                  console.warn(
+                    "Some Linode SSH keys were not resolved to public keys",
+                    {
+                      requested: requestedKeyIds,
+                      resolved: resolvedKeys.length,
+                    }
+                  );
+                }
+              } catch (sshKeyErr) {
+                logError("Linode SSH key resolution", sshKeyErr, {
+                  organizationId,
+                  provider_id,
+                  requestedKeys: requestedKeyIds,
+                });
+              }
+            } else {
+              console.warn(
+                "Linode provider API token unavailable; cannot resolve SSH key IDs",
+                {
+                  provider_id,
+                  requestedKeyIds,
+                }
+              );
+            }
+          }
+
+          if (resolvedKeys.length > 0) {
+            resolvedAuthorizedKeys = Array.from(new Set(resolvedKeys));
+          }
+        }
+
         // Linode: Marketplace app takes precedence when provided
         if (appSlug) {
           created = await linodeService.createInstanceWithMarketplaceApp({
@@ -2676,27 +2844,47 @@ router.post("/", async (req: Request, res: Response) => {
             region: regionToUse,
             image,
             rootPassword,
-            sshKeys,
+            sshKeys: resolvedAuthorizedKeys,
             backups,
             privateIP,
             appSlug,
             appData: appData || {},
           });
         } else {
-          created = await linodeService.createLinodeInstance({
+          const linodeCreatePayload: CreateLinodeRequest = {
             type: providerPlanId,
             region: regionToUse,
             image,
             label,
             root_pass: rootPassword,
-            authorized_keys: sshKeys,
             backups_enabled: backups,
             private_ip: privateIP,
-            stackscript_id: stackscriptId,
-            stackscript_data: stackscriptData,
             tags: ["skypanelv2"],
             group: "skypanelv2",
-          });
+          };
+
+          if (resolvedAuthorizedKeys && resolvedAuthorizedKeys.length > 0) {
+            linodeCreatePayload.authorized_keys = resolvedAuthorizedKeys;
+          }
+
+          if (stackscriptId !== undefined && stackscriptId !== null) {
+            const stackscriptIdNumber = Number(stackscriptId);
+            if (!Number.isNaN(stackscriptIdNumber)) {
+              linodeCreatePayload.stackscript_id = stackscriptIdNumber;
+            }
+          }
+
+          if (
+            stackscriptData &&
+            typeof stackscriptData === "object" &&
+            !Array.isArray(stackscriptData)
+          ) {
+            linodeCreatePayload.stackscript_data = stackscriptData as Record<string, any>;
+          }
+
+          created = await linodeService.createLinodeInstance(
+            linodeCreatePayload
+          );
         }
         providerInstanceId = String(created.id);
       } else if (provider_type === "digitalocean") {

@@ -62,16 +62,22 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
     return null;
   }
 
+  // Helper function to safely convert to number
+  const safeNumber = (value: any): number => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
   // Calculate costs
-  const baseMonthlyCost = (plan.base_price || 0) + (plan.markup_price || 0);
+  const baseMonthlyCost = safeNumber(plan.base_price) + safeNumber(plan.markup_price);
   const baseHourlyCost = baseMonthlyCost / 730;
 
   let backupMonthlyCost = 0;
   let backupHourlyCost = 0;
 
   if (backupsEnabled && backupFrequency && backupFrequency !== "none") {
-    const baseBackupMonthly = plan.backup_price_monthly || 0;
-    const backupUpchargeMonthly = plan.backup_upcharge_monthly || 0;
+    const baseBackupMonthly = safeNumber(plan.backup_price_monthly);
+    const backupUpchargeMonthly = safeNumber(plan.backup_upcharge_monthly);
     const dailyMultiplier = backupFrequency === "daily" ? 1.5 : 1;
 
     backupMonthlyCost = (baseBackupMonthly + backupUpchargeMonthly) * dailyMultiplier;

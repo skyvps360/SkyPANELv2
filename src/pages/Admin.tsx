@@ -50,6 +50,7 @@ import { UpdatesManager } from "@/components/admin/UpdatesManager";
 import { ContactCategoryManager } from "@/components/admin/ContactCategoryManager";
 import { ContactMethodManager } from "@/components/admin/ContactMethodManager";
 import PlatformAvailabilityManager from "@/components/admin/PlatformAvailabilityManager";
+import { RegionAccessManager } from "@/components/admin/RegionAccessManager";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
@@ -134,6 +135,7 @@ type AdminSection =
   | "containers"
   | "servers"
   | "providers"
+  | "regions"
   | "stackscripts"
   | "networking"
   | "theme"
@@ -151,6 +153,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "containers",
   "servers",
   "providers",
+  "regions",
   "stackscripts",
   "networking",
   "theme",
@@ -665,7 +668,6 @@ const Admin: React.FC = () => {
     name: "",
     selectedProviderId: "",
     selectedType: "",
-    selectedRegion: "",
     markupPrice: 0,
     backupPriceMonthly: 0,
     backupPriceHourly: 0,
@@ -913,7 +915,7 @@ const Admin: React.FC = () => {
     return list;
   }, [providers]);
 
-  const allowedLinodeRegions = useMemo(() => {
+  const _allowedLinodeRegions = useMemo(() => {
     // If admin hasn't configured allowed regions, fall back to all regions from API
     // Check if selected provider is DigitalOcean or Linode to apply appropriate filtering
     const selectedProvider = providers.find(
@@ -1264,6 +1266,9 @@ const Admin: React.FC = () => {
         fetchStackscriptConfigs();
         break;
       case "providers":
+        fetchProviders();
+        break;
+      case "regions":
         fetchProviders();
         break;
       case "networking":
@@ -1687,7 +1692,7 @@ const Admin: React.FC = () => {
     }
   };
 
-  const fetchDigitalOceanRegions = async () => {
+  const _fetchDigitalOceanRegions = async () => {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/admin/digitalocean/regions`, {
@@ -1971,8 +1976,8 @@ const Admin: React.FC = () => {
       return;
     }
 
-    if (!newVPSPlan.selectedType || !newVPSPlan.selectedRegion) {
-      toast.error("Please select both a plan type and region");
+    if (!newVPSPlan.selectedType) {
+      toast.error("Please select a plan type");
       return;
     }
 
@@ -2009,7 +2014,7 @@ const Admin: React.FC = () => {
           name:
             newVPSPlan.name && newVPSPlan.name.trim().length > 0
               ? newVPSPlan.name.trim()
-              : `${selectedType.label} - ${newVPSPlan.selectedRegion}`,
+              : selectedType.label,
           provider_plan_id: selectedType.id,
           base_price: selectedType.price.monthly,
           markup_price: newVPSPlan.markupPrice,
@@ -2024,7 +2029,6 @@ const Admin: React.FC = () => {
             memory: selectedType.memory,
             disk: selectedType.disk,
             transfer: selectedType.transfer,
-            region: newVPSPlan.selectedRegion,
             type_class: selectedType.type_class,
           },
           active: newVPSPlan.active,
@@ -2037,7 +2041,6 @@ const Admin: React.FC = () => {
         name: "",
         selectedProviderId: "",
         selectedType: "",
-        selectedRegion: "",
         markupPrice: 0,
         backupPriceMonthly: 0,
         backupPriceHourly: 0,
@@ -3563,7 +3566,6 @@ const Admin: React.FC = () => {
                     name: "",
                     selectedProviderId: "",
                     selectedType: "",
-                    selectedRegion: "",
                     markupPrice: 0,
                     backupPriceMonthly: 0,
                     backupPriceHourly: 0,
@@ -3580,8 +3582,7 @@ const Admin: React.FC = () => {
                 <DialogHeader>
                   <DialogTitle>Create VPS Plan</DialogTitle>
                   <DialogDescription>
-                    Pair your markup with a plan type and region. Customers will
-                    see it instantly once active.
+                    Configure plan pricing and markup. Customers will select their region during deployment.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -3608,7 +3609,6 @@ const Admin: React.FC = () => {
                           ...prev,
                           selectedProviderId: value,
                           selectedType: "",
-                          selectedRegion: "",
                         }));
                         setPlanTypeFilter("all"); // Reset filter when changing provider
                         // Fetch plans for this provider
@@ -3616,10 +3616,8 @@ const Admin: React.FC = () => {
                         if (provider) {
                           if (provider.type === "digitalocean") {
                             fetchDigitalOceanSizes();
-                            fetchDigitalOceanRegions();
                           } else if (provider.type === "linode") {
                             fetchLinodeTypes();
-                            fetchLinodeRegions();
                           }
                         }
                       }}
@@ -3763,36 +3761,6 @@ const Admin: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Region</Label>
-                    <Select
-                      value={newVPSPlan.selectedRegion}
-                      onValueChange={(value) =>
-                        setNewVPSPlan((prev) => ({
-                          ...prev,
-                          selectedRegion: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger
-                        disabled={allowedLinodeRegions.length === 0}
-                      >
-                        <SelectValue placeholder="Select a region" />
-                      </SelectTrigger>
-                      <SelectContent position="popper" sideOffset={5}>
-                        {allowedLinodeRegions.map((region) => (
-                          <SelectItem key={region.id} value={region.id}>
-                            {region.label} ({region.country})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {allowedLinodeRegions.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        No regions available. Check your provider configuration.
-                      </p>
-                    ) : null}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="plan-markup">Markup (USD)</Label>
@@ -3992,7 +3960,6 @@ const Admin: React.FC = () => {
                         name: "",
                         selectedProviderId: "",
                         selectedType: "",
-                        selectedRegion: "",
                         markupPrice: 0,
                         backupPriceMonthly: 0,
                         backupPriceHourly: 0,
@@ -4009,7 +3976,7 @@ const Admin: React.FC = () => {
                   <Button
                     onClick={createVPSPlan}
                     disabled={
-                      !newVPSPlan.selectedType || !newVPSPlan.selectedRegion
+                      !newVPSPlan.selectedType
                     }
                   >
                     Create Plan
@@ -5883,6 +5850,9 @@ const Admin: React.FC = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </TabsContent>
+          <TabsContent value="regions" id="regions">
+            <RegionAccessManager token={token || ""} />
           </TabsContent>
         </div>
       </Tabs>
