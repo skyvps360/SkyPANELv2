@@ -284,15 +284,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         requiresAlt: false,
       },
       {
-        icon: CreditCard,
-        label: "Invoices",
-        href: "/billing/invoices",
-        shortcut: isMac ? "⌘I" : "Ctrl+I",
-        shortcutKey: "i",
-        requiresShift: false,
-        requiresAlt: false,
-      },
-      {
         icon: Activity,
         label: "Activity",
         href: "/activity",
