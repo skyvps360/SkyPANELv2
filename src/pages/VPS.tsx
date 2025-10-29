@@ -48,6 +48,7 @@ import { CreateVPSSteps } from "@/components/VPS/CreateVPSSteps";
 import { RegionSelector } from "@/components/VPS/RegionSelector";
 import {
   getActiveSteps,
+  getCurrentStepDisplay,
   getNextStep,
   getPreviousStep,
   type StepConfiguration,
@@ -69,10 +70,18 @@ interface LinodeType {
   };
 }
 
-interface LinodeRegion {
+interface ProviderOption {
+  id: string;
+  name: string;
+  type: ProviderType;
+}
+
+interface RegionOption {
   id: string;
   label: string;
-  country: string;
+  country?: string;
+  providerIds: string[];
+  providerNames: string[];
 }
 
 const VPS: React.FC = () => {
@@ -216,12 +225,32 @@ const VPS: React.FC = () => {
   const [stackscriptData, setStackscriptData] = useState<Record<string, any>>(
     {}
   );
+  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
+  const [regionOptions, setRegionOptions] = useState<RegionOption[]>([]);
   // OS selection redesign: tabs, grouping, and per-OS version selection
   const [osTab, setOsTab] = useState<"templates" | "iso">("templates");
   const [selectedOSGroup, setSelectedOSGroup] = useState<string | null>(null);
   const [selectedOSVersion, setSelectedOSVersion] = useState<
     Record<string, string>
   >({});
+
+  const providerMapById = useMemo(() => {
+    const map = new Map<string, ProviderOption>();
+    providerOptions.forEach((provider) => {
+      map.set(provider.id, provider);
+    });
+    return map;
+  }, [providerOptions]);
+
+  const providerIdsByType = useMemo(() => {
+    const map = new Map<string, string[]>();
+    providerOptions.forEach((provider) => {
+      const current = map.get(provider.type) ?? [];
+      current.push(provider.id);
+      map.set(provider.type, current);
+    });
+    return map;
+  }, [providerOptions]);
 
   // Group Linode images into distributions with versions for cleaner selection cards
   const osGroups = useMemo(() => {
@@ -305,6 +334,233 @@ const VPS: React.FC = () => {
     return knownLabels.join(", ");
   }, [selectedStackScript, linodeImages]);
 
+  const normalizeProviderType = useCallback((value: unknown): ProviderType => {
+    const raw = typeof value === "string" ? value.toLowerCase() : "";
+    if (raw === "linode" || raw === "digitalocean" || raw === "aws" || raw === "gcp") {
+      return raw as ProviderType;
+    }
+    return "linode";
+  }, []);
+
+  const loadProviderOptions = useCallback(async () => {
+    if (!token) {
+      setProviderOptions([]);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/vps/providers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load providers");
+      }
+
+      const providersRaw = Array.isArray(data.providers) ? data.providers : [];
+
+      const normalized: ProviderOption[] = providersRaw.map((provider: any) => {
+        const type = normalizeProviderType(provider?.type);
+        const configuredName =
+          typeof provider?.name === "string" && provider.name.trim().length > 0
+            ? provider.name.trim()
+            : "Configured Provider";
+        return {
+          id: String(provider?.id ?? ""),
+          name: configuredName,
+          type,
+        };
+      });
+
+      setProviderOptions(normalized);
+    } catch (error: any) {
+      console.error("Failed to load providers:", error);
+      toast.error(error?.message || "Failed to load providers");
+      setProviderOptions([]);
+    }
+  }, [normalizeProviderType, token]);
+
+  const loadProviderRegions = useCallback(
+    async (providersList: ProviderOption[]) => {
+      if (providersList.length === 0) {
+        setRegionOptions([]);
+        return;
+      }
+
+      const supportedTypes = new Set<ProviderType>(["linode", "digitalocean"]);
+      const aggregate = new Map<
+        string,
+        {
+          label: string;
+          country?: string;
+          providerIds: Set<string>;
+          providerNames: Set<string>;
+        }
+      >();
+
+      const tasks = providersList
+        .filter((provider) => supportedTypes.has(provider.type))
+        .map(async (provider) => {
+          try {
+            const response = await fetch(`/api/vps/providers/${provider.id}/regions`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(
+                data.error || "Failed to load regions for the selected provider"
+              );
+            }
+
+            const regions = Array.isArray(data.regions) ? data.regions : [];
+            regions.forEach((region: any) => {
+              if (!region) return;
+              const slugRaw = typeof region.id === "string" ? region.id : "";
+              const slug = slugRaw.trim();
+              if (!slug) return;
+
+              const baseLabel =
+                typeof region.label === "string" && region.label.trim().length > 0
+                  ? region.label.trim()
+                  : slug;
+              const country = typeof region.country === "string" ? region.country : "";
+              const providerName = provider.name.trim().length > 0 ? provider.name : "Configured Provider";
+
+              const existing = aggregate.get(slug);
+              if (existing) {
+                existing.providerIds.add(provider.id);
+                existing.providerNames.add(providerName);
+                if (!existing.country && country) {
+                  existing.country = country;
+                }
+                if (!existing.label && baseLabel) {
+                  existing.label = baseLabel;
+                }
+              } else {
+                aggregate.set(slug, {
+                  label: baseLabel,
+                  country,
+                  providerIds: new Set([provider.id]),
+                  providerNames: new Set([providerName]),
+                });
+              }
+            });
+          } catch (error) {
+            console.error(`Failed to load regions for provider ${provider.id}`, error);
+          }
+        });
+
+      if (tasks.length === 0) {
+        setRegionOptions([]);
+        return;
+      }
+
+      await Promise.allSettled(tasks);
+
+      const combined: RegionOption[] = Array.from(aggregate.entries()).map(([id, info]) => {
+        const providerNames = Array.from(info.providerNames).sort((a, b) =>
+          a.localeCompare(b)
+        );
+        const displayLabel =
+          providerNames.length > 0
+            ? `${info.label} (${providerNames.join(", ")})`
+            : info.label;
+
+        return {
+          id,
+          label: displayLabel,
+          country: info.country,
+          providerIds: Array.from(info.providerIds),
+          providerNames,
+        };
+      });
+
+      combined.sort((a, b) => a.label.localeCompare(b.label));
+      setRegionOptions(combined);
+    },
+    [token]
+  );
+
+  useEffect(() => {
+    loadProviderOptions();
+  }, [loadProviderOptions]);
+
+  useEffect(() => {
+    if (providerOptions.length === 0) {
+      setRegionOptions([]);
+      return;
+    }
+    loadProviderRegions(providerOptions);
+  }, [providerOptions, loadProviderRegions]);
+
+  useEffect(() => {
+    if (providerOptions.length === 0) {
+      return;
+    }
+
+    setProviderFilter((current) => {
+      if (current === "all") {
+        return current;
+      }
+
+      if (providerOptions.some((provider) => provider.id === current)) {
+        return current;
+      }
+
+      const normalized = current.toLowerCase();
+      const fallback = providerOptions.find(
+        (provider) => provider.type === normalized
+      );
+      if (fallback) {
+        sessionStorage.setItem("vps-provider-filter", fallback.id);
+        return fallback.id;
+      }
+
+      sessionStorage.removeItem("vps-provider-filter");
+      return "all";
+    });
+  }, [providerOptions]);
+
+  const visibleRegionOptions = useMemo(() => {
+    if (providerFilter === "all") {
+      return regionOptions;
+    }
+
+    if (providerMapById.has(providerFilter)) {
+      return regionOptions.filter((region) =>
+        region.providerIds.includes(providerFilter)
+      );
+    }
+
+    const normalized = providerFilter.toLowerCase();
+    const providerIds = providerIdsByType.get(normalized) ?? [];
+    if (providerIds.length === 0) {
+      return regionOptions;
+    }
+
+    const allowedIds = new Set(providerIds);
+    return regionOptions.filter((region) =>
+      region.providerIds.some((id) => allowedIds.has(id))
+    );
+  }, [providerFilter, providerIdsByType, providerMapById, regionOptions]);
+
+  const formatProviderOptionLabel = useCallback((provider: ProviderOption) => {
+    const trimmedName = provider.name.trim();
+    return trimmedName.length > 0 ? trimmedName : "Configured Provider";
+  }, []);
+
+  useEffect(() => {
+    if (regionFilter === "all") {
+      return;
+    }
+    const hasRegion = visibleRegionOptions.some(
+      (region) => region.id === regionFilter
+    );
+    if (!hasRegion) {
+      setRegionFilter("all");
+    }
+  }, [visibleRegionOptions, regionFilter]);
+
   // Sync default selection to current form image when images load
   useEffect(() => {
     if (!linodeImages || linodeImages.length === 0) return;
@@ -333,19 +589,22 @@ const VPS: React.FC = () => {
     }
   }, [linodeImages, createForm.image]);
 
-  // Regions allowed by admin configuration: derive strictly from configured VPS plans
-  const allowedRegions: LinodeRegion[] = useMemo(() => {
-    const ids = Array.from(
-      new Set(
-        (linodeTypes || [])
-          .map((t) => t.region)
-          .filter(
-            (r): r is string => typeof r === "string" && r.trim().length > 0
-          )
-      )
-    );
-    return ids.map((id) => ({ id, label: id, country: "" }));
-  }, [linodeTypes]);
+  const providerLabelsById = useMemo<Record<string, string>>(() => {
+    const entries = providerOptions.map((provider) => {
+      const trimmed = provider.name.trim();
+      return [provider.id, trimmed.length > 0 ? trimmed : "Configured Provider"];
+    });
+    return Object.fromEntries(entries) as Record<string, string>;
+  }, [providerOptions]);
+
+  const allowedRegions = useMemo(
+    () =>
+      regionOptions.map((region) => ({
+        id: region.id,
+        label: region.label,
+      })),
+    [regionOptions]
+  );
 
   // Initialize StackScript data defaults when a script is selected
   useEffect(() => {
@@ -1305,9 +1564,38 @@ const VPS: React.FC = () => {
       statusFilter === "all" || instance.status === statusFilter;
     const matchesRegion =
       regionFilter === "all" || instance.region === regionFilter;
-    const matchesProvider =
-      providerFilter === "all" ||
-      (instance.provider_type || "linode") === providerFilter;
+    const matchesProvider = (() => {
+      if (providerFilter === "all") {
+        return true;
+      }
+
+      if (instance.provider_id && instance.provider_id === providerFilter) {
+        return true;
+      }
+
+      const providerById = providerMapById.get(providerFilter);
+      if (providerById) {
+        const normalizedInstanceType = (instance.provider_type || "").toLowerCase();
+        return normalizedInstanceType === providerById.type;
+      }
+
+      const normalizedFilter = providerFilter.toLowerCase();
+      const providerIds = providerIdsByType.get(normalizedFilter) ?? [];
+      if (providerIds.length > 0) {
+        if (instance.provider_id) {
+          return providerIds.includes(instance.provider_id);
+        }
+
+        const normalizedInstanceType = (instance.provider_type || "").toLowerCase();
+        return providerIds.some((id) => {
+          const provider = providerMapById.get(id);
+          if (!provider) return false;
+          return provider.type === normalizedInstanceType;
+        });
+      }
+
+      return (instance.provider_type || "").toLowerCase() === normalizedFilter;
+    })();
     return matchesSearch && matchesStatus && matchesRegion && matchesProvider;
   });
 
@@ -1337,7 +1625,27 @@ const VPS: React.FC = () => {
   }, [linodeTypes, createForm.provider_id]);
 
   // Multi-step modal helpers
-  const totalSteps = activeSteps.length > 0 ? activeSteps.length : 4;
+  const { currentDisplayStep, totalDisplaySteps } = useMemo(() => {
+    const display = getCurrentStepDisplay(createStep, activeSteps);
+    if (display) {
+      return {
+        currentDisplayStep: display.stepNumber,
+        totalDisplaySteps: display.totalSteps,
+      };
+    }
+
+    const fallbackTotal = activeSteps.length > 0 ? activeSteps.length : 4;
+    const fallbackIndex = activeSteps.findIndex(
+      (step) => step.originalStepNumber === createStep
+    );
+    const fallbackStep =
+      fallbackIndex >= 0 ? fallbackIndex + 1 : Math.min(createStep, fallbackTotal);
+
+    return {
+      currentDisplayStep: fallbackStep,
+      totalDisplaySteps: fallbackTotal,
+    };
+  }, [createStep, activeSteps]);
   const canProceed = useMemo(() => {
     if (createStep === 1)
       return Boolean(
@@ -1587,7 +1895,11 @@ const VPS: React.FC = () => {
 
   const stackFooter = (
     <div className="flex items-center justify-between">
-      <button
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="touch-manipulation"
         onClick={() => {
           if (isFormDirty) {
             const shouldSave = window.confirm(
@@ -1600,28 +1912,39 @@ const VPS: React.FC = () => {
           setShowCreateModal(false);
           setCreateStep(1);
         }}
-        className="px-6 py-3 min-h-[48px] border border-rounded-md text-sm font-medium text-muted-foreground bg-secondary hover:bg-secondary/80 active:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary touch-manipulation transition-colors duration-200"
         aria-label="Cancel VPS creation"
       >
         Cancel
-      </button>
+      </Button>
       <div className="flex items-center space-x-3">
-        {createStep > 1 && (
-          <Button onClick={handleBack} variant="secondary">
+        {currentDisplayStep > 1 && (
+          <Button
+            onClick={handleBack}
+            variant="secondary"
+            size="lg"
+            className="touch-manipulation"
+          >
             Back
           </Button>
         )}
-        {createStep < totalSteps && (
+        {currentDisplayStep < totalDisplaySteps && (
           <Button
             onClick={handleNext}
             disabled={!canProceed}
             variant={canProceed ? "default" : "secondary"}
+            size="lg"
+            className="touch-manipulation"
           >
             Next
           </Button>
         )}
-        {createStep === totalSteps && (
-          <Button onClick={handleCreateInstance} variant="default">
+        {currentDisplayStep === totalDisplaySteps && (
+          <Button
+            onClick={handleCreateInstance}
+            variant="default"
+            size="lg"
+            className="touch-manipulation"
+          >
             Create VPS
           </Button>
         )}
@@ -1735,9 +2058,11 @@ const VPS: React.FC = () => {
                       aria-label="Filter by VPS region"
                     >
                       <option value="all">All Regions</option>
-                      {allowedRegions.map((region) => (
+                      {visibleRegionOptions.map((region) => (
                         <option key={region.id} value={region.id}>
-                          {region.label}
+                          {region.country
+                            ? `${region.label} - ${region.country}`
+                            : region.label}
                         </option>
                       ))}
                     </select>
@@ -1760,10 +2085,11 @@ const VPS: React.FC = () => {
                       aria-label="Filter by provider"
                     >
                       <option value="all">All Providers</option>
-                      <option value="linode">Linode</option>
-                      <option value="digitalocean">DigitalOcean</option>
-                      <option value="aws">AWS</option>
-                      <option value="gcp">GCP</option>
+                      {providerOptions.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {formatProviderOptionLabel(provider)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1934,6 +2260,7 @@ const VPS: React.FC = () => {
             <VpsInstancesTable
               instances={filteredInstances}
               allowedRegions={allowedRegions}
+              providerLabelsById={providerLabelsById}
               onAction={handleInstanceAction}
               onCopy={copyToClipboard}
               onSelectionChange={setSelectedInstances}

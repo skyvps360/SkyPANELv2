@@ -31,6 +31,7 @@ interface VpsInstancesTableProps {
   instances: VPSInstance[];
   isLoading?: boolean;
   allowedRegions: RegionShape[];
+  providerLabelsById: Record<string, string>;
   onAction: (instanceId: string, action: "boot" | "shutdown" | "reboot" | "delete") => void;
   onCopy: (value: string) => void;
   onSelectionChange?: (selectedInstances: VPSInstance[]) => void;
@@ -143,33 +144,30 @@ const getProgressValue = (instance: VPSInstance) => {
   return null;
 };
 
-const getProviderDisplayName = (instance: VPSInstance): string => {
+const getProviderDisplayName = (
+  instance: VPSInstance,
+  providerLabelsById: Record<string, string>
+): string => {
+  if (instance.provider_id) {
+    const configuredName = providerLabelsById[instance.provider_id];
+    if (configuredName && configuredName.trim().length > 0) {
+      return configuredName.trim();
+    }
+  }
+
   const trimmedName = typeof instance.providerName === "string" ? instance.providerName.trim() : "";
   if (trimmedName.length > 0) {
     return trimmedName;
   }
 
-  const providerType = instance.provider_type || "linode";
-  if (providerType === "linode") {
-    return "Linode";
-  }
-  if (providerType === "digitalocean") {
-    return "DigitalOcean";
-  }
-  if (providerType === "aws") {
-    return "AWS";
-  }
-  if (providerType === "gcp") {
-    return "GCP";
-  }
-  const label = String(providerType);
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  return "Configured Provider";
 };
 
 export function VpsInstancesTable({
   instances,
   isLoading,
   allowedRegions,
+  providerLabelsById,
   onAction,
   onCopy,
   onSelectionChange,
@@ -267,7 +265,7 @@ export function VpsInstancesTable({
         header: "Provider",
         cell: ({ row }) => {
           const instance = row.original;
-          const providerName = getProviderDisplayName(instance);
+          const providerName = getProviderDisplayName(instance, providerLabelsById);
           
           return (
             <div className="min-w-[100px]">
@@ -450,7 +448,7 @@ export function VpsInstancesTable({
         }
       },
     ],
-    [onAction, onCopy, regionLookup]
+    [onAction, onCopy, providerLabelsById, regionLookup]
   );
 
   const handleMobileSelection = useCallback(
@@ -518,7 +516,7 @@ export function VpsInstancesTable({
                 </Badge>
               )}
               {(() => {
-                const providerLabel = getProviderDisplayName(instance);
+                const providerLabel = getProviderDisplayName(instance, providerLabelsById);
                 return (
                   <Badge variant="outline" className="text-[11px]">
                     {providerLabel}
