@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle } from "lucide-react";
+import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle, Key } from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import { cn } from "@/lib/utils";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -248,6 +248,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       label: "Containers",
       href: "/containers",
       shortcut: "⌘C",
+    },
+    {
+      icon: Key,
+      label: "SSH Keys",
+      href: "/ssh-keys",
+      shortcut: "⌘K",
     },
     {
       icon: CreditCard,
