@@ -33,6 +33,7 @@ import {
   parseStoredAllowedMarketplaceApps,
   shouldFilterByAllowedMarketplaceApps,
 } from "../lib/providerMarketplace.js";
+import { fetchMarketplaceDisplayNames } from "../lib/providerMarketplaceLabels.js";
 
 const router = express.Router();
 
@@ -1343,6 +1344,7 @@ router.get(
       const allowedSlugs = await loadAllowedMarketplaceSlugs(providerId);
       const filterByAllowed = shouldFilterByAllowedMarketplaceApps(allowedSlugs);
       const allowedSet = new Set(allowedSlugs);
+      const displayNameOverrides = await fetchMarketplaceDisplayNames(providerId);
 
       const filteredApps = filterByAllowed
         ? apps.filter((app: any) => {
@@ -1354,8 +1356,25 @@ router.get(
           })
         : apps;
 
+      const appsWithDisplayNames = filteredApps.map((app: any) => {
+        const slugNormalized = normalizeMarketplaceSlug(app?.slug);
+        const imageSlugNormalized = normalizeMarketplaceSlug((app as any)?.image_slug);
+        const overrideName =
+          (slugNormalized && displayNameOverrides.get(slugNormalized)) ||
+          (imageSlugNormalized && displayNameOverrides.get(imageSlugNormalized));
+
+        return {
+          ...app,
+          provider_name: app?.name,
+          display_name:
+            typeof overrideName === "string" && overrideName.length > 0
+              ? overrideName
+              : app?.name,
+        };
+      });
+
       const categorizedApps: Record<string, any[]> = {};
-      filteredApps.forEach((app: any) => {
+      appsWithDisplayNames.forEach((app: any) => {
         const category =
           typeof app?.category === "string" && app.category.trim().length > 0
             ? app.category
@@ -1367,9 +1386,9 @@ router.get(
       });
 
       res.json({
-        apps: filteredApps,
+        apps: appsWithDisplayNames,
         categorized: categorizedApps,
-        total: filteredApps.length,
+        total: appsWithDisplayNames.length,
       });
     } catch (err: any) {
       console.error("DigitalOcean marketplace fetch error:", err);

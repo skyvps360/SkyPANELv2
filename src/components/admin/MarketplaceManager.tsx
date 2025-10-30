@@ -50,6 +50,10 @@ interface MarketplaceApp {
   image_slug?: string;
   type?: string;
   allowed: boolean;
+  display_name?: string;
+  provider_name?: string;
+  localName?: string;
+  originalName?: string;
 }
 
 interface MarketplaceConfigResponse {
@@ -60,6 +64,7 @@ interface MarketplaceConfigResponse {
   };
   mode: "default" | "custom";
   allowedApps: string[];
+  displayNameOverrides?: Record<string, string>;
   apps: MarketplaceApp[];
 }
 
@@ -68,16 +73,19 @@ type MarketplaceMode = "default" | "custom";
 type BaselineSnapshot = {
   mode: MarketplaceMode;
   allowed: string[];
+  renames: Record<string, string>;
 };
 
-const normalizeSlug = (value: string): string => value.trim().toLowerCase();
+const normalizeSlug = (value: string | null | undefined): string =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+const MAX_DISPLAY_NAME_LENGTH = 120;
 
 const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [mode, setMode] = useState<MarketplaceMode>("default");
   const [apps, setApps] = useState<MarketplaceApp[]>([]);
-  const [baseline, setBaseline] = useState<BaselineSnapshot>({ mode: "default", allowed: [] });
+  const [baseline, setBaseline] = useState<BaselineSnapshot>({ mode: "default", allowed: [], renames: {} });
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [loadingApps, setLoadingApps] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -151,22 +159,48 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
         );
 
         const mappedApps: MarketplaceApp[] = Array.isArray(data.apps)
-          ? data.apps.map((app) => ({
-            ...app,
-            allowed:
-              data.mode === "custom"
-                ? Boolean(app.allowed)
-                : normalizedAllowed.size > 0
-                  ? normalizedAllowed.has(normalizeSlug(app.slug))
-                  : true,
-          }))
+          ? data.apps.map((app) => {
+            const normalizedSlug = normalizeSlug(app.slug);
+            const originalName =
+              typeof app.provider_name === "string" && app.provider_name.trim().length > 0
+                ? app.provider_name
+                : app.name;
+            const displayName =
+              typeof app.display_name === "string" && app.display_name.trim().length > 0
+                ? app.display_name
+                : originalName;
+
+            return {
+              ...app,
+              name: originalName,
+              provider_name: originalName,
+              display_name: displayName,
+              originalName,
+              localName: displayName !== originalName ? displayName : "",
+              allowed:
+                data.mode === "custom"
+                  ? Boolean(app.allowed)
+                  : normalizedAllowed.size > 0
+                    ? normalizedAllowed.has(normalizedSlug)
+                    : true,
+            };
+          })
           : [];
 
         setApps(mappedApps);
         setMode(data.mode);
+        const renameBaseline: Record<string, string> = {};
+        mappedApps.forEach((app) => {
+          const normalizedSlug = normalizeSlug(app.slug);
+          const trimmedName = app.localName?.trim();
+          if (normalizedSlug && trimmedName && trimmedName !== app.originalName) {
+            renameBaseline[normalizedSlug] = trimmedName;
+          }
+        });
         setBaseline({
           mode: data.mode,
-          allowed: Array.from(normalizedAllowed),
+          allowed: Array.from(normalizedAllowed).sort(),
+          renames: renameBaseline,
         });
       } catch (error: any) {
         console.error("MarketplaceManager config error:", error);
@@ -215,7 +249,7 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
         return true;
       }
 
-      const haystack = `${app.name || ""} ${app.description || ""} ${app.slug || ""}`;
+      const haystack = `${app.name || ""} ${app.display_name || ""} ${app.localName || ""} ${app.description || ""} ${app.slug || ""}`;
       return haystack.toLowerCase().includes(term);
     });
   }, [apps, categoryFilter, searchTerm]);
@@ -245,33 +279,76 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
   }, [currentPage]);
 
   const draftSnapshot = useMemo<BaselineSnapshot>(() => {
+    const renames: Record<string, string> = {};
+
+    apps.forEach((app) => {
+      const normalizedSlug = normalizeSlug(app.slug);
+      const trimmedName = app.localName?.trim();
+      if (normalizedSlug && trimmedName && trimmedName !== app.originalName) {
+        renames[normalizedSlug] = trimmedName;
+      }
+    });
+
     if (mode === "default") {
-      return { mode: "default", allowed: [] };
+      return { mode: "default", allowed: [], renames };
     }
+
+    const allowedSlugs = apps
+      .filter((app) => app.allowed)
+      .map((app) => normalizeSlug(app.slug))
+      .filter((slug) => Boolean(slug))
+      .sort();
 
     return {
       mode: "custom",
-      allowed: apps
-        .filter((app) => app.allowed)
-        .map((app) => normalizeSlug(app.slug))
-        .sort(),
+      allowed: allowedSlugs,
+      renames,
     };
   }, [apps, mode]);
 
   const hasChanges = useMemo(() => {
+    const renameChanged = (): boolean => {
+      const baselineKeys = Object.keys(baseline.renames).sort();
+      const draftKeys = Object.keys(draftSnapshot.renames).sort();
+
+      if (baselineKeys.length !== draftKeys.length) {
+        return true;
+      }
+
+      for (let index = 0; index < baselineKeys.length; index += 1) {
+        const baselineKey = baselineKeys[index];
+        const draftKey = draftKeys[index];
+        if (baselineKey !== draftKey) {
+          return true;
+        }
+        if (baseline.renames[baselineKey] !== draftSnapshot.renames[baselineKey]) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
     if (draftSnapshot.mode !== baseline.mode) {
       return true;
     }
 
     if (draftSnapshot.mode === "default") {
-      return baseline.mode !== "default" || baseline.allowed.length > 0;
+      if (baseline.mode !== "default" || baseline.allowed.length > 0) {
+        return true;
+      }
+      return renameChanged();
     }
 
     if (draftSnapshot.allowed.length !== baseline.allowed.length) {
       return true;
     }
 
-    return draftSnapshot.allowed.some((slug, index) => slug !== baseline.allowed[index]);
+    if (draftSnapshot.allowed.some((slug, index) => slug !== baseline.allowed[index])) {
+      return true;
+    }
+
+    return renameChanged();
   }, [baseline, draftSnapshot]);
 
   const handleToggleApp = (slug: string, value: boolean) => {
@@ -299,6 +376,38 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
     setApps((current) => current.map((app) => ({ ...app, allowed: false })));
   };
 
+  const handleLocalNameChange = (slug: string, value: string) => {
+    const nextValue = value.slice(0, MAX_DISPLAY_NAME_LENGTH);
+    setApps((current) =>
+      current.map((app) =>
+        app.slug === slug
+          ? {
+            ...app,
+            localName: nextValue,
+            display_name:
+              nextValue.trim().length > 0
+                ? nextValue
+                : app.originalName || app.provider_name || app.name,
+          }
+          : app
+      )
+    );
+  };
+
+  const handleResetLocalName = (slug: string) => {
+    setApps((current) =>
+      current.map((app) =>
+        app.slug === slug
+          ? {
+            ...app,
+            localName: "",
+            display_name: app.originalName || app.provider_name || app.name,
+          }
+          : app
+      )
+    );
+  };
+
   const handleSave = async () => {
     if (!token || !selectedProviderId) {
       toast.error("Select a provider first");
@@ -312,12 +421,35 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
 
     try {
       setSaving(true);
+      const allowedAppsPayload =
+        mode === "custom"
+          ? apps
+            .filter((app) => app.allowed)
+            .map((app) => normalizeSlug(app.slug))
+            .filter((slug) => Boolean(slug))
+            .sort()
+          : [];
+
+      const renamesPayload: Record<string, string> = {};
+      apps.forEach((app) => {
+        const normalizedSlug = normalizeSlug(app.slug);
+        if (!normalizedSlug) {
+          return;
+        }
+        const trimmedName = app.localName?.trim();
+        const originalName = app.originalName ?? app.name;
+        if (trimmedName && trimmedName.length > 0 && trimmedName !== originalName) {
+          renamesPayload[normalizedSlug] = trimmedName;
+        }
+      });
+
       const payload =
         mode === "default"
-          ? { mode: "default", apps: [] }
+          ? { mode: "default", apps: [], renames: renamesPayload }
           : {
             mode: "custom",
-            apps: apps.filter((app) => app.allowed).map((app) => app.slug),
+            apps: allowedAppsPayload,
+            renames: renamesPayload,
           };
 
       const response = await fetch(
@@ -403,9 +535,9 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-          <div className="space-y-6">
-            <div className="space-y-3">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch xl:justify-between">
+            <div className="flex w-full flex-col gap-2 xl:max-w-sm">
               <label className="text-sm font-medium text-foreground">Provider</label>
               <Select
                 value={selectedProviderId || undefined}
@@ -435,32 +567,28 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
               </Select>
             </div>
 
-            <Card className="border-border">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      Enforce custom marketplace list
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Disable to expose every available marketplace app from the upstream provider.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={mode === "custom"}
-                    onCheckedChange={(value) => setMode(value ? "custom" : "default")}
-                    disabled={loadingApps || saving}
-                  />
+            <div className="flex w-full flex-col gap-3 md:flex-row md:items-stretch md:gap-4 xl:justify-end">
+              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card/70 p-4 shadow-sm md:flex-row md:items-center md:justify-between md:gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    Enforce custom marketplace list
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Disable to expose every available marketplace app from the upstream provider.
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                <Switch
+                  checked={mode === "custom"}
+                  onCheckedChange={(value) => setMode(value ? "custom" : "default")}
+                  disabled={loadingApps || saving}
+                />
+              </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center md:justify-end">
                 <Badge
                   variant={mode === "custom" ? "default" : "secondary"}
                   className={cn(
-                    "font-medium",
+                    "px-4 py-2 text-sm font-medium",
                     mode === "custom" && allowedCount === 0 && "bg-destructive text-destructive-foreground"
                   )}
                 >
@@ -469,26 +597,32 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                     : "All marketplace apps enabled"}
                 </Badge>
               </div>
-              {mode === "custom" && allowedCount === 0 && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-                  <p className="text-sm text-destructive font-medium">
-                    ⚠️ No apps enabled
-                  </p>
-                  <p className="text-xs text-destructive/80 mt-1">
-                    Select at least one app to keep provisioning enabled.
-                  </p>
-                </div>
-              )}
             </div>
+          </div>
 
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            {mode === "custom" && allowedCount === 0 ? (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+                <p className="text-sm font-medium text-destructive">⚠️ No apps enabled</p>
+                <p className="mt-1 text-xs text-destructive/80">
+                  Select at least one app to keep provisioning enabled.
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {mode === "custom"
+                  ? "Custom marketplace list is active."
+                  : "All marketplace apps from the provider are available."}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
                 disabled={mode !== "custom" || loadingApps || saving || apps.length === 0}
-                className="justify-start"
               >
                 Enable All Apps
               </Button>
@@ -498,91 +632,92 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                 size="sm"
                 onClick={handleClearAll}
                 disabled={mode !== "custom" || loadingApps || saving || apps.length === 0}
-                className="justify-start"
               >
                 Disable All Apps
               </Button>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search marketplace apps..."
-                    className="pl-9 pr-4 w-80"
-                    disabled={loadingApps}
-                  />
-                </div>
-                <Select
-                  value={categoryFilter}
-                  onValueChange={setCategoryFilter}
+        <div className="space-y-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative w-full sm:w-72 lg:w-80">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search marketplace apps..."
+                  className="w-full pl-9 pr-4"
                   disabled={loadingApps}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category === "all" ? "All categories" : category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1">
-                  <Package className="h-3 w-3 mr-1" />
-                  {filteredApps.length} total
-                </Badge>
-                {mode === "custom" && (
-                  <Badge variant="outline" className="text-xs font-medium px-3 py-1">
-                    {allowedCount} enabled
-                  </Badge>
-                )}
-              </div>
+              <Select
+                value={categoryFilter}
+                onValueChange={setCategoryFilter}
+                disabled={loadingApps}
+              >
+                <SelectTrigger className="w-full sm:w-[200px] lg:w-[180px]">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category === "all" ? "All categories" : category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-xs font-medium px-3 py-1">
+                <Package className="h-3 w-3 mr-1" />
+                {filteredApps.length} total
+              </Badge>
+              {mode === "custom" && (
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1">
+                  {allowedCount} enabled
+                </Badge>
+              )}
+            </div>
+          </div>
 
-            {loadingApps ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <div className="rounded-full bg-primary/10 p-4">
-                    <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Loading marketplace apps</p>
-                    <p className="text-sm text-muted-foreground">Please wait while we fetch the latest applications...</p>
-                  </div>
-                </div>
-              </div>
-            ) : filteredApps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
-                <div className="rounded-full bg-muted p-3">
-                  <Filter className="h-6 w-6" />
+          {loadingApps ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">No marketplace apps found</p>
-                  <p className="text-sm">Try adjusting your search or filter criteria</p>
+                  <p className="font-medium text-foreground">Loading marketplace apps</p>
+                  <p className="text-sm text-muted-foreground">Please wait while we fetch the latest applications...</p>
                 </div>
-                {searchTerm && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSearchTerm("")}
-                    className="mt-2"
-                  >
-                    Clear search
-                  </Button>
-                )}
               </div>
-            ) : (
-              <>
-                <div className="rounded-lg border border-border">
+            </div>
+          ) : filteredApps.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
+              <div className="rounded-full bg-muted p-3">
+                <Filter className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-medium">No marketplace apps found</p>
+                <p className="text-sm">Try adjusting your search or filter criteria</p>
+              </div>
+              {searchTerm && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchTerm("")}
+                  className="mt-2"
+                >
+                  Clear search
+                </Button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -592,8 +727,7 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                               checked={paginatedApps.length > 0 && paginatedApps.every(app => app.allowed)}
                               onCheckedChange={(checked) => {
                                 if (mode === "custom") {
-                                  // Toggle all apps on current page
-                                  paginatedApps.forEach(app => {
+                                  paginatedApps.forEach((app) => {
                                     handleToggleApp(app.slug, !!checked);
                                   });
                                 }
@@ -603,7 +737,8 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                           </TableHead>
                         )}
                         <TableHead className="w-12"></TableHead>
-                        <TableHead className="font-semibold">Application Name</TableHead>
+                        <TableHead className="font-semibold min-w-[240px]">Display Name</TableHead>
+                        <TableHead className="font-semibold min-w-[200px]">Provider Name</TableHead>
                         <TableHead className="font-semibold">Category</TableHead>
                         <TableHead className="font-semibold">Description</TableHead>
                         <TableHead className="font-semibold text-center">Status</TableHead>
@@ -612,7 +747,7 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                     <TableBody>
                       {paginatedApps.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={mode === "custom" ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={mode === "custom" ? 7 : 6} className="text-center py-8 text-muted-foreground">
                             No apps on this page
                           </TableCell>
                         </TableRow>
@@ -621,6 +756,10 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                           const isEnabled = mode === "custom" ? app.allowed : true;
                           const disabled = mode !== "custom" || saving;
                           const normalizedCategory = app.category || "Other";
+                          const effectiveName = (app.display_name || "").trim() || app.originalName || app.name || app.slug;
+                          const originalName = app.originalName || app.provider_name || app.name || app.slug;
+                          const trimmedLocalName = app.localName?.trim();
+                          const hasOverride = Boolean(trimmedLocalName && trimmedLocalName !== originalName);
 
                           return (
                             <TableRow
@@ -653,17 +792,56 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                                     ? "bg-primary text-primary-foreground shadow-sm"
                                     : "bg-muted text-muted-foreground"
                                 )}>
-                                  {app.name?.substring(0, 2).toUpperCase() || app.slug?.substring(0, 2).toUpperCase() || "AP"}
+                                  {effectiveName?.substring(0, 2).toUpperCase() || app.slug?.substring(0, 2).toUpperCase() || "AP"}
+                                </div>
+                              </TableCell>
+                              <TableCell onClick={(event) => event.stopPropagation()}>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      value={app.localName ?? ""}
+                                      onChange={(event) => handleLocalNameChange(app.slug, event.target.value)}
+                                      placeholder={originalName}
+                                      disabled={saving}
+                                      maxLength={MAX_DISPLAY_NAME_LENGTH}
+                                      onClick={(event) => event.stopPropagation()}
+                                    />
+                                    {trimmedLocalName && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-xs"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleResetLocalName(app.slug);
+                                        }}
+                                      >
+                                        Reset
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                    <span>Effective: {effectiveName}</span>
+                                    <span>
+                                      {(app.localName ?? "").length}/{MAX_DISPLAY_NAME_LENGTH}
+                                    </span>
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="space-y-1">
                                   <p className="font-medium text-foreground">
-                                    {app.name || app.slug}
+                                    {originalName}
                                   </p>
                                   <p className="text-xs text-muted-foreground font-mono">
                                     {app.slug}
                                   </p>
+                                  {hasOverride && (
+                                    <span className="text-[11px] font-medium text-primary">
+                                      Override active
+                                    </span>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -696,134 +874,133 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                     </TableBody>
                   </Table>
                 </div>
+              </div>
 
-                {/* Pagination Controls */}
-                {filteredApps.length > 0 && (
-                  <div className="flex flex-col gap-4 px-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Rows per page:</span>
-                        <Select
-                          value={itemsPerPage.toString()}
-                          onValueChange={(value) => {
-                            setItemsPerPage(Number(value));
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="w-16 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="5">5</SelectItem>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Showing {startIndex + 1} to {Math.min(endIndex, filteredApps.length)} of {filteredApps.length} apps
-                      </div>
+              {/* Pagination Controls */}
+              {filteredApps.length > 0 && (
+                <div className="flex flex-col gap-4 px-2 py-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Rows per page:</span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(value) => {
+                          setItemsPerPage(Number(value));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-16 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, filteredApps.length)} of {filteredApps.length} apps
+                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-4">
-                      {/* Go to page input */}
-                      {totalPages > 1 && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">Go to page:</span>
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              min="1"
-                              max={totalPages}
-                              value={goToPageInput}
-                              onChange={(e) => setGoToPageInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  const pageNum = parseInt(goToPageInput);
-                                  if (pageNum >= 1 && pageNum <= totalPages) {
-                                    setCurrentPage(pageNum);
-                                    setGoToPageInput("");
-                                  }
-                                }
-                              }}
-                              placeholder={`1-${totalPages}`}
-                              className="w-16 h-8 text-center text-sm"
-                              title={`Enter a page number between 1 and ${totalPages}`}
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4 md:justify-end">
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Go to page:</span>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min="1"
+                            max={totalPages}
+                            value={goToPageInput}
+                            onChange={(e) => setGoToPageInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
                                 const pageNum = parseInt(goToPageInput);
                                 if (pageNum >= 1 && pageNum <= totalPages) {
                                   setCurrentPage(pageNum);
                                   setGoToPageInput("");
                                 }
-                              }}
-                              disabled={!goToPageInput || parseInt(goToPageInput) < 1 || parseInt(goToPageInput) > totalPages}
-                              className="h-8 px-2 text-xs"
-                            >
-                              Go
-                            </Button>
-                          </div>
+                              }
+                            }}
+                            placeholder={`1-${totalPages}`}
+                            className="w-16 h-8 text-center text-sm"
+                            title={`Enter a page number between 1 and ${totalPages}`}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const pageNum = parseInt(goToPageInput);
+                              if (pageNum >= 1 && pageNum <= totalPages) {
+                                setCurrentPage(pageNum);
+                                setGoToPageInput("");
+                              }
+                            }}
+                            disabled={!goToPageInput || parseInt(goToPageInput) < 1 || parseInt(goToPageInput) > totalPages}
+                            className="h-8 px-2 text-xs"
+                          >
+                            Go
+                          </Button>
                         </div>
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (currentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 2) {
-                              pageNum = totalPages - 4 + i;
-                            } else {
-                              pageNum = currentPage - 2 + i;
-                            }
-
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={currentPage === pageNum ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setCurrentPage(pageNum)}
-                                className="h-8 w-8 p-0"
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
-                        </div>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                          disabled={currentPage === totalPages}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
                       </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNum)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

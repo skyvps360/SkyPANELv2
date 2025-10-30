@@ -69,6 +69,7 @@ export interface MarketplaceApp {
   name: string;
   regions?: string[];
   available?: boolean;
+  display_name?: string;
 }
 
 export interface MarketplaceAppValidationResult {
@@ -102,10 +103,12 @@ export function validateMarketplaceApp(
   }
 
   // Check if app is available
+  const friendlyName = app.display_name || app.name || app.slug;
+
   if (app.available === false) {
     return {
       valid: false,
-      error: `Marketplace app "${app.name}" is currently unavailable`,
+      error: `Marketplace app "${friendlyName}" is currently unavailable`,
       errorCode: 'APP_NOT_AVAILABLE'
     };
   }
@@ -115,7 +118,7 @@ export function validateMarketplaceApp(
     if (!app.regions.includes(region)) {
       return {
         valid: false,
-        error: `Marketplace app "${app.name}" is not available in region "${region}". Available regions: ${app.regions.join(', ')}`,
+        error: `Marketplace app "${friendlyName}" is not available in region "${region}". Available regions: ${app.regions.join(', ')}`,
         errorCode: 'REGION_INCOMPATIBLE'
       };
     }

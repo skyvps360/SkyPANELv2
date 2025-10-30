@@ -36,6 +36,10 @@ import {
   normalizeMarketplaceSlugs,
   parseStoredAllowedMarketplaceApps,
 } from "../lib/providerMarketplace.js";
+import {
+  fetchMarketplaceDisplayNames,
+  replaceMarketplaceDisplayNames,
+} from "../lib/providerMarketplaceLabels.js";
 
 const router = express.Router();
 
@@ -73,6 +77,11 @@ const allowedThemePresetIds = new Set([
   "stone",
   "custom",
 ]);
+
+const normalizeMarketplaceSlugValue = (value: unknown): string =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const MAX_MARKETPLACE_DISPLAY_NAME_LENGTH = 120;
 
 const mergeCustomPreset = (
   incoming: unknown,
@@ -1265,6 +1274,7 @@ router.get(
       }
 
       let allowedSlugs: string[] = [];
+      const displayNameOverrides = await fetchMarketplaceDisplayNames(id);
       try {
         const overridesResult = await query(
           "SELECT app_slug FROM provider_marketplace_overrides WHERE provider_id = $1",
@@ -1314,11 +1324,16 @@ router.get(
 
         categories[category] = (categories[category] || 0) + 1;
 
+        const overrideName = slug ? displayNameOverrides.get(slug) : undefined;
+        const displayName = overrideName && overrideName.length > 0 ? overrideName : app.name;
+
         return {
           ...app,
           category,
           slug: app.slug,
           allowed: slug ? allowedSet.has(slug) : false,
+          display_name: displayName,
+          provider_name: app.name,
         };
       });
 
@@ -1330,6 +1345,7 @@ router.get(
         },
         mode,
         allowedApps: allowedSlugs,
+        displayNameOverrides: Object.fromEntries(displayNameOverrides),
         apps: appsPayload,
         categories,
         fetchedAt: new Date().toISOString(),
@@ -1352,6 +1368,7 @@ router.put(
     param("id").isUUID(),
     body("mode").optional().isString(),
     body("apps").optional().isArray(),
+    body("renames").optional().isObject(),
   ],
   async (req: Request, res: Response) => {
     try {
@@ -1387,6 +1404,34 @@ router.put(
       }
 
       let requestedApps: string[] = [];
+      const renameMap = new Map<string, string>();
+
+      const renamesPayload = req.body.renames;
+      if (renamesPayload && typeof renamesPayload === "object" && renamesPayload !== null) {
+        for (const [rawSlug, rawName] of Object.entries(renamesPayload)) {
+          const normalizedSlug = normalizeMarketplaceSlugValue(rawSlug);
+          if (!normalizedSlug || renameMap.has(normalizedSlug)) {
+            continue;
+          }
+
+          if (typeof rawName !== "string") {
+            continue;
+          }
+
+          const trimmedName = rawName.trim();
+          if (!trimmedName) {
+            continue;
+          }
+
+          if (trimmedName.length > MAX_MARKETPLACE_DISPLAY_NAME_LENGTH) {
+            return res.status(400).json({
+              error: `Display name for slug "${rawSlug}" exceeds ${MAX_MARKETPLACE_DISPLAY_NAME_LENGTH} characters`,
+            });
+          }
+
+          renameMap.set(normalizedSlug, trimmedName);
+        }
+      }
 
       if (mode === "custom") {
         if (!Array.isArray(req.body.apps)) {
@@ -1428,6 +1473,28 @@ router.put(
         });
       }
 
+      const invalidRenameTargets: string[] = [];
+      for (const slug of renameMap.keys()) {
+        if (!validSlugs.has(slug)) {
+          invalidRenameTargets.push(slug);
+        }
+      }
+
+      if (invalidRenameTargets.length > 0) {
+        return res.status(400).json({
+          error: "One or more display name overrides target unavailable marketplace apps",
+          invalidApps: invalidRenameTargets,
+        });
+      }
+
+      if (mode === "custom" && requestedApps.length > 0) {
+        for (const slug of Array.from(renameMap.keys())) {
+          if (!requestedApps.includes(slug)) {
+            renameMap.delete(slug);
+          }
+        }
+      }
+
       const payloadJson =
         mode === "custom" ? JSON.stringify(requestedApps) : JSON.stringify([]);
 
@@ -1455,6 +1522,8 @@ router.put(
           [id, payloadJson]
         );
 
+        await replaceMarketplaceDisplayNames(id, renameMap);
+
         await query("COMMIT");
       } catch (txnErr) {
         await query("ROLLBACK");
@@ -1471,6 +1540,7 @@ router.put(
           mode === "custom"
             ? `Configured ${requestedApps.length} marketplace app${requestedApps.length === 1 ? "" : "s"}`
             : "Reverted to provider defaults",
+        displayNameOverrides: Object.fromEntries(renameMap),
       });
     } catch (err: any) {
       console.error("Admin provider marketplace update error:", err);

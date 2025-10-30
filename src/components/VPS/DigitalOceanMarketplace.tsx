@@ -15,6 +15,8 @@ interface MarketplaceApp {
   image_slug: string;
   compatible_images?: string[];
   type: string;
+  display_name?: string;
+  provider_name?: string;
 }
 
 interface DigitalOceanMarketplaceProps {
@@ -76,11 +78,16 @@ export default function DigitalOceanMarketplace({
     if (!searchTerm.trim()) return apps;
 
     const term = searchTerm.toLowerCase();
-    return apps.filter(app =>
-      app.name.toLowerCase().includes(term) ||
-      app.description.toLowerCase().includes(term) ||
-      app.category.toLowerCase().includes(term)
-    );
+    return apps.filter(app => {
+      const displayName = (app.display_name || app.name || '').toLowerCase();
+      const providerName = (app.provider_name || app.name || '').toLowerCase();
+      return (
+        displayName.includes(term) ||
+        providerName.includes(term) ||
+        app.description.toLowerCase().includes(term) ||
+        app.category.toLowerCase().includes(term)
+      );
+    });
   }, [apps, searchTerm]);
 
   // Group filtered apps by category
@@ -197,9 +204,11 @@ export default function DigitalOceanMarketplace({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredCategorized[category].map(app => {
                 const isSelected = selectedApp === app.slug;
+                const displayName = app.display_name || app.name;
+                const providerName = app.provider_name || app.name;
                 
                 // Generate icon from app name
-                const iconText = app.name.substring(0, 2).toUpperCase();
+                const iconText = (displayName || app.slug).substring(0, 2).toUpperCase();
                 
                 // Check if app is compatible with selected region
                 const validation = region ? validateMarketplaceApp(app.slug, region, apps) : { valid: true };
@@ -225,8 +234,13 @@ export default function DigitalOceanMarketplace({
                         </span>
                       </div>
                       <h4 className="font-medium text-foreground text-sm truncate">
-                        {app.name}
+                        {displayName}
                       </h4>
+                      {displayName !== providerName && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          Provider: {providerName}
+                        </p>
+                      )}
                       <p 
                         className="text-xs text-muted-foreground leading-relaxed overflow-hidden" 
                         style={{ 
