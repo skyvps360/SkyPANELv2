@@ -12,6 +12,10 @@ import { config } from '../config/index.js';
 import { getClientIP } from '../lib/ipDetection.js';
 import { logRateLimitEvent } from '../services/activityLogger.js';
 import { recordRateLimitEvent } from '../services/rateLimitMetrics.js';
+import {
+  getRateLimitOverrideForUser,
+  type RateLimitOverride,
+} from '../services/rateLimitOverrideService.js';
 import type { AuthenticatedRequest } from './auth.js';
 
 export type UserType = 'anonymous' | 'authenticated' | 'admin';
@@ -29,97 +33,162 @@ export interface RateLimitResponse {
 /**
  * Determines user type based on JWT token and user role
  */
-export function getUserType(req: Request): UserType {
+interface TokenPayload {
+  userId?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
+function decodeToken(req: Request): TokenPayload | null {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
+    const token = authHeader && authHeader.split(' ')[1];
     if (!token) {
-      return 'anonymous';
+      return null;
     }
-
-    // Verify JWT token
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-    
-    if (!decoded || !decoded.userId) {
-      return 'anonymous';
-    }
-
-    // Check if user has admin role from the token
-    // Note: This is a quick check - full user validation happens in auth middleware
-    if (decoded.role === 'admin') {
-      return 'admin';
-    }
-
-    // If we have a valid token with a user ID, consider them authenticated
-    return 'authenticated';
+    return jwt.verify(token, config.JWT_SECRET) as TokenPayload;
   } catch {
-    // Invalid or expired token - treat as anonymous
+    return null;
+  }
+}
+
+export function getUserType(req: Request): UserType {
+  const decoded = decodeToken(req);
+
+  if (!decoded?.userId) {
     return 'anonymous';
   }
+
+  if (decoded.role === 'admin') {
+    return 'admin';
+  }
+
+  return 'authenticated';
+}
+
+function getAuthenticatedUserId(req: Request): string | undefined {
+  const decoded = decodeToken(req);
+  return decoded?.userId;
 }
 
 /**
  * Enhanced key generation using unified IP detection
  */
 export function generateRateLimitKey(req: Request, userType: UserType): string {
-  const ipResult = getClientIP(req, { 
+  const ipResult = getClientIP(req, {
     trustProxy: Boolean(config.rateLimiting.trustProxy),
-    enableLogging: false // Disable logging here to avoid spam
+    enableLogging: false,
   });
-  
+
   const clientIP = ipResult.ip;
-  
-  // For authenticated users, include user ID if available
+
   if (userType !== 'anonymous') {
-    try {
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
-      
-      if (token) {
-        const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-        if (decoded?.userId) {
-          return `${userType}:${decoded.userId}:${clientIP}`;
-        }
-      }
-    } catch {
-      // Fall back to IP-only key if token parsing fails
+    const userId = getAuthenticatedUserId(req);
+    if (userId) {
+      return `${userType}:${userId}:${clientIP}`;
     }
   }
-  
-  // Default to IP-based key
+
   return `${userType}:${clientIP}`;
+}
+
+interface LimitConfig {
+  limit: number;
+  windowMs: number;
+}
+
+function getBaseLimitConfig(userType: UserType): LimitConfig {
+  const rateLimitConfig = config.rateLimiting;
+
+  switch (userType) {
+    case 'admin':
+      return {
+        limit: rateLimitConfig.adminMaxRequests,
+        windowMs: rateLimitConfig.adminWindowMs,
+      };
+    case 'authenticated':
+      return {
+        limit: rateLimitConfig.authenticatedMaxRequests,
+        windowMs: rateLimitConfig.authenticatedWindowMs,
+      };
+    default:
+      return {
+        limit: rateLimitConfig.anonymousMaxRequests,
+        windowMs: rateLimitConfig.anonymousWindowMs,
+      };
+  }
+}
+
+interface OverrideLimiterEntry {
+  limiter: RateLimitRequestHandler;
+  limit: number;
+  windowMs: number;
+  reason: string | null;
+}
+
+const overrideLimiterCache = new Map<string, OverrideLimiterEntry>();
+
+function buildOverrideLimiter(userType: UserType, override: RateLimitOverride, userId: string): RateLimitRequestHandler {
+  const handler = createCustomHandler(userType, {
+    limit: override.maxRequests,
+    windowMs: override.windowMs,
+    reason: override.reason ?? null,
+    overrideUserId: userId,
+  });
+
+  return rateLimit({
+    windowMs: override.windowMs,
+    max: override.maxRequests,
+    keyGenerator: (req: Request) => generateRateLimitKey(req, userType),
+    handler,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: false,
+    skipFailedRequests: false,
+  });
+}
+
+function getOverrideLimiter(userType: UserType, override: RateLimitOverride, userId: string): RateLimitRequestHandler {
+  const cacheKey = `${userType}:${userId}`;
+  const cached = overrideLimiterCache.get(cacheKey);
+
+  if (cached && cached.limit === override.maxRequests && cached.windowMs === override.windowMs && cached.reason === (override.reason ?? null)) {
+    return cached.limiter;
+  }
+
+  const limiter = buildOverrideLimiter(userType, override, userId);
+  overrideLimiterCache.set(cacheKey, {
+    limiter,
+    limit: override.maxRequests,
+    windowMs: override.windowMs,
+    reason: override.reason ?? null,
+  });
+
+  return limiter;
 }
 
 /**
  * Custom response handler with detailed headers and error messages
  */
-export function createCustomHandler(userType: UserType) {
+interface HandlerOptions {
+  limit?: number;
+  windowMs?: number;
+  reason?: string | null;
+  overrideUserId?: string;
+}
+
+export function createCustomHandler(userType: UserType, options: HandlerOptions = {}) {
   return async (req: Request, res: Response): Promise<void> => {
-    const ipResult = getClientIP(req, { 
+    const ipResult = getClientIP(req, {
       trustProxy: Boolean(config.rateLimiting.trustProxy),
-      enableLogging: true 
+      enableLogging: true,
     });
-    
-    // Get rate limit configuration for this user type
-    const rateLimitConfig = config.rateLimiting;
-    let limit: number;
-    let windowMs: number;
-    
-    switch (userType) {
-      case 'admin':
-        limit = rateLimitConfig.adminMaxRequests;
-        windowMs = rateLimitConfig.adminWindowMs;
-        break;
-      case 'authenticated':
-        limit = rateLimitConfig.authenticatedMaxRequests;
-        windowMs = rateLimitConfig.authenticatedWindowMs;
-        break;
-      default:
-        limit = rateLimitConfig.anonymousMaxRequests;
-        windowMs = rateLimitConfig.anonymousWindowMs;
-    }
-    
+
+    const baseConfig = getBaseLimitConfig(userType);
+    const limit = options.limit ?? baseConfig.limit;
+    const windowMs = options.windowMs ?? baseConfig.windowMs;
+    const overrideReason = options.reason ?? null;
+
     const resetTime = Date.now() + windowMs;
     const retryAfter = Math.ceil(windowMs / 1000);
     const currentCount = limit + 1; // Exceeded, so at least limit + 1
@@ -130,6 +199,12 @@ export function createCustomHandler(userType: UserType) {
       : userType === 'authenticated'
       ? 'You have reached your request limit. Please wait before making additional requests.'
       : 'Admin rate limit reached. If this is unexpected, please check for automated processes.';
+
+    const overrideSuffix = overrideReason
+      ? ` Override granted: ${overrideReason}.`
+      : options.overrideUserId
+      ? ' Override granted for this account.'
+      : '';
     
     const response: RateLimitResponse = {
       error: 'Rate limit exceeded',
@@ -138,7 +213,7 @@ export function createCustomHandler(userType: UserType) {
       remaining: 0,
       resetTime,
       userType,
-      message: `Too many requests. ${guidanceMessage}`
+      message: `Too many requests. ${guidanceMessage}${overrideSuffix}`
     };
     
     // Set standard rate limit headers
@@ -158,6 +233,10 @@ export function createCustomHandler(userType: UserType) {
     } catch {
       // No user ID available for anonymous requests
     }
+
+    if (!userId && options.overrideUserId) {
+      userId = options.overrideUserId;
+    }
     
     // Record metrics event for monitoring and analysis
     recordRateLimitEvent(req, userType, limit, currentCount, windowMs, resetTime, userId);
@@ -166,7 +245,7 @@ export function createCustomHandler(userType: UserType) {
     try {
       const authReq = req as AuthenticatedRequest;
       await logRateLimitEvent({
-        userId: authReq.user?.id,
+        userId: authReq.user?.id ?? options.overrideUserId,
         organizationId: authReq.user?.organizationId,
         endpoint: req.path,
         userType,
@@ -183,33 +262,17 @@ export function createCustomHandler(userType: UserType) {
     
     res.status(429).json(response);
   };
-}/**
+}
 
+/**
  * Creates a rate limiter for a specific user type
  */
 export function createRateLimiter(userType: UserType): RateLimitRequestHandler {
-  const rateLimitConfig = config.rateLimiting;
-  
-  let windowMs: number;
-  let max: number;
-  
-  switch (userType) {
-    case 'admin':
-      windowMs = rateLimitConfig.adminWindowMs;
-      max = rateLimitConfig.adminMaxRequests;
-      break;
-    case 'authenticated':
-      windowMs = rateLimitConfig.authenticatedWindowMs;
-      max = rateLimitConfig.authenticatedMaxRequests;
-      break;
-    default: // anonymous
-      windowMs = rateLimitConfig.anonymousWindowMs;
-      max = rateLimitConfig.anonymousMaxRequests;
-  }
-  
+  const { windowMs, limit } = getBaseLimitConfig(userType);
+
   return rateLimit({
     windowMs,
-    max,
+    max: limit,
     keyGenerator: (req: Request) => generateRateLimitKey(req, userType),
     handler: createCustomHandler(userType),
     standardHeaders: true,
@@ -231,59 +294,57 @@ const adminLimiter = createRateLimiter('admin');
 /**
  * Smart rate limiting middleware that dynamically selects limits based on user type
  */
-export function smartRateLimit(req: Request, res: Response, next: NextFunction): void {
-  const userType = getUserType(req);
-  
-  // Add user type to request for debugging
-  (req as any).rateLimitUserType = userType;
-  
-  // Get user ID for metrics
-  let userId: string | undefined;
+export async function smartRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const userType = getUserType(req);
+
+    (req as any).rateLimitUserType = userType;
+
     const authReq = req as AuthenticatedRequest;
-    userId = authReq.user?.id;
-  } catch {
-    // No user ID available for anonymous requests
+    const authenticatedUserId = authReq.user?.id ?? getAuthenticatedUserId(req);
+    const baseConfig = getBaseLimitConfig(userType);
+
+    let effectiveLimit = baseConfig.limit;
+    let effectiveWindowMs = baseConfig.windowMs;
+    let limiter: RateLimitRequestHandler;
+
+    let override: RateLimitOverride | null = null;
+    if (authenticatedUserId && userType !== 'anonymous') {
+      override = await getRateLimitOverrideForUser(authenticatedUserId);
+    }
+
+    if (override) {
+      effectiveLimit = override.maxRequests;
+      effectiveWindowMs = override.windowMs;
+      limiter = getOverrideLimiter(userType, override, authenticatedUserId!);
+    } else {
+      switch (userType) {
+        case 'admin':
+          limiter = adminLimiter;
+          break;
+        case 'authenticated':
+          limiter = authenticatedLimiter;
+          break;
+        default:
+          limiter = anonymousLimiter;
+      }
+    }
+
+    recordRateLimitEvent(
+      req,
+      userType,
+      effectiveLimit,
+      1,
+      effectiveWindowMs,
+      Date.now() + effectiveWindowMs,
+      authenticatedUserId,
+    );
+
+    limiter(req, res, next);
+  } catch (error) {
+    console.error('Smart rate limiting failed:', error);
+    next(error);
   }
-  
-  // Record successful request metrics (before rate limiting check)
-  const rateLimitConfig = config.rateLimiting;
-  let limit: number;
-  let windowMs: number;
-  
-  switch (userType) {
-    case 'admin':
-      limit = rateLimitConfig.adminMaxRequests;
-      windowMs = rateLimitConfig.adminWindowMs;
-      break;
-    case 'authenticated':
-      limit = rateLimitConfig.authenticatedMaxRequests;
-      windowMs = rateLimitConfig.authenticatedWindowMs;
-      break;
-    default:
-      limit = rateLimitConfig.anonymousMaxRequests;
-      windowMs = rateLimitConfig.anonymousWindowMs;
-  }
-  
-  // Record the request attempt for metrics (assuming it will be successful)
-  // The actual count will be updated if rate limited
-  recordRateLimitEvent(req, userType, limit, 1, windowMs, Date.now() + windowMs, userId);
-  
-  // Select the appropriate pre-created rate limiter
-  let limiter: RateLimitRequestHandler;
-  switch (userType) {
-    case 'admin':
-      limiter = adminLimiter;
-      break;
-    case 'authenticated':
-      limiter = authenticatedLimiter;
-      break;
-    default:
-      limiter = anonymousLimiter;
-  }
-  
-  // Apply the appropriate rate limiter
-  limiter(req, res, next);
 }
 
 /**
@@ -322,30 +383,34 @@ export function createCustomRateLimiter(options: RateLimiterFactoryOptions = {})
 /**
  * Middleware to add rate limit information to response headers for all requests
  */
-export function addRateLimitHeaders(req: Request, res: Response, next: NextFunction): void {
-  const userType = getUserType(req);
-  const rateLimitConfig = config.rateLimiting;
-  
-  let limit: number;
-  
-  switch (userType) {
-    case 'admin':
-      limit = rateLimitConfig.adminMaxRequests;
-      break;
-    case 'authenticated':
-      limit = rateLimitConfig.authenticatedMaxRequests;
-      break;
-    default:
-      limit = rateLimitConfig.anonymousMaxRequests;
+export async function addRateLimitHeaders(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userType = getUserType(req);
+    const baseConfig = getBaseLimitConfig(userType);
+
+    let limit = baseConfig.limit;
+    let windowMs = baseConfig.windowMs;
+
+    const authReq = req as AuthenticatedRequest;
+    const authenticatedUserId = authReq.user?.id ?? getAuthenticatedUserId(req);
+
+    if (authenticatedUserId && userType !== 'anonymous') {
+      const override = await getRateLimitOverrideForUser(authenticatedUserId);
+      if (override) {
+        limit = override.maxRequests;
+        windowMs = override.windowMs;
+      }
+    }
+
+    res.set({
+      'X-RateLimit-User-Type': userType,
+      'X-RateLimit-Policy': `${limit} requests per ${Math.ceil(windowMs / 60000)} minutes`,
+    });
+  } catch (error) {
+    console.error('Failed to attach rate limit headers:', error);
+  } finally {
+    next();
   }
-  
-  // Add informational headers about current user's limits
-  res.set({
-    'X-RateLimit-User-Type': userType,
-    'X-RateLimit-Policy': `${limit} requests per ${Math.ceil(rateLimitConfig.anonymousWindowMs / 60000)} minutes`
-  });
-  
-  next();
 }
 
 /**
@@ -359,25 +424,22 @@ export async function checkRateLimit(req: Request): Promise<{
   resetTime: number;
 }> {
   const userType = getUserType(req);
-  const rateLimitConfig = config.rateLimiting;
-  
-  let windowMs: number;
-  let max: number;
-  
-  switch (userType) {
-    case 'admin':
-      windowMs = rateLimitConfig.adminWindowMs;
-      max = rateLimitConfig.adminMaxRequests;
-      break;
-    case 'authenticated':
-      windowMs = rateLimitConfig.authenticatedWindowMs;
-      max = rateLimitConfig.authenticatedMaxRequests;
-      break;
-    default:
-      windowMs = rateLimitConfig.anonymousWindowMs;
-      max = rateLimitConfig.anonymousMaxRequests;
+  const baseConfig = getBaseLimitConfig(userType);
+
+  let windowMs = baseConfig.windowMs;
+  let max = baseConfig.limit;
+
+  const authReq = req as AuthenticatedRequest;
+  const authenticatedUserId = authReq.user?.id ?? getAuthenticatedUserId(req);
+
+  if (authenticatedUserId && userType !== 'anonymous') {
+    const override = await getRateLimitOverrideForUser(authenticatedUserId);
+    if (override) {
+      windowMs = override.windowMs;
+      max = override.maxRequests;
+    }
   }
-  
+
   // This is a simplified check - in a real implementation, you'd check the actual store
   // For now, we'll return optimistic values
   return {

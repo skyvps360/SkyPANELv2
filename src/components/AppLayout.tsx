@@ -25,7 +25,24 @@ import {
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Moon, Sun, Search, Server, Container, CreditCard, Activity, Settings, Home, MessageCircle, Loader2, HelpCircle, Key } from "lucide-react";
+import {
+  Activity,
+  Container,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  Home,
+  Key,
+  LifeBuoy,
+  Loader2,
+  MessageCircle,
+  Moon,
+  Search,
+  Server,
+  Settings,
+  Sun,
+  Users,
+} from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import { cn } from "@/lib/utils";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -33,6 +50,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { BreadcrumbProvider, useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import type { VPSInstance } from "@/types/vps";
+import { Badge } from "@/components/ui/badge";
 
 // Container interface based on the Containers.tsx structure
 interface ContainerInfo {
@@ -54,6 +72,102 @@ interface ContainerInfo {
     uptime: string;
   };
 }
+
+interface TicketCommandItem {
+  id: string;
+  subject: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+}
+
+interface AdminUserCommandItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface InvoiceCommandItem {
+  id: string;
+  invoiceNumber: string | null;
+  totalAmount: number;
+  currency: string;
+  createdAt: string;
+}
+
+const formatRelativeTime = (input: string | null | undefined): string => {
+  if (!input) {
+    return "—";
+  }
+
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(days / 365);
+  return `${years}y ago`;
+};
+
+const formatCurrencyValue = (value: number, currency = "USD"): string => {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch (error) {
+    console.warn("Currency formatting failed", error);
+    return value.toFixed(2);
+  }
+};
+
+const toTitleCase = (value: string): string =>
+  value
+    .split(/[_\s]+/u)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const TICKET_STATUS_CLASSES: Record<string, string> = {
+  open: "border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  in_progress: "border border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  resolved: "border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  closed: "border border-muted-foreground/20 bg-muted text-muted-foreground",
+};
+
+const TICKET_PRIORITY_CLASSES: Record<string, string> = {
+  low: "border border-muted-foreground/20 bg-muted text-muted-foreground",
+  medium: "border border-blue-500/25 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  high: "border border-orange-500/25 bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  urgent: "border border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400",
+};
+
+const getTicketStatusClass = (status: string): string =>
+  TICKET_STATUS_CLASSES[status] || "border border-muted-foreground/20 bg-muted text-muted-foreground";
+
+const getTicketPriorityClass = (priority: string): string =>
+  TICKET_PRIORITY_CLASSES[priority] || "border border-muted-foreground/20 bg-muted text-muted-foreground";
+
+const formatTicketStatusLabel = (status: string): string => toTitleCase(status || "Pending");
+
+const formatTicketPriorityLabel = (priority: string): string =>
+  toTitleCase(priority || "Normal");
+
+const formatRoleLabel = (role: string): string => toTitleCase(role || "User");
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -96,9 +210,14 @@ const BreadcrumbNavigation: React.FC = () => {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [commandOpen, setCommandOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const isAdmin = useMemo(
+    () => (user?.role || "").toLowerCase() === "admin",
+    [user?.role]
+  );
   
   // State for VPS and Container search
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);
@@ -106,6 +225,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [vpsLoading, setVpsLoading] = useState(false);
   const [containersLoading, setContainersLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [supportTickets, setSupportTickets] = useState<TicketCommandItem[]>([]);
+  const [supportTicketsLoading, setSupportTicketsLoading] = useState(false);
+  const [adminCommandUsers, setAdminCommandUsers] = useState<
+    AdminUserCommandItem[]
+  >([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceCommandItem[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
   const isMac = useMemo(() => {
     if (typeof navigator === "undefined") {
       return false;
@@ -213,14 +340,133 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   }, [token]);
 
+  const fetchSupportTickets = useCallback(async () => {
+    if (!token || !isAdmin) {
+      setSupportTickets([]);
+      return;
+    }
+
+    setSupportTicketsLoading(true);
+    try {
+      const res = await fetch('/api/admin/tickets', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to load support tickets');
+      }
+
+      const rows: TicketCommandItem[] = Array.isArray(payload.tickets)
+        ? payload.tickets.slice(0, 12).map((ticket: any) => ({
+            id: ticket.id,
+            subject: ticket.subject,
+            status: ticket.status,
+            priority: ticket.priority,
+            createdAt: ticket.updated_at ?? ticket.created_at ?? '',
+          }))
+        : [];
+
+      setSupportTickets(rows);
+    } catch (error) {
+      console.error('Failed to load admin tickets:', error);
+    } finally {
+      setSupportTicketsLoading(false);
+    }
+  }, [token, isAdmin]);
+
+  const fetchAdminCommandUsers = useCallback(async () => {
+    if (!token || !isAdmin) {
+      setAdminCommandUsers([]);
+      return;
+    }
+
+    setAdminUsersLoading(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to load admin users');
+      }
+
+      const rows: AdminUserCommandItem[] = Array.isArray(payload.users)
+        ? payload.users.slice(0, 15).map((user: any) => ({
+            id: user.id,
+            name: user.name || user.email,
+            email: user.email,
+            role: user.role,
+          }))
+        : [];
+
+      setAdminCommandUsers(rows);
+    } catch (error) {
+      console.error('Failed to load admin users:', error);
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  }, [token, isAdmin]);
+
+  const fetchRecentInvoices = useCallback(async () => {
+    if (!token) {
+      setInvoiceItems([]);
+      return;
+    }
+
+    setInvoicesLoading(true);
+    try {
+      const res = await fetch('/api/invoices?limit=12', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (!res.ok || payload.success === false) {
+        throw new Error(payload.error || 'Failed to load invoices');
+      }
+
+      const rows: InvoiceCommandItem[] = Array.isArray(payload.invoices)
+        ? payload.invoices.slice(0, 12).map((invoice: any) => ({
+            id: invoice.id,
+            invoiceNumber:
+              invoice.invoiceNumber ?? invoice.invoice_number ?? null,
+            totalAmount: Number(
+              invoice.totalAmount ?? invoice.total_amount ?? 0
+            ),
+            currency: invoice.currency || 'USD',
+            createdAt: invoice.createdAt ?? invoice.created_at ?? '',
+          }))
+        : [];
+
+      setInvoiceItems(rows);
+    } catch (error) {
+      console.error('Failed to load invoices:', error);
+    } finally {
+      setInvoicesLoading(false);
+    }
+  }, [token]);
+
   // Fetch data when command dialog opens (lazy loading)
   useEffect(() => {
     if (commandOpen && !dataLoaded && token) {
       setDataLoaded(true);
       fetchVPSInstances();
       fetchContainers();
+      fetchRecentInvoices();
+      if (isAdmin) {
+        fetchSupportTickets();
+        fetchAdminCommandUsers();
+      }
     }
-  }, [commandOpen, dataLoaded, token, fetchVPSInstances, fetchContainers]);
+  }, [
+    commandOpen,
+    dataLoaded,
+    token,
+    isAdmin,
+    fetchVPSInstances,
+    fetchContainers,
+    fetchRecentInvoices,
+    fetchSupportTickets,
+    fetchAdminCommandUsers,
+  ]);
 
   // Command search keyboard shortcut
   useEffect(() => {
@@ -335,6 +581,50 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       setCommandOpen(false);
     },
     [navigate, setCommandOpen]
+  );
+
+  const handleSupportTicketSelect = useCallback(
+    (ticketId: string) => {
+      navigate("/admin#support");
+      setCommandOpen(false);
+
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("admin:focus-ticket", {
+              detail: { ticketId },
+            })
+          );
+        }, 120);
+      }
+    },
+    [navigate]
+  );
+
+  const handleAdminUserSelect = useCallback(
+    (userId: string) => {
+      navigate("/admin#user-management");
+      setCommandOpen(false);
+
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("admin:focus-user", {
+              detail: { userId },
+            })
+          );
+        }, 120);
+      }
+    },
+    [navigate]
+  );
+
+  const handleInvoiceSelect = useCallback(
+    (invoiceId: string) => {
+      navigate(`/billing/invoice/${invoiceId}`);
+      setCommandOpen(false);
+    },
+    [navigate]
   );
 
   useEffect(() => {
@@ -618,6 +908,140 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                                  {container.status}
                                </span>
                                <span className="truncate max-w-[200px]">{container.image}</span>
+                             </div>
+                           </div>
+                         </div>
+                       </CommandItem>
+                     ))
+                   )}
+                 </CommandGroup>
+               </>
+             )}
+
+             {/* Invoice Group */}
+             {(invoiceItems.length > 0 || invoicesLoading) && (
+               <>
+                 <CommandSeparator />
+                 <CommandGroup heading="Recent Invoices">
+                   {invoicesLoading ? (
+                     <CommandItem disabled>
+                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                       <span>Loading invoices...</span>
+                     </CommandItem>
+                   ) : (
+                     invoiceItems.map((invoice) => (
+                       <CommandItem
+                         key={invoice.id}
+                         onSelect={() => handleInvoiceSelect(invoice.id)}
+                         className="flex items-center justify-between"
+                       >
+                         <div className="flex items-center">
+                           <FileText className="mr-2 h-4 w-4" />
+                           <div className="flex flex-col">
+                             <span className="font-medium">
+                               {invoice.invoiceNumber
+                                 ? `Invoice ${invoice.invoiceNumber}`
+                                 : `Invoice ${invoice.id}`}
+                             </span>
+                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                               <span>{formatCurrencyValue(invoice.totalAmount, invoice.currency)}</span>
+                               <span>{formatRelativeTime(invoice.createdAt)}</span>
+                             </div>
+                           </div>
+                         </div>
+                       </CommandItem>
+                     ))
+                   )}
+                 </CommandGroup>
+               </>
+             )}
+
+             {/* Support Tickets Group (Admin) */}
+             {isAdmin && (supportTickets.length > 0 || supportTicketsLoading) && (
+               <>
+                 <CommandSeparator />
+                 <CommandGroup heading="Support Tickets">
+                   {supportTicketsLoading ? (
+                     <CommandItem disabled>
+                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                       <span>Loading support tickets...</span>
+                     </CommandItem>
+                   ) : (
+                     supportTickets.map((ticket) => (
+                       <CommandItem
+                         key={ticket.id}
+                         onSelect={() => handleSupportTicketSelect(ticket.id)}
+                         className="flex items-center justify-between"
+                       >
+                         <div className="flex items-center">
+                           <LifeBuoy className="mr-2 h-4 w-4" />
+                           <div className="flex flex-col">
+                             <span className="font-medium">
+                               {ticket.subject || `Ticket ${ticket.id}`}
+                             </span>
+                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                               <Badge
+                                 variant="outline"
+                                 className={cn(
+                                   "border px-1.5 py-0.5 font-medium",
+                                   getTicketStatusClass(ticket.status)
+                                 )}
+                               >
+                                 {formatTicketStatusLabel(ticket.status)}
+                               </Badge>
+                               <Badge
+                                 variant="outline"
+                                 className={cn(
+                                   "border px-1.5 py-0.5 font-medium",
+                                   getTicketPriorityClass(ticket.priority)
+                                 )}
+                               >
+                                 {formatTicketPriorityLabel(ticket.priority)}
+                               </Badge>
+                               <span>{formatRelativeTime(ticket.createdAt)}</span>
+                             </div>
+                           </div>
+                         </div>
+                       </CommandItem>
+                     ))
+                   )}
+                 </CommandGroup>
+               </>
+             )}
+
+             {/* Admin Users Group (Admin) */}
+             {isAdmin && (adminCommandUsers.length > 0 || adminUsersLoading) && (
+               <>
+                 <CommandSeparator />
+                 <CommandGroup heading="Admin Users">
+                   {adminUsersLoading ? (
+                     <CommandItem disabled>
+                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                       <span>Loading team members...</span>
+                     </CommandItem>
+                   ) : (
+                     adminCommandUsers.map((adminUser) => (
+                       <CommandItem
+                         key={adminUser.id}
+                         onSelect={() => handleAdminUserSelect(adminUser.id)}
+                         className="flex items-center justify-between"
+                       >
+                         <div className="flex items-center">
+                           <Users className="mr-2 h-4 w-4" />
+                           <div className="flex flex-col">
+                             <span className="font-medium">
+                               {adminUser.name || adminUser.email}
+                             </span>
+                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                               <span className="truncate max-w-[220px]">
+                                 {adminUser.email}
+                               </span>
+                               <Badge
+                                 variant="outline"
+                                 className="border px-1.5 py-0.5 font-medium border-muted-foreground/25 text-muted-foreground"
+                               >
+                                 {formatRoleLabel(adminUser.role)}
+                               </Badge>
                              </div>
                            </div>
                          </div>

@@ -13,12 +13,22 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   AlertTriangle,
+  Box,
+  Boxes,
+  Calendar,
   CheckCircle,
   ClipboardList,
+  Clock,
   DollarSign,
   Edit,
   FileCode,
+  Gauge,
   Globe,
+  HelpCircle,
+  LayoutDashboard,
+  LifeBuoy,
+  MapPin,
+  Network,
   Palette,
   Plus,
   RefreshCw,
@@ -26,17 +36,14 @@ import {
   Server,
   ServerCog,
   Settings,
+  Shield,
+  Sparkles,
   Ticket,
   Trash2,
   Users,
   X,
-  Box,
-  Boxes,
-  Shield,
-  Calendar,
-  Clock,
-  HelpCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 // Navigation provided by AppLayout
 import { useAuth } from "../contexts/AuthContext";
@@ -103,7 +110,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { buildApiUrl } from "@/lib/api";
 import type { ThemePreset } from "@/theme/presets";
@@ -219,6 +226,198 @@ const TICKET_PRIORITY_META: Record<
     className:
       "border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400",
   },
+};
+
+const ADMIN_SECTION_META: Record<
+  AdminSection,
+  { label: string; description: string; icon: LucideIcon }
+> = {
+  dashboard: {
+    label: "Overview",
+    description: "Key metrics & quick links",
+    icon: LayoutDashboard,
+  },
+  support: {
+    label: "Support",
+    description: "Ticket queue & replies",
+    icon: LifeBuoy,
+  },
+  "vps-plans": {
+    label: "VPS Plans",
+    description: "Catalog pricing & backups",
+    icon: ServerCog,
+  },
+  "container-plans": {
+    label: "Container Plans",
+    description: "Blueprint specs & pricing",
+    icon: Box,
+  },
+  containers: {
+    label: "Containers",
+    description: "Managed workloads",
+    icon: Boxes,
+  },
+  servers: {
+    label: "Servers",
+    description: "Provisioned instances",
+    icon: Server,
+  },
+  providers: {
+    label: "Providers",
+    description: "API integrations",
+    icon: Globe,
+  },
+  marketplace: {
+    label: "Marketplace",
+    description: "App overrides & ordering",
+    icon: Sparkles,
+  },
+  regions: {
+    label: "Regions",
+    description: "Availability controls",
+    icon: MapPin,
+  },
+  stackscripts: {
+    label: "StackScripts",
+    description: "Provisioning scripts",
+    icon: FileCode,
+  },
+  networking: {
+    label: "Networking",
+    description: "Reverse DNS & IPAM",
+    icon: Network,
+  },
+  theme: {
+    label: "Theme",
+    description: "Brand presets & palettes",
+    icon: Palette,
+  },
+  "user-management": {
+    label: "Users",
+    description: "Team access & impersonation",
+    icon: Users,
+  },
+  "rate-limiting": {
+    label: "Rate Limiting",
+    description: "Request throttling",
+    icon: Gauge,
+  },
+  "faq-management": {
+    label: "FAQ",
+    description: "Self-service content",
+    icon: HelpCircle,
+  },
+  platform: {
+    label: "Platform",
+    description: "Global configuration",
+    icon: Settings,
+  },
+  "contact-management": {
+    label: "Contact",
+    description: "Channels & availability",
+    icon: ClipboardList,
+  },
+};
+
+interface OverviewCard {
+  id: string;
+  label: string;
+  value: string;
+  helper: string;
+  icon: LucideIcon;
+  accentClass: string;
+  badge?: string;
+  meta?: string[];
+}
+
+const formatCurrency = (value: number | null | undefined, currency = "USD") => {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch (error) {
+    console.warn("Currency format failed", error);
+    return value.toFixed(2);
+  }
+};
+
+const formatCountValue = (value: number | null | undefined): string =>
+  value === null || value === undefined ? "—" : value.toString();
+
+interface AdminSectionNavProps {
+  active: AdminSection;
+  onSelect: (section: AdminSection) => void;
+  badges?: Partial<Record<AdminSection, string | undefined>>;
+}
+
+const AdminSectionNav: React.FC<AdminSectionNavProps> = ({
+  active,
+  onSelect,
+  badges = {},
+}) => {
+  return (
+    <ScrollArea className="w-full pb-3">
+      <div className="flex w-max gap-2 pr-4">
+        {ADMIN_SECTIONS.map((section) => {
+          const meta = ADMIN_SECTION_META[section];
+          const Icon = meta.icon;
+          const isActive = section === active;
+          const badgeValue = badges[section];
+
+          return (
+            <button
+              key={section}
+              type="button"
+              onClick={() => onSelect(section)}
+              className={cn(
+                "group flex min-w-[180px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                isActive
+                  ? "border-primary/70 bg-primary/10 text-foreground shadow-sm"
+                  : "border-transparent bg-card/70 text-muted-foreground hover:border-border hover:bg-muted/60"
+              )}
+            >
+              <span
+                className={cn(
+                  "rounded-lg p-2 transition",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              <div className="flex flex-1 flex-col">
+                <span className="text-sm font-semibold leading-tight">
+                  {meta.label}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {meta.description}
+                </span>
+              </div>
+              {badgeValue ? (
+                <Badge
+                  variant={isActive ? "secondary" : "outline"}
+                  className="ml-auto shrink-0"
+                >
+                  {badgeValue}
+                </Badge>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+      <ScrollBar
+        orientation="horizontal"
+        className="mt-2 h-1.5 rounded-full bg-muted/40 [&>div]:bg-primary/60"
+      />
+    </ScrollArea>
+  );
 };
 
 interface SupportTicket {
@@ -600,6 +799,11 @@ const Admin: React.FC = () => {
   const [replyMessage, setReplyMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TicketStatus>("all");
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
+  const [pendingFocusTicketId, setPendingFocusTicketId] =
+    useState<string | null>(null);
+  const [pendingFocusUserId, setPendingFocusUserId] = useState<string | null>(
+    null
+  );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -847,6 +1051,35 @@ const Admin: React.FC = () => {
     [token]
   );
 
+  const openTicket = useCallback(
+    async (ticket: SupportTicket) => {
+      setSelectedTicket({ ...ticket, messages: [] });
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/admin/tickets/${ticket.id}/replies`,
+          { headers: authHeader }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load replies");
+        const msgs: TicketMessage[] = (data.replies || []).map((m: any) => ({
+          id: m.id,
+          ticket_id: m.ticket_id,
+          sender_type: m.sender_type,
+          sender_name: m.sender_name,
+          message: m.message,
+          created_at: m.created_at,
+        }));
+        setSelectedTicket((prev) =>
+          prev ? { ...prev, messages: msgs } : prev
+        );
+        setTimeout(scrollToBottom, 100);
+      } catch (e: any) {
+        toast.error(e.message || "Failed to load replies");
+      }
+    },
+    [authHeader, scrollToBottom]
+  );
+
   const updateAdminHash = useCallback(
     (section: AdminSection) => {
       if (section === "dashboard") {
@@ -903,6 +1136,84 @@ const Admin: React.FC = () => {
     },
     [activeTab, updateAdminHash]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleTicketFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ ticketId?: string }>).detail;
+      if (!detail?.ticketId) {
+        return;
+      }
+      handleTabChange("support");
+      setPendingFocusTicketId(detail.ticketId);
+    };
+
+    const handleUserFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (!detail?.userId) {
+        return;
+      }
+      handleTabChange("user-management");
+      setPendingFocusUserId(detail.userId);
+    };
+
+    window.addEventListener(
+      "admin:focus-ticket",
+      handleTicketFocus as EventListener
+    );
+    window.addEventListener(
+      "admin:focus-user",
+      handleUserFocus as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "admin:focus-ticket",
+        handleTicketFocus as EventListener
+      );
+      window.removeEventListener(
+        "admin:focus-user",
+        handleUserFocus as EventListener
+      );
+    };
+  }, [handleTabChange]);
+
+  useEffect(() => {
+    if (!pendingFocusTicketId || activeTab !== "support") {
+      return;
+    }
+
+    const matched = tickets.find((ticket) => ticket.id === pendingFocusTicketId);
+    if (matched) {
+      void openTicket(matched);
+      setPendingFocusTicketId(null);
+      return;
+    }
+
+    if (tickets.length > 0) {
+      setPendingFocusTicketId(null);
+    }
+  }, [pendingFocusTicketId, tickets, activeTab, openTicket]);
+
+  useEffect(() => {
+    if (!pendingFocusUserId || activeTab !== "user-management") {
+      return;
+    }
+
+    const matched = adminUsers.find((user) => user.id === pendingFocusUserId);
+    if (matched) {
+      void handleViewUser(matched);
+      setPendingFocusUserId(null);
+      return;
+    }
+
+    if (!usersLoading && adminUsers.length > 0) {
+      setPendingFocusUserId(null);
+    }
+  }, [pendingFocusUserId, adminUsers, activeTab, handleViewUser, usersLoading]);
 
   // Allowed regions strictly from admin provider configuration
   const allowedRegionIds = useMemo(() => {
@@ -1335,30 +1646,6 @@ const Admin: React.FC = () => {
       toast.error(e.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const openTicket = async (ticket: SupportTicket) => {
-    setSelectedTicket({ ...ticket, messages: [] });
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/tickets/${ticket.id}/replies`,
-        { headers: authHeader }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load replies");
-      const msgs: TicketMessage[] = (data.replies || []).map((m: any) => ({
-        id: m.id,
-        ticket_id: m.ticket_id,
-        sender_type: m.sender_type,
-        sender_name: m.sender_name,
-        message: m.message,
-        created_at: m.created_at,
-      }));
-      setSelectedTicket((prev) => (prev ? { ...prev, messages: msgs } : prev));
-      setTimeout(scrollToBottom, 100);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load replies");
     }
   };
 
@@ -2344,54 +2631,307 @@ const Admin: React.FC = () => {
     () => tickets.filter((ticket) => ticket.status === "open").length,
     [tickets]
   );
-  const overviewCards = useMemo(
-    () => [
-      {
-        label: "Active tickets",
-        value: tickets.length ? openTicketCount.toString() : "—",
-        description: tickets.length
-          ? `of ${tickets.length} conversations`
-          : "Awaiting new requests",
-        icon: Ticket,
-      },
-      {
-        label: "VPS plans",
-        value: plans.length ? plans.length.toString() : "—",
-        description: "Published offerings",
-        icon: DollarSign,
-      },
-      {
-        label: "Container plans",
-        value: containerPlans.length ? containerPlans.length.toString() : "—",
-        description: "Managed templates",
-        icon: Boxes,
-      },
-      {
-        label: "Servers",
-        value: servers.length ? servers.length.toString() : "—",
-        description: "Instances under management",
-        icon: ServerCog,
-      },
-      {
-        label: "Users",
-        value: adminUsers.length ? adminUsers.length.toString() : "—",
-        description: "Active accounts",
-        icon: Users,
-      },
-      {
-        label: "Rate Limiting",
-        value: "✓",
-        description: "Monitoring active",
-        icon: Shield,
-      },
-    ],
+  const ticketStats = useMemo(
+    () =>
+      tickets.reduce(
+        (acc, ticket) => {
+          switch (ticket.status) {
+            case "open":
+              acc.open += 1;
+              break;
+            case "in_progress":
+              acc.inProgress += 1;
+              break;
+            case "resolved":
+              acc.resolved += 1;
+              break;
+            default:
+              break;
+          }
+          if (ticket.priority === "urgent") {
+            acc.urgent += 1;
+          }
+          return acc;
+        },
+        { open: 0, inProgress: 0, resolved: 0, urgent: 0 }
+      ),
+    [tickets]
+  );
+
+  const planStats = useMemo(() => {
+    if (!plans.length) {
+      return { active: 0, inactive: 0, avgMarkup: null as number | null };
+    }
+    let active = 0;
+    let markupSum = 0;
+    plans.forEach((plan) => {
+      if (plan.active) {
+        active += 1;
+        markupSum += Number(plan.markup_price ?? 0);
+      }
+    });
+    return {
+      active,
+      inactive: plans.length - active,
+      avgMarkup: active ? markupSum / active : null,
+    };
+  }, [plans]);
+
+  const containerPlanStats = useMemo(() => {
+    if (!containerPlans.length) {
+      return { active: 0, drafts: 0 };
+    }
+    let active = 0;
+    containerPlans.forEach((plan) => {
+      if (plan.active) {
+        active += 1;
+      }
+    });
+    return { active, drafts: containerPlans.length - active };
+  }, [containerPlans]);
+
+  const serverStats = useMemo(() => {
+    if (!servers.length) {
+      return { active: 0, provisioning: 0, attention: 0 };
+    }
+    let active = 0;
+    let provisioning = 0;
+    let attention = 0;
+    servers.forEach((server) => {
+      const status = (server.status || "").toLowerCase();
+      if (["running", "active", "online", "powered_on"].includes(status)) {
+        active += 1;
+      } else if (
+        status.includes("provision") ||
+        status === "pending" ||
+        status === "building"
+      ) {
+        provisioning += 1;
+      } else if (status) {
+        attention += 1;
+      }
+    });
+    return { active, provisioning, attention };
+  }, [servers]);
+
+  const providerStats = useMemo(() => {
+    if (!providers.length) {
+      return { active: 0, inactive: 0 };
+    }
+    let active = 0;
+    providers.forEach((provider) => {
+      if (provider.active) {
+        active += 1;
+      }
+    });
+    return { active, inactive: providers.length - active };
+  }, [providers]);
+
+  const adminStats = useMemo(() => {
+    if (!adminUsers.length) {
+      return { total: 0, admins: 0 };
+    }
+    let admins = 0;
+    adminUsers.forEach((user) => {
+      if ((user.role || "").toLowerCase() === "admin") {
+        admins += 1;
+      }
+    });
+    return { total: adminUsers.length, admins };
+  }, [adminUsers]);
+
+  const totalTickets = tickets.length;
+  const totalPlans = plans.length;
+  const totalContainerPlans = containerPlans.length;
+  const totalServers = servers.length;
+  const totalProviders = providers.length;
+
+  const {
+    inProgress: inProgressTickets,
+    resolved: resolvedTickets,
+    urgent: urgentTickets,
+  } = ticketStats;
+  const {
+    active: activePlanCount,
+    inactive: inactivePlanCount,
+    avgMarkup: averagePlanMarkup,
+  } = planStats;
+  const {
+    active: activeContainerPlans,
+    drafts: draftContainerPlans,
+  } = containerPlanStats;
+  const {
+    active: activeServers,
+    provisioning: provisioningServers,
+    attention: attentionServers,
+  } = serverStats;
+  const {
+    active: activeProviders,
+    inactive: inactiveProviders,
+  } = providerStats;
+  const { total: totalAdminUsers, admins: adminUserCount } = adminStats;
+
+  const overviewCards = useMemo<OverviewCard[]>(() => {
+    const cards: OverviewCard[] = [];
+
+    const ticketMeta: string[] = [];
+    if (urgentTickets > 0) {
+      ticketMeta.push(`${urgentTickets} marked urgent`);
+    }
+
+    cards.push({
+      id: "ticket-queue",
+      label: "Ticket Queue",
+      value: formatCountValue(openTicketCount),
+      helper: totalTickets
+        ? `${inProgressTickets} in progress • ${resolvedTickets} resolved`
+        : "Awaiting customer activity",
+      icon: LifeBuoy,
+      accentClass: "bg-amber-500/10 text-amber-600 ring-amber-500/30",
+      badge: totalTickets ? `${totalTickets} total` : undefined,
+      meta: ticketMeta.length ? ticketMeta : undefined,
+    });
+
+    const serverMeta: string[] = [];
+    if (provisioningServers > 0) {
+      serverMeta.push(`${provisioningServers} provisioning`);
+    }
+    if (attentionServers > 0) {
+      serverMeta.push(`${attentionServers} attention needed`);
+    }
+
+    cards.push({
+      id: "servers",
+      label: "Managed Servers",
+      value: formatCountValue(activeServers),
+      helper: totalServers
+        ? `${provisioningServers} provisioning • ${attentionServers} attention`
+        : "Provisioning pipeline idle",
+      icon: Server,
+      accentClass: "bg-blue-500/10 text-blue-600 ring-blue-500/30",
+      badge: totalServers ? `${totalServers} total` : undefined,
+      meta: serverMeta.length ? serverMeta : undefined,
+    });
+
+    const planMeta: string[] = [];
+    if (averagePlanMarkup !== null) {
+      const markupText = formatCurrency(averagePlanMarkup);
+      if (markupText) {
+        planMeta.push(`Avg markup ${markupText}`);
+      }
+    }
+
+    cards.push({
+      id: "vps-plans",
+      label: "Published VPS Plans",
+      value: formatCountValue(activePlanCount),
+      helper: totalPlans
+        ? `${activePlanCount} active • ${inactivePlanCount} hidden`
+        : "Create plans to start selling",
+      icon: ServerCog,
+      accentClass: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/30",
+      badge: totalPlans ? `${totalPlans} total` : undefined,
+      meta: planMeta.length ? planMeta : undefined,
+    });
+
+    const containerMeta: string[] = [];
+    if (draftContainerPlans > 0) {
+      containerMeta.push(`${draftContainerPlans} drafts`);
+    }
+
+    cards.push({
+      id: "container-plans",
+      label: "Container Blueprints",
+      value: formatCountValue(activeContainerPlans),
+      helper: totalContainerPlans
+        ? `${activeContainerPlans} live • ${draftContainerPlans} drafts`
+        : "Craft blueprints for workloads",
+      icon: Boxes,
+      accentClass: "bg-teal-500/10 text-teal-600 ring-teal-500/30",
+      badge: totalContainerPlans ? `${totalContainerPlans} total` : undefined,
+      meta: containerMeta.length ? containerMeta : undefined,
+    });
+
+    const userMeta: string[] = [];
+    if (adminUserCount > 0 && totalAdminUsers > adminUserCount) {
+      userMeta.push(`${adminUserCount} admins`);
+    }
+
+    cards.push({
+      id: "admin-users",
+      label: "Admin Users",
+      value: formatCountValue(totalAdminUsers),
+      helper: totalAdminUsers
+        ? `${adminUserCount} admins • ${totalAdminUsers - adminUserCount} staff`
+        : "Invite teammates to collaborate",
+      icon: Users,
+      accentClass: "bg-purple-500/10 text-purple-600 ring-purple-500/30",
+      meta: userMeta.length ? userMeta : undefined,
+    });
+
+    const providerMeta: string[] = [];
+    if (inactiveProviders > 0) {
+      providerMeta.push(`${inactiveProviders} paused`);
+    }
+
+    cards.push({
+      id: "providers",
+      label: "Provider Integrations",
+      value: formatCountValue(activeProviders),
+      helper: totalProviders
+        ? `${activeProviders} active • ${inactiveProviders} paused`
+        : "Connect cloud providers to deploy",
+      icon: Globe,
+      accentClass: "bg-slate-500/10 text-slate-600 ring-slate-500/30",
+      badge: totalProviders ? `${totalProviders} total` : undefined,
+      meta: providerMeta.length ? providerMeta : undefined,
+    });
+
+    return cards;
+  }, [
+    totalTickets,
+    openTicketCount,
+    inProgressTickets,
+    resolvedTickets,
+    urgentTickets,
+    totalServers,
+    activeServers,
+    provisioningServers,
+    attentionServers,
+    totalPlans,
+    activePlanCount,
+    inactivePlanCount,
+    averagePlanMarkup,
+    totalContainerPlans,
+    activeContainerPlans,
+    draftContainerPlans,
+    totalAdminUsers,
+    adminUserCount,
+    totalProviders,
+    activeProviders,
+    inactiveProviders,
+  ]);
+
+  const sectionBadges = useMemo<Partial<Record<AdminSection, string>>>(
+    () => ({
+      support: openTicketCount ? openTicketCount.toString() : undefined,
+      servers: totalServers ? totalServers.toString() : undefined,
+      "vps-plans": activePlanCount ? activePlanCount.toString() : undefined,
+      "container-plans": activeContainerPlans
+        ? activeContainerPlans.toString()
+        : undefined,
+      "user-management": totalAdminUsers
+        ? totalAdminUsers.toString()
+        : undefined,
+      providers: activeProviders ? activeProviders.toString() : undefined,
+    }),
     [
-      adminUsers.length,
-      containerPlans.length,
       openTicketCount,
-      plans.length,
-      servers.length,
-      tickets.length,
+      totalServers,
+      activePlanCount,
+      activeContainerPlans,
+      totalAdminUsers,
+      activeProviders,
     ]
   );
   const handleRefresh = () => {
@@ -2475,37 +3015,75 @@ const Admin: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {overviewCards.map((card) => {
           const Icon = card.icon;
 
           return (
-            <Card key={card.label} className="border-border/60">
-              <CardContent className="flex items-center justify-between gap-4 p-5">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {card.label}
-                  </p>
-                  <p className="text-2xl font-semibold text-foreground">
-                    {card.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {card.description}
-                  </p>
+            <Card
+              key={card.id}
+              className="relative overflow-hidden border border-border/60 bg-card/70 shadow-sm"
+            >
+              <CardContent className="space-y-4 p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                        {card.label}
+                      </span>
+                      {card.badge ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase tracking-wide"
+                        >
+                          {card.badge}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-semibold text-foreground">
+                        {card.value}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-xl p-3 ring-2 ring-inset",
+                      card.accentClass
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
                 </div>
-                <span className="rounded-full bg-muted p-2 text-muted-foreground">
-                  <Icon className="h-5 w-5" />
-                </span>
+                <p className="text-sm text-muted-foreground">{card.helper}</p>
+                {card.meta ? (
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                    {card.meta.map((meta) => (
+                      <span key={meta} className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                        {meta}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           );
         })}
       </div>
 
+      <div className="rounded-2xl border border-border/60 bg-card/70 p-3 shadow-sm">
+        <AdminSectionNav
+          active={activeTab}
+          onSelect={(section) => handleTabChange(section)}
+          badges={sectionBadges}
+        />
+      </div>
+
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        className="space-y-6"
+        className="space-y-10"
       >
         <div className="space-y-6">
           <TabsContent value="dashboard" id="dashboard">

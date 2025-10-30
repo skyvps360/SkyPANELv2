@@ -10,6 +10,7 @@ import {
   getRateLimitHealthCheck,
   validateRateLimitConfiguration,
 } from "../services/rateLimitConfigValidator.js";
+import { listActiveRateLimitOverrides } from "../services/rateLimitOverrideService.js";
 import { getCurrentMetrics } from "../services/rateLimitMetrics.js";
 import { config } from "../config/index.js";
 import { query } from "../lib/database.js";
@@ -167,10 +168,11 @@ router.get("/detailed", (req: Request, res: Response) => {
 /**
  * Rate limiting specific health check
  */
-router.get("/rate-limiting", (req: Request, res: Response) => {
+router.get("/rate-limiting", async (req: Request, res: Response) => {
   try {
     const health = getRateLimitHealthCheck();
     const validation = validateRateLimitConfiguration();
+    const overrides = await listActiveRateLimitOverrides();
 
     res.status(health.status === "error" ? 503 : 200).json({
       success: health.status !== "error",
@@ -198,6 +200,16 @@ router.get("/rate-limiting", (req: Request, res: Response) => {
           )} minutes`,
         },
         trustProxy: config.rateLimiting.trustProxy,
+        rawLimits: {
+          anonymous: config.rateLimiting.anonymousMaxRequests,
+          authenticated: config.rateLimiting.authenticatedMaxRequests,
+          admin: config.rateLimiting.adminMaxRequests,
+        },
+        windows: {
+          anonymousMs: config.rateLimiting.anonymousWindowMs,
+          authenticatedMs: config.rateLimiting.authenticatedWindowMs,
+          adminMs: config.rateLimiting.adminWindowMs,
+        },
       },
 
       validation: {
@@ -212,6 +224,22 @@ router.get("/rate-limiting", (req: Request, res: Response) => {
         limitsConfigured: health.rateLimiting.limitsConfigured,
         metricsEnabled: health.rateLimiting.metricsEnabled,
       },
+      overrides: overrides.map((override) => ({
+        id: override.id,
+        userId: override.userId,
+        userEmail: override.userEmail,
+        userName: override.userName,
+        maxRequests: override.maxRequests,
+        windowMs: override.windowMs,
+        reason: override.reason,
+        createdBy: override.createdBy,
+        createdByEmail: override.createdByEmail,
+        createdByName: override.createdByName,
+        expiresAt: override.expiresAt ? override.expiresAt.toISOString() : null,
+        createdAt: override.createdAt.toISOString(),
+        updatedAt: override.updatedAt.toISOString(),
+      })),
+      overridesCount: overrides.length,
     });
   } catch (error) {
     console.error("Rate limiting health check failed:", error);
