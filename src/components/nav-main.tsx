@@ -1,3 +1,4 @@
+import * as React from "react"
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -24,6 +25,38 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
+const NAV_GROUP_STORAGE_PREFIX = "nav-main-open-groups"
+
+type NavGroupState = Record<string, boolean>
+
+const loadStoredGroupState = (key: string): NavGroupState => {
+  if (typeof window === "undefined") {
+    return {}
+  }
+
+  const raw = window.localStorage.getItem(key)
+  if (!raw) {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as NavGroupState
+    return parsed && typeof parsed === "object" ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const areGroupStatesEqual = (a: NavGroupState, b: NavGroupState) => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) {
+    return false
+  }
+
+  return aKeys.every((key) => a[key] === b[key])
+}
+
 export function NavMain({
   items,
   label = "Platform",
@@ -48,6 +81,58 @@ export function NavMain({
 }) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
+  const storageKey = React.useMemo(() => {
+    const safeLabel = label?.toLowerCase().replace(/\s+/g, "-") ?? "default"
+    return `${NAV_GROUP_STORAGE_PREFIX}:${safeLabel}`
+  }, [label])
+
+  const [openGroups, setOpenGroups] = React.useState<NavGroupState>(() =>
+    loadStoredGroupState(storageKey)
+  )
+
+  React.useEffect(() => {
+    const storedState = loadStoredGroupState(storageKey)
+    setOpenGroups((prev) => (areGroupStatesEqual(prev, storedState) ? prev : storedState))
+  }, [storageKey])
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(openGroups))
+  }, [openGroups, storageKey])
+
+  const handleGroupToggle = React.useCallback(
+    (key: string, nextOpen: boolean) => {
+      setOpenGroups((prev) => {
+        if (prev[key] === nextOpen) {
+          return prev
+        }
+
+        return { ...prev, [key]: nextOpen }
+      })
+    },
+    [setOpenGroups]
+  )
+
+  React.useEffect(() => {
+    setOpenGroups((prev) => {
+      let changed = false
+      const next: NavGroupState = { ...prev }
+
+      items.forEach((item) => {
+        const itemKey = item.url || item.title
+        const isItemActive = item.isActive || item.items?.some((sub) => sub.isActive)
+        if (isItemActive && !next[itemKey]) {
+          next[itemKey] = true
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [items])
 
   return (
     <SidebarGroup>
@@ -55,6 +140,9 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => {
           const isItemActive = item.isActive || item.items?.some((sub) => sub.isActive)
+          const itemKey = item.url || item.title
+          const persistedState = openGroups[itemKey]
+          const openValue = isItemActive ? true : persistedState ?? false
 
           return (
             <SidebarMenuItem key={item.title}>
@@ -105,7 +193,11 @@ export function NavMain({
                   </Popover>
                 ) : (
                   // Expanded state: Show normal collapsible
-                  <Collapsible asChild defaultOpen={isItemActive}>
+                  <Collapsible
+                    asChild
+                    open={openValue}
+                    onOpenChange={(nextOpen) => handleGroupToggle(itemKey, nextOpen)}
+                  >
                     <>
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
