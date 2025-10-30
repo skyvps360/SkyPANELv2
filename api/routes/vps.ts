@@ -1401,24 +1401,80 @@ router.get("/digitalocean/images", async (req: Request, res: Response) => {
       "../services/DigitalOceanService.js"
     );
 
-    const typeFilter = req.query.type as string | undefined;
+    const requestedType =
+      typeof req.query.type === "string" ? req.query.type.toLowerCase() : undefined;
 
-    let images = await digitalOceanService.getDigitalOceanImages(apiToken);
+    const serviceType: "distribution" | "application" | undefined =
+      requestedType === "distribution" || requestedType === "application"
+        ? (requestedType as "distribution" | "application")
+        : undefined;
 
-    if (typeFilter) {
-      const filterLower = typeFilter.toLowerCase();
+    let images = await digitalOceanService.getDigitalOceanImages(
+      apiToken,
+      serviceType
+    );
+
+    if (requestedType) {
       images = images.filter((img: any) => {
-        if (filterLower === "distribution") {
+        const imageType = typeof img.type === "string" ? img.type.toLowerCase() : "";
+        const status = typeof img.status === "string" ? img.status.toLowerCase() : "";
+        const hasUsableSlug = typeof img.slug === "string" && img.slug.trim().length > 0;
+        const slugLower = typeof img.slug === "string" ? img.slug.toLowerCase() : "";
+        const nameLower = typeof img.name === "string" ? img.name.toLowerCase() : "";
+        const descriptionLower = typeof img.description === "string" ? img.description.toLowerCase() : "";
+
+        if (requestedType === "distribution") {
+          // Treat DigitalOcean "distribution" results as droplet OS images; the API
+          // reports them as snapshot/base assets rather than a dedicated type.
+          const isDropletBaseImage =
+            imageType === "base" ||
+            imageType === "distribution" ||
+            imageType === "snapshot";
+
+          // Filter out vendor-tuned AI/GPU images so only vanilla OS options surface.
+          const containsGpuOrAiVariant = (() => {
+            const gpuIndicators = [
+              slugLower.includes("-gpu"),
+              slugLower.includes("gpu-"),
+              slugLower.endsWith("gpu"),
+              slugLower.includes("nvidia"),
+              slugLower.includes("amd"),
+              slugLower.includes("ai-ml"),
+              slugLower.includes("ml-ready"),
+              slugLower.includes("ai-ready"),
+              slugLower.includes("ml-") && !slugLower.includes("almalinux"),
+              nameLower.includes("gpu "),
+              nameLower.includes("gpu-ready"),
+              nameLower.includes("ai/ml"),
+              nameLower.includes("ai ml"),
+              nameLower.includes("ai-ready"),
+              nameLower.includes("ml ready"),
+              nameLower.includes("ml-ready"),
+              descriptionLower.includes("gpu"),
+              descriptionLower.includes("ai/ml"),
+              descriptionLower.includes("ai ml"),
+            ];
+            return gpuIndicators.some(Boolean);
+          })();
+
           return (
-            img.type === "base" || (img.type === "snapshot" && img.public)
+            isDropletBaseImage &&
+            img.public &&
+            hasUsableSlug &&
+            status !== "retired" &&
+            !containsGpuOrAiVariant
           );
         }
-        if (filterLower === "application") {
-          return img.type === "snapshot" && !img.public;
+
+        if (requestedType === "application") {
+          const isLegacyApplicationSnapshot = imageType === "snapshot" && !img.public;
+          return imageType === "application" || isLegacyApplicationSnapshot;
         }
-        if (filterLower === "custom") {
-          return img.type === "custom";
+
+        if (requestedType === "custom") {
+          return imageType === "custom";
         }
+
         return true;
       });
     }
