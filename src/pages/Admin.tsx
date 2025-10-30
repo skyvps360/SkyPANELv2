@@ -51,6 +51,7 @@ import { ContactCategoryManager } from "@/components/admin/ContactCategoryManage
 import { ContactMethodManager } from "@/components/admin/ContactMethodManager";
 import PlatformAvailabilityManager from "@/components/admin/PlatformAvailabilityManager";
 import { RegionAccessManager } from "@/components/admin/RegionAccessManager";
+import MarketplaceManager from "@/components/admin/MarketplaceManager";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,7 @@ type AdminSection =
   | "containers"
   | "servers"
   | "providers"
+  | "marketplace"
   | "regions"
   | "stackscripts"
   | "networking"
@@ -153,6 +155,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "containers",
   "servers",
   "providers",
+  "marketplace",
   "regions",
   "stackscripts",
   "networking",
@@ -5850,6 +5853,9 @@ const Admin: React.FC = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </TabsContent>
+          <TabsContent value="marketplace" id="marketplace">
+            <MarketplaceManager token={token || ""} />
           </TabsContent>
           <TabsContent value="regions" id="regions">
             <RegionAccessManager token={token || ""} />

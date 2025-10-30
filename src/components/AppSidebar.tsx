@@ -92,6 +92,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
               "networking",
               "stackscripts",
               "providers",
+              "marketplace",
               "regions",
             ].includes(activeAnchor),
             items: [
@@ -99,6 +100,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
               { title: "Servers", url: `/admin#servers`, isActive: activeAnchor === "servers" },
               { title: "Networking", url: `/admin#networking`, isActive: activeAnchor === "networking" },
               { title: "StackScripts", url: `/admin#stackscripts`, isActive: activeAnchor === "stackscripts" },
+              { title: "Marketplace", url: `/admin#marketplace`, isActive: activeAnchor === "marketplace" },
               { title: "Regions", url: `/admin#regions`, isActive: activeAnchor === "regions" },
               { title: "Providers", url: `/admin#providers`, isActive: activeAnchor === "providers" },
             ],

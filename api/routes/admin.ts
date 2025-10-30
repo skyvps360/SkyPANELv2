@@ -32,6 +32,10 @@ import {
   normalizeRegionList,
   parseStoredAllowedRegions,
 } from "../lib/providerRegions.js";
+import {
+  normalizeMarketplaceSlugs,
+  parseStoredAllowedMarketplaceApps,
+} from "../lib/providerMarketplace.js";
 
 const router = express.Router();
 
@@ -1216,6 +1220,263 @@ router.put(
       res
         .status(500)
         .json({ error: err.message || "Failed to update provider regions" });
+    }
+  }
+);
+
+// Fetch provider marketplace configuration
+router.get(
+  "/providers/:id/marketplace",
+  authenticateToken,
+  requireAdmin,
+  [param("id").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const providerResult = await query(
+        `SELECT id, name, type, api_key_encrypted, allowed_marketplace_apps
+           FROM service_providers
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      const provider = providerResult.rows[0];
+      const providerType = provider.type as string;
+
+      if (providerType !== "digitalocean") {
+        return res
+          .status(400)
+          .json({ error: "Marketplace management is only supported for DigitalOcean" });
+      }
+
+      const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
+      if (!token) {
+        return res.status(503).json({ error: "Provider credentials not available" });
+      }
+
+      let allowedSlugs: string[] = [];
+      try {
+        const overridesResult = await query(
+          "SELECT app_slug FROM provider_marketplace_overrides WHERE provider_id = $1",
+          [id]
+        );
+
+        if (overridesResult.rows.length > 0) {
+          allowedSlugs = normalizeMarketplaceSlugs(
+            overridesResult.rows
+              .map((row) => row.app_slug)
+              .filter((value): value is string => typeof value === "string")
+          );
+        }
+      } catch (overrideErr) {
+        if (!isMissingTableError(overrideErr)) {
+          throw overrideErr;
+        }
+      }
+
+      if (allowedSlugs.length === 0) {
+        allowedSlugs = parseStoredAllowedMarketplaceApps(
+          provider.allowed_marketplace_apps ?? null
+        );
+      }
+
+      const mode: "default" | "custom" = allowedSlugs.length > 0 ? "custom" : "default";
+
+      const apps = await digitalOceanService.get1ClickApps(token);
+
+      const allowedSet = new Set(
+        mode === "custom"
+          ? allowedSlugs
+          : apps
+              .map((app: any) =>
+                typeof app?.slug === "string" ? app.slug.trim().toLowerCase() : ""
+              )
+              .filter(Boolean)
+      );
+
+      const categories: Record<string, number> = {};
+
+      const appsPayload = apps.map((app: any) => {
+        const slug = typeof app?.slug === "string" ? app.slug.trim().toLowerCase() : "";
+        const category = typeof app?.category === "string" && app.category.trim().length > 0
+          ? app.category
+          : "Other";
+
+        categories[category] = (categories[category] || 0) + 1;
+
+        return {
+          ...app,
+          category,
+          slug: app.slug,
+          allowed: slug ? allowedSet.has(slug) : false,
+        };
+      });
+
+      res.json({
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          type: providerType,
+        },
+        mode,
+        allowedApps: allowedSlugs,
+        apps: appsPayload,
+        categories,
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error("Admin provider marketplace fetch error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to fetch provider marketplace apps" });
+    }
+  }
+);
+
+// Update provider marketplace allowlist
+router.put(
+  "/providers/:id/marketplace",
+  authenticateToken,
+  requireAdmin,
+  [
+    param("id").isUUID(),
+    body("mode").optional().isString(),
+    body("apps").optional().isArray(),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const modeRaw =
+        typeof req.body.mode === "string" ? req.body.mode.toLowerCase().trim() : "custom";
+      const mode: "default" | "custom" = modeRaw === "default" ? "default" : "custom";
+
+      const providerResult = await query(
+        `SELECT id, name, type, api_key_encrypted
+           FROM service_providers
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+
+      if (providerResult.rows.length === 0) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      const provider = providerResult.rows[0];
+      const providerType = provider.type as string;
+
+      if (providerType !== "digitalocean") {
+        return res
+          .status(400)
+          .json({ error: "Marketplace management is only supported for DigitalOcean" });
+      }
+
+      let requestedApps: string[] = [];
+
+      if (mode === "custom") {
+        if (!Array.isArray(req.body.apps)) {
+          return res
+            .status(400)
+            .json({ error: "apps must be an array when mode is custom" });
+        }
+
+        requestedApps = normalizeMarketplaceSlugs(
+          req.body.apps.filter((value: unknown): value is string => typeof value === "string")
+        );
+
+        if (requestedApps.length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Select at least one marketplace app or switch to default mode" });
+        }
+      }
+
+      const token = await normalizeProviderToken(provider.id, provider.api_key_encrypted);
+      if (!token) {
+        return res.status(503).json({ error: "Provider credentials not available" });
+      }
+
+      const apps = await digitalOceanService.get1ClickApps(token);
+      const validSlugs = new Set(
+        apps
+          .map((app: any) =>
+            typeof app?.slug === "string" ? app.slug.trim().toLowerCase() : ""
+          )
+          .filter(Boolean)
+      );
+
+      const invalidSelections = requestedApps.filter((slug) => !validSlugs.has(slug));
+      if (invalidSelections.length > 0) {
+        return res.status(400).json({
+          error: "One or more selected marketplace apps are not available",
+          invalidApps: invalidSelections,
+        });
+      }
+
+      const payloadJson =
+        mode === "custom" ? JSON.stringify(requestedApps) : JSON.stringify([]);
+
+      await query("BEGIN");
+      try {
+        await query(
+          "DELETE FROM provider_marketplace_overrides WHERE provider_id = $1",
+          [id]
+        );
+
+        if (mode === "custom") {
+          for (const slug of requestedApps) {
+            await query(
+              `INSERT INTO provider_marketplace_overrides (provider_id, app_slug)
+               VALUES ($1, $2)
+               ON CONFLICT (provider_id, app_slug)
+               DO UPDATE SET updated_at = NOW()`,
+              [id, slug]
+            );
+          }
+        }
+
+        await query(
+          "UPDATE service_providers SET allowed_marketplace_apps = $2::jsonb, updated_at = NOW() WHERE id = $1",
+          [id, payloadJson]
+        );
+
+        await query("COMMIT");
+      } catch (txnErr) {
+        await query("ROLLBACK");
+        throw txnErr;
+      }
+
+      ProviderResourceCache.invalidateResource(id, "marketplace");
+
+      res.json({
+        success: true,
+        mode,
+        allowedApps: requestedApps,
+        message:
+          mode === "custom"
+            ? `Configured ${requestedApps.length} marketplace app${requestedApps.length === 1 ? "" : "s"}`
+            : "Reverted to provider defaults",
+      });
+    } catch (err: any) {
+      console.error("Admin provider marketplace update error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to update provider marketplace apps" });
     }
   }
 );

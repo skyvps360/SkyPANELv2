@@ -28,10 +28,69 @@ import {
   parseStoredAllowedRegions,
   shouldFilterByAllowedRegions,
 } from "../lib/providerRegions.js";
+import {
+  normalizeMarketplaceSlugs,
+  parseStoredAllowedMarketplaceApps,
+  shouldFilterByAllowedMarketplaceApps,
+} from "../lib/providerMarketplace.js";
 
 const router = express.Router();
 
 router.use(authenticateToken, requireOrganization);
+
+const normalizeMarketplaceSlug = (value: unknown): string =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const isMarketplaceOverridesTableMissing = (err: unknown): boolean => {
+  const message = String((err as any)?.message || "").toLowerCase();
+  return (
+    message.includes("provider_marketplace_overrides") &&
+    (message.includes("does not exist") ||
+      message.includes("not exist") ||
+      message.includes("not find") ||
+      message.includes("could not find"))
+  );
+};
+
+async function loadAllowedMarketplaceSlugs(
+  providerId: string | null
+): Promise<string[]> {
+  if (!providerId) {
+    return [];
+  }
+
+  try {
+    const overridesResult = await query(
+      "SELECT app_slug FROM provider_marketplace_overrides WHERE provider_id = $1",
+      [providerId]
+    );
+
+    if (overridesResult.rows.length > 0) {
+      return normalizeMarketplaceSlugs(
+        overridesResult.rows
+          .map((row) => row.app_slug)
+          .filter((value): value is string => typeof value === "string")
+      );
+    }
+  } catch (err) {
+    if (!isMarketplaceOverridesTableMissing(err)) {
+      throw err;
+    }
+  }
+
+  const fallbackResult = await query(
+    "SELECT allowed_marketplace_apps FROM service_providers WHERE id = $1",
+    [providerId]
+  );
+
+  if (fallbackResult.rows.length > 0) {
+    return parseStoredAllowedMarketplaceApps(
+      fallbackResult.rows[0]?.allowed_marketplace_apps ?? null
+    );
+  }
+
+  return [];
+}
 
 const DEFAULT_RDNS_BASE_DOMAIN = "ip.rev.skyvps360.xyz";
 
@@ -1253,11 +1312,17 @@ router.get("/linode/ssh-keys", async (req: Request, res: Response) => {
 // Get DigitalOcean marketplace apps (1-Click applications)
 router.get(
   "/digitalocean/marketplace",
-  async (_req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
+      const providerIdParam =
+        typeof req.query.providerId === "string" && req.query.providerId.trim().length > 0
+          ? req.query.providerId.trim()
+          : undefined;
+
       const apiToken = await resolveProviderTokenOrRespond(
         res,
-        "digitalocean"
+        "digitalocean",
+        providerIdParam
       );
       if (!apiToken) {
         return;
@@ -1269,9 +1334,32 @@ router.get(
 
       const apps = await digitalOceanService.get1ClickApps(apiToken);
 
+      let providerId: string | null = providerIdParam ?? null;
+      if (!providerId) {
+        const providerInfo = await getProviderTokenByType("digitalocean");
+        providerId = providerInfo?.providerId ?? null;
+      }
+
+      const allowedSlugs = await loadAllowedMarketplaceSlugs(providerId);
+      const filterByAllowed = shouldFilterByAllowedMarketplaceApps(allowedSlugs);
+      const allowedSet = new Set(allowedSlugs);
+
+      const filteredApps = filterByAllowed
+        ? apps.filter((app: any) => {
+            const slugMatch = allowedSet.has(normalizeMarketplaceSlug(app?.slug));
+            const imageMatch = allowedSet.has(
+              normalizeMarketplaceSlug((app as any)?.image_slug)
+            );
+            return slugMatch || imageMatch;
+          })
+        : apps;
+
       const categorizedApps: Record<string, any[]> = {};
-      apps.forEach((app: any) => {
-        const category = app.category || "Other";
+      filteredApps.forEach((app: any) => {
+        const category =
+          typeof app?.category === "string" && app.category.trim().length > 0
+            ? app.category
+            : "Other";
         if (!categorizedApps[category]) {
           categorizedApps[category] = [];
         }
@@ -1279,9 +1367,9 @@ router.get(
       });
 
       res.json({
-        apps,
+        apps: filteredApps,
         categorized: categorizedApps,
-        total: apps.length,
+        total: filteredApps.length,
       });
     } catch (err: any) {
       console.error("DigitalOcean marketplace fetch error:", err);
@@ -3064,24 +3152,46 @@ router.post("/", async (req: Request, res: Response) => {
           return;
         }
         
-        // Fetch marketplace apps to validate
+        const allowedMarketplaceSlugs = await loadAllowedMarketplaceSlugs(provider_id);
+        const enforceMarketplaceAllowlist = shouldFilterByAllowedMarketplaceApps(
+          allowedMarketplaceSlugs
+        );
+        const allowedSlugsSet = new Set(allowedMarketplaceSlugs);
+
         const marketplaceApps = await digitalOceanService.get1ClickApps(providerApiToken);
-        const isMarketplaceApp = marketplaceApps.some((app: any) => app.slug === image || app.image_slug === image);
-        
-        if (isMarketplaceApp) {
-          // Validate that the marketplace app exists
-          const app = marketplaceApps.find((a: any) => a.slug === image || a.image_slug === image);
-          
-          if (!app) {
+        const marketplaceMap = new Map<string, any>();
+
+        marketplaceApps.forEach((app: any) => {
+          const slugKey = normalizeMarketplaceSlug(app?.slug);
+          if (slugKey) {
+            marketplaceMap.set(slugKey, app);
+          }
+
+          const imageSlugKey = normalizeMarketplaceSlug((app as any)?.image_slug);
+          if (imageSlugKey) {
+            marketplaceMap.set(imageSlugKey, app);
+          }
+        });
+
+        const normalizedSelection = normalizeMarketplaceSlug(image);
+        const selectedMarketplaceApp = normalizedSelection
+          ? marketplaceMap.get(normalizedSelection)
+          : undefined;
+
+        if (selectedMarketplaceApp) {
+          if (enforceMarketplaceAllowlist && normalizedSelection && !allowedSlugsSet.has(normalizedSelection)) {
             res.status(400).json({
-              error: `Marketplace app "${image}" not found`,
-              code: ErrorCodes.MARKETPLACE_APP_INVALID
+              error: `Marketplace app "${image}" is not enabled for provisioning`,
+              code: ErrorCodes.MARKETPLACE_APP_INVALID,
             });
             return;
           }
-          
-          // Log marketplace app selection
-          console.log(`Creating DigitalOcean VPS with marketplace app: ${app.name || image} in region ${regionToUse}`);
+
+          console.log(
+            `Creating DigitalOcean VPS with marketplace app: ${
+              selectedMarketplaceApp.name || image
+            } in region ${regionToUse}`
+          );
         }
       } catch (validationErr: any) {
         // Log validation error but don't fail the request
