@@ -174,10 +174,36 @@ export interface DigitalOceanMarketplaceApp {
   name: string;
   description: string;
   category: string;
+  categories?: string[];
   image_slug: string;
   compatible_images?: string[];
   type: string;
+  badge?: string;
+  vendor?: string;
+  links?: Record<string, any>;
 }
+
+type RawDigitalOcean1ClickApp = {
+  slug?: string;
+  type?: string;
+  name?: string;
+  description?: string;
+  summary?: string;
+  group_description?: string;
+  short_description?: string;
+  categories?: unknown;
+  category?: string;
+  badge?: string;
+  vendor?: string;
+  vendor_name?: string;
+  image_slug?: string;
+  icon_slug?: string;
+  icon?: string;
+  compatible_images?: unknown;
+  compatible_distro_slugs?: unknown;
+  links?: Record<string, any>;
+  [key: string]: unknown;
+};
 
 class DigitalOceanService {
   private readonly baseUrl = 'https://api.digitalocean.com/v2';
@@ -948,104 +974,418 @@ class DigitalOceanService {
         throw error;
       }
 
-      const data = await this.makeRequest<{ 
-        '1_clicks': Array<{
-          slug: string;
-          type: string;
-        }>
+      const data = await this.makeRequest<{
+        '1_clicks': RawDigitalOcean1ClickApp[];
       }>(
         `${this.baseUrl}/1-clicks?type=droplet`,
         { method: 'GET' },
         apiToken
       );
 
-      // Transform API response to MarketplaceApp format
-      return (data['1_clicks'] || []).map(app => ({
-        slug: app.slug,
-        name: this.formatAppName(app.slug),
-        description: this.getAppDescription(app.slug),
-        category: this.getAppCategory(app.slug),
-        image_slug: app.slug,
-        compatible_images: [],
-        type: app.type,
-      }));
+      const apps = Array.isArray(data['1_clicks']) ? data['1_clicks'] : [];
+
+      return apps
+        .map((app) => {
+          const normalizedSlug = this.normalizeString(app.slug)?.toLowerCase();
+          if (!normalizedSlug) {
+            return null;
+          }
+
+          const name =
+            this.normalizeString(app.name) ||
+            this.formatAppName(normalizedSlug);
+
+          const description =
+            this.normalizeString(app.group_description) ||
+            this.normalizeString(app.short_description) ||
+            this.normalizeString(app.summary) ||
+            this.normalizeString(app.description) ||
+            this.getAppDescription(normalizedSlug);
+
+          let categoriesList: string[] = Array.isArray(app.categories)
+            ? (app.categories as unknown[])
+                .map((category) => this.normalizeCategory(category))
+                .filter((category): category is string => Boolean(category))
+            : [];
+
+          const explicitCategory = this.normalizeCategory(app.category);
+          if (explicitCategory && !categoriesList.includes(explicitCategory)) {
+            categoriesList = [explicitCategory, ...categoriesList];
+          }
+
+          const uniqueCategories = categoriesList.filter(
+            (value, index, array) => array.indexOf(value) === index
+          );
+          const primaryCategory =
+            uniqueCategories[0] || this.getAppCategory(normalizedSlug) || 'Other';
+
+          const compatibleImages = Array.isArray(app.compatible_images)
+            ? (app.compatible_images as unknown[])
+                .map((value) => this.normalizeString(value))
+                .filter((value): value is string => Boolean(value))
+            : Array.isArray(app.compatible_distro_slugs)
+              ? (app.compatible_distro_slugs as unknown[])
+                  .map((value) => this.normalizeString(value))
+                  .filter((value): value is string => Boolean(value))
+              : undefined;
+
+          const imageSlug =
+            this.normalizeString(app.image_slug) ||
+            this.normalizeString(app.icon_slug) ||
+            this.normalizeString(app.icon) ||
+            normalizedSlug;
+
+          const vendor =
+            this.normalizeString(app.vendor_name) ||
+            this.normalizeString(app.vendor);
+
+          const links =
+            app.links && typeof app.links === 'object' ? (app.links as Record<string, any>) : undefined;
+
+          return {
+            slug: normalizedSlug,
+            type: this.normalizeString(app.type) || 'droplet',
+            name,
+            description,
+            category: primaryCategory,
+            categories: uniqueCategories.length > 0 ? uniqueCategories : undefined,
+            image_slug: imageSlug,
+            compatible_images: compatibleImages,
+            badge: this.normalizeString(app.badge),
+            vendor,
+            links,
+          } as DigitalOceanMarketplaceApp;
+        })
+        .filter((app): app is DigitalOceanMarketplaceApp => Boolean(app));
     } catch (error: any) {
-      // Log detailed error information
       if (error.status) {
-        console.error(`Error fetching DigitalOcean 1-Click Apps: API returned ${error.status} ${error.statusText || ''}`, {
-          status: error.status,
-          message: error.message,
-          data: error.data
-        });
+        console.error(
+          `Error fetching DigitalOcean 1-Click Apps: API returned ${error.status} ${error.statusText || ''}`,
+          {
+            status: error.status,
+            message: error.message,
+            data: error.data,
+          }
+        );
       } else {
         console.error('Error fetching DigitalOcean 1-Click Apps:', error.message || error);
       }
-      
-      // Re-throw error to be handled by caller
+
       throw error;
     }
   }
 
   /**
    * Format app slug into human-readable name
-   * Example: "wordpress-20-04" -> "WordPress 20 04"
+   * Uses proper names for known applications
    */
   private formatAppName(slug: string): string {
-    // Split on hyphens, capitalize words, handle version numbers
+    // Known app name mappings for proper formatting
+    const nameMap: Record<string, string> = {
+      // AI/ML Tools
+      'sharklabs-openwebui': 'OpenWebUI',
+      'openwebui': 'OpenWebUI',
+      'ollama': 'Ollama',
+      'jupyter': 'Jupyter Notebook',
+      'jupyternotebook': 'Jupyter Notebook',
+      
+      // VPN/Security
+      'sharklabs-piholevpn': 'Pi-hole + VPN',
+      'pihole': 'Pi-hole',
+      'openvpn': 'OpenVPN',
+      'wireguard': 'WireGuard',
+      
+      // Development Tools
+      'sharklabs-counterstrike2': 'Counter-Strike 2 Server',
+      'sharklabs-erpodoo': 'Odoo ERP',
+      'sharklabs-conduktorconsole': 'Conduktor Console',
+      'sharklabs-foldinghome': 'Folding@home',
+      'sharklabs-ollamawithopenwe': 'Ollama with OpenWebUI',
+      
+      // Popular Apps
+      'wordpress': 'WordPress',
+      'nextcloud': 'Nextcloud',
+      'docker': 'Docker',
+      'nginx': 'Nginx',
+      'apache': 'Apache',
+      'mysql': 'MySQL',
+      'postgresql': 'PostgreSQL',
+      'mongodb': 'MongoDB',
+      'redis': 'Redis',
+      'nodejs': 'Node.js',
+      'lemp': 'LEMP Stack',
+      'lamp': 'LAMP Stack',
+      'grafana': 'Grafana',
+      'prometheus': 'Prometheus',
+      'elasticsearch': 'Elasticsearch',
+      'kibana': 'Kibana',
+      'logstash': 'Logstash',
+      'jenkins': 'Jenkins',
+      'gitlab': 'GitLab',
+      'mattermost': 'Mattermost',
+      'rocketchat': 'Rocket.Chat',
+      'jitsi': 'Jitsi Meet',
+      'plex': 'Plex Media Server',
+      'jellyfin': 'Jellyfin',
+      'minecraft': 'Minecraft Server',
+      'terraria': 'Terraria Server',
+      'magento': 'Magento',
+      'prestashop': 'PrestaShop',
+      'drupal': 'Drupal',
+      'joomla': 'Joomla',
+      'ghost': 'Ghost',
+    };
+
+    // Check for exact match first
+    const lowerSlug = slug.toLowerCase();
+    if (nameMap[lowerSlug]) {
+      return nameMap[lowerSlug];
+    }
+
+    // Check for partial matches (for versioned apps)
+    for (const [key, name] of Object.entries(nameMap)) {
+      if (lowerSlug.startsWith(key + '-') || lowerSlug.includes(key)) {
+        // Extract version if present
+        const versionMatch = slug.match(/-(\d+)-?(\d+)?/);
+        if (versionMatch) {
+          const version = versionMatch[2] ? `${versionMatch[1]}.${versionMatch[2]}` : versionMatch[1];
+          return `${name} ${version}`;
+        }
+        return name;
+      }
+    }
+
+    // Fallback: capitalize each word and handle common patterns
     return slug
       .split('-')
       .map(word => {
-        // Keep version numbers as-is (e.g., "20", "04")
+        // Keep version numbers as-is
         if (/^\d+$/.test(word)) return word;
+        // Handle special cases
+        if (word.toLowerCase() === 'js') return 'JS';
+        if (word.toLowerCase() === 'ui') return 'UI';
+        if (word.toLowerCase() === 'api') return 'API';
+        if (word.toLowerCase() === 'cms') return 'CMS';
+        if (word.toLowerCase() === 'vpn') return 'VPN';
+        if (word.toLowerCase() === 'sql') return 'SQL';
         // Capitalize first letter
         return word.charAt(0).toUpperCase() + word.slice(1);
       })
       .join(' ');
   }
 
+  private normalizeString(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private normalizeCategory(value: unknown): string | undefined {
+    const raw = this.normalizeString(value);
+    if (!raw) {
+      return undefined;
+    }
+
+    const hasFormattingHints = /[A-Z]/.test(raw.slice(1)) || raw.includes('/') || raw.includes('&');
+    const sanitized = raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (!sanitized) {
+      return undefined;
+    }
+
+    if (hasFormattingHints && raw === sanitized) {
+      return raw;
+    }
+
+    return sanitized
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => {
+        const upper = part.toUpperCase();
+        if (upper.length <= 3) {
+          return upper;
+        }
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      })
+      .join(' ');
+  }
+
   /**
    * Get category for app based on slug patterns
-   * Uses common naming conventions in DigitalOcean marketplace
+   * Uses specific app mappings and fallback patterns
    */
   private getAppCategory(slug: string): string {
     const slugLower = slug.toLowerCase();
     
+    // Specific app mappings for accurate categorization
+    const categoryMap: Record<string, string> = {
+      // AI/ML Tools
+      'sharklabs-openwebui': 'Development',
+      'openwebui': 'Development',
+      'ollama': 'Development',
+      'jupyter': 'Development',
+      'jupyternotebook': 'Development',
+      'sharklabs-ollamawithopenwe': 'Development',
+      
+      // Security/VPN
+      'sharklabs-piholevpn': 'Security',
+      'pihole': 'Security',
+      'openvpn': 'Security',
+      'wireguard': 'Security',
+      'vault': 'Security',
+      'bitwarden': 'Security',
+      'keycloak': 'Security',
+      'authelia': 'Security',
+      'fail2ban': 'Security',
+      'crowdsec': 'Security',
+      
+      // Business/ERP
+      'sharklabs-erpodoo': 'Productivity',
+      'odoo': 'Productivity',
+      'erpnext': 'Productivity',
+      
+      // Development Tools
+      'sharklabs-conduktorconsole': 'Development',
+      'jenkins': 'Development',
+      'gitlab': 'Development',
+      'gitea': 'Development',
+      'sonarqube': 'Development',
+      'nexus': 'Development',
+      
+      // Scientific Computing
+      'sharklabs-foldinghome': 'Other',
+      'foldinghome': 'Other',
+      
+      // Gaming (actual game servers)
+      'sharklabs-counterstrike2': 'Gaming',
+      'minecraft': 'Gaming',
+      'terraria': 'Gaming',
+      'csgo': 'Gaming',
+      'valheim': 'Gaming',
+      'ark': 'Gaming',
+      'rust': 'Gaming',
+      'gameserver': 'Gaming',
+    };
+
+    // Check for exact matches first
+    if (categoryMap[slugLower]) {
+      return categoryMap[slugLower];
+    }
+
+    // Check for partial matches
+    for (const [key, category] of Object.entries(categoryMap)) {
+      if (slugLower.startsWith(key + '-') || slugLower.includes(key)) {
+        return category;
+      }
+    }
+
+    // Fallback to pattern matching
+    
     // Database apps
     if (slugLower.includes('mysql') || slugLower.includes('postgres') || 
         slugLower.includes('mongodb') || slugLower.includes('redis') ||
-        slugLower.includes('mariadb')) {
+        slugLower.includes('mariadb') || slugLower.includes('cassandra') ||
+        slugLower.includes('influxdb') || slugLower.includes('neo4j') ||
+        slugLower.includes('elasticsearch') || slugLower.includes('clickhouse') ||
+        slugLower.includes('couchdb') || slugLower.includes('sqlite')) {
       return 'Databases';
     }
     
     // CMS platforms
     if (slugLower.includes('wordpress') || slugLower.includes('drupal') ||
-        slugLower.includes('joomla') || slugLower.includes('ghost')) {
+        slugLower.includes('joomla') || slugLower.includes('ghost') ||
+        slugLower.includes('strapi') || slugLower.includes('directus') ||
+        slugLower.includes('craft') || slugLower.includes('typo3') ||
+        slugLower.includes('wagtail') || slugLower.includes('contentful')) {
       return 'CMS';
     }
     
     // Container platforms
     if (slugLower.includes('docker') || slugLower.includes('kubernetes') ||
-        slugLower.includes('k3s')) {
+        slugLower.includes('k3s') || slugLower.includes('rancher') ||
+        slugLower.includes('portainer') || slugLower.includes('containerd')) {
       return 'Containers';
     }
     
-    // Development frameworks
+    // Development frameworks and tools
     if (slugLower.includes('node') || slugLower.includes('ruby') ||
         slugLower.includes('python') || slugLower.includes('php') ||
-        slugLower.includes('django') || slugLower.includes('rails')) {
+        slugLower.includes('django') || slugLower.includes('rails') ||
+        slugLower.includes('laravel') || slugLower.includes('symfony') ||
+        slugLower.includes('flask') || slugLower.includes('fastapi') ||
+        slugLower.includes('express') || slugLower.includes('nextjs') ||
+        slugLower.includes('react') || slugLower.includes('vue') ||
+        slugLower.includes('angular') || slugLower.includes('nuxt') ||
+        slugLower.includes('gatsby') || slugLower.includes('svelte') ||
+        slugLower.includes('golang') || slugLower.includes('java') ||
+        slugLower.includes('dotnet') || slugLower.includes('spring') ||
+        slugLower.includes('vscode') || slugLower.includes('code-server')) {
       return 'Development';
     }
     
-    // Monitoring & Analytics
+    // Monitoring, Analytics & Observability
     if (slugLower.includes('monitoring') || slugLower.includes('grafana') ||
-        slugLower.includes('prometheus') || slugLower.includes('elk')) {
+        slugLower.includes('prometheus') || slugLower.includes('elk') ||
+        slugLower.includes('kibana') || slugLower.includes('logstash') ||
+        slugLower.includes('jaeger') || slugLower.includes('zipkin') ||
+        slugLower.includes('datadog') || slugLower.includes('newrelic') ||
+        slugLower.includes('sentry') || slugLower.includes('uptimerobot') ||
+        slugLower.includes('nagios') || slugLower.includes('zabbix') ||
+        slugLower.includes('collectd') || slugLower.includes('telegraf') ||
+        slugLower.includes('metabase') || slugLower.includes('superset')) {
       return 'Monitoring';
     }
     
-    // Web servers
+    // Web servers and reverse proxies
     if (slugLower.includes('nginx') || slugLower.includes('apache') ||
-        slugLower.includes('caddy')) {
+        slugLower.includes('caddy') || slugLower.includes('traefik') ||
+        slugLower.includes('haproxy') || slugLower.includes('envoy') ||
+        slugLower.includes('lighttpd') || slugLower.includes('httpd') ||
+        (slugLower.includes('lemp') || slugLower.includes('lamp'))) {
       return 'Web Servers';
+    }
+    
+    // E-commerce platforms
+    if (slugLower.includes('magento') || slugLower.includes('shopify') ||
+        slugLower.includes('woocommerce') || slugLower.includes('prestashop') ||
+        slugLower.includes('opencart') || slugLower.includes('bigcommerce') ||
+        slugLower.includes('spree') || slugLower.includes('sylius') ||
+        slugLower.includes('commerce') || slugLower.includes('shop')) {
+      return 'E-commerce';
+    }
+    
+    // Communication & Collaboration
+    if (slugLower.includes('mattermost') || slugLower.includes('rocket') ||
+        slugLower.includes('slack') || slugLower.includes('discord') ||
+        slugLower.includes('matrix') || slugLower.includes('element') ||
+        slugLower.includes('jitsi') || slugLower.includes('bigbluebutton') ||
+        slugLower.includes('nextcloud') || slugLower.includes('owncloud') ||
+        slugLower.includes('seafile') || slugLower.includes('syncthing') ||
+        slugLower.includes('chat') || slugLower.includes('meet')) {
+      return 'Communication';
+    }
+    
+    // Media & Entertainment
+    if (slugLower.includes('plex') || slugLower.includes('jellyfin') ||
+        slugLower.includes('emby') || slugLower.includes('kodi') ||
+        slugLower.includes('subsonic') || slugLower.includes('airsonic') ||
+        slugLower.includes('navidrome') || slugLower.includes('photoprism') ||
+        slugLower.includes('immich') || slugLower.includes('pixelfed') ||
+        slugLower.includes('media') || slugLower.includes('streaming')) {
+      return 'Media';
+    }
+    
+    // Productivity & Office
+    if (slugLower.includes('onlyoffice') || slugLower.includes('collabora') ||
+        slugLower.includes('etherpad') || slugLower.includes('hedgedoc') ||
+        slugLower.includes('bookstack') || slugLower.includes('dokuwiki') ||
+        slugLower.includes('tiddlywiki') || slugLower.includes('outline') ||
+        slugLower.includes('notion') || slugLower.includes('obsidian') ||
+        slugLower.includes('office') || slugLower.includes('wiki')) {
+      return 'Productivity';
     }
     
     return 'Other';
@@ -1053,42 +1393,125 @@ class DigitalOceanService {
 
   /**
    * Get description for app based on slug
-   * Provides basic descriptions for common apps
+   * Provides accurate descriptions for known apps
    */
   private getAppDescription(slug: string): string {
     const descriptions: Record<string, string> = {
+      // AI/ML Tools
+      'sharklabs-openwebui': 'Web interface for running AI models locally with Ollama',
+      'openwebui': 'Web interface for running AI models locally',
+      'ollama': 'Run large language models locally',
+      'jupyter': 'Interactive computing environment for data science',
+      'jupyternotebook': 'Interactive computing environment for data science',
+      'sharklabs-ollamawithopenwe': 'Ollama AI models with web interface',
+      
+      // Security/VPN
+      'sharklabs-piholevpn': 'Network-wide ad blocker with VPN capabilities',
+      'pihole': 'Network-wide ad blocker and DNS sinkhole',
+      'openvpn': 'Open-source VPN solution for secure connections',
+      'wireguard': 'Modern, fast, and secure VPN protocol',
+      'vault': 'Secrets management and data protection platform',
+      'bitwarden': 'Open-source password manager and vault',
+      
+      // Business/ERP
+      'sharklabs-erpodoo': 'Complete business management suite with ERP, CRM, and more',
+      'odoo': 'All-in-one business management software',
+      
+      // Development Tools
+      'sharklabs-conduktorconsole': 'Apache Kafka management and monitoring platform',
+      'jenkins': 'Automation server for CI/CD pipelines',
+      'gitlab': 'Complete DevOps platform with Git repository management',
+      'gitea': 'Lightweight Git service with web interface',
+      
+      // Gaming
+      'sharklabs-counterstrike2': 'Counter-Strike 2 dedicated game server',
+      'minecraft': 'Minecraft dedicated game server',
+      'terraria': 'Terraria dedicated game server',
+      
+      // Scientific Computing
+      'sharklabs-foldinghome': 'Distributed computing for disease research',
+      
+      // CMS
       'wordpress': 'Popular open-source CMS for websites and blogs',
+      'drupal': 'Flexible open-source CMS and framework',
+      'joomla': 'User-friendly CMS for building websites',
+      'ghost': 'Modern publishing platform for blogs and newsletters',
+      'strapi': 'Headless CMS for building APIs quickly',
+      
+      // Containers
       'docker': 'Container platform for building and deploying applications',
+      'kubernetes': 'Container orchestration platform',
+      'rancher': 'Complete container management platform',
+      'portainer': 'Lightweight container management UI',
+      
+      // Databases
       'mongodb': 'NoSQL document database',
       'mysql': 'Open-source relational database',
+      'postgres': 'Advanced open-source relational database',
+      'postgresql': 'Advanced open-source relational database',
+      'redis': 'In-memory data structure store',
+      'mariadb': 'MySQL-compatible relational database',
+      'elasticsearch': 'Distributed search and analytics engine',
+      'influxdb': 'Time series database for metrics and events',
+      
+      // Development Stacks
       'nodejs': 'JavaScript runtime for server-side applications',
       'lemp': 'Linux, Nginx, MySQL, PHP stack',
       'lamp': 'Linux, Apache, MySQL, PHP stack',
+      'django': 'High-level Python web framework',
+      'rails': 'Ruby web application framework',
+      'laravel': 'PHP web application framework',
+      'nextjs': 'React framework for production applications',
+      
+      // Web Servers
       'nginx': 'High-performance web server and reverse proxy',
       'apache': 'Popular open-source web server',
-      'redis': 'In-memory data structure store',
-      'postgres': 'Advanced open-source relational database',
-      'postgresql': 'Advanced open-source relational database',
-      'drupal': 'Open-source CMS and web application framework',
-      'joomla': 'Open-source CMS for publishing web content',
-      'ghost': 'Modern open-source publishing platform',
-      'kubernetes': 'Container orchestration platform',
-      'k3s': 'Lightweight Kubernetes distribution',
+      'caddy': 'Automatic HTTPS web server',
+      'traefik': 'Modern reverse proxy and load balancer',
+      
+      // Monitoring
       'grafana': 'Analytics and monitoring platform',
-      'prometheus': 'Monitoring and alerting toolkit',
+      'prometheus': 'Systems monitoring and alerting toolkit',
+      'elk': 'Elasticsearch, Logstash, and Kibana stack',
+      'nagios': 'IT infrastructure monitoring system',
+      
+      // Communication
+      'mattermost': 'Open-source team collaboration platform',
+      'nextcloud': 'Self-hosted file sync and collaboration platform',
+      'jitsi': 'Open-source video conferencing solution',
+      'rocketchat': 'Open-source team communication platform',
+      
+      // E-commerce
+      'magento': 'Feature-rich e-commerce platform',
+      'woocommerce': 'WordPress e-commerce plugin',
+      'prestashop': 'Open-source e-commerce solution',
+      
+      // Media
+      'plex': 'Media server for streaming content',
+      'jellyfin': 'Free media server software',
+      'photoprism': 'AI-powered photo management',
+      
+      // Programming Languages
       'python': 'Python programming language runtime',
       'ruby': 'Ruby programming language runtime',
       'php': 'PHP programming language runtime',
-      'django': 'High-level Python web framework',
-      'rails': 'Ruby on Rails web application framework',
-      'mariadb': 'Open-source relational database (MySQL fork)',
-      'elk': 'Elasticsearch, Logstash, and Kibana stack',
-      'caddy': 'Modern web server with automatic HTTPS',
+      'k3s': 'Lightweight Kubernetes distribution',
     };
     
     // Try exact match first
-    const baseSlug = slug.split('-')[0].toLowerCase();
-    return descriptions[baseSlug] || 'Pre-configured marketplace application';
+    const lowerSlug = slug.toLowerCase();
+    if (descriptions[lowerSlug]) {
+      return descriptions[lowerSlug];
+    }
+
+    // Try partial matches for versioned apps
+    for (const [key, description] of Object.entries(descriptions)) {
+      if (lowerSlug.startsWith(key + '-') || lowerSlug.includes(key)) {
+        return description;
+      }
+    }
+    
+    return 'Pre-configured marketplace application ready for deployment';
   }
 
   /**

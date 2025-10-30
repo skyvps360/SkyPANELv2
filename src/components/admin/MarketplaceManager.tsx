@@ -20,8 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { RefreshCw, Search, Store, ShieldCheck, Filter } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RefreshCw, Search, Store, ShieldCheck, Filter, Package, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MarketplaceManagerProps {
   token: string;
@@ -75,6 +83,9 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [goToPageInput, setGoToPageInput] = useState("");
 
   const loadProviders = useCallback(async () => {
     if (!token) return;
@@ -93,8 +104,8 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
       const data = await response.json();
       const digitalOceanProviders: ProviderSummary[] = Array.isArray(data.providers)
         ? data.providers.filter((provider: ProviderSummary) =>
-            provider && provider.type?.toLowerCase() === "digitalocean"
-          )
+          provider && provider.type?.toLowerCase() === "digitalocean"
+        )
         : [];
 
       setProviders(digitalOceanProviders);
@@ -141,14 +152,14 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
 
         const mappedApps: MarketplaceApp[] = Array.isArray(data.apps)
           ? data.apps.map((app) => ({
-              ...app,
-              allowed:
-                data.mode === "custom"
-                  ? Boolean(app.allowed)
-                  : normalizedAllowed.size > 0
-                    ? normalizedAllowed.has(normalizeSlug(app.slug))
-                    : true,
-            }))
+            ...app,
+            allowed:
+              data.mode === "custom"
+                ? Boolean(app.allowed)
+                : normalizedAllowed.size > 0
+                  ? normalizedAllowed.has(normalizeSlug(app.slug))
+                  : true,
+          }))
           : [];
 
         setApps(mappedApps);
@@ -209,6 +220,30 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
     });
   }, [apps, categoryFilter, searchTerm]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedApps = filteredApps.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setGoToPageInput(""); // Clear go-to-page input when filters change
+  }, [searchTerm, categoryFilter]);
+
+  // Adjust current page if it's beyond available pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  // Clear go-to-page input when page changes through other navigation
+  useEffect(() => {
+    setGoToPageInput("");
+  }, [currentPage]);
+
   const draftSnapshot = useMemo<BaselineSnapshot>(() => {
     if (mode === "default") {
       return { mode: "default", allowed: [] };
@@ -246,9 +281,9 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
       current.map((app) =>
         app.slug === slug
           ? {
-              ...app,
-              allowed: value,
-            }
+            ...app,
+            allowed: value,
+          }
           : app
       )
     );
@@ -281,9 +316,9 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
         mode === "default"
           ? { mode: "default", apps: [] }
           : {
-              mode: "custom",
-              apps: apps.filter((app) => app.allowed).map((app) => app.slug),
-            };
+            mode: "custom",
+            apps: apps.filter((app) => app.allowed).map((app) => app.slug),
+          };
 
       const response = await fetch(
         buildApiUrl(`/api/admin/providers/${selectedProviderId}/marketplace`),
@@ -338,7 +373,7 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
               Marketplace Controls
             </CardTitle>
             <CardDescription>
-              Allow or block DigitalOcean marketplace applications for provisioning.
+              Allow or block marketplace applications for provisioning.
             </CardDescription>
           </div>
         </div>
@@ -368,10 +403,10 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-foreground">Provider</span>
+        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Provider</label>
               <Select
                 value={selectedProviderId || undefined}
                 onValueChange={setSelectedProviderId}
@@ -380,14 +415,14 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                 <SelectTrigger className="w-full">
                   <SelectValue
                     placeholder={
-                      loadingProviders ? "Loading providers" : "Select a provider"
+                      loadingProviders ? "Loading providers..." : "Select a provider"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
                   {providers.length === 0 ? (
                     <SelectItem value="__none__" disabled>
-                      No DigitalOcean providers
+                      No providers found
                     </SelectItem>
                   ) : (
                     providers.map((provider) => (
@@ -400,46 +435,62 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
               </Select>
             </div>
 
-            <div className="rounded-lg border border-border p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Enforce custom marketplace list
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Enforce custom marketplace list
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Disable to expose every available marketplace app from the upstream provider.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={mode === "custom"}
+                    onCheckedChange={(value) => setMode(value ? "custom" : "default")}
+                    disabled={loadingApps || saving}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={mode === "custom" ? "default" : "secondary"}
+                  className={cn(
+                    "font-medium",
+                    mode === "custom" && allowedCount === 0 && "bg-destructive text-destructive-foreground"
+                  )}
+                >
+                  {mode === "custom"
+                    ? `${allowedCount} app${allowedCount === 1 ? "" : "s"} enabled`
+                    : "All marketplace apps enabled"}
+                </Badge>
+              </div>
+              {mode === "custom" && allowedCount === 0 && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                  <p className="text-sm text-destructive font-medium">
+                    ⚠️ No apps enabled
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Disable to expose every marketplace app from DigitalOcean.
+                  <p className="text-xs text-destructive/80 mt-1">
+                    Select at least one app to keep provisioning enabled.
                   </p>
                 </div>
-                <Switch
-                  checked={mode === "custom"}
-                  onCheckedChange={(value) => setMode(value ? "custom" : "default")}
-                  disabled={loadingApps || saving}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <Badge variant="outline" className="gap-1">
-                {mode === "custom"
-                  ? `${allowedCount} app${allowedCount === 1 ? "" : "s"} enabled`
-                  : "All marketplace apps enabled"}
-              </Badge>
-              {mode === "custom" && allowedCount === 0 && (
-                <p className="text-destructive">
-                  Select at least one app to keep provisioning enabled.
-                </p>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
                 disabled={mode !== "custom" || loadingApps || saving || apps.length === 0}
+                className="justify-start"
               >
-                Enable All
+                Enable All Apps
               </Button>
               <Button
                 type="button"
@@ -447,120 +498,331 @@ const MarketplaceManager: React.FC<MarketplaceManagerProps> = ({ token }) => {
                 size="sm"
                 onClick={handleClearAll}
                 disabled={mode !== "custom" || loadingApps || saving || apps.length === 0}
+                className="justify-start"
               >
-                Disable All
+                Disable All Apps
               </Button>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search marketplace apps"
-                  className="pl-9"
+          <div className="space-y-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search marketplace apps..."
+                    className="pl-9 pr-4 w-80"
+                    disabled={loadingApps}
+                  />
+                </div>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
                   disabled={loadingApps}
-                />
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category === "all" ? "All categories" : category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-                disabled={loadingApps}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category === "all" ? "All categories" : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <ScrollArea className="h-[520px] pr-3 lg:h-[620px]">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {loadingApps ? (
-                  <div className="col-span-full flex items-center justify-center py-10 text-muted-foreground">
-                    Loading marketplace apps...
-                  </div>
-                ) : filteredApps.length === 0 ? (
-                  <div className="col-span-full flex flex-col items-center justify-center gap-2 py-10 text-center text-muted-foreground">
-                    <Filter className="h-5 w-5" />
-                    <p>No marketplace apps match the current filters.</p>
-                    {searchTerm && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => setSearchTerm("")}
-                        className="h-auto p-0"
-                      >
-                        Clear search
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  filteredApps.map((app) => {
-                    const isEnabled = mode === "custom" ? app.allowed : true;
-                    const disabled = mode !== "custom" || saving;
-                    const normalizedCategory = app.category || "Other";
-
-                    return (
-                      <button
-                        key={app.slug}
-                        type="button"
-                        onClick={() => handleToggleApp(app.slug, !app.allowed)}
-                        disabled={disabled}
-                        className={cn(
-                          "relative flex h-full flex-col gap-3 rounded-lg border p-4 text-left transition",
-                          mode === "custom"
-                            ? app.allowed
-                              ? "border-primary/80 bg-primary/5"
-                              : "border-border hover:border-primary/40"
-                            : "border-border"
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary font-semibold">
-                              {app.name?.substring(0, 2).toUpperCase() || "--"}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">
-                                {app.name || app.slug}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {normalizedCategory}
-                              </p>
-                            </div>
-                          </div>
-                          {mode === "custom" && (
-                            <Badge
-                              className={cn(
-                                "pointer-events-none text-xs font-semibold",
-                                isEnabled
-                                  ? "border-primary/70 bg-primary/80 text-primary-foreground"
-                                  : "border-transparent bg-muted text-muted-foreground"
-                              )}
-                            >
-                              {isEnabled ? "Enabled" : "Disabled"}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="line-clamp-3 text-xs text-muted-foreground">
-                          {app.description || "Marketplace application"}
-                        </p>
-                      </button>
-                    );
-                  })
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1">
+                  <Package className="h-3 w-3 mr-1" />
+                  {filteredApps.length} total
+                </Badge>
+                {mode === "custom" && (
+                  <Badge variant="outline" className="text-xs font-medium px-3 py-1">
+                    {allowedCount} enabled
+                  </Badge>
                 )}
               </div>
-            </ScrollArea>
+            </div>
+
+            {loadingApps ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="rounded-full bg-primary/10 p-4">
+                    <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Loading marketplace apps</p>
+                    <p className="text-sm text-muted-foreground">Please wait while we fetch the latest applications...</p>
+                  </div>
+                </div>
+              </div>
+            ) : filteredApps.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
+                <div className="rounded-full bg-muted p-3">
+                  <Filter className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-medium">No marketplace apps found</p>
+                  <p className="text-sm">Try adjusting your search or filter criteria</p>
+                </div>
+                {searchTerm && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSearchTerm("")}
+                    className="mt-2"
+                  >
+                    Clear search
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {mode === "custom" && (
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={paginatedApps.length > 0 && paginatedApps.every(app => app.allowed)}
+                              onCheckedChange={(checked) => {
+                                if (mode === "custom") {
+                                  // Toggle all apps on current page
+                                  paginatedApps.forEach(app => {
+                                    handleToggleApp(app.slug, !!checked);
+                                  });
+                                }
+                              }}
+                              disabled={mode !== "custom" || saving || paginatedApps.length === 0}
+                            />
+                          </TableHead>
+                        )}
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="font-semibold">Application Name</TableHead>
+                        <TableHead className="font-semibold">Category</TableHead>
+                        <TableHead className="font-semibold">Description</TableHead>
+                        <TableHead className="font-semibold text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedApps.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={mode === "custom" ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                            No apps on this page
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedApps.map((app) => {
+                          const isEnabled = mode === "custom" ? app.allowed : true;
+                          const disabled = mode !== "custom" || saving;
+                          const normalizedCategory = app.category || "Other";
+
+                          return (
+                            <TableRow
+                              key={app.slug}
+                              className={cn(
+                                "cursor-pointer transition-colors hover:bg-muted/50",
+                                mode === "custom" && app.allowed && "bg-primary/5",
+                                disabled && "cursor-not-allowed opacity-60"
+                              )}
+                              onClick={() => {
+                                if (!disabled) {
+                                  handleToggleApp(app.slug, !app.allowed);
+                                }
+                              }}
+                            >
+                              {mode === "custom" && (
+                                <TableCell>
+                                  <Checkbox
+                                    checked={app.allowed}
+                                    onCheckedChange={(checked) => handleToggleApp(app.slug, !!checked)}
+                                    disabled={disabled}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </TableCell>
+                              )}
+                              <TableCell>
+                                <div className={cn(
+                                  "flex h-10 w-10 items-center justify-center rounded-lg font-bold text-xs transition-colors",
+                                  isEnabled
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "bg-muted text-muted-foreground"
+                                )}>
+                                  {app.name?.substring(0, 2).toUpperCase() || app.slug?.substring(0, 2).toUpperCase() || "AP"}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium text-foreground">
+                                    {app.name || app.slug}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {app.slug}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs">
+                                  {normalizedCategory}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-md">
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {app.description || "Pre-configured marketplace application ready for deployment"}
+                                </p>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant={isEnabled ? "default" : "secondary"}
+                                  className={cn(
+                                    "text-xs font-semibold",
+                                    isEnabled
+                                      ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                                      : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+                                  )}
+                                >
+                                  {isEnabled ? "Enabled" : "Disabled"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination Controls */}
+                {filteredApps.length > 0 && (
+                  <div className="flex flex-col gap-4 px-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Rows per page:</span>
+                        <Select
+                          value={itemsPerPage.toString()}
+                          onValueChange={(value) => {
+                            setItemsPerPage(Number(value));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="w-16 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Showing {startIndex + 1} to {Math.min(endIndex, filteredApps.length)} of {filteredApps.length} apps
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Go to page input */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Go to page:</span>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              max={totalPages}
+                              value={goToPageInput}
+                              onChange={(e) => setGoToPageInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const pageNum = parseInt(goToPageInput);
+                                  if (pageNum >= 1 && pageNum <= totalPages) {
+                                    setCurrentPage(pageNum);
+                                    setGoToPageInput("");
+                                  }
+                                }
+                              }}
+                              placeholder={`1-${totalPages}`}
+                              className="w-16 h-8 text-center text-sm"
+                              title={`Enter a page number between 1 and ${totalPages}`}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const pageNum = parseInt(goToPageInput);
+                                if (pageNum >= 1 && pageNum <= totalPages) {
+                                  setCurrentPage(pageNum);
+                                  setGoToPageInput("");
+                                }
+                              }}
+                              disabled={!goToPageInput || parseInt(goToPageInput) < 1 || parseInt(goToPageInput) > totalPages}
+                              className="h-8 px-2 text-xs"
+                            >
+                              Go
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </CardContent>
