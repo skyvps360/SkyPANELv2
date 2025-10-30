@@ -426,10 +426,11 @@ export const RateLimitMonitoring: React.FC<RateLimitMonitoringProps> = ({ token 
       const payload: Record<string, unknown> = {
         maxRequests: Number(overrideForm.maxRequests),
         windowMinutes: Number(overrideForm.windowMinutes),
-        reason:
-          overrideForm.reason.trim().length > 0 ? overrideForm.reason.trim() : null,
-        expiresAt: overrideForm.expiresAt ? overrideForm.expiresAt : null,
       };
+
+      if (overrideForm.reason.trim().length > 0) {
+        payload.reason = overrideForm.reason.trim();
+      }
 
       if (overrideForm.expiresAt) {
         const expiresDate = new Date(overrideForm.expiresAt);
@@ -458,7 +459,10 @@ export const RateLimitMonitoring: React.FC<RateLimitMonitoringProps> = ({ token 
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
-        const message = errorBody?.error || 'Failed to save override';
+        const message =
+          errorBody?.error ||
+          (Array.isArray(errorBody?.errors) ? errorBody.errors[0]?.msg || errorBody.errors[0] : null) ||
+          'Failed to save override';
         throw new Error(message);
       }
 
