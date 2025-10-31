@@ -32,6 +32,48 @@ const router = Router();
 router.use(authenticateToken);
 
 /**
+ * Build a provider-safe SSH key label using organization name, user identifier, and key name.
+ * - Spaces are replaced
+ * - Invalid characters are normalized to dashes
+ * - Emails have '@' replaced with '_'
+ * - Final label limited to 64 chars to satisfy Linode constraints
+ */ 
+function sanitizeLabelPart(part: string, replaceAt: boolean = false): string {
+  let s = (part || '').trim();
+  if (replaceAt) s = s.replace(/@/g, '_');
+  s = s.replace(/\s+/g, '-');
+  s = s.replace(/[^a-zA-Z0-9\-_]/g, '-');
+  s = s.replace(/-+/g, '-');
+  s = s.replace(/_+/g, '_');
+  s = s.replace(/^-+/, '').replace(/-+$/, '');
+  s = s.replace(/^_+/, '').replace(/_+$/, '');
+  return s.toLowerCase();
+}
+
+async function getOrganizationName(organizationId?: string): Promise<string | null> {
+  if (!organizationId) return null;
+  try {
+    const result = await query('SELECT name FROM organizations WHERE id = $1 LIMIT 1', [organizationId]);
+    const name = result.rows[0]?.name;
+    return typeof name === 'string' && name.trim().length > 0 ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildProviderKeyLabel(orgId: string | undefined, userEmail: string, userKeyName: string): Promise<string> {
+  const orgName = await getOrganizationName(orgId);
+  const orgPart = sanitizeLabelPart(orgName ?? (orgId ? `org-${orgId}` : 'org-unknown'));
+  const userPart = sanitizeLabelPart(userEmail, true);
+  const keyPart = sanitizeLabelPart(userKeyName);
+  let label = `${orgPart}-${userPart}-${keyPart}`;
+  if (label.length > 64) label = label.slice(0, 64);
+  // Ensure label is not empty after sanitization
+  if (!label || !/[a-z0-9]/.test(label)) label = `key-${Date.now()}`;
+  return label;
+}
+
+/**
  * Generate SSH key fingerprint from public key
  */
 function generateFingerprint(publicKey: string): string {
@@ -225,6 +267,9 @@ router.post('/', [
     let linodeKeyId: string | null = null;
     let digitaloceanKeyId: number | null = null;
 
+    // Build normalized provider label
+    const providerLabel = await buildProviderKeyLabel(req.user.organizationId, req.user.email, name);
+
     // Add to Linode with retry logic
     if (tokens.linode) {
       const tokenPreview = tokens.linode.length > 8 
@@ -234,20 +279,20 @@ router.post('/', [
       console.log('🚀 Attempting to add SSH key to Linode...', {
         hasToken: true,
         tokenPreview,
-        keyName: name,
+        keyName: providerLabel,
         fingerprintPreview: fingerprint.substring(0, 16) + '...'
       });
       
       try {
         const linodeKey = await withRetry(
-          () => linodeService.createSSHKey(tokens.linode!, name, publicKey),
+          () => linodeService.createSSHKey(tokens.linode!, providerLabel, publicKey),
           { maxRetries: 2 }
         );
         linodeKeyId = String(linodeKey.id);
         
         console.log('✅ SSH key added to Linode successfully:', {
           providerId: linodeKeyId,
-          keyName: name
+          keyName: providerLabel
         });
         
         providerResults.push({
@@ -285,20 +330,20 @@ router.post('/', [
       console.log('🚀 Attempting to add SSH key to DigitalOcean...', {
         hasToken: true,
         tokenPreview,
-        keyName: name,
+        keyName: providerLabel,
         fingerprintPreview: fingerprint.substring(0, 16) + '...'
       });
       
       try {
         const doKey = await withRetry(
-          () => digitalOceanService.createSSHKey(tokens.digitalocean!, name, publicKey),
+          () => digitalOceanService.createSSHKey(tokens.digitalocean!, providerLabel, publicKey),
           { maxRetries: 2 }
         );
         digitaloceanKeyId = doKey.id;
         
         console.log('✅ SSH key added to DigitalOcean successfully:', {
           providerId: digitaloceanKeyId,
-          keyName: name
+          keyName: providerLabel
         });
         
         providerResults.push({
@@ -329,7 +374,7 @@ router.post('/', [
     
     // Log final synchronization state
     console.log('📊 SSH key synchronization complete:', {
-      keyName: name,
+      keyName: providerLabel,
       totalProviders: providerResults.length,
       successful: providerResults.filter(r => r.success).length,
       failed: providerResults.filter(r => !r.success).length,
