@@ -13,6 +13,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowRight,
   Box,
   Boxes,
   Calendar,
@@ -22,13 +23,9 @@ import {
   DollarSign,
   Edit,
   FileCode,
-  Gauge,
   Globe,
   HelpCircle,
-  LayoutDashboard,
   LifeBuoy,
-  MapPin,
-  Network,
   Palette,
   Plus,
   RefreshCw,
@@ -37,7 +34,6 @@ import {
   ServerCog,
   Settings,
   Shield,
-  Sparkles,
   Ticket,
   Trash2,
   Users,
@@ -110,9 +106,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { buildApiUrl } from "@/lib/api";
+import { BRAND_NAME } from "@/lib/brand";
 import type { ThemePreset } from "@/theme/presets";
 import {
   DndContext,
@@ -228,106 +225,22 @@ const TICKET_PRIORITY_META: Record<
   },
 };
 
-const ADMIN_SECTION_META: Record<
-  AdminSection,
-  { label: string; description: string; icon: LucideIcon }
-> = {
-  dashboard: {
-    label: "Overview",
-    description: "Key metrics & quick links",
-    icon: LayoutDashboard,
-  },
-  support: {
-    label: "Support",
-    description: "Ticket queue & replies",
-    icon: LifeBuoy,
-  },
-  "vps-plans": {
-    label: "VPS Plans",
-    description: "Catalog pricing & backups",
-    icon: ServerCog,
-  },
-  "container-plans": {
-    label: "Container Plans",
-    description: "Blueprint specs & pricing",
-    icon: Box,
-  },
-  containers: {
-    label: "Containers",
-    description: "Managed workloads",
-    icon: Boxes,
-  },
-  servers: {
-    label: "Servers",
-    description: "Provisioned instances",
-    icon: Server,
-  },
-  providers: {
-    label: "Providers",
-    description: "API integrations",
-    icon: Globe,
-  },
-  marketplace: {
-    label: "Marketplace",
-    description: "App overrides & ordering",
-    icon: Sparkles,
-  },
-  regions: {
-    label: "Regions",
-    description: "Availability controls",
-    icon: MapPin,
-  },
-  stackscripts: {
-    label: "StackScripts",
-    description: "Provisioning scripts",
-    icon: FileCode,
-  },
-  networking: {
-    label: "Networking",
-    description: "Reverse DNS & IPAM",
-    icon: Network,
-  },
-  theme: {
-    label: "Theme",
-    description: "Brand presets & palettes",
-    icon: Palette,
-  },
-  "user-management": {
-    label: "Users",
-    description: "Team access & impersonation",
-    icon: Users,
-  },
-  "rate-limiting": {
-    label: "Rate Limiting",
-    description: "Request throttling",
-    icon: Gauge,
-  },
-  "faq-management": {
-    label: "FAQ",
-    description: "Self-service content",
-    icon: HelpCircle,
-  },
-  platform: {
-    label: "Platform",
-    description: "Global configuration",
-    icon: Settings,
-  },
-  "contact-management": {
-    label: "Contact",
-    description: "Channels & availability",
-    icon: ClipboardList,
-  },
+const TICKET_PRIORITY_ORDER: Record<TicketPriority, number> = {
+  urgent: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 };
 
-interface OverviewCard {
-  id: string;
-  label: string;
-  value: string;
-  helper: string;
+
+interface StrategicPanel {
+  id: AdminSection;
+  title: string;
+  description: string;
   icon: LucideIcon;
-  accentClass: string;
-  badge?: string;
-  meta?: string[];
+  accent: string;
+  summary: Array<{ label: string; value: string }>;
+  actionLabel: string;
 }
 
 const formatCurrency = (value: number | null | undefined, currency = "USD") => {
@@ -350,75 +263,35 @@ const formatCurrency = (value: number | null | undefined, currency = "USD") => {
 const formatCountValue = (value: number | null | undefined): string =>
   value === null || value === undefined ? "—" : value.toString();
 
-interface AdminSectionNavProps {
-  active: AdminSection;
-  onSelect: (section: AdminSection) => void;
-  badges?: Partial<Record<AdminSection, string | undefined>>;
+interface SectionPanelProps {
+  section: AdminSection;
+  activeSection: AdminSection;
+  children: React.ReactNode;
+  className?: string;
 }
 
-const AdminSectionNav: React.FC<AdminSectionNavProps> = ({
-  active,
-  onSelect,
-  badges = {},
+const SectionPanel: React.FC<SectionPanelProps> = ({
+  section,
+  activeSection,
+  children,
+  className,
 }) => {
   return (
-    <ScrollArea className="w-full pb-3">
-      <div className="flex w-max gap-2 pr-4">
-        {ADMIN_SECTIONS.map((section) => {
-          const meta = ADMIN_SECTION_META[section];
-          const Icon = meta.icon;
-          const isActive = section === active;
-          const badgeValue = badges[section];
-
-          return (
-            <button
-              key={section}
-              type="button"
-              onClick={() => onSelect(section)}
-              className={cn(
-                "group flex min-w-[180px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                isActive
-                  ? "border-primary/70 bg-primary/10 text-foreground shadow-sm"
-                  : "border-transparent bg-card/70 text-muted-foreground hover:border-border hover:bg-muted/60"
-              )}
-            >
-              <span
-                className={cn(
-                  "rounded-lg p-2 transition",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </span>
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold leading-tight">
-                  {meta.label}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {meta.description}
-                </span>
-              </div>
-              {badgeValue ? (
-                <Badge
-                  variant={isActive ? "secondary" : "outline"}
-                  className="ml-auto shrink-0"
-                >
-                  {badgeValue}
-                </Badge>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      <ScrollBar
-        orientation="horizontal"
-        className="mt-2 h-1.5 rounded-full bg-muted/40 [&>div]:bg-primary/60"
-      />
-    </ScrollArea>
+    <section
+      id={section}
+      aria-labelledby={`admin-section-${section}`}
+      data-section={section}
+      className={cn(
+        "space-y-6",
+        activeSection === section ? "block" : "hidden",
+        className
+      )}
+    >
+      {children}
+    </section>
   );
 };
+
 
 interface SupportTicket {
   id: string;
@@ -789,6 +662,7 @@ const Admin: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminSection>("dashboard");
+  const isDashboardView = activeTab === "dashboard";
   const [, setLoading] = useState(false);
 
   // Tickets state
@@ -1566,6 +1440,8 @@ const Admin: React.FC = () => {
         fetchContainerPlans();
         fetchServers();
         fetchAdminUsers();
+        fetchProviders();
+        fetchAdminContainers();
         break;
       case "support":
         fetchTickets();
@@ -2740,15 +2616,8 @@ const Admin: React.FC = () => {
     return { total: adminUsers.length, admins };
   }, [adminUsers]);
 
-  const totalTickets = tickets.length;
-  const totalPlans = plans.length;
-  const totalContainerPlans = containerPlans.length;
-  const totalServers = servers.length;
-  const totalProviders = providers.length;
-
   const {
     inProgress: inProgressTickets,
-    resolved: resolvedTickets,
     urgent: urgentTickets,
   } = ticketStats;
   const {
@@ -2756,10 +2625,7 @@ const Admin: React.FC = () => {
     inactive: inactivePlanCount,
     avgMarkup: averagePlanMarkup,
   } = planStats;
-  const {
-    active: activeContainerPlans,
-    drafts: draftContainerPlans,
-  } = containerPlanStats;
+  const { active: activeContainerPlans } = containerPlanStats;
   const {
     active: activeServers,
     provisioning: provisioningServers,
@@ -2771,169 +2637,249 @@ const Admin: React.FC = () => {
   } = providerStats;
   const { total: totalAdminUsers, admins: adminUserCount } = adminStats;
 
-  const overviewCards = useMemo<OverviewCard[]>(() => {
-    const cards: OverviewCard[] = [];
+  const containerInstanceStats = useMemo(
+    () =>
+      containerInstances.reduce(
+        (acc, instance) => {
+          const status = (instance.status || "").toLowerCase();
+          acc.total += 1;
+          if (status.includes("run")) {
+            acc.active += 1;
+          } else if (
+            status.includes("provision") ||
+            status.includes("deploy") ||
+            status.includes("pending")
+          ) {
+            acc.provisioning += 1;
+          } else if (
+            status.includes("error") ||
+            status.includes("fail") ||
+            status.includes("offline")
+          ) {
+            acc.attention += 1;
+          }
+          return acc;
+        },
+        { total: 0, active: 0, provisioning: 0, attention: 0 }
+      ),
+    [containerInstances]
+  );
 
-    const ticketMeta: string[] = [];
-    if (urgentTickets > 0) {
-      ticketMeta.push(`${urgentTickets} marked urgent`);
-    }
+  const organizationStats = useMemo(() => {
+    const ticketOrgs = new Set<string>();
+    const serverOrgs = new Set<string>();
+    const containerOrgs = new Set<string>();
 
-    cards.push({
-      id: "ticket-queue",
-      label: "Ticket Queue",
-      value: formatCountValue(openTicketCount),
-      helper: totalTickets
-        ? `${inProgressTickets} in progress • ${resolvedTickets} resolved`
-        : "Awaiting customer activity",
-      icon: LifeBuoy,
-      accentClass: "bg-amber-500/10 text-amber-600 ring-amber-500/30",
-      badge: totalTickets ? `${totalTickets} total` : undefined,
-      meta: ticketMeta.length ? ticketMeta : undefined,
-    });
-
-    const serverMeta: string[] = [];
-    if (provisioningServers > 0) {
-      serverMeta.push(`${provisioningServers} provisioning`);
-    }
-    if (attentionServers > 0) {
-      serverMeta.push(`${attentionServers} attention needed`);
-    }
-
-    cards.push({
-      id: "servers",
-      label: "Managed Servers",
-      value: formatCountValue(activeServers),
-      helper: totalServers
-        ? `${provisioningServers} provisioning • ${attentionServers} attention`
-        : "Provisioning pipeline idle",
-      icon: Server,
-      accentClass: "bg-blue-500/10 text-blue-600 ring-blue-500/30",
-      badge: totalServers ? `${totalServers} total` : undefined,
-      meta: serverMeta.length ? serverMeta : undefined,
-    });
-
-    const planMeta: string[] = [];
-    if (averagePlanMarkup !== null) {
-      const markupText = formatCurrency(averagePlanMarkup);
-      if (markupText) {
-        planMeta.push(`Avg markup ${markupText}`);
+    tickets.forEach((ticket) => {
+      if (ticket.organization_id) {
+        ticketOrgs.add(ticket.organization_id);
       }
-    }
-
-    cards.push({
-      id: "vps-plans",
-      label: "Published VPS Plans",
-      value: formatCountValue(activePlanCount),
-      helper: totalPlans
-        ? `${activePlanCount} active • ${inactivePlanCount} hidden`
-        : "Create plans to start selling",
-      icon: ServerCog,
-      accentClass: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/30",
-      badge: totalPlans ? `${totalPlans} total` : undefined,
-      meta: planMeta.length ? planMeta : undefined,
     });
 
-    const containerMeta: string[] = [];
-    if (draftContainerPlans > 0) {
-      containerMeta.push(`${draftContainerPlans} drafts`);
-    }
-
-    cards.push({
-      id: "container-plans",
-      label: "Container Blueprints",
-      value: formatCountValue(activeContainerPlans),
-      helper: totalContainerPlans
-        ? `${activeContainerPlans} live • ${draftContainerPlans} drafts`
-        : "Craft blueprints for workloads",
-      icon: Boxes,
-      accentClass: "bg-teal-500/10 text-teal-600 ring-teal-500/30",
-      badge: totalContainerPlans ? `${totalContainerPlans} total` : undefined,
-      meta: containerMeta.length ? containerMeta : undefined,
+    servers.forEach((server) => {
+      if (server.organization_id) {
+        serverOrgs.add(server.organization_id);
+      }
     });
 
-    const userMeta: string[] = [];
-    if (adminUserCount > 0 && totalAdminUsers > adminUserCount) {
-      userMeta.push(`${adminUserCount} admins`);
-    }
-
-    cards.push({
-      id: "admin-users",
-      label: "Admin Users",
-      value: formatCountValue(totalAdminUsers),
-      helper: totalAdminUsers
-        ? `${adminUserCount} admins • ${totalAdminUsers - adminUserCount} staff`
-        : "Invite teammates to collaborate",
-      icon: Users,
-      accentClass: "bg-purple-500/10 text-purple-600 ring-purple-500/30",
-      meta: userMeta.length ? userMeta : undefined,
+    containerInstances.forEach((instance) => {
+      if (instance.organization_id) {
+        containerOrgs.add(instance.organization_id);
+      }
     });
 
-    const providerMeta: string[] = [];
-    if (inactiveProviders > 0) {
-      providerMeta.push(`${inactiveProviders} paused`);
-    }
+    const all = new Set<string>([
+      ...ticketOrgs,
+      ...serverOrgs,
+      ...containerOrgs,
+    ]);
 
-    cards.push({
-      id: "providers",
-      label: "Provider Integrations",
-      value: formatCountValue(activeProviders),
-      helper: totalProviders
-        ? `${activeProviders} active • ${inactiveProviders} paused`
-        : "Connect cloud providers to deploy",
-      icon: Globe,
-      accentClass: "bg-slate-500/10 text-slate-600 ring-slate-500/30",
-      badge: totalProviders ? `${totalProviders} total` : undefined,
-      meta: providerMeta.length ? providerMeta : undefined,
-    });
+    return {
+      total: all.size,
+      withTickets: ticketOrgs.size,
+      withServers: serverOrgs.size,
+      withContainers: containerOrgs.size,
+    };
+  }, [tickets, servers, containerInstances]);
 
-    return cards;
+  const strategicPanels = useMemo<StrategicPanel[]>(() => {
+    const markupText =
+      averagePlanMarkup !== null
+        ? formatCurrency(averagePlanMarkup) ?? "—"
+        : "—";
+
+    return [
+      {
+        id: "support",
+        title: "Support Operations",
+        description: "Orchestrate escalations and keep customer promises on track.",
+        icon: LifeBuoy,
+        accent: "text-amber-600",
+        summary: [
+          { label: "Open", value: formatCountValue(openTicketCount) },
+          { label: "Urgent", value: formatCountValue(urgentTickets) },
+          { label: "In Progress", value: formatCountValue(inProgressTickets) },
+        ],
+        actionLabel: "Open queue",
+      },
+      {
+        id: "servers",
+        title: "Compute Fleet",
+        description: "Track dedicated infrastructure health and lifecycle status.",
+        icon: Server,
+    accent: "text-blue-600",
+        summary: [
+          { label: "Active", value: formatCountValue(activeServers) },
+          {
+            label: "Provisioning",
+            value: formatCountValue(provisioningServers),
+          },
+          { label: "Attention", value: formatCountValue(attentionServers) },
+        ],
+        actionLabel: "Manage servers",
+      },
+      {
+        id: "containers",
+        title: "Containers",
+        description: "Oversee managed workloads and fast-moving deployments.",
+        icon: Boxes,
+    accent: "text-teal-600",
+        summary: [
+          { label: "Running", value: formatCountValue(containerInstanceStats.active) },
+          {
+            label: "Provisioning",
+            value: formatCountValue(containerInstanceStats.provisioning),
+          },
+          {
+            label: "Blueprints",
+            value: formatCountValue(activeContainerPlans),
+          },
+        ],
+        actionLabel: "Manage containers",
+      },
+      {
+        id: "vps-plans",
+        title: "Plan Catalog",
+        description: "Balance pricing, capacity tiers, and backup coverage.",
+        icon: ServerCog,
+    accent: "text-emerald-600",
+        summary: [
+          {
+            label: "Active plans",
+            value: formatCountValue(activePlanCount),
+          },
+          {
+            label: "Hidden",
+            value: formatCountValue(inactivePlanCount),
+          },
+          { label: "Avg markup", value: markupText },
+        ],
+        actionLabel: "Curate catalog",
+      },
+      {
+        id: "user-management",
+        title: "Organization Access",
+        description: "Grant least-privilege access and monitor impersonations.",
+        icon: Users,
+    accent: "text-purple-600",
+        summary: [
+          { label: "Members", value: formatCountValue(totalAdminUsers) },
+          { label: "Admins", value: formatCountValue(adminUserCount) },
+        ],
+        actionLabel: "Manage access",
+      },
+      {
+        id: "providers",
+        title: "Cloud Providers",
+        description: "Validate credentials and enforce deployment guardrails.",
+        icon: Globe,
+    accent: "text-slate-600",
+        summary: [
+          { label: "Active", value: formatCountValue(activeProviders) },
+          { label: "Inactive", value: formatCountValue(inactiveProviders) },
+        ],
+        actionLabel: "Review integrations",
+      },
+    ];
   }, [
-    totalTickets,
-    openTicketCount,
-    inProgressTickets,
-    resolvedTickets,
-    urgentTickets,
-    totalServers,
-    activeServers,
-    provisioningServers,
-    attentionServers,
-    totalPlans,
-    activePlanCount,
-    inactivePlanCount,
-    averagePlanMarkup,
-    totalContainerPlans,
     activeContainerPlans,
-    draftContainerPlans,
-    totalAdminUsers,
-    adminUserCount,
-    totalProviders,
+    activePlanCount,
     activeProviders,
+    activeServers,
+    adminUserCount,
+    attentionServers,
+    averagePlanMarkup,
+    containerInstanceStats,
+    inactivePlanCount,
     inactiveProviders,
+    inProgressTickets,
+    openTicketCount,
+    provisioningServers,
+    totalAdminUsers,
+    urgentTickets,
   ]);
 
-  const sectionBadges = useMemo<Partial<Record<AdminSection, string>>>(
-    () => ({
-      support: openTicketCount ? openTicketCount.toString() : undefined,
-      servers: totalServers ? totalServers.toString() : undefined,
-      "vps-plans": activePlanCount ? activePlanCount.toString() : undefined,
-      "container-plans": activeContainerPlans
-        ? activeContainerPlans.toString()
-        : undefined,
-      "user-management": totalAdminUsers
-        ? totalAdminUsers.toString()
-        : undefined,
-      providers: activeProviders ? activeProviders.toString() : undefined,
-    }),
-    [
-      openTicketCount,
-      totalServers,
-      activePlanCount,
-      activeContainerPlans,
-      totalAdminUsers,
-      activeProviders,
-    ]
+  const liveProvisioningCount = useMemo(
+    () => provisioningServers + containerInstanceStats.provisioning,
+    [containerInstanceStats.provisioning, provisioningServers]
   );
+
+  const criticalAttentionCount = useMemo(
+    () => attentionServers + containerInstanceStats.attention + urgentTickets,
+    [attentionServers, containerInstanceStats.attention, urgentTickets]
+  );
+
+  const dashboardTicketHighlights = useMemo(() => {
+    const sorted = [...tickets]
+      .filter(
+        (ticket) => ticket.status !== "resolved" && ticket.status !== "closed"
+      )
+      .sort((a, b) => {
+        const priorityA =
+          TICKET_PRIORITY_ORDER[a.priority as TicketPriority] ?? 99;
+        const priorityB =
+          TICKET_PRIORITY_ORDER[b.priority as TicketPriority] ?? 99;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        const updatedA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const updatedB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return updatedB - updatedA;
+      });
+
+    return sorted.slice(0, 4);
+  }, [tickets]);
+
+  const dashboardServerAlerts = useMemo(() => {
+    return servers
+      .filter((server) => {
+        const status = (server.status || "").toLowerCase();
+        if (!status) {
+          return true;
+        }
+        return !(
+          status.includes("running") ||
+          status.includes("active") ||
+          status.includes("provisioned")
+        );
+      })
+      .slice(0, 4);
+  }, [servers]);
+
+  const dashboardContainerBuilds = useMemo(() => {
+    return containerInstances
+      .filter((instance) => {
+        const status = (instance.status || "").toLowerCase();
+        return (
+          status.includes("provision") ||
+          status.includes("deploy") ||
+          status.includes("pending") ||
+          status.includes("build")
+        );
+      })
+      .slice(0, 4);
+  }, [containerInstances]);
+
   const handleRefresh = () => {
     if (!token) {
       toast.error("Authentication required");
@@ -2993,185 +2939,343 @@ const Admin: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-8 px-4 pb-16 pt-10 lg:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            Admin Control Center
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Orchestrate support, infrastructure, networking, and account
-            branding from a single workspace.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          className="h-9 gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {overviewCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <Card
-              key={card.id}
-              className="relative overflow-hidden border border-border/60 bg-card/70 shadow-sm"
-            >
-              <CardContent className="space-y-4 p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                        {card.label}
-                      </span>
-                      {card.badge ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase tracking-wide"
-                        >
-                          {card.badge}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-semibold text-foreground">
-                        {card.value}
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "rounded-xl p-3 ring-2 ring-inset",
-                      card.accentClass
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </span>
+    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pb-16 pt-10 lg:px-8">
+      {isDashboardView ? (
+        <>
+          <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 shadow-sm">
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-gradient-to-tr from-primary/20 via-primary/5 to-transparent blur-3xl lg:block"
+              aria-hidden="true"
+            />
+            <div className="relative flex flex-col gap-8 p-8 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-6 lg:max-w-2xl">
+                <Badge variant="outline" className="w-fit">
+                  Mission Control
+                </Badge>
+                <div className="space-y-3">
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                    {BRAND_NAME} Cloud Administration
+                  </h1>
+                  <p className="text-sm text-muted-foreground sm:text-base">
+                    Coordinate VPS plans, dedicated servers, containers, and client support from a single command surface.
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">{card.helper}</p>
-                {card.meta ? (
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                    {card.meta.map((meta) => (
-                      <span key={meta} className="flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                        {meta}
-                      </span>
-                    ))}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Active organizations
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      {formatCountValue(organizationStats.total)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatCountValue(organizationStats.withServers)} with servers • {formatCountValue(organizationStats.withContainers)} with containers
+                    </p>
                   </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="rounded-2xl border border-border/60 bg-card/70 p-3 shadow-sm">
-        <AdminSectionNav
-          active={activeTab}
-          onSelect={(section) => handleTabChange(section)}
-          badges={sectionBadges}
-        />
-      </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="space-y-10"
-      >
-        <div className="space-y-6">
-          <TabsContent value="dashboard" id="dashboard">
-            <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  Welcome to the Admin Dashboard
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Monitor your platform's key metrics and navigate to specific
-                  management areas using the sidebar.
-                </p>
+                  <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Support posture
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      {formatCountValue(openTicketCount)} open
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatCountValue(urgentTickets)} urgent • {formatCountValue(inProgressTickets)} in progress
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Live workloads
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      {formatCountValue(activeServers + containerInstanceStats.active)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatCountValue(activeServers)} servers • {formatCountValue(containerInstanceStats.active)} containers
+                    </p>
+                  </div>
+                </div>
               </div>
-
-              {/* Quick Actions */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => handleTabChange("support")}
+              <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-6 text-foreground shadow-sm backdrop-blur">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    Live feed
+                  </p>
+                  <p className="text-2xl font-semibold text-foreground">
+                    {formatCountValue(liveProvisioningCount)} builds in flight
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCountValue(criticalAttentionCount)} items flagged across support and infrastructure.
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleRefresh}
+                  className="w-fit gap-2"
                 >
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="rounded-full bg-amber-500/10 p-2">
-                      <Ticket className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Support Tickets</p>
-                      <p className="text-xs text-muted-foreground">
-                        Manage customer requests
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => handleTabChange("vps-plans")}
-                >
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="rounded-full bg-green-500/10 p-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">VPS Plans</p>
-                      <p className="text-xs text-muted-foreground">
-                        Configure offerings
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => handleTabChange("servers")}
-                >
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="rounded-full bg-blue-500/10 p-2">
-                      <ServerCog className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Servers</p>
-                      <p className="text-xs text-muted-foreground">
-                        Monitor infrastructure
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => handleTabChange("user-management")}
-                >
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="rounded-full bg-purple-500/10 p-2">
-                      <Users className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">User Management</p>
-                      <p className="text-xs text-muted-foreground">
-                        Manage accounts
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh data
+                </Button>
               </div>
             </div>
-          </TabsContent>
+          </section>
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                  Mission Control
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Pick a focus area to jump into the tools for that surface.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {strategicPanels.map((panel) => {
+                const Icon = panel.icon;
+                const isActive = panel.id === activeTab;
 
-          <TabsContent value="theme" id="theme">
+                return (
+                  <button
+                    key={panel.id}
+                    type="button"
+                    onClick={() => handleTabChange(panel.id)}
+                    className={cn(
+                      "group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-5 text-left transition hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      isActive ? "border-primary/60 shadow-md" : ""
+                    )}
+                    aria-pressed={isActive}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 transition group-hover:opacity-100",
+                        isActive ? "opacity-100" : ""
+                      )}
+                    />
+                    <div className="relative flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "rounded-xl border border-border/60 bg-background/80 p-3 transition",
+                          isActive
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "text-muted-foreground group-hover:text-primary",
+                          panel.accent
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">
+                          {panel.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {panel.description}
+                        </span>
+                      </div>
+                    </div>
+                    <dl className="relative mt-6 grid grid-cols-2 gap-4 text-xs text-muted-foreground sm:text-sm">
+                      {panel.summary.map((item) => (
+                        <div
+                          key={`${panel.id}-${item.label}`}
+                          className="space-y-1"
+                        >
+                          <dt className="font-medium uppercase tracking-wide text-muted-foreground/80">
+                            {item.label}
+                          </dt>
+                          <dd className="text-base font-semibold text-foreground">
+                            {item.value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <span className="relative mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                      {panel.actionLabel}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      <div className="space-y-12">
+        <SectionPanel
+          section="dashboard"
+          activeSection={activeTab}
+          className="space-y-8"
+        >
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="h-full">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Support Triage
+                  </CardTitle>
+                  <CardDescription>
+                    Fast access to the highest-priority customer conversations.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {dashboardTicketHighlights.length > 0 ? (
+                    dashboardTicketHighlights.map((ticket) => (
+                      <button
+                        key={ticket.id}
+                        type="button"
+                        onClick={() => {
+                          setPendingFocusTicketId(ticket.id);
+                          handleTabChange("support");
+                        }}
+                        className="w-full rounded-xl border border-border/60 bg-background/80 px-4 py-3 text-left transition hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground line-clamp-2">
+                              {ticket.subject}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {ticket.category ? (
+                                <span className="capitalize">{ticket.category}</span>
+                              ) : (
+                                <span>General</span>
+                              )}
+                              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                              <span>
+                                {ticket.updated_at
+                                  ? new Date(ticket.updated_at).toLocaleString()
+                                  : new Date(ticket.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "shrink-0 capitalize",
+                              TICKET_PRIORITY_META[ticket.priority].className
+                            )}
+                          >
+                            {TICKET_PRIORITY_META[ticket.priority].label}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">
+                          {ticket.message}
+                        </p>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                      No open tickets need attention right now.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card className="h-full">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Infrastructure Signals
+                  </CardTitle>
+                  <CardDescription>
+                    Track servers requiring intervention across providers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {dashboardServerAlerts.length > 0 ? (
+                    dashboardServerAlerts.map((server) => (
+                      <div
+                        key={server.id}
+                        className="rounded-xl border border-border/60 bg-background/80 px-4 py-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {server.label || server.id}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {server.provider_name ? (
+                                <>
+                                  <span>{server.provider_name}</span>
+                                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                                </>
+                              ) : null}
+                              {server.region_label ? <span>{server.region_label}</span> : null}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "capitalize",
+                              statusBadgeClass(server.status)
+                            )}
+                          >
+                            {formatStatusLabel(server.status)}
+                          </Badge>
+                        </div>
+                        {server.organization_name ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {server.organization_name}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                      All servers are running within expected thresholds.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Container Pipeline
+                </CardTitle>
+                <CardDescription>
+                  Monitor workloads that are provisioning or waiting on an image.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {dashboardContainerBuilds.length > 0 ? (
+                  dashboardContainerBuilds.map((instance) => (
+                    <div
+                      key={instance.id}
+                      className="flex flex-col gap-1 rounded-xl border border-border/60 bg-background/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {instance.name}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {instance.organization_name ? (
+                            <>
+                              <span>{instance.organization_name}</span>
+                              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                            </>
+                          ) : null}
+                          <span>
+                            {instance.updated_at
+                              ? new Date(instance.updated_at).toLocaleString()
+                              : new Date(instance.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {formatStatusLabel(instance.status)}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                    No container builds are currently queued.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+    </SectionPanel>
+
+    <SectionPanel section="theme" activeSection={activeTab}>
             <div className="bg-card shadow sm:rounded-lg">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -3274,9 +3378,9 @@ const Admin: React.FC = () => {
                 </div>
               </div>
             </div>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="support" id="support">
+    <SectionPanel section="support" activeSection={activeTab}>
             <div className="grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
               <Card className="flex min-h-[26rem] flex-col">
                 <CardHeader className="space-y-4 border-b border-border pb-4">
@@ -3591,9 +3695,9 @@ const Admin: React.FC = () => {
                 )}
               </Card>
             </div>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="vps-plans" id="vps-plans">
+    <SectionPanel section="vps-plans" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-b-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -4565,9 +4669,9 @@ const Admin: React.FC = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="user-management" id="user-management">
+    <SectionPanel section="user-management" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -4857,13 +4961,13 @@ const Admin: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="rate-limiting" id="rate-limiting">
+    <SectionPanel section="rate-limiting" activeSection={activeTab}>
             <RateLimitMonitoring token={token || ""} />
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="faq-management" id="faq-management">
+    <SectionPanel section="faq-management" activeSection={activeTab}>
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <HelpCircle className="h-5 w-5 text-muted-foreground" />
@@ -4881,9 +4985,9 @@ const Admin: React.FC = () => {
               <FAQItemManager token={token || ""} />
               <UpdatesManager token={token || ""} />
             </div>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="platform" id="platform">
+    <SectionPanel section="platform" activeSection={activeTab}>
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <Settings className="h-5 w-5 text-muted-foreground" />
@@ -5019,9 +5123,12 @@ const Admin: React.FC = () => {
                 </TabsContent>
               </Tabs>
             </div>
-          </TabsContent>
+        </SectionPanel>
 
-          <TabsContent value="contact-management" id="contact-management">
+        <SectionPanel
+          section="contact-management"
+          activeSection={activeTab}
+        >
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <ClipboardList className="h-5 w-5 text-muted-foreground" />
@@ -5056,9 +5163,9 @@ const Admin: React.FC = () => {
                 </TabsContent>
               </Tabs>
             </div>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="stackscripts" id="stackscripts">
+    <SectionPanel section="stackscripts" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-border pb-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -5260,9 +5367,9 @@ const Admin: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="container-plans" id="container-plans">
+    <SectionPanel section="container-plans" activeSection={activeTab}>
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -5550,9 +5657,9 @@ const Admin: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="containers" id="containers">
+    <SectionPanel section="containers" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -5701,9 +5808,9 @@ const Admin: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="servers" id="servers">
+    <SectionPanel section="servers" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -5937,9 +6044,9 @@ const Admin: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="networking" id="networking">
+    <SectionPanel section="networking" activeSection={activeTab}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -6209,9 +6316,9 @@ const Admin: React.FC = () => {
                 </Tabs>
               </CardContent>
             </Card>
-          </TabsContent>
+    </SectionPanel>
 
-          <TabsContent value="providers" id="providers">
+    <SectionPanel section="providers" activeSection={activeTab}>
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
@@ -6431,15 +6538,14 @@ const Admin: React.FC = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </TabsContent>
-          <TabsContent value="marketplace" id="marketplace">
-            <MarketplaceManager token={token || ""} />
-          </TabsContent>
-          <TabsContent value="regions" id="regions">
-            <RegionAccessManager token={token || ""} />
-          </TabsContent>
-        </div>
-      </Tabs>
+        </SectionPanel>
+        <SectionPanel section="marketplace" activeSection={activeTab}>
+          <MarketplaceManager token={token || ""} />
+        </SectionPanel>
+        <SectionPanel section="regions" activeSection={activeTab}>
+          <RegionAccessManager token={token || ""} />
+        </SectionPanel>
+      </div>
 
       <Dialog
         open={Boolean(editContainerPlanId)}
