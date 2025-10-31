@@ -46,10 +46,9 @@ const methodStyles: Record<string, string> = {
  const buildCurlCommand = (base: string, endpoint: EndpointDefinition) => {
   const query = endpoint.params
     ? new URLSearchParams(
-        Object.entries(endpoint.params).map(([key, value]) => [
-          key,
-          value === undefined || value === null ? "" : String(value),
-        ])
+        Object.entries(endpoint.params)
+          .filter(([, value]) => value !== null && value !== undefined)
+          .map(([key, value]) => [key, String(value)])
       ).toString()
     : "";
 
