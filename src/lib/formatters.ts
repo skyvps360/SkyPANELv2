@@ -45,7 +45,7 @@ export function formatGigabytes(
     return fallback;
   }
 
-  const gigabytes = (bytes as number) / 1024;
+  const gigabytes = bytes / 1024;
   const normalizedPrecision = Math.max(0, precision);
 
   if (normalizedPrecision === 0) {
