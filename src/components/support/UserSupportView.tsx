@@ -1,7 +1,7 @@
 /**
  * User Support View - Inbox-style support ticket interface for users
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clock,
   Inbox,
@@ -12,7 +12,6 @@ import {
   Search,
   Send,
   User,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -136,7 +135,10 @@ export const UserSupportView: React.FC<UserSupportViewProps> = ({ token }) => {
     category: "general" as TicketCategory,
   });
 
-  const authHeader = { Authorization: `Bearer ${token}` };
+  const authHeader = useMemo(
+    () => ({ Authorization: `Bearer ${token}` }),
+    [token]
+  );
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -170,7 +172,7 @@ export const UserSupportView: React.FC<UserSupportViewProps> = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [authHeader]);
 
   useEffect(() => {
     fetchTickets();
@@ -328,7 +330,7 @@ export const UserSupportView: React.FC<UserSupportViewProps> = ({ token }) => {
         category: "general",
       });
       setIsCreateModalOpen(false);
-      await fetchTickets();
+  await fetchTickets();
     } catch (error: any) {
       toast.error(error.message || "Failed to create support ticket");
     } finally {

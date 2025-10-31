@@ -2,9 +2,8 @@
  * Admin Support View - Inbox-style support ticket management
  * Uses shadcn sidebar pattern for a modern support interface
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
   CheckCircle,
   Clock,
   Inbox,
@@ -14,7 +13,6 @@ import {
   Search,
   Send,
   Trash2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -138,7 +136,10 @@ export const AdminSupportView: React.FC<AdminSupportViewProps> = ({
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const authHeader = { Authorization: `Bearer ${token}` };
+  const authHeader = useMemo(
+    () => ({ Authorization: `Bearer ${token}` }),
+    [token]
+  );
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -158,22 +159,11 @@ export const AdminSupportView: React.FC<AdminSupportViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [authHeader]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
-
-  // Handle pending focus ticket
-  useEffect(() => {
-    if (pendingFocusTicketId && tickets.length > 0) {
-      const ticket = tickets.find((t) => t.id === pendingFocusTicketId);
-      if (ticket) {
-        openTicket(ticket);
-        onFocusTicketHandled?.();
-      }
-    }
-  }, [pendingFocusTicketId, tickets]);
 
   const openTicket = useCallback(
     async (ticket: SupportTicket) => {
@@ -201,6 +191,17 @@ export const AdminSupportView: React.FC<AdminSupportViewProps> = ({
     },
     [authHeader, scrollToBottom]
   );
+
+  // Handle pending focus ticket once the opener is ready
+  useEffect(() => {
+    if (pendingFocusTicketId && tickets.length > 0) {
+      const ticket = tickets.find((t) => t.id === pendingFocusTicketId);
+      if (ticket) {
+        openTicket(ticket);
+        onFocusTicketHandled?.();
+      }
+    }
+  }, [pendingFocusTicketId, tickets, openTicket, onFocusTicketHandled]);
 
   const sendReply = useCallback(async () => {
     if (!selectedTicket || !replyMessage.trim()) return;

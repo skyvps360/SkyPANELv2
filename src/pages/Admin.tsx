@@ -2,13 +2,7 @@
  * Admin Dashboard
  * Manage support tickets and VPS plans
  */
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -24,6 +18,7 @@ import {
   Edit,
   FileCode,
   Globe,
+  GripVertical,
   HelpCircle,
   LifeBuoy,
   Palette,
@@ -34,14 +29,11 @@ import {
   ServerCog,
   Settings,
   Shield,
-  Ticket,
   Trash2,
   Users,
-  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-// Navigation provided by AppLayout
 import { useAuth } from "../contexts/AuthContext";
 import { UserActionMenu } from "@/components/admin/UserActionMenu";
 import { UserProfileModal } from "@/components/admin/UserProfileModal";
@@ -59,7 +51,8 @@ import { AdminSupportView } from "@/components/admin/AdminSupportView";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -107,7 +100,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { buildApiUrl } from "@/lib/api";
 import { BRAND_NAME } from "@/lib/brand";
@@ -129,7 +121,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -173,32 +164,6 @@ const ADMIN_SECTIONS: AdminSection[] = [
 ];
 
 const DEFAULT_ADMIN_SECTION: AdminSection = "dashboard";
-
-const TICKET_STATUS_META: Record<
-  TicketStatus,
-  { label: string; className: string }
-> = {
-  open: {
-    label: "Open",
-    className:
-      "border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  },
-  in_progress: {
-    label: "In Progress",
-    className:
-      "border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  },
-  resolved: {
-    label: "Resolved",
-    className:
-      "border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  },
-  closed: {
-    label: "Closed",
-    className:
-      "border border-muted-foreground/15 bg-muted text-muted-foreground",
-  },
-};
 
 const TICKET_PRIORITY_META: Record<
   TicketPriority,
@@ -668,24 +633,11 @@ const Admin: React.FC = () => {
 
   // Tickets state
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(
-    null
-  );
-  const [replyMessage, setReplyMessage] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | TicketStatus>("all");
-  const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
   const [pendingFocusTicketId, setPendingFocusTicketId] =
     useState<string | null>(null);
   const [pendingFocusUserId, setPendingFocusUserId] = useState<string | null>(
     null
   );
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom of messages
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
 
   // Plans state
   const [plans, setPlans] = useState<VPSPlan[]>([]);
@@ -926,35 +878,6 @@ const Admin: React.FC = () => {
     [token]
   );
 
-  const openTicket = useCallback(
-    async (ticket: SupportTicket) => {
-      setSelectedTicket({ ...ticket, messages: [] });
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/admin/tickets/${ticket.id}/replies`,
-          { headers: authHeader }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load replies");
-        const msgs: TicketMessage[] = (data.replies || []).map((m: any) => ({
-          id: m.id,
-          ticket_id: m.ticket_id,
-          sender_type: m.sender_type,
-          sender_name: m.sender_name,
-          message: m.message,
-          created_at: m.created_at,
-        }));
-        setSelectedTicket((prev) =>
-          prev ? { ...prev, messages: msgs } : prev
-        );
-        setTimeout(scrollToBottom, 100);
-      } catch (e: any) {
-        toast.error(e.message || "Failed to load replies");
-      }
-    },
-    [authHeader, scrollToBottom]
-  );
-
   const updateAdminHash = useCallback(
     (section: AdminSection) => {
       if (section === "dashboard") {
@@ -1055,23 +978,6 @@ const Admin: React.FC = () => {
       );
     };
   }, [handleTabChange]);
-
-  useEffect(() => {
-    if (!pendingFocusTicketId || activeTab !== "support") {
-      return;
-    }
-
-    const matched = tickets.find((ticket) => ticket.id === pendingFocusTicketId);
-    if (matched) {
-      void openTicket(matched);
-      setPendingFocusTicketId(null);
-      return;
-    }
-
-    if (tickets.length > 0) {
-      setPendingFocusTicketId(null);
-    }
-  }, [pendingFocusTicketId, tickets, activeTab, openTicket]);
 
   useEffect(() => {
     if (!pendingFocusUserId || activeTab !== "user-management") {
@@ -1695,62 +1601,6 @@ const Admin: React.FC = () => {
       setSavingStackscriptId(null);
     }
   };
-  const updateTicketStatus = async (ticketId: string, status: TicketStatus) => {
-    if (!token) return;
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/tickets/${ticketId}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify({ status }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update ticket");
-      setTickets((prev) =>
-        prev.map((t) => (t.id === ticketId ? data.ticket : t))
-      );
-      if (selectedTicket && selectedTicket.id === ticketId)
-        setSelectedTicket(data.ticket);
-      toast.success("Ticket status updated");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const sendReply = async () => {
-    if (!selectedTicket || !replyMessage.trim()) return;
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/tickets/${selectedTicket.id}/replies`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify({ message: replyMessage.trim() }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to reply");
-      const reply: TicketMessage = {
-        id: data.reply.id,
-        ticket_id: data.reply.ticket_id,
-        sender_type: "admin",
-        sender_name: "Staff Member",
-        message: data.reply.message,
-        created_at: data.reply.created_at,
-      };
-      setSelectedTicket((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, reply] } : prev
-      );
-      setReplyMessage("");
-      toast.success("Reply sent");
-      setTimeout(scrollToBottom, 100);
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
   const fetchPlans = async () => {
     if (!token) return;
     setLoading(true);
@@ -2257,50 +2107,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  // Delete ticket
-  const deleteTicket = async (ticketId: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, {
-        method: "DELETE",
-        headers: authHeader,
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to delete ticket");
-      }
-      setTickets(tickets.filter((t) => t.id !== ticketId));
-      if (selectedTicket?.id === ticketId) setSelectedTicket(null);
-      setDeleteTicketId(null);
-      toast.success("Ticket deleted");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  // Close ticket
-  const closeTicket = async (ticketId: string) => {
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/tickets/${ticketId}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify({ status: "closed" }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to close ticket");
-      setTickets(
-        tickets.map((t) => (t.id === ticketId ? { ...t, status: "closed" } : t))
-      );
-      if (selectedTicket?.id === ticketId)
-        setSelectedTicket({ ...selectedTicket, status: "closed" });
-      toast.success("Ticket closed");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
   // Delete VPS plan
   const deleteVPSPlan = async (planId: string) => {
     try {
@@ -2501,9 +2307,6 @@ const Admin: React.FC = () => {
     })
   );
 
-  const filteredTickets = tickets.filter((t) =>
-    statusFilter === "all" ? true : t.status === statusFilter
-  );
   const openTicketCount = useMemo(
     () => tickets.filter((ticket) => ticket.status === "open").length,
     [tickets]
@@ -6492,40 +6295,6 @@ const Admin: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog
-        open={Boolean(deleteTicketId)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTicketId(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete ticket?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes the conversation and all replies. You
-              cannot recover this ticket afterwards.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTicketId(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTicketId) {
-                  void deleteTicket(deleteTicketId);
-                }
-              }}
-              className={buttonVariants({ variant: "destructive" })}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog
         open={Boolean(deletePlanId)}
