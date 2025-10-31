@@ -219,7 +219,7 @@ const formatCurrency = (value: number | null | undefined, currency = "USD") => {
     return formatCurrencyDisplay(value, { currency });
   } catch (error) {
     console.warn("Currency format failed", error);
-    return Number.isFinite(value) ? value.toFixed(2) : null;
+    return Number.isFinite(value) ? value.toFixed(2) : "—";
   }
 };
 
