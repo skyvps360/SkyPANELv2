@@ -11,6 +11,7 @@ import { query } from "../lib/database.js";
 import { linodeService } from "../services/linodeService.js";
 import { digitalOceanService } from "../services/DigitalOceanService.js";
 import { logActivity } from "../services/activityLogger.js";
+import { dockerEngineService } from "../services/dockerEngineService.js";
 import {
   themeService,
   type StoredThemePreset,
@@ -2116,39 +2117,46 @@ router.post(
   requireAdmin,
   [
     body("name").isString().trim().notEmpty(),
-    body("cpu_cores").isInt({ min: 1 }),
-    body("ram_gb").isInt({ min: 1 }),
-    body("storage_gb").isInt({ min: 1 }),
-    body("network_mbps").isInt({ min: 0 }),
-    body("base_price").isFloat({ min: 0 }),
-    body("markup_price").isFloat({ min: 0 }),
+    body("resourceProfile").isObject(),
+    body("resourceProfile.cpuCores").isInt({ min: 1 }),
+    body("resourceProfile.memoryGb").isFloat({ min: 0 }),
+    body("resourceProfile.storageGb").isFloat({ min: 0 }),
+    body("resourceProfile.networkMbps").isFloat({ min: 0 }),
+    body("maxContainers").isInt({ min: 1 }),
+    body("priceMonthly").isFloat({ min: 0 }),
+    body("isPublic").optional().isBoolean(),
     body("active").optional().isBoolean(),
   ],
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
-        return;
+        return res.status(400).json({ error: "Invalid input", details: errors.array() });
       }
+
       const now = new Date().toISOString();
+      const resourceProfile = {
+        cpuCores: Number(req.body.resourceProfile.cpuCores),
+        memoryGb: Number(req.body.resourceProfile.memoryGb),
+        storageGb: Number(req.body.resourceProfile.storageGb),
+        networkMbps: Number(req.body.resourceProfile.networkMbps),
+      };
+
       const insertRes = await query(
-        `INSERT INTO container_plans (name, cpu_cores, ram_gb, storage_gb, network_mbps, base_price, markup_price, active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, true), $9, $10)
+        `INSERT INTO container_plans (name, resource_profile, max_containers, price_monthly, is_public, active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, COALESCE($5, TRUE), COALESCE($6, TRUE), $7, $7)
          RETURNING *`,
         [
           req.body.name,
-          req.body.cpu_cores,
-          req.body.ram_gb,
-          req.body.storage_gb,
-          req.body.network_mbps,
-          req.body.base_price,
-          req.body.markup_price,
+          resourceProfile,
+          Number(req.body.maxContainers),
+          Number(req.body.priceMonthly),
+          req.body.isPublic,
           req.body.active,
-          now,
           now,
         ]
       );
+
       res.status(201).json({ plan: insertRes.rows[0] });
     } catch (err: any) {
       if (isMissingTableError(err)) {
@@ -2172,40 +2180,53 @@ router.put(
   [
     param("id").isUUID(),
     body("name").optional().isString().trim().notEmpty(),
-    body("cpu_cores").optional().isInt({ min: 1 }),
-    body("ram_gb").optional().isInt({ min: 1 }),
-    body("storage_gb").optional().isInt({ min: 1 }),
-    body("network_mbps").optional().isInt({ min: 0 }),
-    body("base_price").optional().isFloat({ min: 0 }),
-    body("markup_price").optional().isFloat({ min: 0 }),
+    body("resourceProfile").optional().isObject(),
+    body("resourceProfile.cpuCores").optional().isInt({ min: 1 }),
+    body("resourceProfile.memoryGb").optional().isFloat({ min: 0 }),
+    body("resourceProfile.storageGb").optional().isFloat({ min: 0 }),
+    body("resourceProfile.networkMbps").optional().isFloat({ min: 0 }),
+    body("maxContainers").optional().isInt({ min: 1 }),
+    body("priceMonthly").optional().isFloat({ min: 0 }),
+    body("isPublic").optional().isBoolean(),
     body("active").optional().isBoolean(),
   ],
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
-        return;
+        return res.status(400).json({ error: "Invalid input", details: errors.array() });
       }
       const { id } = req.params;
-      const update: any = { ...req.body, updated_at: new Date().toISOString() };
+      const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (req.body.name !== undefined) update.name = req.body.name;
+      if (req.body.maxContainers !== undefined) update.max_containers = Number(req.body.maxContainers);
+      if (req.body.priceMonthly !== undefined) update.price_monthly = Number(req.body.priceMonthly);
+      if (req.body.isPublic !== undefined) update.is_public = req.body.isPublic;
+      if (req.body.active !== undefined) update.active = req.body.active;
+      if (req.body.resourceProfile) {
+        update.resource_profile = {
+          cpuCores: Number(req.body.resourceProfile.cpuCores ?? 0),
+          memoryGb: Number(req.body.resourceProfile.memoryGb ?? 0),
+          storageGb: Number(req.body.resourceProfile.storageGb ?? 0),
+          networkMbps: Number(req.body.resourceProfile.networkMbps ?? 0),
+        };
+      }
+
       const setClauses: string[] = [];
       const values: any[] = [];
       let idx = 1;
-      for (const [key, val] of Object.entries(update)) {
+      for (const [key, value] of Object.entries(update)) {
         setClauses.push(`${key} = $${idx}`);
-        values.push(val);
+        values.push(value);
         idx++;
       }
       values.push(id);
       const result = await query(
-        `UPDATE container_plans SET ${setClauses.join(
-          ", "
-        )} WHERE id = $${idx} RETURNING *`,
+        `UPDATE container_plans SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
         values
       );
-      if (result.rows.length === 0) {
-        throw new Error("Container plan not found");
+      if (!result.rows[0]) {
+        return res.status(404).json({ error: "Container plan not found" });
       }
       res.json({ plan: result.rows[0] });
     } catch (err: any) {
@@ -2221,6 +2242,7 @@ router.put(
         .json({ error: err.message || "Failed to update container plan" });
     }
   }
+
 );
 
 router.delete(
@@ -2255,6 +2277,365 @@ router.delete(
   }
 );
 
+// Organization plan assignments
+router.get(
+  "/container/organizations/:orgId/plans",
+  authenticateToken,
+  requireAdmin,
+  [param("orgId").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { orgId } = req.params;
+      const result = await query(
+        `SELECT cp.*
+         FROM organization_container_plans ocp
+         INNER JOIN container_plans cp ON cp.id = ocp.plan_id
+         WHERE ocp.organization_id = $1
+         ORDER BY cp.name ASC`,
+        [orgId]
+      );
+
+      res.json({ plans: result.rows || [] });
+    } catch (err: any) {
+      console.error("Admin organization plan list error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to load organization plans" });
+    }
+  }
+);
+
+router.post(
+  "/container/organizations/:orgId/plans",
+  authenticateToken,
+  requireAdmin,
+  [param("orgId").isUUID(), body("planId").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { orgId } = req.params;
+      const { planId } = req.body;
+
+      await query(
+        `INSERT INTO organization_container_plans (organization_id, plan_id)
+         VALUES ($1, $2)
+         ON CONFLICT (organization_id, plan_id) DO NOTHING`,
+        [orgId, planId]
+      );
+
+      res.status(204).send();
+    } catch (err: any) {
+      console.error("Admin organization plan link error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to link plan to organization" });
+    }
+  }
+);
+
+router.delete(
+  "/container/organizations/:orgId/plans/:planId",
+  authenticateToken,
+  requireAdmin,
+  [param("orgId").isUUID(), param("planId").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { orgId, planId } = req.params;
+      await query(
+        "DELETE FROM organization_container_plans WHERE organization_id = $1 AND plan_id = $2",
+        [orgId, planId]
+      );
+
+      res.status(204).send();
+    } catch (err: any) {
+      console.error("Admin organization plan unlink error:", err);
+      res
+        .status(500)
+        .json({ error: err.message || "Failed to unlink plan" });
+    }
+  }
+);
+
+// Admin container provisioning and lifecycle
+router.post(
+  "/container/organizations/:orgId/containers",
+  authenticateToken,
+  requireAdmin,
+  [
+    param("orgId").isUUID(),
+    body("name").isString().trim().notEmpty(),
+    body("image").isString().trim().notEmpty(),
+    body("planId").isUUID(),
+    body("ports").optional().isArray(),
+    body("volumes").optional().isArray(),
+    body("environment").optional().isObject(),
+    body("command").optional(),
+    body("restartPolicy").optional().isIn(["no", "always", "unless-stopped", "on-failure"]),
+    body("autoStart").optional().isBoolean(),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { orgId } = req.params;
+      const adminId = (req as any).user?.id ?? null;
+      const { name, image, planId, ports = [], volumes = [], environment = {}, command, restartPolicy, autoStart } = req.body;
+
+      const planResult = await query(
+        'SELECT * FROM container_plans WHERE id = $1',
+        [planId]
+      );
+      const plan = planResult.rows?.[0];
+      if (!plan || !plan.active) {
+        return res.status(400).json({ error: 'Plan is not active or does not exist' });
+      }
+
+      const countResult = await query(
+        'SELECT COUNT(*)::int AS count FROM containers WHERE organization_id = $1 AND plan_id = $2',
+        [orgId, planId]
+      );
+      const currentCount = countResult.rows?.[0]?.count ?? 0;
+      if (currentCount >= plan.max_containers) {
+        return res.status(400).json({ error: 'Plan container quota exceeded for organization' });
+      }
+
+      const dockerPayload = {
+        name,
+        image,
+        env: environment,
+        command,
+        restartPolicy: restartPolicy ?? 'unless-stopped',
+        ports: Array.isArray(ports)
+          ? ports.map((port: any) => ({
+              containerPort: Number(port.containerPort ?? port.internal ?? port.private ?? port),
+              hostPort: port.hostPort ? Number(port.hostPort) : port.public ? Number(port.public) : undefined,
+              protocol: port.protocol ?? 'tcp',
+              hostIp: port.hostIp,
+            }))
+          : [],
+        volumes: Array.isArray(volumes)
+          ? volumes.map((volume: any) => ({
+              source: volume.source ?? volume.host,
+              target: volume.target ?? volume.container ?? volume.path,
+              readOnly: volume.readOnly ?? volume.ro ?? false,
+              type: volume.type,
+            }))
+          : [],
+        autoStart: autoStart ?? true,
+      };
+
+      const dockerContainer = await dockerEngineService.createContainer(dockerPayload);
+      const now = new Date().toISOString();
+      const config = {
+        ports,
+        volumes,
+        environment,
+        command,
+        restartPolicy: restartPolicy ?? 'unless-stopped',
+      };
+      const desiredState = dockerPayload.autoStart ? 'running' : 'stopped';
+      const status = dockerContainer.state || 'created';
+
+      const insert = await query(
+        `INSERT INTO containers (name, image, organization_id, config, status, created_by, plan_id, docker_id, desired_state, runtime, last_status_sync, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+         RETURNING *`,
+        [
+          name,
+          image,
+          orgId,
+          config,
+          status,
+          adminId,
+          planId,
+          dockerContainer.dockerId,
+          desiredState,
+          { docker: dockerContainer },
+          now,
+          now,
+        ]
+      );
+
+      const containerRow = insert.rows[0];
+
+      if (adminId) {
+        await logActivity({
+          userId: adminId,
+          organizationId: orgId,
+          entityType: 'container',
+          entityId: containerRow.id,
+          eventType: 'admin_container_created',
+          message: `Admin provisioned container ${name}`,
+          status: 'success',
+          metadata: {
+            dockerId: dockerContainer.dockerId,
+            planId,
+          },
+        });
+      }
+
+      res.status(201).json({ container: containerRow });
+    } catch (err: any) {
+      console.error('Admin container create error:', err);
+      res.status(500).json({ error: err.message || 'Failed to create container' });
+    }
+  }
+);
+
+router.post(
+  "/container/instances/:id/actions",
+  authenticateToken,
+  requireAdmin,
+  [param("id").isUUID(), body("action").isIn(["start", "stop", "restart"])],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { action } = req.body;
+      const adminId = (req as any).user?.id ?? null;
+
+      const { rows } = await query('SELECT * FROM containers WHERE id = $1', [id]);
+      const container = rows[0];
+      if (!container) {
+        return res.status(404).json({ error: 'Container not found' });
+      }
+
+      if (!container.docker_id) {
+        return res.status(400).json({ error: 'Container is not linked to Docker' });
+      }
+
+      if (action === 'start') {
+        await dockerEngineService.startContainer(container.docker_id);
+      } else if (action === 'stop') {
+        await dockerEngineService.stopContainer(container.docker_id);
+      } else if (action === 'restart') {
+        await dockerEngineService.restartContainer(container.docker_id);
+      }
+
+      const detail = await dockerEngineService.inspectContainer(container.docker_id);
+      const status = detail?.state || detail?.status || (action === 'stop' ? 'stopped' : 'running');
+      const desiredState = action === 'stop' ? 'stopped' : 'running';
+      const runtime = detail
+        ? { docker: detail }
+        : container.runtime && typeof container.runtime === 'object'
+          ? container.runtime
+          : {};
+      const now = new Date().toISOString();
+
+      const update = await query(
+        'UPDATE containers SET status = $1, desired_state = $2, runtime = $3, last_status_sync = $4, updated_at = NOW() WHERE id = $5 RETURNING *',
+        [status, desiredState, runtime, now, id]
+      );
+
+      if (adminId) {
+        await logActivity({
+          userId: adminId,
+          organizationId: container.organization_id,
+          entityType: 'container',
+          entityId: id,
+          eventType: `admin_container_${action}`,
+          message: `Admin ${action} container ${container.name}`,
+          status: 'success',
+          metadata: {
+            dockerId: container.docker_id,
+          },
+        });
+      }
+
+      res.json({ container: update.rows[0] });
+    } catch (err: any) {
+      console.error('Admin container action error:', err);
+      res.status(500).json({ error: err.message || 'Failed to execute container action' });
+    }
+  }
+);
+
+router.delete(
+  "/container/instances/:id",
+  authenticateToken,
+  requireAdmin,
+  [param("id").isUUID()],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const adminId = (req as any).user?.id ?? null;
+      const { rows } = await query('SELECT * FROM containers WHERE id = $1', [id]);
+      const container = rows[0];
+      if (!container) {
+        return res.status(404).json({ error: 'Container not found' });
+      }
+
+      if (container.docker_id) {
+        try {
+          await dockerEngineService.removeContainer(container.docker_id, true);
+        } catch (err) {
+          console.warn('Admin delete: failed to remove Docker container', err);
+        }
+      }
+
+      await query('DELETE FROM containers WHERE id = $1', [id]);
+
+      if (adminId) {
+        await logActivity({
+          userId: adminId,
+          organizationId: container.organization_id,
+          entityType: 'container',
+          entityId: id,
+          eventType: 'admin_container_deleted',
+          message: `Admin deleted container ${container.name}`,
+          status: 'success',
+          metadata: {
+            dockerId: container.docker_id,
+          },
+        });
+      }
+
+      res.status(204).send();
+    } catch (err: any) {
+      console.error('Admin container delete error:', err);
+      res.status(500).json({ error: err.message || 'Failed to delete container' });
+    }
+  }
+);
+
 // List all containers across organizations
 router.get(
   "/containers",
@@ -2263,26 +2644,55 @@ router.get(
   async (_req: Request, res: Response) => {
     try {
       const result = await query(
-        `SELECT 
-        c.id,
-        c.name,
-        c.image,
-        c.organization_id,
-        c.config,
-        c.status,
-        c.created_by,
-        c.created_at,
-        c.updated_at,
-        org.name AS organization_name,
-        org.slug AS organization_slug,
-        u.email AS creator_email,
-        u.name AS creator_name
-       FROM containers c
-       LEFT JOIN organizations org ON org.id = c.organization_id
-       LEFT JOIN users u ON u.id = c.created_by
-       ORDER BY c.created_at DESC`
+        `SELECT
+          c.*,
+          org.name AS organization_name,
+          org.slug AS organization_slug,
+          u.email AS creator_email,
+          u.name AS creator_name,
+          cp.name AS plan_name,
+          cp.resource_profile AS plan_resource_profile,
+          cp.max_containers AS plan_max_containers,
+          cp.price_monthly AS plan_price_monthly
+         FROM containers c
+         LEFT JOIN organizations org ON org.id = c.organization_id
+         LEFT JOIN users u ON u.id = c.created_by
+         LEFT JOIN container_plans cp ON cp.id = c.plan_id
+         ORDER BY c.created_at DESC`
       );
-      res.json({ containers: result.rows || [] });
+
+      const rows = result.rows || [];
+      const containers = await Promise.all(
+        rows.map(async (row) => {
+          let status = row.status;
+          let runtime = row.runtime && typeof row.runtime === 'object' ? row.runtime : {};
+          let lastSync = row.last_status_sync;
+
+          if (row.docker_id) {
+            const detail = await dockerEngineService.inspectContainer(row.docker_id);
+            if (detail) {
+              status = detail.state || detail.status || status;
+              runtime = { ...runtime, docker: detail };
+              lastSync = new Date().toISOString();
+              await query(
+                'UPDATE containers SET status = $1, runtime = $2, last_status_sync = $3, updated_at = NOW() WHERE id = $4',
+                [status, runtime, lastSync, row.id]
+              );
+            } else {
+              status = 'missing';
+            }
+          }
+
+          return {
+            ...row,
+            status,
+            runtime,
+            last_status_sync: lastSync,
+          };
+        })
+      );
+
+      res.json({ containers });
     } catch (err: any) {
       if (isMissingTableError(err)) {
         return res.json({
@@ -2294,6 +2704,46 @@ router.get(
       res
         .status(500)
         .json({ error: err.message || "Failed to fetch containers" });
+    }
+  }
+);
+
+router.get(
+  "/container/swarm/nodes",
+  authenticateToken,
+  requireAdmin,
+  async (_req: Request, res: Response) => {
+    try {
+      const nodes = await dockerEngineService.listSwarmNodes();
+      res.json({ nodes });
+    } catch (err: any) {
+      console.error('Admin swarm nodes error:', err);
+      res.status(500).json({ error: err.message || 'Failed to list swarm nodes' });
+    }
+  }
+);
+
+router.post(
+  "/container/swarm/nodes/:id/availability",
+  authenticateToken,
+  requireAdmin,
+  [param("id").isString().notEmpty(), body("availability").isIn(["active", "pause", "drain"])],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res
+          .status(400)
+          .json({ error: "Invalid input", details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { availability } = req.body;
+      await dockerEngineService.setNodeAvailability(id, availability);
+      res.status(204).send();
+    } catch (err: any) {
+      console.error('Admin swarm update error:', err);
+      res.status(500).json({ error: err.message || 'Failed to update node availability' });
     }
   }
 );

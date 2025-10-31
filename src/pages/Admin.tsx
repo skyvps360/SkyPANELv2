@@ -57,7 +57,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -226,6 +225,21 @@ const formatCurrency = (value: number | null | undefined, currency = "USD") => {
 const formatCountValue = (value: number | null | undefined): string =>
   value === null || value === undefined ? "—" : value.toString();
 
+const formatContainerResources = (
+  profile?: ContainerPlanProfile | null
+): string => {
+  if (!profile) return "—";
+  const parts: string[] = [];
+  if (profile.cpuCores) parts.push(`${profile.cpuCores} vCPU`);
+  if (profile.memoryGb)
+    parts.push(`${Number(profile.memoryGb).toString()} GB RAM`);
+  if (profile.storageGb)
+    parts.push(`${Number(profile.storageGb).toString()} GB storage`);
+  if (profile.networkMbps)
+    parts.push(`${Number(profile.networkMbps).toString()} Mbps network`);
+  return parts.length ? parts.join(" · ") : "—";
+};
+
 interface SectionPanelProps {
   section: AdminSection;
   activeSection: AdminSection;
@@ -312,27 +326,23 @@ interface Provider {
   validation_message?: string | null;
 }
 
+interface ContainerPlanProfile {
+  cpuCores: number;
+  memoryGb: number;
+  storageGb: number;
+  networkMbps: number;
+}
+
 interface ContainerPlan {
   id: string;
   name: string;
-  cpu_cores: number;
-  ram_gb: number;
-  storage_gb: number;
-  network_mbps: number;
-  base_price: number;
-  markup_price: number;
+  resource_profile: ContainerPlanProfile;
+  max_containers: number;
+  price_monthly: number;
+  is_public: boolean;
   active: boolean;
   created_at: string;
   updated_at: string;
-}
-
-interface PricingConfig {
-  id?: string;
-  price_per_cpu: number;
-  price_per_ram_gb: number;
-  price_per_storage_gb: number;
-  price_per_network_mbps: number;
-  currency?: string;
 }
 
 interface AdminContainerInstance {
@@ -349,6 +359,10 @@ interface AdminContainerInstance {
   organization_slug?: string | null;
   creator_email?: string | null;
   creator_name?: string | null;
+  plan_name?: string | null;
+  plan_resource_profile?: ContainerPlanProfile | null;
+  plan_price_monthly?: number | null;
+  plan_max_containers?: number | null;
 }
 
 interface AdminServerInstance {
@@ -641,24 +655,20 @@ const Admin: React.FC = () => {
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
   const [editPlan, setEditPlan] = useState<Partial<VPSPlan>>({});
   const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
-  const [pricing, setPricing] = useState<PricingConfig>({
-    price_per_cpu: 0,
-    price_per_ram_gb: 0,
-    price_per_storage_gb: 0,
-    price_per_network_mbps: 0,
-    currency: "USD",
-  });
   const [containerPlans, setContainerPlans] = useState<ContainerPlan[]>([]);
   const [newContainerPlan, setNewContainerPlan] = useState<
     Partial<ContainerPlan>
   >({
     name: "",
-    cpu_cores: 1,
-    ram_gb: 1,
-    storage_gb: 10,
-    network_mbps: 0,
-    base_price: 0,
-    markup_price: 0,
+    resource_profile: {
+      cpuCores: 1,
+      memoryGb: 1,
+      storageGb: 10,
+      networkMbps: 100,
+    },
+    max_containers: 1,
+    price_monthly: 0,
+    is_public: true,
     active: true,
   });
   const [editContainerPlanId, setEditContainerPlanId] = useState<string | null>(
@@ -678,17 +688,6 @@ const Admin: React.FC = () => {
   const [containerStatusFilter, setContainerStatusFilter] =
     useState<string>("all");
   const [containerSearch, setContainerSearch] = useState("");
-
-  // Compute container plan price based on pricing configuration
-  const computeContainerPlanPrice = (plan: ContainerPlan) => {
-    const cpuPrice = (plan.cpu_cores || 0) * (pricing.price_per_cpu || 0);
-    const ramPrice = (plan.ram_gb || 0) * (pricing.price_per_ram_gb || 0);
-    const storagePrice =
-      (plan.storage_gb || 0) * (pricing.price_per_storage_gb || 0);
-    const networkPrice =
-      (plan.network_mbps || 0) * (pricing.price_per_network_mbps || 0);
-    return cpuPrice + ramPrice + storagePrice + networkPrice;
-  };
 
   // Linode VPS state
   const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
@@ -769,6 +768,41 @@ const Admin: React.FC = () => {
   const [userEditModalOpen, setUserEditModalOpen] = useState(false);
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const [savingUserUpdate, setSavingUserUpdate] = useState(false);
+
+  const normalizeProfile = (
+    profile?: ContainerPlanProfile | null
+  ): ContainerPlanProfile => ({
+    cpuCores: profile?.cpuCores ?? 0,
+    memoryGb: profile?.memoryGb ?? 0,
+    storageGb: profile?.storageGb ?? 0,
+    networkMbps: profile?.networkMbps ?? 0,
+  });
+
+  const setNewPlanResource = (
+    field: keyof ContainerPlanProfile,
+    value: number
+  ) => {
+    setNewContainerPlan((prev) => ({
+      ...prev,
+      resource_profile: {
+        ...normalizeProfile(prev.resource_profile),
+        [field]: value,
+      },
+    }));
+  };
+
+  const setEditPlanResource = (
+    field: keyof ContainerPlanProfile,
+    value: number
+  ) => {
+    setEditContainerPlan((prev) => ({
+      ...prev,
+      resource_profile: {
+        ...normalizeProfile(prev.resource_profile),
+        [field]: value,
+      },
+    }));
+  };
 
   // User action handlers
   const handleViewUser = useCallback(
@@ -1371,7 +1405,6 @@ const Admin: React.FC = () => {
       case "theme":
         break;
       case "container-plans":
-        fetchPricing();
         fetchContainerPlans();
         break;
       case "containers":
@@ -1731,44 +1764,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const fetchPricing = async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/pricing`, {
-        headers: authHeader,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load pricing");
-      setPricing(
-        data.pricing ?? {
-          price_per_cpu: 0,
-          price_per_ram_gb: 0,
-          price_per_storage_gb: 0,
-          price_per_network_mbps: 0,
-          currency: "USD",
-        }
-      );
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const savePricing = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/pricing`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify(pricing),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save pricing");
-      setPricing(data.pricing);
-      toast.success("Container pricing updated");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
   const fetchContainerPlans = async () => {
     if (!token) return;
     try {
@@ -1778,7 +1773,13 @@ const Admin: React.FC = () => {
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to load container plans");
-      setContainerPlans(data.plans);
+      const plans = Array.isArray(data.plans)
+        ? data.plans.map((plan: any) => ({
+            ...plan,
+            resource_profile: normalizeProfile(plan.resource_profile),
+          }))
+        : [];
+      setContainerPlans(plans);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -1794,7 +1795,12 @@ const Admin: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load containers");
       const items: AdminContainerInstance[] = Array.isArray(data.containers)
-        ? data.containers
+        ? data.containers.map((container: any) => ({
+            ...container,
+            plan_resource_profile: container.plan_resource_profile
+              ? normalizeProfile(container.plan_resource_profile)
+              : null,
+          }))
         : [];
       setContainerInstances(items);
     } catch (e: any) {
@@ -1915,19 +1921,40 @@ const Admin: React.FC = () => {
       const res = await fetch(`${API_BASE_URL}/admin/container/plans`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify(newContainerPlan),
+        body: JSON.stringify({
+          name: newContainerPlan.name,
+          resourceProfile: {
+            cpuCores: newContainerPlan.resource_profile?.cpuCores ?? 0,
+            memoryGb: newContainerPlan.resource_profile?.memoryGb ?? 0,
+            storageGb: newContainerPlan.resource_profile?.storageGb ?? 0,
+            networkMbps: newContainerPlan.resource_profile?.networkMbps ?? 0,
+          },
+          maxContainers: newContainerPlan.max_containers ?? 1,
+          priceMonthly: newContainerPlan.price_monthly ?? 0,
+          isPublic: newContainerPlan.is_public ?? true,
+          active: newContainerPlan.active ?? true,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create plan");
-      setContainerPlans((prev) => [data.plan, ...prev]);
+      setContainerPlans((prev) => [
+        {
+          ...data.plan,
+          resource_profile: normalizeProfile(data.plan?.resource_profile),
+        },
+        ...prev,
+      ]);
       setNewContainerPlan({
         name: "",
-        cpu_cores: 1,
-        ram_gb: 1,
-        storage_gb: 10,
-        network_mbps: 0,
-        base_price: 0,
-        markup_price: 0,
+        resource_profile: {
+          cpuCores: 1,
+          memoryGb: 1,
+          storageGb: 10,
+          networkMbps: 100,
+        },
+        max_containers: 1,
+        price_monthly: 0,
+        is_public: true,
         active: true,
       });
       toast.success("Container plan created");
@@ -2127,21 +2154,44 @@ const Admin: React.FC = () => {
   const updateContainerPlan = async () => {
     if (!editContainerPlanId) return;
     try {
+      const payload: Record<string, unknown> = {};
+      if (editContainerPlan.name !== undefined)
+        payload.name = editContainerPlan.name;
+      if (editContainerPlan.resource_profile) {
+        const profile = normalizeProfile(editContainerPlan.resource_profile);
+        payload.resourceProfile = {
+          cpuCores: profile.cpuCores,
+          memoryGb: profile.memoryGb,
+          storageGb: profile.storageGb,
+          networkMbps: profile.networkMbps,
+        };
+      }
+      if (editContainerPlan.max_containers !== undefined)
+        payload.maxContainers = Number(editContainerPlan.max_containers);
+      if (editContainerPlan.price_monthly !== undefined)
+        payload.priceMonthly = Number(editContainerPlan.price_monthly);
+      if (editContainerPlan.is_public !== undefined)
+        payload.isPublic = editContainerPlan.is_public;
+      if (editContainerPlan.active !== undefined)
+        payload.active = editContainerPlan.active;
+
       const res = await fetch(
         `${API_BASE_URL}/admin/container/plans/${editContainerPlanId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify(editContainerPlan),
+          body: JSON.stringify(payload),
         }
       );
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to update container plan");
-      setContainerPlans(
-        containerPlans.map((p) =>
-          p.id === editContainerPlanId ? data.plan : p
-        )
+      const updatedPlan = {
+        ...data.plan,
+        resource_profile: normalizeProfile(data.plan?.resource_profile),
+      };
+      setContainerPlans((prev) =>
+        prev.map((p) => (p.id === editContainerPlanId ? updatedPlan : p))
       );
       setEditContainerPlanId(null);
       setEditContainerPlan({});
@@ -2698,7 +2748,6 @@ const Admin: React.FC = () => {
         fetchLinodeRegions();
         break;
       case "container-plans":
-        fetchPricing();
         fetchContainerPlans();
         break;
       case "containers":
@@ -4864,105 +4913,6 @@ const Admin: React.FC = () => {
     <SectionPanel section="container-plans" activeSection={activeTab}>
             <div className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Server className="h-5 w-5 text-muted-foreground" />
-                    Container Pricing
-                  </CardTitle>
-                  <CardDescription>
-                    Tune the smart pricing formula that powers container-based
-                    workloads.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-cpu">Per CPU</Label>
-                      <Input
-                        id="price-per-cpu"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_cpu}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_cpu: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-ram">Per RAM GB</Label>
-                      <Input
-                        id="price-per-ram"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_ram_gb}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_ram_gb: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-storage">Per Storage GB</Label>
-                      <Input
-                        id="price-per-storage"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_storage_gb}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_storage_gb: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-mbps">Per Mbps</Label>
-                      <Input
-                        id="price-per-mbps"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_network_mbps}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_network_mbps: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pricing-currency">Currency</Label>
-                      <Input
-                        id="pricing-currency"
-                        value={pricing.currency}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            currency: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={savePricing}
-                    className="gap-2"
-                  >
-                    Save Pricing
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card>
                 <CardHeader className="gap-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -4979,7 +4929,7 @@ const Admin: React.FC = () => {
                 <CardContent className="space-y-6">
                   <div className="rounded-lg border border-border bg-muted/40 p-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
-                      <div className="space-y-2">
+                      <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="container-plan-name">Name</Label>
                         <Input
                           id="container-plan-name"
@@ -4994,17 +4944,17 @@ const Admin: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="container-plan-cpu">CPU Cores</Label>
+                        <Label htmlFor="container-plan-cpu">vCPUs</Label>
                         <Input
                           id="container-plan-cpu"
                           type="number"
                           min={1}
-                          value={newContainerPlan.cpu_cores as number}
+                          value={newContainerPlan.resource_profile?.cpuCores ?? 0}
                           onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              cpu_cores: Number(e.target.value),
-                            }))
+                            setNewPlanResource(
+                              "cpuCores",
+                              Math.max(1, Number(e.target.value) || 0)
+                            )
                           }
                         />
                       </div>
@@ -5013,13 +4963,14 @@ const Admin: React.FC = () => {
                         <Input
                           id="container-plan-ram"
                           type="number"
-                          min={1}
-                          value={newContainerPlan.ram_gb as number}
+                          min={0}
+                          step="0.5"
+                          value={newContainerPlan.resource_profile?.memoryGb ?? 0}
                           onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              ram_gb: Number(e.target.value),
-                            }))
+                            setNewPlanResource(
+                              "memoryGb",
+                              Number(e.target.value) || 0
+                            )
                           }
                         />
                       </div>
@@ -5030,13 +4981,13 @@ const Admin: React.FC = () => {
                         <Input
                           id="container-plan-storage"
                           type="number"
-                          min={1}
-                          value={newContainerPlan.storage_gb as number}
+                          min={0}
+                          value={newContainerPlan.resource_profile?.storageGb ?? 0}
                           onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              storage_gb: Number(e.target.value),
-                            }))
+                            setNewPlanResource(
+                              "storageGb",
+                              Number(e.target.value) || 0
+                            )
                           }
                         />
                       </div>
@@ -5048,11 +4999,84 @@ const Admin: React.FC = () => {
                           id="container-plan-network"
                           type="number"
                           min={0}
-                          value={newContainerPlan.network_mbps as number}
+                          value={newContainerPlan.resource_profile?.networkMbps ?? 0}
+                          onChange={(e) =>
+                            setNewPlanResource(
+                              "networkMbps",
+                              Number(e.target.value) || 0
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="container-plan-max">
+                          Max Containers
+                        </Label>
+                        <Input
+                          id="container-plan-max"
+                          type="number"
+                          min={1}
+                          value={newContainerPlan.max_containers ?? 1}
                           onChange={(e) =>
                             setNewContainerPlan((p) => ({
                               ...p,
-                              network_mbps: Number(e.target.value),
+                              max_containers: Math.max(1, Number(e.target.value) || 1),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="container-plan-price">
+                          Monthly Price (USD)
+                        </Label>
+                        <Input
+                          id="container-plan-price"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={newContainerPlan.price_monthly ?? 0}
+                          onChange={(e) =>
+                            setNewContainerPlan((p) => ({
+                              ...p,
+                              price_monthly: Math.max(0, Number(e.target.value) || 0),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-border bg-background/60 px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Public
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Visible to all organizations
+                          </p>
+                        </div>
+                        <Switch
+                          checked={Boolean(newContainerPlan.is_public ?? true)}
+                          onCheckedChange={(checked) =>
+                            setNewContainerPlan((p) => ({
+                              ...p,
+                              is_public: checked,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-border bg-background/60 px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Active
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Allow provisioning against this plan
+                          </p>
+                        </div>
+                        <Switch
+                          checked={Boolean(newContainerPlan.active ?? true)}
+                          onCheckedChange={(checked) =>
+                            setNewContainerPlan((p) => ({
+                              ...p,
+                              active: checked,
                             }))
                           }
                         />
@@ -5074,11 +5098,10 @@ const Admin: React.FC = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
-                          <TableHead>CPU</TableHead>
-                          <TableHead>RAM</TableHead>
-                          <TableHead>Storage</TableHead>
-                          <TableHead>Network</TableHead>
-                          <TableHead>Estimated Price</TableHead>
+                          <TableHead>Resources</TableHead>
+                          <TableHead>Max Containers</TableHead>
+                          <TableHead>Price / Month</TableHead>
+                          <TableHead>Visibility</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -5087,7 +5110,7 @@ const Admin: React.FC = () => {
                         {containerPlans.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={8}
+                              colSpan={7}
                               className="py-8 text-center text-muted-foreground"
                             >
                               No container plans have been created yet.
@@ -5099,12 +5122,19 @@ const Admin: React.FC = () => {
                               <TableCell className="font-medium text-foreground">
                                 {plan.name}
                               </TableCell>
-                              <TableCell>{plan.cpu_cores}</TableCell>
-                              <TableCell>{plan.ram_gb} GB</TableCell>
-                              <TableCell>{plan.storage_gb} GB</TableCell>
-                              <TableCell>{plan.network_mbps} Mbps</TableCell>
                               <TableCell>
-                                ${computeContainerPlanPrice(plan).toFixed(2)}
+                                {formatContainerResources(plan.resource_profile)}
+                              </TableCell>
+                              <TableCell>{plan.max_containers}</TableCell>
+                              <TableCell>
+                                {formatCurrency(plan.price_monthly) ?? "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={plan.is_public ? "default" : "secondary"}
+                                >
+                                  {plan.is_public ? "Public" : "Private"}
+                                </Badge>
                               </TableCell>
                               <TableCell>
                                 <Badge
@@ -5122,7 +5152,12 @@ const Admin: React.FC = () => {
                                     variant="outline"
                                     onClick={() => {
                                       setEditContainerPlanId(plan.id);
-                                      setEditContainerPlan(plan);
+                                      setEditContainerPlan({
+                                        ...plan,
+                                        resource_profile: normalizeProfile(
+                                          plan.resource_profile
+                                        ),
+                                      });
                                     }}
                                     className="gap-1"
                                   >
@@ -5218,6 +5253,7 @@ const Admin: React.FC = () => {
                           Organization
                         </TableHead>
                         <TableHead className="w-32">Status</TableHead>
+                        <TableHead className="min-w-[12rem]">Plan</TableHead>
                         <TableHead className="min-w-[12rem]">Image</TableHead>
                         <TableHead className="min-w-[12rem]">Created</TableHead>
                         <TableHead className="min-w-[12rem]">Updated</TableHead>
@@ -5227,7 +5263,7 @@ const Admin: React.FC = () => {
                       {containerInstancesLoading ? (
                         <TableRow>
                           <TableCell
-                            colSpan={6}
+                            colSpan={7}
                             className="py-10 text-center text-muted-foreground"
                           >
                             Loading containers…
@@ -5236,7 +5272,7 @@ const Admin: React.FC = () => {
                       ) : filteredContainerInstances.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={6}
+                            colSpan={7}
                             className="py-10 text-center text-muted-foreground"
                           >
                             No containers match the current filters.
@@ -5276,6 +5312,18 @@ const Admin: React.FC = () => {
                               >
                                 {formatStatusLabel(instance.status)}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="text-sm text-foreground">
+                                  {instance.plan_name || "—"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatContainerResources(
+                                    instance.plan_resource_profile
+                                  )}
+                                </p>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <p className="text-sm text-muted-foreground">
@@ -6071,17 +6119,19 @@ const Admin: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="edit-container-cpu">CPU Cores</Label>
+                <Label htmlFor="edit-container-cpu">vCPUs</Label>
                 <Input
                   id="edit-container-cpu"
                   type="number"
                   min={1}
-                  value={editContainerPlan.cpu_cores ?? ""}
+                  value={
+                    editContainerPlan.resource_profile?.cpuCores ?? ""
+                  }
                   onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      cpu_cores: Number(e.target.value),
-                    }))
+                    setEditPlanResource(
+                      "cpuCores",
+                      Math.max(1, Number(e.target.value) || 0)
+                    )
                   }
                 />
               </div>
@@ -6090,13 +6140,16 @@ const Admin: React.FC = () => {
                 <Input
                   id="edit-container-ram"
                   type="number"
-                  min={1}
-                  value={editContainerPlan.ram_gb ?? ""}
+                  min={0}
+                  step="0.5"
+                  value={
+                    editContainerPlan.resource_profile?.memoryGb ?? ""
+                  }
                   onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      ram_gb: Number(e.target.value),
-                    }))
+                    setEditPlanResource(
+                      "memoryGb",
+                      Number(e.target.value) || 0
+                    )
                   }
                 />
               </div>
@@ -6107,13 +6160,15 @@ const Admin: React.FC = () => {
                 <Input
                   id="edit-container-storage"
                   type="number"
-                  min={1}
-                  value={editContainerPlan.storage_gb ?? ""}
+                  min={0}
+                  value={
+                    editContainerPlan.resource_profile?.storageGb ?? ""
+                  }
                   onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      storage_gb: Number(e.target.value),
-                    }))
+                    setEditPlanResource(
+                      "storageGb",
+                      Number(e.target.value) || 0
+                    )
                   }
                 />
               </div>
@@ -6123,44 +6178,86 @@ const Admin: React.FC = () => {
                   id="edit-container-network"
                   type="number"
                   min={0}
-                  value={editContainerPlan.network_mbps ?? ""}
+                  value={
+                    editContainerPlan.resource_profile?.networkMbps ?? ""
+                  }
+                  onChange={(e) =>
+                    setEditPlanResource(
+                      "networkMbps",
+                      Number(e.target.value) || 0
+                    )
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-container-max">Max Containers</Label>
+                <Input
+                  id="edit-container-max"
+                  type="number"
+                  min={1}
+                  value={editContainerPlan.max_containers ?? ""}
                   onChange={(e) =>
                     setEditContainerPlan((prev) => ({
                       ...prev,
-                      network_mbps: Number(e.target.value),
+                      max_containers: Math.max(1, Number(e.target.value) || 1),
+                    }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-container-price">Monthly Price (USD)</Label>
+                <Input
+                  id="edit-container-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editContainerPlan.price_monthly ?? ""}
+                  onChange={(e) =>
+                    setEditContainerPlan((prev) => ({
+                      ...prev,
+                      price_monthly: Math.max(0, Number(e.target.value) || 0),
                     }))
                   }
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-container-price">Price (USD)</Label>
-              <Input
-                id="edit-container-price"
-                type="number"
-                step="0.01"
-                value={editContainerPlan.base_price ?? ""}
-                onChange={(e) =>
-                  setEditContainerPlan((prev) => ({
-                    ...prev,
-                    base_price: Number(e.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Active</p>
-                <p className="text-xs text-muted-foreground">
-                  Toggle visibility without deleting the plan.
-                </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Public</p>
+                  <p className="text-xs text-muted-foreground">
+                    Visible to all organizations
+                  </p>
+                </div>
+                <Switch
+                  checked={Boolean(editContainerPlan.is_public ?? false)}
+                  onCheckedChange={(checked) =>
+                    setEditContainerPlan((prev) => ({
+                      ...prev,
+                      is_public: checked,
+                    }))
+                  }
+                />
               </div>
-              <Switch
-                checked={Boolean(editContainerPlan.active ?? false)}
-                onCheckedChange={(checked) =>
-                  setEditContainerPlan((prev) => ({ ...prev, active: checked }))
-                }
-              />
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Active</p>
+                  <p className="text-xs text-muted-foreground">
+                    Toggle visibility without deleting the plan.
+                  </p>
+                </div>
+                <Switch
+                  checked={Boolean(editContainerPlan.active ?? false)}
+                  onCheckedChange={(checked) =>
+                    setEditContainerPlan((prev) => ({
+                      ...prev,
+                      active: checked,
+                    }))
+                  }
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
