@@ -54,47 +54,8 @@ router.get('/', async (req: Request, res: Response) => {
     );
 
     const rows = result.rows || [];
-    const containers = await Promise.all(
-      rows.map(async (row) => {
-        let status = row.status;
-        let runtime = row.runtime && typeof row.runtime === 'object' ? row.runtime : {};
-        let lastSync = row.last_status_sync;
-
-        if (row.docker_id) {
-          const detail = await dockerEngineService.inspectContainer(row.docker_id);
-          if (detail) {
-            status = detail.state || detail.status || status;
-            runtime = {
-              ...runtime,
-              docker: detail,
-            };
-            lastSync = new Date().toISOString();
-            if (status !== row.status) {
-              await query(
-                'UPDATE containers SET status = $1, runtime = $2, last_status_sync = $3, updated_at = NOW() WHERE id = $4',
-                [status, runtime, lastSync, row.id]
-              );
-            } else {
-              await query(
-                'UPDATE containers SET runtime = $1, last_status_sync = $2, updated_at = NOW() WHERE id = $3',
-                [runtime, lastSync, row.id]
-              );
-            }
-          } else {
-            status = 'missing';
-          }
-        }
-
-        return {
-          ...row,
-          status,
-          runtime,
-          last_status_sync: lastSync,
-        };
-      })
-    );
-
-    res.json({ containers });
+    // Return containers as-is from the database; status/runtimes are updated by a background sync job.
+    res.json({ containers: rows });
   } catch (err: any) {
     if (isMissingTableError(err)) {
       return res.json({ containers: [] });
@@ -158,6 +119,9 @@ router.post(
         env: environment,
         command,
         restartPolicy: restartPolicy ?? 'unless-stopped',
+        // Port mapping supports multiple property name aliases for backwards compatibility:
+        // - containerPort (standard), internal, private: the container's internal port
+        // - hostPort (standard), public: the host machine port to bind to
         ports: Array.isArray(ports)
           ? ports.map((port: any) => ({
               containerPort: Number(port.containerPort ?? port.internal ?? port.private ?? port),
@@ -235,7 +199,11 @@ router.post(
         res.status(201).json({ container: containerRow, runtime });
       } catch (dbErr) {
         if (dockerContainer?.dockerId) {
-          await dockerEngineService.removeContainer(dockerContainer.dockerId, true);
+          try {
+            await dockerEngineService.removeContainer(dockerContainer.dockerId, true);
+          } catch (cleanupErr) {
+            console.error('Rollback failed:', cleanupErr);
+          }
         }
         throw dbErr;
       }
