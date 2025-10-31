@@ -1,11 +1,13 @@
+"use client"
+
 import {
   ChevronsUpDown,
-  HelpCircle,
+  LifeBuoy,
   LogOut,
   Settings,
   Shield,
 } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -43,19 +45,11 @@ export function NavUser({
   const { logout } = useAuth()
   const navigate = useNavigate()
 
+  const isAdmin = user.role === "admin"
+
   const handleLogout = () => {
     logout()
     navigate("/login")
-  }
-
-  // Generate initials for avatar fallback
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
   }
 
   return (
@@ -65,11 +59,18 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground md:h-8 md:p-0"
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">{user.name}</span>
@@ -88,7 +89,14 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {user.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">{user.name}</span>
@@ -98,25 +106,19 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              {user.role === "admin" && (
-                <DropdownMenuItem asChild>
-                  <Link to="/admin">
-                    <Shield />
-                    Admin
-                  </Link>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => navigate("/admin")}>
+                  <Shield />
+                  Admin
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem asChild>
-                <Link to="/settings">
-                  <Settings />
-                  Settings
-                </Link>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <Settings />
+                Settings
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/support">
-                  <HelpCircle />
-                  Support
-                </Link>
+              <DropdownMenuItem onClick={() => navigate("/support")}>
+                <LifeBuoy />
+                Support
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
