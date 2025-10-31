@@ -41,7 +41,7 @@ export function formatGigabytes(
   bytes: number | null | undefined,
   { precision = 0, fallback = "0 GB" }: FormatGigabytesOptions = {}
 ): string {
-  if (!Number.isFinite(bytes ?? NaN) || !bytes) {
+  if (!Number.isFinite(bytes ?? NaN) || bytes === null || bytes === undefined) {
     return fallback;
   }
 
