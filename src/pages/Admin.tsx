@@ -103,6 +103,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { buildApiUrl } from "@/lib/api";
 import { BRAND_NAME } from "@/lib/brand";
+import { formatCurrency as formatCurrencyDisplay } from "@/lib/formatters";
 import type { ThemePreset } from "@/theme/presets";
 import {
   DndContext,
@@ -215,14 +216,10 @@ const formatCurrency = (value: number | null | undefined, currency = "USD") => {
   }
 
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
+    return formatCurrencyDisplay(value, { currency });
   } catch (error) {
     console.warn("Currency format failed", error);
-    return value.toFixed(2);
+    return Number.isFinite(value) ? value.toFixed(2) : null;
   }
 };
 

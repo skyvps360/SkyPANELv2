@@ -24,6 +24,7 @@ import Pagination from '../components/ui/Pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PayPalCheckoutDialog from '@/components/billing/PayPalCheckoutDialog';
+import { formatCurrency as formatCurrencyDisplay } from '@/lib/formatters';
 // Navigation provided by AppLayout
 
 interface FilterState {
@@ -376,22 +377,12 @@ const Billing: React.FC = () => {
 
     const normalizedAmount = Math.round(parsed * 100) / 100;
     setPendingPaymentAmount(normalizedAmount);
-    setPendingPaymentDescription(`Add ${formatCurrency(normalizedAmount)} to wallet`);
+    setPendingPaymentDescription(`Add ${formatCurrencyValue(normalizedAmount)} to wallet`);
     setIsPayPalDialogOpen(true);
   };
 
-  const formatCurrency = (amount: number | null | undefined): string => {
-    // Handle null, undefined, or NaN values
-    if (amount === null || amount === undefined || isNaN(amount)) {
-      return '$0.00';
-    }
-    
-    // Always format as positive amount to avoid double negatives
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(Math.abs(amount));
-  };
+  const formatCurrencyValue = (amount: number | null | undefined): string =>
+    formatCurrencyDisplay(amount, { absolute: true });
 
   const formatDate = (dateString: string | null | undefined): string => {
     // Handle null, undefined, or empty strings
@@ -490,9 +481,9 @@ const Billing: React.FC = () => {
     const exportData = transactions.map(transaction => ({
       description: transaction.description,
       type: transaction.type === 'credit' ? 'Credit' : 'Debit',
-      amount: `${transaction.type === 'credit' ? '+' : '-'}${formatCurrency(transaction.amount)}`,
+      amount: `${transaction.type === 'credit' ? '+' : '-'}${formatCurrencyValue(transaction.amount)}`,
       date: formatDate(transaction.createdAt),
-      balanceafter: formatCurrency(transaction.balanceAfter)
+      balanceafter: formatCurrencyValue(transaction.balanceAfter)
     }));
     
     exportToCSV(exportData, 'wallet-transactions.csv', headers);
@@ -502,7 +493,7 @@ const Billing: React.FC = () => {
     const headers = ['Description', 'Amount', 'Status', 'Provider', 'Date'];
     const exportData = paymentHistory.map(payment => ({
       description: payment.description,
-      amount: `${formatCurrency(payment.amount)} ${payment.currency}`,
+      amount: `${formatCurrencyValue(payment.amount)} ${payment.currency}`,
       status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
       provider: payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1),
       date: formatDate(payment.createdAt)
@@ -527,8 +518,8 @@ const Billing: React.FC = () => {
           minimumFractionDigits: 1,
           maximumFractionDigits: 1
         }),
-        hourlyrate: formatCurrency(vps.hourlyRate),
-        estimatedcost: formatCurrency(vps.estimatedCost)
+        hourlyrate: formatCurrencyValue(vps.hourlyRate),
+        estimatedcost: formatCurrencyValue(vps.estimatedCost)
       }));
 
       // Generate filename with timestamp
@@ -595,7 +586,7 @@ const Billing: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Wallet Balance</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(walletBalance)}
+                    {formatCurrencyValue(walletBalance)}
                   </p>
                 </div>
               </div>
@@ -614,9 +605,9 @@ const Billing: React.FC = () => {
                     {summaryLoading ? (
                       <span className="text-base text-muted-foreground">Loading...</span>
                     ) : billingSummary ? (
-                      formatCurrency(billingSummary.monthlyEstimate)
+                      formatCurrencyValue(billingSummary.monthlyEstimate)
                     ) : (
-                      formatCurrency(0)
+                      formatCurrencyValue(0)
                     )}
                   </p>
                 </div>
@@ -639,7 +630,7 @@ const Billing: React.FC = () => {
                       ) : (() => {
                         const serverValue = billingSummary?.totalSpentThisMonth;
                         const displayValue = (computedMonthlySpent ?? serverValue ?? 0);
-                        return formatCurrency(displayValue);
+                        return formatCurrencyValue(displayValue);
                       })()}
                     </p>
                     {monthlySpentDiscrepancy && (
@@ -786,7 +777,7 @@ const Billing: React.FC = () => {
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="text-sm font-medium text-muted-foreground mb-1">Total Estimated Cost</p>
                     <p className="text-2xl font-bold text-foreground">
-                      {formatCurrency(vpsUptimeData.totalEstimatedCost)}
+                      {formatCurrencyValue(vpsUptimeData.totalEstimatedCost)}
                     </p>
                   </div>
                 </div>
@@ -841,10 +832,10 @@ const Billing: React.FC = () => {
                               })}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
-                              {formatCurrency(vps.hourlyRate)}
+                              {formatCurrencyValue(vps.hourlyRate)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right">
-                              {formatCurrency(vps.estimatedCost)}
+                              {formatCurrencyValue(vps.estimatedCost)}
                             </td>
                           </tr>
                         ))}
@@ -881,7 +872,7 @@ const Billing: React.FC = () => {
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Hourly Rate</p>
                             <p className="text-sm font-medium text-foreground">
-                              {formatCurrency(vps.hourlyRate)}
+                              {formatCurrencyValue(vps.hourlyRate)}
                             </p>
                           </div>
                         </div>
@@ -889,7 +880,7 @@ const Billing: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <p className="text-xs text-muted-foreground">Estimated Cost</p>
                             <p className="text-sm font-bold text-foreground">
-                              {formatCurrency(vps.estimatedCost)}
+                              {formatCurrencyValue(vps.estimatedCost)}
                             </p>
                           </div>
                         </div>
@@ -985,11 +976,11 @@ const Billing: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-medium ${transaction.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                            {transaction.type === 'credit' ? '+' : '-'}{formatCurrencyValue(transaction.amount)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Balance: {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined && !isNaN(transaction.balanceAfter)
-                              ? formatCurrency(transaction.balanceAfter)
+                              ? formatCurrencyValue(transaction.balanceAfter)
                               : 'N/A'}
                           </p>
                         </div>
@@ -1061,13 +1052,13 @@ const Billing: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                            {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                            {transaction.type === 'credit' ? '+' : '-'}{formatCurrencyValue(transaction.amount)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {formatDate(transaction.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                            {formatCurrency(transaction.balanceAfter)}
+                            {formatCurrencyValue(transaction.balanceAfter)}
                           </td>
                         </tr>
                       ))}
@@ -1215,7 +1206,7 @@ const Billing: React.FC = () => {
                             {payment.description}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                            {formatCurrency(payment.amount)} {payment.currency}
+                            {formatCurrencyValue(payment.amount)} {payment.currency}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Badge variant="outline" className={getStatusBadgeClasses(payment.status)}>

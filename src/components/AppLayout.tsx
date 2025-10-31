@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { generateBreadcrumbs } from "@/lib/breadcrumbs";
 import { cn } from "@/lib/utils";
+import { formatCurrency as formatCurrencyDisplay } from "@/lib/formatters";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -124,14 +125,10 @@ const formatRelativeTime = (input: string | null | undefined): string => {
 
 const formatCurrencyValue = (value: number, currency = "USD"): string => {
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
+    return formatCurrencyDisplay(value, { currency });
   } catch (error) {
     console.warn("Currency formatting failed", error);
-    return value.toFixed(2);
+    return Number.isFinite(value) ? value.toFixed(2) : "—";
   }
 };
 

@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getMonthlySpendWithFallback } from '../lib/billingUtils';
 import { MonthlyResetIndicator } from '@/components/Dashboard/MonthlyResetIndicator';
+import { formatCurrency } from '@/lib/formatters';
 
 // Mock data interfaces
 interface ContainerStats {
@@ -221,13 +222,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
 
 
   const getActivityIcon = (type: string) => {

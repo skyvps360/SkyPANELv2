@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { ActiveHoursDisplay } from "./ActiveHoursDisplay";
 import type { VPSInstance } from "@/types/vps";
 import type { Dispatch, SetStateAction } from "react";
+import { formatCurrency, formatGigabytes } from "@/lib/formatters";
 
 interface RegionShape {
   id: string;
@@ -60,15 +61,8 @@ const statusLabel = (status: VPSInstance["status"]): string => {
   }
 };
 
-const formatBytes = (bytes: number): string => {
-  if (!bytes) return "0 GB";
-  return `${Math.round(bytes / 1024)} GB`;
-};
-
-const formatCurrency = (amount: number): string =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    amount
-  );
+const formatInstanceSize = (bytes: number | null | undefined): string =>
+  formatGigabytes(bytes, { fallback: "0 GB" });
 
 const formatDate = (date: string): string =>
   new Date(date).toLocaleString("en-US", {
@@ -292,15 +286,15 @@ export function VpsInstancesTable({
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Memory</div>
-                <div className="font-medium text-foreground text-xs">{formatBytes(instance.specs.memory)}</div>
+                <div className="font-medium text-foreground text-xs">{formatInstanceSize(instance.specs.memory)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Storage</div>
-                <div className="font-medium text-foreground text-xs">{formatBytes(instance.specs.disk)}</div>
+                <div className="font-medium text-foreground text-xs">{formatInstanceSize(instance.specs.disk)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground text-xs">Transfer</div>
-                <div className="font-medium text-foreground text-xs">{formatBytes(instance.specs.transfer)}</div>
+                <div className="font-medium text-foreground text-xs">{formatInstanceSize(instance.specs.transfer)}</div>
               </div>
             </div>
           );
@@ -543,15 +537,15 @@ export function VpsInstancesTable({
               </div>
               <div className="space-y-1">
                 <p className="text-muted-foreground">Memory</p>
-                <p className="font-medium text-foreground">{formatBytes(instance.specs.memory)}</p>
+                <p className="font-medium text-foreground">{formatInstanceSize(instance.specs.memory)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-muted-foreground">Storage</p>
-                <p className="font-medium text-foreground">{formatBytes(instance.specs.disk)}</p>
+                <p className="font-medium text-foreground">{formatInstanceSize(instance.specs.disk)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-muted-foreground">Transfer</p>
-                <p className="font-medium text-foreground">{formatBytes(instance.specs.transfer)}</p>
+                <p className="font-medium text-foreground">{formatInstanceSize(instance.specs.transfer)}</p>
               </div>
             </div>
 

@@ -27,9 +27,7 @@ import type { CreateVPSForm, VPSInstance } from "@/types/vps";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFormPersistence } from "@/hooks/use-form-persistence";
 import { useMobileNavigation } from "@/hooks/use-mobile-navigation";
-import { useLazyLoading, createMobileLoadingFallback } from "@/hooks/use-lazy-loading";
 import { useMobilePerformance } from "@/hooks/use-mobile-performance";
-import { useMobileAssets } from "@/hooks/use-mobile-assets";
 import { useMobileToast } from "@/components/ui/mobile-toast";
 import {
   MobileLoading,
@@ -54,6 +52,7 @@ import {
   type StepConfiguration,
 } from "@/lib/vpsStepConfiguration";
 import { paymentService } from "@/services/paymentService";
+import { formatCurrency, formatGigabytes } from "@/lib/formatters";
 
 interface LinodeType {
   id: string;
@@ -175,43 +174,8 @@ const VPS: React.FC = () => {
   // Mobile-optimized hooks
   const mobileToast = useMobileToast();
   const mobileLoading = useMobileLoading();
-  const { createLazyComponent } = useLazyLoading();
   const { measureRenderTime, getOptimizedSettings } = useMobilePerformance();
   const optimizedSettings = getOptimizedSettings;
-  const { isSlowConnection, preloadAsset } = useMobileAssets();
-
-  // Create lazy-loaded components for mobile performance
-  const _LazyOSSelection = createLazyComponent(
-    () => import("@/components/VPS/LazyOSSelection"),
-    {
-      fallback: createMobileLoadingFallback(
-        "h-32",
-        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-      ),
-      mobileOnly: true,
-      preload: !isSlowConnection,
-    }
-  );
-
-  const _LazyDeploymentSelection = createLazyComponent(
-    () => import("@/components/VPS/LazyDeploymentSelection"),
-    {
-      fallback: createMobileLoadingFallback(
-        "h-24",
-        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-      ),
-      mobileOnly: true,
-      preload: !isSlowConnection,
-    }
-  );
-
-  const _LazyStackScriptConfig = createLazyComponent(
-    () => import("@/components/VPS/LazyStackScriptConfig"),
-    {
-      fallback: createMobileLoadingFallback("h-40"),
-      mobileOnly: true,
-    }
-  );
 
   // Performance monitoring
   const endRenderMeasurement = measureRenderTime("VPS");
@@ -1009,8 +973,6 @@ const VPS: React.FC = () => {
     loadLinodeImages,
     loadLinodeStackScripts,
     setModalOpen,
-    isSlowConnection,
-    preloadAsset,
     getOrganization,
     instances,
     setCreateForm,
@@ -1599,18 +1561,8 @@ const VPS: React.FC = () => {
     return matchesSearch && matchesStatus && matchesRegion && matchesProvider;
   });
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return "0 GB";
-    const gb = bytes / 1024;
-    return `${gb.toFixed(0)} GB`;
-  };
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+  const formatSelectedPlanMemory = (bytes: number): string =>
+    formatGigabytes(bytes, { fallback: "0 GB" });
 
   // Filter plans based on selected provider
   const filteredLinodeTypes = useMemo(() => {
@@ -1781,7 +1733,7 @@ const VPS: React.FC = () => {
                       </Badge>
                       <Badge variant="outline" className="gap-1">
                         <MemoryStick className="h-3.5 w-3.5 mr-1" />
-                        {formatBytes(selectedType.memory)} RAM
+                        {formatSelectedPlanMemory(selectedType.memory)} RAM
                       </Badge>
                       <Badge variant="outline" className="gap-1">
                         <HardDrive className="h-3.5 w-3.5 mr-1" />

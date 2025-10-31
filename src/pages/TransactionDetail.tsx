@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService, type PaymentTransactionDetail } from '../services/paymentService';
+import { formatCurrency as formatCurrencyDisplay } from '@/lib/formatters';
 
 const TransactionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,19 +56,10 @@ const TransactionDetail: React.FC = () => {
     };
   }, [id]);
 
-  const formatCurrency = (amount: number | null | undefined, currency: string = 'USD'): string => {
-    if (amount === null || amount === undefined || Number.isNaN(amount)) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-      }).format(0);
-    }
-
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-    }).format(amount);
-  };
+  const formatCurrencyValue = (
+    amount: number | null | undefined,
+    currency: string = 'USD'
+  ): string => formatCurrencyDisplay(amount, { currency });
 
   const formatDate = (value: string): string => {
     const date = new Date(value);
@@ -194,14 +186,14 @@ const TransactionDetail: React.FC = () => {
       key: 'balance-before',
       label: 'Balance Before',
       value: transaction.balanceBefore !== null && transaction.balanceBefore !== undefined
-        ? formatCurrency(transaction.balanceBefore, transaction.currency)
+        ? formatCurrencyValue(transaction.balanceBefore, transaction.currency)
         : 'N/A',
     },
     {
       key: 'balance-after',
       label: 'Balance After',
       value: transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
-        ? formatCurrency(transaction.balanceAfter, transaction.currency)
+        ? formatCurrencyValue(transaction.balanceAfter, transaction.currency)
         : 'N/A',
     },
   ];
@@ -255,9 +247,9 @@ const TransactionDetail: React.FC = () => {
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Summary</h2>
               <div className="space-y-2 text-muted-foreground">
                 <p><span className="font-medium">Description:</span> {transaction.description}</p>
-                <p><span className="font-medium">Amount:</span> {formatCurrency(Math.abs(transaction.amount), transaction.currency)} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
-                <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined ? formatCurrency(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
-                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined ? formatCurrency(transaction.balanceAfter, transaction.currency) : 'N/A'}</p>
+                <p><span className="font-medium">Amount:</span> {formatCurrencyValue(Math.abs(transaction.amount), transaction.currency)} {transaction.type === 'credit' ? '(Credit)' : '(Debit)'}</p>
+                <p><span className="font-medium">Balance Before:</span> {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined ? formatCurrencyValue(transaction.balanceBefore, transaction.currency) : 'N/A'}</p>
+                <p><span className="font-medium">Balance After:</span> {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined ? formatCurrencyValue(transaction.balanceAfter, transaction.currency) : 'N/A'}</p>
                 <p><span className="font-medium">Created At:</span> {formatDate(transaction.createdAt)}</p>
                 <p><span className="font-medium">Updated At:</span> {formatDate(transaction.updatedAt)}</p>
               </div>
