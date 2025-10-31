@@ -217,14 +217,20 @@ class DockerEngineService {
       Image: payload.image,
       name: payload.name,
       Env: payload.env ? Object.entries(payload.env).map(([key, value]) => `${key}=${value}`) : undefined,
-      Cmd: payload.command,
-      HostConfig: {},
-      RestartPolicy: payload.restartPolicy
-        ? {
-            Name: payload.restartPolicy,
-          }
+      Cmd: payload.command
+        ? (Array.isArray(payload.command)
+            ? payload.command
+            : payload.command.split(' '))
         : undefined,
+      HostConfig: {},
     };
+
+    if (payload.restartPolicy) {
+      options.HostConfig = options.HostConfig || {};
+      options.HostConfig.RestartPolicy = {
+        Name: payload.restartPolicy,
+      };
+    }
 
     if (payload.ports?.length) {
       options.ExposedPorts = {};

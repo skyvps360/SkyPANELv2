@@ -2662,35 +2662,75 @@ router.get(
       );
 
       const rows = result.rows || [];
-      const containers = await Promise.all(
-        rows.map(async (row) => {
-          let status = row.status;
-          let runtime = row.runtime && typeof row.runtime === 'object' ? row.runtime : {};
-          let lastSync = row.last_status_sync;
 
-          if (row.docker_id) {
-            const detail = await dockerEngineService.inspectContainer(row.docker_id);
-            if (detail) {
-              status = detail.state || detail.status || status;
-              runtime = { ...runtime, docker: detail };
-              lastSync = new Date().toISOString();
-              await query(
-                'UPDATE containers SET status = $1, runtime = $2, last_status_sync = $3, updated_at = NOW() WHERE id = $4',
-                [status, runtime, lastSync, row.id]
-              );
-            } else {
-              status = 'missing';
+      // Collect all docker_ids
+      const dockerIds = rows
+        .map((row) => row.docker_id)
+        .filter((id) => !!id);
+
+      // Batch fetch all container details
+      let dockerDetailsMap: Record<string, any> = {};
+      if (dockerIds.length > 0) {
+        try {
+          const allDockerContainers = await dockerEngineService.listContainers(true);
+          // Build a map of docker_id -> detail
+          dockerDetailsMap = allDockerContainers.reduce((acc: Record<string, any>, container: any) => {
+            // Docker API uses Id (capital I)
+            acc[container.Id] = container;
+            return acc;
+          }, {});
+        } catch (e) {
+          console.error("Failed to batch fetch docker containers:", e);
+        }
+      }
+
+      // Optionally, for containers not found in listContainers, fall back to inspectContainer (rare)
+      const missingDockerIds = dockerIds.filter(id => !dockerDetailsMap[id]);
+      if (missingDockerIds.length > 0) {
+        await Promise.all(
+          missingDockerIds.map(async (id) => {
+            try {
+              const detail = await dockerEngineService.inspectContainer(id);
+              if (detail) {
+                dockerDetailsMap[id] = detail;
+              }
+            } catch {
+              // ignore
             }
-          }
+          })
+        );
+      }
 
-          return {
-            ...row,
-            status,
-            runtime,
-            last_status_sync: lastSync,
-          };
-        })
-      );
+      // Now build containers array
+      const containers = [];
+      for (const row of rows) {
+        let status = row.status;
+        let runtime = row.runtime && typeof row.runtime === 'object' ? row.runtime : {};
+        let lastSync = row.last_status_sync;
+
+        const dockerDetail = row.docker_id ? dockerDetailsMap[row.docker_id] : null;
+        if (row.docker_id) {
+          if (dockerDetail) {
+            status = dockerDetail.state || dockerDetail.status || status;
+            runtime = { ...runtime, docker: dockerDetail };
+            lastSync = new Date().toISOString();
+            // Optionally, batch update in future; for now, update as before
+            await query(
+              'UPDATE containers SET status = $1, runtime = $2, last_status_sync = $3, updated_at = NOW() WHERE id = $4',
+              [status, runtime, lastSync, row.id]
+            );
+          } else {
+            status = 'missing';
+          }
+        }
+
+        containers.push({
+          ...row,
+          status,
+          runtime,
+          last_status_sync: lastSync,
+        });
+      }
 
       res.json({ containers });
     } catch (err: any) {

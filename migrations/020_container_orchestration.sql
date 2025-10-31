@@ -60,6 +60,19 @@ BEGIN
   END IF;
 END $$;
 
-UPDATE container_plans
-SET price_monthly = COALESCE(base_price, 0) + COALESCE(markup_price, 0)
-WHERE price_monthly = 0;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'container_plans'
+      AND column_name = 'base_price'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'container_plans'
+      AND column_name = 'markup_price'
+  ) THEN
+    UPDATE container_plans
+    SET price_monthly = COALESCE(base_price, 0) + COALESCE(markup_price, 0)
+    WHERE price_monthly = 0;
+  END IF;
+END $$;

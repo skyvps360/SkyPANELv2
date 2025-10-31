@@ -141,8 +141,7 @@ const Containers: React.FC = () => {
           Object.entries(parsed as Record<string, unknown>).map(([key, val]) => [key, String(val)])
         );
       }
-    } catch (err) {
-      void err;
+    } catch {
     }
     const env: Record<string, string> = {};
     const segments = value.split(/\n|,/).map((segment) => segment.trim()).filter(Boolean);
@@ -170,6 +169,9 @@ const Containers: React.FC = () => {
           hostPort = undefined;
         } else if (hostPart) {
           const parsedHost = Number(hostPart.replace(/[^0-9]/g, ''));
+          if (!Number.isNaN(parsedHost) && (parsedHost < 1 || parsedHost > 65535)) {
+            throw new Error('Invalid port number: must be 1-65535');
+          }
           hostPort = Number.isNaN(parsedHost) ? undefined : parsedHost;
         }
         let protocol = 'tcp';
@@ -418,7 +420,7 @@ const Containers: React.FC = () => {
 
   const handleCreateContainer = async () => {
     if (!createForm.name || !createForm.image || !createForm.planId) {
-      toast.error('Name, image, and plan are required');
+      toast.error('Name, image, and Container Plan are required');
       return;
     }
 

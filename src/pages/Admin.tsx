@@ -232,11 +232,11 @@ const formatContainerResources = (
   const parts: string[] = [];
   if (profile.cpuCores) parts.push(`${profile.cpuCores} vCPU`);
   if (profile.memoryGb)
-    parts.push(`${Number(profile.memoryGb).toString()} GB RAM`);
+    parts.push(`${profile.memoryGb} GB RAM`);
   if (profile.storageGb)
-    parts.push(`${Number(profile.storageGb).toString()} GB storage`);
+    parts.push(`${profile.storageGb} GB storage`);
   if (profile.networkMbps)
-    parts.push(`${Number(profile.networkMbps).toString()} Mbps network`);
+    parts.push(`${profile.networkMbps} Mbps network`);
   return parts.length ? parts.join(" · ") : "—";
 };
 
