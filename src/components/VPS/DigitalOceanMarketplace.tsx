@@ -228,7 +228,7 @@ export default function DigitalOceanMarketplace({
                     )}
                   >
                     <div className="flex flex-col space-y-2">
-                      <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/20 text-blue-600 flex items-center justify-center">
                         <span className="text-white font-bold text-xs">
                           {iconText}
                         </span>

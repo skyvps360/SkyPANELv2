@@ -61,27 +61,27 @@ export function HeroGeometric({
     <div className={cn("relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-background py-32", className)}>
       {/* Floating geometric shapes */}
       <ElegantShape delay={0} className="top-20 left-20 w-16 h-16 opacity-20">
-        <div className="w-full h-full bg-gradient-to-br from-primary/40 to-primary/20 rounded-full blur-sm" />
+        <div className="w-full h-full rounded-full bg-primary/20 blur-sm" />
       </ElegantShape>
       
       <ElegantShape delay={0.2} className="top-40 right-32 w-24 h-24 opacity-15">
-        <div className="w-full h-full bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-lg rotate-45 blur-sm" />
+        <div className="w-full h-full rounded-lg rotate-45 bg-secondary/20 blur-sm" />
       </ElegantShape>
-      
+
       <ElegantShape delay={0.4} className="bottom-32 left-32 w-20 h-20 opacity-25">
-        <div className="w-full h-full bg-gradient-to-br from-accent/40 to-accent/20 rounded-full blur-sm" />
+        <div className="w-full h-full rounded-full bg-accent/20 blur-sm" />
       </ElegantShape>
-      
+
       <ElegantShape delay={0.6} className="bottom-20 right-20 w-32 h-32 opacity-10">
-        <div className="w-full h-full bg-gradient-to-br from-muted/40 to-muted/20 rounded-lg rotate-12 blur-sm" />
+        <div className="w-full h-full rounded-lg rotate-12 bg-muted/30 blur-sm" />
       </ElegantShape>
-      
+
       <ElegantShape delay={0.8} className="top-1/2 left-10 w-12 h-12 opacity-30">
-        <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary/10 rounded-full blur-sm" />
+        <div className="w-full h-full rounded-full bg-primary/20 blur-sm" />
       </ElegantShape>
-      
+
       <ElegantShape delay={1} className="top-1/3 right-10 w-28 h-28 opacity-15">
-        <div className="w-full h-full bg-gradient-to-br from-secondary/30 to-secondary/10 rounded-lg rotate-45 blur-sm" />
+        <div className="w-full h-full rounded-lg rotate-45 bg-secondary/15 blur-sm" />
       </ElegantShape>
 
       {/* Main content */}
@@ -113,7 +113,7 @@ export function HeroGeometric({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.4] bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.4] text-primary"
           >
             {title2}
           </motion.h1>
@@ -155,7 +155,7 @@ export function HeroGeometric({
       </div>
 
       {/* Gradient overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-transparent to-background/50 pointer-events-none" />
+      <div className="absolute inset-0 bg-background/50 pointer-events-none" />
     </div>
   );
 }

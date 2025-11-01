@@ -30,6 +30,8 @@ import adminContactRoutes from './routes/admin/contact.js';
 import adminPlatformRoutes from './routes/admin/platform.js';
 import faqRoutes from './routes/faq.js';
 import adminFaqRoutes from './routes/adminFaq.js';
+import adminPaasRoutes from './routes/admin/paas.js';
+import paasRoutes from './routes/paas.js';
 import sshKeysRoutes from './routes/sshKeys.js';
 import { notificationService } from './services/notificationService.js';
 import { performStartupValidation, initializeConfigurationMonitoring } from './services/rateLimitConfigValidator.js';
@@ -119,6 +121,8 @@ app.use('/api/admin/contact', adminContactRoutes);
 app.use('/api/admin/platform', adminPlatformRoutes);
 app.use('/api/faq', faqRoutes)
 app.use('/api/admin/faq', adminFaqRoutes)
+app.use('/api/admin/paas', adminPaasRoutes)
+app.use('/api/paas', paasRoutes)
 app.use('/api/ssh-keys', sshKeysRoutes)
 
 // Health check routes are now handled by the dedicated health router

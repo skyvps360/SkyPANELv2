@@ -46,6 +46,7 @@ import PlatformAvailabilityManager from "@/components/admin/PlatformAvailability
 import { RegionAccessManager } from "@/components/admin/RegionAccessManager";
 import MarketplaceManager from "@/components/admin/MarketplaceManager";
 import { AdminSupportView } from "@/components/admin/AdminSupportView";
+import { PaasControlPanel } from "@/components/admin/PaasControlPanel";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +138,8 @@ type AdminSection =
   | "rate-limiting"
   | "faq-management"
   | "platform"
-  | "contact-management";
+  | "contact-management"
+  | "paas";
 
 const ADMIN_SECTIONS: AdminSection[] = [
   "dashboard",
@@ -155,6 +157,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "faq-management",
   "platform",
   "contact-management",
+  "paas",
 ];
 
 const DEFAULT_ADMIN_SECTION: AdminSection = "dashboard";
@@ -2203,6 +2206,19 @@ const Admin: React.FC = () => {
         actionLabel: "Curate catalog",
       },
       {
+        id: "paas",
+        title: "PaaS Operations",
+        description: "Manage clusters, templates, ingress, and registries for containers.",
+        icon: Layers,
+    accent: "text-cyan-600",
+        summary: [
+          { label: "Clusters", value: "—" },
+          { label: "Templates", value: "—" },
+          { label: "Plans", value: "—" },
+        ],
+        actionLabel: "Open control plane",
+      },
+      {
         id: "user-management",
         title: "Organization Access",
         description: "Grant least-privilege access and monitor impersonations.",
@@ -2341,7 +2357,7 @@ const Admin: React.FC = () => {
         <>
           <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 shadow-sm">
             <div
-              className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-gradient-to-tr from-primary/20 via-primary/5 to-transparent blur-3xl lg:block"
+              className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-primary/10 blur-3xl lg:block"
               aria-hidden="true"
             />
             <div className="relative flex flex-col gap-8 p-8 lg:flex-row lg:items-start lg:justify-between">
@@ -2447,7 +2463,7 @@ const Admin: React.FC = () => {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 transition group-hover:opacity-100",
+                        "pointer-events-none absolute inset-0 rounded-2xl bg-primary/10 opacity-0 transition group-hover:opacity-100",
                         isActive ? "opacity-100" : ""
                       )}
                     />
@@ -4207,6 +4223,10 @@ const Admin: React.FC = () => {
                 </TabsContent>
               </Tabs>
             </div>
+    </SectionPanel>
+
+    <SectionPanel section="paas" activeSection={activeTab}>
+      <PaasControlPanel />
     </SectionPanel>
 
     <SectionPanel section="stackscripts" activeSection={activeTab}>
