@@ -68,7 +68,7 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-muted/20 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-4 text-sm">
           <Link to="/" className="text-muted-foreground hover:text-primary/80">

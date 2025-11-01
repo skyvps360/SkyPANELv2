@@ -71,7 +71,7 @@ export default function LazyOSSelection({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2 min-w-0 flex-1">
                 <div className={cn(
-                  "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-md",
+                  "w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shadow-sm",
                   colors
                 )}>
                   <span className="text-white font-bold text-xs">

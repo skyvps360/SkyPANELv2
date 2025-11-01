@@ -232,7 +232,7 @@ export default function DigitalOceanOSSelection({
                     >
                       <div className="flex flex-col space-y-2">
                         <div className={cn(
-                          "w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center",
+                          "w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-600 flex items-center justify-center",
                           colors
                         )}>
                           <span className="text-white font-bold text-xs">

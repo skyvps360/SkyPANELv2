@@ -156,7 +156,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="space-y-4 animate-in slide-in-from-left-2 duration-300 delay-100">
               <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
                 Basic Information
-                <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                <div className="h-px flex-1 bg-border" />
               </h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -198,7 +198,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="space-y-4 animate-in slide-in-from-left-2 duration-300 delay-200">
               <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
                 Account Details
-                <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                <div className="h-px flex-1 bg-border" />
               </h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -238,7 +238,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="space-y-4 animate-in slide-in-from-left-2 duration-300 delay-300">
               <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
                 Organization Memberships
-                <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                <div className="h-px flex-1 bg-border" />
               </h3>
               {user.organizations && user.organizations.length > 0 ? (
                 <div className="space-y-3">
@@ -281,7 +281,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="space-y-4 animate-in slide-in-from-left-2 duration-300 delay-500">
                 <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
                   Activity Summary
-                  <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                  <div className="h-px flex-1 bg-border" />
                 </h3>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className={cn(

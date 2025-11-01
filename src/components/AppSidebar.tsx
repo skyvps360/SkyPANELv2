@@ -12,6 +12,7 @@ import {
   ServerCog,
   Settings,
   Users,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
   const isBillingActive = pathname.startsWith("/billing");
   const isSshKeysActive = pathname.startsWith("/ssh-keys");
   const isApiDocsActive = pathname.startsWith("/api-docs");
+  const isPaasActive = pathname.startsWith("/paas");
   const isAdminRoute = pathname.startsWith("/admin");
 
   const navMainItems = React.useMemo(
@@ -63,6 +65,15 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
             icon: LayoutDashboard,
             url: `/admin`,
             isActive: activeAnchor === "dashboard" || !currentHash,
+          },
+          {
+            title: "PaaS",
+            icon: Workflow,
+            url: `/admin#paas`,
+            isActive: activeAnchor === "paas",
+            items: [
+              { title: "Control plane", url: `/admin#paas`, isActive: activeAnchor === "paas" },
+            ],
           },
           {
             title: "Plan Management",
@@ -134,6 +145,12 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
           isActive: isDashboardActive,
         },
         {
+          title: "PaaS",
+          url: "/paas",
+          icon: Workflow,
+          isActive: isPaasActive,
+        },
+        {
           title: "Compute",
           url: "/vps",
           icon: Server,
@@ -179,6 +196,7 @@ export function AppSidebar({ onOpenCommand, ...props }: AppSidebarProps) {
       isBillingActive,
       isApiDocsActive,
       isDashboardActive,
+      isPaasActive,
       isSshKeysActive,
       isVpsActive,
     ],

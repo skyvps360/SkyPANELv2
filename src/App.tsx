@@ -54,6 +54,7 @@ import Status from "./pages/Status";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import SSHKeys from "./pages/SSHKeys";
+import Paas from "./pages/Paas";
 
 // Component to handle impersonation banner display
 function ImpersonationWrapper({ children }: { children: React.ReactNode }) {
@@ -271,6 +272,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <SSHKeys />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/paas"
+          element={
+            <ProtectedRoute>
+              <Paas />
             </ProtectedRoute>
           }
         />

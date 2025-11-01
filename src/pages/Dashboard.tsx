@@ -316,7 +316,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/10 via-background to-background p-8 md:p-10">
+      <section className="relative overflow-hidden rounded-3xl border border-primary/10 bg-card p-8 md:p-10">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute -top-16 right-0 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
           <div className="absolute bottom-0 left-10 h-24 w-24 rounded-full bg-emerald-500/20 blur-2xl" />

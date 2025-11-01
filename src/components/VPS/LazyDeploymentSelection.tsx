@@ -96,7 +96,7 @@ export default function LazyDeploymentSelection({
             )}
           >
             <div className="flex flex-col space-y-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
                 <span className="text-white font-bold text-xs">
                   {String(script.label || '').substring(0, 2).toUpperCase()}
                 </span>
