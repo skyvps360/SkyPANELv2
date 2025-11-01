@@ -2336,7 +2336,7 @@ const Admin: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pb-16 pt-10 lg:px-8">
+    <div className="w-full space-y-10 pb-16 pt-10">
       {isDashboardView ? (
         <>
           <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 shadow-sm">

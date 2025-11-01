@@ -1,550 +1,533 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Cpu,
-  Server, 
-  Shield, 
-  Zap, 
-  ArrowRight, 
-  CheckCircle, 
-  Users, 
-  Globe, 
-  Star,
-  TrendingUp,
-  ChevronDown,
-  Award,
-  Github,
-  Twitter,
-  Linkedin,
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  Cloud,
+  Globe,
+  Layers,
   Menu,
+  Server,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  Zap,
   X
 } from 'lucide-react';
 import { BRAND_NAME } from '../lib/brand';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { HeroGeometric } from "@/components/ui/shape-landing-hero";
-import DecryptedText from "@/components/ui/decrypted-text";
-import { Separator } from '@/components/ui/separator';
-import { 
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion';
+
+const navLinks = [
+  { label: 'Platform', href: '#platform' },
+  { label: 'Capabilities', href: '#capabilities' },
+  { label: 'Solutions', href: '#solutions' },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'Status', href: '/status' }
+];
+
+const featureHighlights = [
+  {
+    title: 'Unified control plane',
+    description:
+      'Aggregate Linode, DigitalOcean, and bare-metal workloads with consistent automation and audit-ready activity logs.',
+    icon: Globe,
+    bullets: ['Cross-provider orchestration', 'Region-aware scheduling', 'Real-time event streaming'],
+    accent: 'from-sky-500/20 via-transparent to-transparent'
+  },
+  {
+    title: 'Velocity at scale',
+    description:
+      'Deploy optimized VPS blueprints in under 45 seconds with guardrails for SSH keys, networking, and billing spend alerts.',
+    icon: Zap,
+    bullets: ['Blueprint library', 'Policy-backed provisioning', 'Live health telemetry'],
+    accent: 'from-emerald-500/20 via-transparent to-transparent'
+  },
+  {
+    title: 'Enterprise-grade safety',
+    description:
+      'SOC-ready logging, encrypted provider credentials, and configurable rate limiting keep customer data protected by default.',
+    icon: ShieldCheck,
+    bullets: ['Secrets vaulted with AES-256', 'Rate-limit overrides per tenant', 'Granular role-based access'],
+    accent: 'from-purple-500/20 via-transparent to-transparent'
+  },
+  {
+    title: 'Finance-ready billing',
+    description:
+      'Wallet-based billing with hourly reconciliation, cost trend projections, and actionable alerts before spend spikes hit.',
+    icon: Wallet,
+    bullets: ['Hourly usage ledger', 'Automated invoices', 'Wallet webhooks'],
+    accent: 'from-amber-500/20 via-transparent to-transparent'
+  }
+];
+
+const solutionTiles = [
+  {
+    title: 'Deploy modern workloads',
+    blurb: 'Opinionated defaults for Node, Laravel, and container-ready stacks mean teams ship in minutes, not days.',
+    statLabel: 'Average deploy time',
+    statValue: '43s',
+    icon: Layers
+  },
+  {
+    title: 'Operate globally',
+    blurb: 'Pick from 18+ regions with intelligent fallbacks, DNS helpers, and automatic reverse DNS management.',
+    statLabel: 'Regions available',
+    statValue: '18',
+    icon: Globe
+  },
+  {
+    title: 'Stay in control',
+    blurb: 'Live activity feeds, SLA dashboards, and AI-delivered incident summaries keep teams ahead of customer pings.',
+    statLabel: 'Incidents auto-triaged',
+    statValue: '92%',
+    icon: Activity
+  }
+];
+
+const testimonials = [
+  {
+    quote:
+      'SkyPanel compressed our deployment pipeline into a single dashboard. We now iterate daily without touching provider portals.',
+    name: 'Amelia Stone',
+    role: 'Director of Platform • NovaOps'
+  },
+  {
+    quote:
+      'Hourly billing visibility and wallet thresholds saved our launch budget. Finance finally gets proactive alerts.',
+    name: 'Jordan Park',
+    role: 'Head of Finance • Lumen Studio'
+  },
+  {
+    quote:
+      'The SSE activity stream means our on-call team is notified before customers ever notice. It feels like cheating.',
+    name: 'Priya Narayanan',
+    role: 'Site Reliability Lead • Driftwave'
+  }
+];
+
+const faqs = [
+  {
+    question: 'How fast can I provision infrastructure?',
+    answer:
+      'VPS workloads typically land in 45-60 seconds. SkyPanel pre-validates SSH keys, regions, and plans before the provider call so you are never surprised at the end.'
+  },
+  {
+    question: 'Which payment methods are supported?',
+    answer:
+      'Wallets accept PayPal-backed cards today with ACH in beta. Every top-up synchronizes to the ledger instantly and exposes webhook events.'
+  },
+  {
+    question: 'Does SkyPanel replace provider dashboards?',
+    answer:
+      'Yes. You can create, resize, backup, rebuild, and delete VPS instances across connected providers without leaving SkyPanel. Provider metadata is synced so you always see authoritative status.'
+  },
+  {
+    question: 'Is there a free tier?',
+    answer:
+      'The platform itself is free. You only pay for provider usage. We include generous monitoring and notifications so you can build without friction.'
+  }
+];
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const features = [
-    {
-      icon: Cpu,
-      title: 'Automated Provisioning',
-      description: 'Provision optimized VPS instances in seconds with guided defaults and smart configuration tooling.',
-      benefits: ['One-click deployment', 'Provider-agnostic workflow', 'Instant scaling']
-    },
-    {
-      icon: Server,
-      title: 'VPS Hosting',
-      description: 'Reliable virtual private servers with competitive pricing and instant deployment.',
-      benefits: ['99.9% uptime SLA', 'SSD storage', 'Global data centers']
-    },
-    {
-      icon: Shield,
-      title: 'Enterprise Security',
-      description: 'Advanced security features including SSL certificates, firewalls, and monitoring.',
-      benefits: ['DDoS protection', 'SSL certificates', '24/7 monitoring']
-    },
-    {
-      icon: Zap,
-      title: 'High Performance',
-      description: 'Optimized infrastructure for maximum performance and minimal latency.',
-      benefits: ['NVMe SSD storage', 'CDN integration', 'Edge locations']
-    }
-  ];
-
-  const stats = [
-    { label: 'Active Servers', value: '10,000+', icon: Server },
-    { label: 'Happy Customers', value: '5,000+', icon: Users },
-    { label: 'Uptime', value: '99.9%', icon: TrendingUp },
-    { label: 'Global Locations', value: '25+', icon: Globe }
-  ];
-
-  const pricingPlans = [
-    {
-      name: 'Micro',
-      price: '$6',
-      period: '/month',
-      description: 'Perfect for small projects',
-      features: ['1 vCPU', '1GB RAM', '25GB SSD', '1TB Transfer'],
-      popular: false
-    },
-    {
-      name: 'Professional',
-      price: '$15',
-      period: '/month',
-      description: 'Great for growing businesses',
-      features: ['2 vCPU', '4GB RAM', '80GB SSD', '4TB Transfer'],
-      popular: true
-    },
-    {
-      name: 'Enterprise',
-      price: '$50',
-      period: '/month',
-      description: 'For high-performance applications',
-      features: ['8 vCPU', '16GB RAM', '320GB SSD', '8TB Transfer'],
-      popular: false
-    }
-  ];
-
-  const testimonials = [
-    {
-      name: 'Sarah Chen',
-      role: 'CTO at TechStart',
-      content: 'The deployment process is incredibly smooth. We went from idea to production in minutes.',
-      rating: 5
-    },
-    {
-      name: 'Michael Rodriguez',
-      role: 'DevOps Engineer',
-      content: 'Best VPS hosting I\'ve used. The performance and reliability are outstanding.',
-      rating: 5
-    },
-    {
-      name: 'Emily Johnson',
-      role: 'Full Stack Developer',
-      content: 'Container management has never been easier. The interface is intuitive and powerful.',
-      rating: 5
-    }
-  ];
-
-  const faqs = [
-    {
-      question: 'How quickly can I deploy a server?',
-      answer: 'Most servers are deployed within 60 seconds. Container deployments are even faster, typically taking 10-30 seconds.'
-    },
-    {
-      question: 'What payment methods do you accept?',
-      answer: 'We accept all major credit cards, PayPal, and bank transfers. All payments are processed securely.'
-    },
-    {
-      question: 'Do you offer 24/7 support?',
-      answer: 'Yes, our support team is available 24/7 via live chat, email, and phone to help with any issues.'
-    },
-    {
-      question: 'Can I upgrade or downgrade my plan?',
-      answer: 'Absolutely! You can upgrade or downgrade your plan at any time. Changes take effect immediately.'
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-              <Server className="h-8 w-8 text-primary" />
-              <span className="ml-2 text-xl font-bold">{BRAND_NAME}</span>
-            </Link>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</a>
-              <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
-              <Link to="/about" className="text-sm font-medium hover:text-primary transition-colors">About</Link>
-              <Link to="/contact" className="text-sm font-medium hover:text-primary transition-colors">Contact</Link>
-              <Link to="/faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</Link>
-              <Link to="/status" className="text-sm font-medium hover:text-primary transition-colors">Status</Link>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/65">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Cloud className="h-5 w-5" />
             </div>
-            
-            {/* Desktop Auth Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
-              <Button variant="ghost" asChild>
-                <Link to="/login">Sign in</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/register">Get Started</Link>
-              </Button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="Toggle mobile menu"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="h-6 w-6" />
+            <span>{BRAND_NAME}</span>
+          </Link>
+          <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
+            {navLinks.map((link) => (
+              link.href.startsWith('#') ? (
+                <a key={link.href} href={link.href} className="text-muted-foreground transition hover:text-primary">
+                  {link.label}
+                </a>
+              ) : (
+                <Link key={link.href} to={link.href} className="text-muted-foreground transition hover:text-primary">
+                  {link.label}
+                </Link>
+              )
+            ))}
+          </nav>
+          <div className="hidden items-center gap-3 md:flex">
+            <Button variant="ghost" asChild>
+              <Link to="/login">Log in</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/register">
+                Launch console
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+        {isMobileMenuOpen && (
+          <div className="border-t border-border/60 bg-background/95 px-4 pb-6 pt-3 md:hidden">
+            <div className="flex flex-col gap-4 text-sm font-medium">
+              {navLinks.map((link) => (
+                link.href.startsWith('#') ? (
+                  <a key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)} className="text-muted-foreground">
+                    {link.label}
+                  </a>
                 ) : (
-                  <Menu className="h-6 w-6" />
-                )}
+                  <Link key={link.href} to={link.href} onClick={() => setIsMobileMenuOpen(false)} className="text-muted-foreground">
+                    {link.label}
+                  </Link>
+                )
+              ))}
+            </div>
+            <div className="mt-6 flex flex-col gap-3">
+              <Button variant="ghost" asChild className="justify-start">
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                  Log in
+                </Link>
+              </Button>
+              <Button asChild onClick={() => setIsMobileMenuOpen(false)}>
+                <Link to="/register">Launch console</Link>
               </Button>
             </div>
           </div>
+        )}
+      </header>
 
-          {/* Mobile Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden border-t bg-background/95 backdrop-blur">
-              <div className="px-2 pt-2 pb-3 space-y-1">
-                <a 
-                  href="#features" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Features
-                </a>
-                <a 
-                  href="#pricing" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Pricing
-                </a>
-                <Link 
-                  to="/about" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  About
-                </Link>
-                <Link 
-                  to="/contact" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Contact
-                </Link>
-                <Link 
-                  to="/faq" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  FAQ
-                </Link>
-                <Link 
-                  to="/status" 
-                  className="block px-3 py-2 text-base font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Status
-                </Link>
-                
-                {/* Mobile Auth Buttons */}
-                <div className="pt-4 border-t space-y-2">
-                  <Button variant="ghost" asChild className="w-full justify-start">
-                    <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                      Sign in
-                    </Link>
-                  </Button>
-                  <Button asChild className="w-full">
-                    <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                      Get Started
-                    </Link>
-                  </Button>
+      <main className="flex flex-col gap-24">
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 -z-20 bg-gradient-to-br from-primary/20 via-background to-background" />
+          <div className="absolute -top-36 left-1/2 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-primary/30 blur-3xl" />
+          <div className="absolute bottom-0 left-0 right-0 -z-10 h-48 bg-gradient-to-t from-background to-transparent" />
+
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+            <div className="space-y-8">
+              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                Built for infrastructure teams
+              </Badge>
+              <div className="space-y-6">
+                <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                  Deploy jaw-dropping infrastructure with composable controls.
+                </h1>
+                <p className="text-lg text-muted-foreground sm:text-xl">
+                  SkyPanel unifies your multi-provider VPS footprint into a single, beautiful command center. Provision, observe, and bill with clarity—no more tab sprawl.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <Button asChild size="lg" className="gap-2">
+                  <Link to="/register">
+                    Start for free
+                    <Sparkles className="h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" asChild className="gap-2">
+                  <Link to="/demo">
+                    View interactive demo
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-left text-sm sm:grid-cols-4">
+                {[
+                  { label: 'Avg. deployment', value: '43 seconds' },
+                  { label: 'Monthly insights', value: 'Live spend & alerts' },
+                  { label: 'SLA backed', value: '99.95% uptime' },
+                  { label: 'Global coverage', value: '18 regions' }
+                ].map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-primary/15 bg-background/80 p-4 backdrop-blur">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-primary/15 via-background to-background blur-2xl" />
+              <div className="rounded-3xl border border-primary/15 bg-background/70 p-6 shadow-xl backdrop-blur">
+                <div className="mb-6 flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Live fleet telemetry</span>
+                  <span className="flex items-center gap-2 text-xs text-primary">
+                    <Server className="h-3.5 w-3.5" /> 12 active
+                  </span>
+                </div>
+                <div className="grid gap-4">
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="flex flex-col gap-2 p-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold">Sydney-web-01</span>
+                        <span className="text-xs text-emerald-400">Running</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-primary/20">
+                        <div className="h-full w-[68%] rounded-full bg-primary" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">CPU 68% · Network 423 Mb/s</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border border-border/60 bg-background/80">
+                    <CardContent className="flex flex-col gap-2 p-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold">Frankfurt-app-08</span>
+                        <span className="text-xs text-amber-400">Scaling</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                        <span>Blueprint: Next.js API</span>
+                        <span>Backups: Enabled</span>
+                        <span>Region: eu-central</span>
+                        <span>Last deploy: 7m</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border border-border/60 bg-background/80">
+                    <CardContent className="flex flex-col gap-3 p-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold">Spend projection</span>
+                        <span className="text-xs text-emerald-400">On target</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                        <span>Month to date</span>
+                        <span className="text-right font-semibold text-foreground">$1,824</span>
+                        <span>Forecast</span>
+                        <span className="text-right text-emerald-400">$2,410</span>
+                        <span>Alerts</span>
+                        <span className="text-right">None</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </nav>
-
-      {/* Enhanced Hero Section */}
-      <section className="relative">
-        <HeroGeometric 
-          badge={`${BRAND_NAME} Platform`}
-          title1="Deploy & Scale"
-          title2="With Confidence"
-          description="The most reliable cloud infrastructure platform for developers and businesses. Provision VPS workloads in seconds with enterprise-grade security and performance."
-        />
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 bg-muted/30 mt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="mx-auto h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
-                  <stat.icon className="h-6 w-6 text-primary" />
-                </div>
-                <div className="text-3xl font-bold text-foreground">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Enhanced Features Section */}
-      <section id="features" className="py-24 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Features</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything you need to scale
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              From container orchestration to VPS hosting, we provide all the tools 
-              you need to build and scale your applications with confidence.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="relative overflow-hidden group hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center space-x-4">
-                    <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <feature.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">{feature.description}</p>
-                  <ul className="space-y-2">
-                    {feature.benefits.map((benefit, idx) => (
-                      <li key={idx} className="flex items-center text-sm">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Pricing</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the perfect plan for your needs. All plans include our core features 
-              with no hidden fees.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {pricingPlans.map((plan, index) => (
-              <Card key={index} className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}>
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    Most Popular
-                  </Badge>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{plan.description}</p>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button className="w-full" variant={plan.popular ? "default" : "outline"} asChild>
-                    <Link to="/register">Get Started</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-24 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Testimonials</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Trusted by developers worldwide
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              See what our customers have to say about their experience with our platform.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="relative">
-                <CardContent className="pt-6">
-                  <div className="flex mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-24 bg-muted/30">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">FAQ</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Frequently asked questions
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              Get answers to the most common questions about our platform.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <Collapsible key={index}>
-                <CollapsibleTrigger asChild>
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="flex items-center justify-between p-6">
-                      <h3 className="font-semibold text-left">{faq.question}</h3>
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    </CardContent>
-                  </Card>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <Card className="mt-2">
-                    <CardContent className="pt-6">
-                      <p className="text-muted-foreground">{faq.answer}</p>
-                    </CardContent>
-                  </Card>
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <section id="platform" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-              Ready to get started?
+            <Badge variant="outline" className="mb-4 border-primary/40 bg-primary/10 text-primary">
+              Why teams choose SkyPanel
+            </Badge>
+            <h2 className="text-3xl font-semibold sm:text-4xl">
+              A platform engineered for modern infrastructure.
             </h2>
-            <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join thousands of developers who trust {BRAND_NAME} for their infrastructure needs. 
-              Start your free trial today.
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              Every screen embraces the shadcn design system for clarity, while automation handles the heavy lifting under the hood.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" asChild>
-                <Link to="/register">
-                  Start Free Trial
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
-                <Link to="/contact">
-                  Contact Sales
-                </Link>
-              </Button>
+          </div>
+          <div className="mt-16 grid gap-6 md:grid-cols-2">
+            {featureHighlights.map((feature) => (
+              <Card
+                key={feature.title}
+                className="relative overflow-hidden border border-border/60 bg-background/70 backdrop-blur transition hover:border-primary/50"
+              >
+                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${feature.accent}`} />
+                <CardContent className="relative space-y-4 p-8">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <feature.icon className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  </div>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    {feature.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-center gap-2">
+                        <Check className="h-3.5 w-3.5 text-primary" />
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section id="capabilities" className="bg-muted/20 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-6">
+                <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                  Built for velocity
+                </Badge>
+                <h2 className="text-3xl font-semibold sm:text-4xl">
+                  Automation, observability, and billing—elevated.
+                </h2>
+                <p className="text-lg text-muted-foreground">
+                  SkyPanel ships with live SSE notifications, synthetics-ready health checks, and a ledger-aware billing engine. Teams get a beautifully opinionated UI layered on top of formidable automation.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    {
+                      title: 'Telemetry first',
+                      copy: 'Every provisioned VPS streams metrics to the dashboard within seconds.'
+                    },
+                    {
+                      title: 'Pluggable providers',
+                      copy: 'Connect Linode, DigitalOcean, and bespoke providers with the same workflow.'
+                    },
+                    {
+                      title: 'Security by default',
+                      copy: 'Encrypted credentials, RBAC, and rate limiting help you pass audits with ease.'
+                    },
+                    {
+                      title: 'Design that inspires',
+                      copy: 'Crafted with shadcn primitives so every screen feels polished and familiar.'
+                    }
+                  ].map((item) => (
+                    <Card key={item.title} className="border-border/60 bg-background/80">
+                      <CardContent className="space-y-2 p-5">
+                        <h3 className="text-base font-semibold">{item.title}</h3>
+                        <p className="text-sm text-muted-foreground">{item.copy}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-border/60 bg-background/90 p-8 shadow-xl backdrop-blur">
+                <h3 className="text-lg font-semibold">Solutions in motion</h3>
+                <div className="mt-6 space-y-6">
+                  {solutionTiles.map((solution) => (
+                    <div key={solution.title} className="rounded-2xl border border-primary/10 bg-primary/5 p-6">
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <solution.icon className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <h4 className="text-base font-semibold">{solution.title}</h4>
+                          <p className="text-xs text-muted-foreground">{solution.blurb}</p>
+                        </div>
+                      </div>
+                      <div className="mt-6 flex items-center justify-between rounded-xl border border-primary/20 bg-background/80 p-4 text-xs text-muted-foreground">
+                        <span className="uppercase tracking-wide">{solution.statLabel}</span>
+                        <span className="text-sm font-semibold text-foreground">{solution.statValue}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Enhanced Footer */}
-      <footer id="support" className="border-t bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {/* Brand Column */}
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <Server className="h-6 w-6 text-primary" />
-                <DecryptedText text={BRAND_NAME} className="ml-2 text-lg font-bold" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                The most reliable cloud infrastructure platform for developers and businesses.
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" id="solutions">
+          <div className="text-center">
+            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+              Teams that switched
+            </Badge>
+            <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
+              Revenue teams, platform teams, and startups love the polish.
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              SkyPanel turns infrastructure into an experience your customers notice.
+            </p>
+          </div>
+          <div className="mt-14 grid gap-6 md:grid-cols-3">
+            {testimonials.map((testimonial) => (
+              <Card key={testimonial.name} className="border-border/60 bg-background/85 shadow-lg">
+                <CardContent className="space-y-4 p-6">
+                  <p className="text-sm text-muted-foreground">“{testimonial.quote}”</p>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
+                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-muted/10 py-24">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                FAQs
+              </Badge>
+              <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">Answers before you ask.</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-lg text-muted-foreground">
+                Everything you need to know to feel confident migrating your workloads to SkyPanel.
               </p>
-              <div className="flex space-x-4">
-                <Button variant="ghost" size="sm">
-                  <Twitter className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Github className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Linkedin className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
-
-            {/* Product Column */}
-            <div>
-              <h3 className="font-semibold mb-4">Product</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/vps" className="hover:text-foreground transition-colors">VPS Hosting</Link></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
-                <li><Link to="/api-docs" className="hover:text-foreground transition-colors">API</Link></li>
-              </ul>
-            </div>
-
-            {/* Contact Column */}
-            <div>
-              <h3 className="font-semibold mb-4">Contact</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact Us</Link></li>
-                <li><Link to="/support" className="hover:text-foreground transition-colors">Help Center</Link></li>
-                <li><Link to="/status" className="hover:text-foreground transition-colors">Status Page</Link></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
-              </ul>
-            </div>
-
-            {/* Company Column */}
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/about" className="hover:text-foreground transition-colors">About</Link></li>
-                <li><Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
-              </ul>
-            </div>
+            <Accordion type="single" collapsible className="mt-12 space-y-4">
+              {faqs.map((faq) => (
+                <AccordionItem key={faq.question} value={faq.question} className="overflow-hidden rounded-2xl border border-border/60 bg-background">
+                  <AccordionTrigger className="px-6 py-4 text-left text-base font-semibold hover:text-primary">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-6 text-sm text-muted-foreground">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
+        </section>
 
-          <Separator className="my-8" />
-          
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              © 2025 {BRAND_NAME}. All rights reserved.
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/25 via-primary/5 to-background" />
+          <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-24 text-center sm:px-6">
+            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+              Ready when you are
+            </Badge>
+            <h2 className="text-3xl font-semibold sm:text-4xl">Create an account, connect a provider, ship your next release.</h2>
+            <p className="max-w-2xl text-lg text-muted-foreground">
+              Your first deployment takes minutes. We include detailed migration guides, observability instrumentation, and fast support when you need it.
             </p>
-            <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <Badge variant="outline" className="text-xs">
-                <Award className="h-3 w-3 mr-1" />
-                SOC 2 Compliant
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                <Shield className="h-3 w-3 mr-1" />
-                GDPR Ready
-              </Badge>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button size="lg" asChild>
+                <Link to="/register">Launch SkyPanel</Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link to="/contact">Talk to sales</Link>
+              </Button>
             </div>
           </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border/60 bg-background/95">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 text-sm text-muted-foreground sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 text-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Cloud className="h-4 w-4" />
+            </div>
+            <span className="font-semibold">{BRAND_NAME}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link to="/privacy" className="hover:text-primary">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-primary">
+              Terms
+            </Link>
+            <Link to="/status" className="hover:text-primary">
+              Status
+            </Link>
+            <Link to="/contact" className="hover:text-primary">
+              Support
+            </Link>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} {BRAND_NAME}. Purpose-built for teams who demand elegance and power.
+          </p>
         </div>
       </footer>
     </div>

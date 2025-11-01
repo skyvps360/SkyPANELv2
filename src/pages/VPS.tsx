@@ -37,6 +37,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DialogStack } from "@/components/ui/dialog-stack";
 import { VpsInstancesTable } from "@/components/VPS/VpsTable";
 import { BulkDeleteModal } from "@/components/VPS/BulkDeleteModal";
@@ -1916,7 +1925,7 @@ const VPS: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-10 pb-16 pt-10">
       {/* Mobile loading overlay */}
       <MobileLoading
         isLoading={mobileLoading.isLoading}
@@ -1925,205 +1934,176 @@ const VPS: React.FC = () => {
         progress={mobileLoading.progress}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                VPS Management
-              </h1>
-              <p className="mt-2 text-muted-foreground">
-                Manage your VPS instances and monitor their performance
-              </p>
-            </div>
+      {/* Header */}
+      <section className="flex flex-col gap-6 border-b border-border/80 pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Compute Control Center
+            </h1>
+            <p className="max-w-2xl text-base text-muted-foreground">
+              Deploy, monitor, and scale your cloud infrastructure from a unified control panel built for performance.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 gap-2 rounded-xl border-border/80"
+              onClick={loadInstances}
+              aria-label="Refresh VPS instances list"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh data
+            </Button>
             <MobileLoadingButton
               onClick={() => {
                 setCreateStep(1);
                 setShowCreateModal(true);
               }}
-              className="inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap px-4 py-2 sm:py-3 min-h-[44px] sm:min-h-[48px] border border-transparent text-sm font-medium rounded-lg shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 active:bg-primary/95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary w-auto touch-manipulation transition-colors duration-200"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
               isLoading={false}
               aria-label="Create new VPS instance"
             >
-              <Plus className="h-4 w-4 self-center flex-shrink-0" />
-              <span className="font-medium leading-none">Create VPS</span>
+              <Plus className="h-4 w-4" />
+              <span>Create instance</span>
             </MobileLoadingButton>
           </div>
-        </div>
+        </section>
+
+        {/* KPI rail */}
+  <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="rounded-2xl border-border/70 bg-card/80 shadow-sm">
+            <CardContent className="flex items-center justify-between p-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Running</p>
+                <p className="mt-2 text-3xl font-semibold">
+                  {instances.filter((i) => i.status === "running").length}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                <Power className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-border/70 bg-card/80 shadow-sm">
+            <CardContent className="flex items-center justify-between p-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Stopped</p>
+                <p className="mt-2 text-3xl font-semibold">
+                  {instances.filter((i) => i.status === "stopped").length}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                <PowerOff className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-border/70 bg-card/80 shadow-sm">
+            <CardContent className="flex items-center justify-between p-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Instances</p>
+                <p className="mt-2 text-3xl font-semibold">{instances.length}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500">
+                <Server className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-border/70 bg-card/80 shadow-sm">
+            <CardContent className="flex items-center justify-between p-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Monthly spend</p>
+                <p className="mt-2 text-3xl font-semibold">
+                  {formatCurrency(
+                    instances.reduce((sum, i) => sum + i.pricing.monthly, 0)
+                  )}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
+                <DollarSign className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Filters and Search */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {/* Search Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-md w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground " />
-                  <input
-                    type="text"
-                    placeholder="Search instances..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
-                    aria-label="Search VPS instances"
-                  />
-                </div>
-                <button
-                  onClick={loadInstances}
-                  className="inline-flex w-full sm:w-auto items-center justify-center px-4 py-3 min-h-[48px] border border shadow-sm text-sm font-medium rounded-md text-muted-foreground bg-secondary hover:bg-secondary/80 active:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary touch-manipulation transition-colors duration-200"
-                  aria-label="Refresh VPS instances list"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Refresh</span>
-                </button>
+  <Card className="rounded-2xl border-border/70 bg-card/70">
+          <CardContent className="space-y-6 p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative w-full lg:max-w-xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by label, IP, or region"
+                  className="h-12 w-full rounded-xl bg-background/70 pl-10 text-base"
+                  aria-label="Search VPS instances"
+                />
               </div>
+            </div>
 
-              {/* Filters Row */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
-                      aria-label="Filter by VPS status"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="running">Running</option>
-                      <option value="stopped">Stopped</option>
-                      <option value="provisioning">Provisioning</option>
-                      <option value="rebooting">Rebooting</option>
-                    </select>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Region
-                    </label>
-                    <select
-                      value={regionFilter}
-                      onChange={(e) => setRegionFilter(e.target.value)}
-                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
-                      aria-label="Filter by VPS region"
-                    >
-                      <option value="all">All Regions</option>
-                      {visibleRegionOptions.map((region) => (
-                        <option key={region.id} value={region.id}>
-                          {region.country
-                            ? `${region.label} - ${region.country}`
-                            : region.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Provider
-                    </label>
-                    <select
-                      value={providerFilter}
-                      onChange={(e) => {
-                        setProviderFilter(e.target.value);
-                        // Persist filter selection in session storage
-                        sessionStorage.setItem(
-                          "vps-provider-filter",
-                          e.target.value
-                        );
-                      }}
-                      className="w-full px-4 py-3 min-h-[48px] border border-rounded-md bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base touch-manipulation"
-                      aria-label="Filter by provider"
-                    >
-                      <option value="all">All Providers</option>
-                      {providerOptions.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {formatProviderOptionLabel(provider)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="vps-status-filter">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger id="vps-status-filter" className="h-11 rounded-xl bg-background/70">
+                    <SelectValue placeholder="All status" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border/70">
+                    <SelectItem value="all">All status</SelectItem>
+                    <SelectItem value="running">Running</SelectItem>
+                    <SelectItem value="stopped">Stopped</SelectItem>
+                    <SelectItem value="provisioning">Provisioning</SelectItem>
+                    <SelectItem value="rebooting">Rebooting</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vps-region-filter">Region</Label>
+                <Select
+                  value={regionFilter}
+                  onValueChange={setRegionFilter}
+                >
+                  <SelectTrigger id="vps-region-filter" className="h-11 rounded-xl bg-background/70">
+                    <SelectValue placeholder="All regions" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border/70 max-h-64">
+                    <SelectItem value="all">All regions</SelectItem>
+                    {visibleRegionOptions.map((region) => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.country
+                          ? `${region.label} · ${region.country}`
+                          : region.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vps-provider-filter">Provider</Label>
+                <Select
+                  value={providerFilter}
+                  onValueChange={(value) => {
+                    setProviderFilter(value);
+                    sessionStorage.setItem("vps-provider-filter", value);
+                  }}
+                >
+                  <SelectTrigger id="vps-provider-filter" className="h-11 rounded-xl bg-background/70">
+                    <SelectValue placeholder="All providers" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border/70">
+                    <SelectItem value="all">All providers</SelectItem>
+                    {providerOptions.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {formatProviderOptionLabel(provider)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* VPS Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <Power className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Running
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {instances.filter((i) => i.status === "running").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-secondary rounded-lg">
-                  <PowerOff className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Stopped
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {instances.filter((i) => i.status === "stopped").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
-                  <Server className="h-6 w-6 text-primary" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Total
-                  </p>
-                  <p className="text-2xl font-bold">{instances.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Monthly Cost
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(
-                      instances.reduce((sum, i) => sum + i.pricing.monthly, 0)
-                    )}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Bulk Actions Toolbar */}
         {selectedInstances.length > 0 && (
@@ -2418,7 +2398,6 @@ const VPS: React.FC = () => {
           selectedInstances={selectedInstances}
           isLoading={bulkDeleteLoading}
         />
-      </div>
     </div>
   );
 };

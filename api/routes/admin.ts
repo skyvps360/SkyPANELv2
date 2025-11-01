@@ -10,6 +10,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { query } from "../lib/database.js";
 import { linodeService } from "../services/linodeService.js";
 import { digitalOceanService } from "../services/DigitalOceanService.js";
+import type { DigitalOceanDroplet } from "../services/DigitalOceanService.js";
 import { logActivity } from "../services/activityLogger.js";
 import {
   themeService,
@@ -2002,7 +2003,9 @@ router.get(
         plan_data.name AS plan_name,
         plan_data.provider_plan_id AS plan_provider_plan_id,
         plan_data.specifications AS plan_specifications,
-        sp.name AS provider_name
+        COALESCE(plan_data.provider_id, v.provider_id) AS provider_id,
+        sp.name AS provider_name,
+        sp.type AS provider_type
       FROM vps_instances v
       LEFT JOIN organizations org ON org.id = v.organization_id
       LEFT JOIN users u ON u.id = org.owner_id
@@ -2013,70 +2016,278 @@ router.get(
         ORDER BY (p.id::text = v.plan_id)::int DESC
         LIMIT 1
       ) AS plan_data ON TRUE
-      LEFT JOIN service_providers sp ON sp.id = plan_data.provider_id
+      LEFT JOIN service_providers sp ON sp.id = COALESCE(plan_data.provider_id, v.provider_id)
       ORDER BY v.created_at DESC`
       );
 
       const rows = result.rows || [];
 
-      let regionLabelMap: Record<string, string> = {};
-      try {
-        const regions = await linodeService.getLinodeRegions();
-        regionLabelMap = Object.fromEntries(
-          regions.map((r) => [r.id, r.label])
+      const providerIds = Array.from(
+        new Set(
+          rows
+            .map((row) => row.provider_id)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+        )
+      );
+
+      const providerSecrets = new Map<string, { type: string | null; token: string | null }>();
+      if (providerIds.length > 0) {
+        const providerRows = await query(
+          `SELECT id, type, api_key_encrypted
+             FROM service_providers
+            WHERE id = ANY($1::uuid[])`,
+          [providerIds]
         );
-      } catch (regionErr) {
-        console.warn(
-          "Admin servers: failed to fetch Linode regions",
-          regionErr
+
+        await Promise.all(
+          providerRows.rows.map(async (provider) => {
+            try {
+              const token = await normalizeProviderToken(
+                provider.id,
+                provider.api_key_encrypted
+              );
+              providerSecrets.set(provider.id, {
+                type: provider.type ?? null,
+                token,
+              });
+            } catch (tokenErr) {
+              console.warn(
+                `Admin servers: failed to normalize API token for provider ${provider.id}`,
+                tokenErr
+              );
+              providerSecrets.set(provider.id, {
+                type: provider.type ?? null,
+                token: null,
+              });
+            }
+          })
         );
       }
 
+      const digitalOceanProviderCache = new Map<
+        string,
+        { token: string | null; droplets: Map<number, DigitalOceanDroplet> }
+      >();
+
+      const digitalOceanProviderIds = providerIds.filter((providerId) => {
+        const provider = providerSecrets.get(providerId);
+        return provider?.type === "digitalocean" && provider.token;
+      });
+
+      for (const providerId of digitalOceanProviderIds) {
+        const provider = providerSecrets.get(providerId);
+        if (!provider?.token) {
+          continue;
+        }
+
+        try {
+          const droplets = await digitalOceanService.listDigitalOceanDroplets(provider.token);
+          const dropletMap = new Map<number, DigitalOceanDroplet>();
+          droplets.forEach((droplet) => {
+            if (Number.isFinite(droplet.id)) {
+              dropletMap.set(droplet.id, droplet);
+            }
+          });
+          digitalOceanProviderCache.set(providerId, {
+            token: provider.token,
+            droplets: dropletMap,
+          });
+        } catch (err) {
+          console.warn(
+            `Admin servers: failed to list DigitalOcean droplets for provider ${providerId}`,
+            err
+          );
+          digitalOceanProviderCache.set(providerId, {
+            token: provider.token,
+            droplets: new Map(),
+          });
+        }
+      }
+
+      let regionLabelMap: Record<string, string> = {};
+      const requiresLinodeRegions = rows.some((row) => {
+        const providerType = row.provider_type ?? providerSecrets.get(row.provider_id ?? "")?.type;
+        return providerType === "linode";
+      });
+
+      if (requiresLinodeRegions) {
+        try {
+          const regions = await linodeService.getLinodeRegions();
+          regionLabelMap = Object.fromEntries(regions.map((r) => [r.id, r.label]));
+        } catch (regionErr) {
+          console.warn("Admin servers: failed to fetch Linode regions", regionErr);
+        }
+      }
+
+      const linodeDetailCache = new Map<number, any>();
+
       const enriched = await Promise.all(
         rows.map(async (row) => {
-          const configuration =
-            row.configuration && typeof row.configuration === "object"
-              ? row.configuration
-              : {};
+          const resolvedProviderId: string | null = row.provider_id ?? null;
+          const providerMeta = resolvedProviderId
+            ? providerSecrets.get(resolvedProviderId)
+            : null;
+          const providerType =
+            row.provider_type ?? providerMeta?.type ?? null;
+
           let status = row.status;
           let ipAddress = row.ip_address;
-          let regionCode = configuration?.region ?? null;
+          const configuration =
+            row.configuration && typeof row.configuration === "object"
+              ? { ...row.configuration }
+              : {};
+          let regionLabel: string | null = null;
 
-          try {
+          const networks: { ipv4: string[]; ipv6: string[] } = {
+            ipv4: [],
+            ipv6: [],
+          };
+
+          if (providerType === "linode") {
             const instanceId = Number(row.provider_instance_id);
             if (Number.isFinite(instanceId)) {
-              const detail = await linodeService.getLinodeInstance(instanceId);
-              const currentIp =
-                Array.isArray(detail.ipv4) && detail.ipv4.length > 0
-                  ? detail.ipv4[0]
-                  : null;
-              const normalizedStatus =
-                detail.status === "offline" ? "stopped" : detail.status;
-              if (normalizedStatus !== status || currentIp !== ipAddress) {
+              try {
+                let detail = linodeDetailCache.get(instanceId);
+                if (!detail) {
+                  detail = await linodeService.getLinodeInstance(instanceId);
+                  linodeDetailCache.set(instanceId, detail);
+                }
+
+                if (detail) {
+                  const currentIp =
+                    Array.isArray(detail.ipv4) && detail.ipv4.length > 0
+                      ? detail.ipv4[0]
+                      : null;
+                  const normalizedStatus =
+                    detail.status === "offline" ? "stopped" : detail.status;
+
+                  if (normalizedStatus !== status || currentIp !== ipAddress) {
+                    await query(
+                      "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
+                      [normalizedStatus, currentIp, row.id]
+                    );
+                    status = normalizedStatus;
+                    ipAddress = currentIp;
+                  }
+
+                  configuration.image = configuration.image || detail.image || null;
+                  configuration.region = configuration.region || detail.region || null;
+                  configuration.type = configuration.type || detail.type || null;
+                  configuration.ipv6 = configuration.ipv6 || detail.ipv6 || null;
+
+                  networks.ipv4 = Array.isArray(detail.ipv4)
+                    ? Array.from(new Set(detail.ipv4.filter(Boolean).map(String)))
+                    : [];
+                  networks.ipv6 = detail.ipv6
+                    ? Array.from(new Set([String(detail.ipv6)]))
+                    : [];
+
+                  const regionCode = configuration.region ?? null;
+                  if (regionCode && regionLabelMap[regionCode]) {
+                    regionLabel = regionLabelMap[regionCode];
+                  }
+                }
+              } catch (detailErr) {
+                console.warn(
+                  `Admin servers: unable to refresh Linode instance ${row.provider_instance_id}`,
+                  detailErr
+                );
+              }
+            }
+          } else if (providerType === "digitalocean" && resolvedProviderId) {
+            const cacheEntry = digitalOceanProviderCache.get(resolvedProviderId);
+            const instanceId = Number(row.provider_instance_id);
+            let droplet: DigitalOceanDroplet | undefined =
+              Number.isFinite(instanceId) ? cacheEntry?.droplets.get(instanceId) : undefined;
+
+            if (!droplet && cacheEntry?.token && Number.isFinite(instanceId)) {
+              try {
+                droplet = await digitalOceanService.getDigitalOceanDroplet(
+                  cacheEntry.token,
+                  instanceId
+                );
+                if (droplet) {
+                  cacheEntry.droplets.set(instanceId, droplet);
+                }
+              } catch (detailErr) {
+                console.warn(
+                  `Admin servers: unable to fetch DigitalOcean droplet ${row.provider_instance_id}`,
+                  detailErr
+                );
+              }
+            }
+
+            if (droplet) {
+              const normalizeStatus = (value: string | null | undefined): string => {
+                if (!value) return "unknown";
+                switch (value.toLowerCase()) {
+                  case "active":
+                    return "running";
+                  case "off":
+                    return "stopped";
+                  case "new":
+                    return "provisioning";
+                  case "archive":
+                    return "archived";
+                  case "locked":
+                    return "locked";
+                  default:
+                    return value.toLowerCase();
+                }
+              };
+
+              const allIpv4 = Array.isArray(droplet.networks?.v4)
+                ? droplet.networks.v4
+                    .map((net) => (net?.ip_address ? String(net.ip_address) : null))
+                    .filter((ip): ip is string => Boolean(ip))
+                : [];
+
+              const allIpv6 = Array.isArray(droplet.networks?.v6)
+                ? droplet.networks.v6
+                    .map((net) => (net?.ip_address ? String(net.ip_address) : null))
+                    .filter((ip): ip is string => Boolean(ip))
+                : [];
+
+              const publicIpv4Entry = Array.isArray(droplet.networks?.v4)
+                ? droplet.networks.v4.find(
+                    (net) => net?.type === "public" && net.ip_address
+                  )
+                : undefined;
+              const publicIpv6Entry = Array.isArray(droplet.networks?.v6)
+                ? droplet.networks.v6.find(
+                    (net) => net?.type === "public" && net.ip_address
+                  )
+                : undefined;
+
+              const normalizedStatus = normalizeStatus(droplet.status);
+              const publicIpv4 = publicIpv4Entry?.ip_address ?? allIpv4[0] ?? null;
+              const publicIpv6 = publicIpv6Entry?.ip_address ?? allIpv6[0] ?? null;
+
+              if (normalizedStatus !== status || publicIpv4 !== ipAddress) {
                 await query(
                   "UPDATE vps_instances SET status = $1, ip_address = $2, updated_at = NOW() WHERE id = $3",
-                  [normalizedStatus, currentIp, row.id]
+                  [normalizedStatus, publicIpv4, row.id]
                 );
                 status = normalizedStatus;
-                ipAddress = currentIp;
+                ipAddress = publicIpv4;
               }
 
-              configuration.image = configuration.image || detail.image || null;
-              configuration.region =
-                configuration.region || detail.region || null;
-              configuration.type = configuration.type || detail.type || null;
-              regionCode = configuration.region || regionCode;
-            }
-          } catch (detailErr) {
-            console.warn(
-              `Admin servers: unable to refresh instance ${row.provider_instance_id}`,
-              detailErr
-            );
-          }
+              configuration.image =
+                configuration.image ||
+                droplet.image?.slug ||
+                droplet.image?.name ||
+                null;
+              configuration.region = configuration.region || droplet.region?.slug || null;
+              configuration.type = configuration.type || droplet.size_slug || null;
+              if (publicIpv6 && !configuration.ipv6) {
+                configuration.ipv6 = publicIpv6;
+              }
 
-          const regionLabel = regionCode
-            ? regionLabelMap[regionCode] || null
-            : null;
+              networks.ipv4 = Array.from(new Set(allIpv4));
+              networks.ipv6 = Array.from(new Set(allIpv6));
+              regionLabel = droplet.region?.name || regionLabel;
+            }
+          }
 
           return {
             ...row,
@@ -2084,6 +2295,8 @@ router.get(
             ip_address: ipAddress,
             configuration,
             region_label: regionLabel,
+            provider_type: providerType,
+            networks,
           };
         })
       );
