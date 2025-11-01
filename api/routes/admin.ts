@@ -2069,9 +2069,10 @@ router.get(
         { token: string | null; droplets: Map<number, DigitalOceanDroplet> }
       >();
 
-      const digitalOceanProviderIds = providerIds.filter((providerId) => {
+      const digitalOceanProviderIds = providerIds.filter((providerId): providerId is string => {
+        if (typeof providerId !== "string") return false;
         const provider = providerSecrets.get(providerId);
-        return provider?.type === "digitalocean" && provider.token;
+        return provider?.type === "digitalocean" && Boolean(provider.token);
       });
 
       for (const providerId of digitalOceanProviderIds) {
