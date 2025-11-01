@@ -967,32 +967,6 @@ export default function ApiDocs() {
       ],
     },
     {
-      title: "Container Workloads",
-      base: `${apiBase}/containers`,
-      description: "Container list endpoint backing the Kubernetes-style container overview page.",
-      endpoints: [
-        {
-          method: "GET",
-          path: "/",
-          description: "Return container workloads with status, image, and resource metadata.",
-          auth: true,
-          response: {
-            containers: [
-              {
-                id: "cont_001",
-                name: "sky-dashboard",
-                status: "running",
-                image: "ghcr.io/skypanel/dashboard:latest",
-                cpu: 0.42,
-                memory: 512,
-                uptime: "72h",
-              },
-            ],
-          },
-        },
-      ],
-    },
-    {
       title: "User SSH Keys",
       base: `${apiBase}/ssh-keys`,
       description: "Personal SSH key management used across VPS provisioning and console access.",
@@ -1426,7 +1400,7 @@ export default function ApiDocs() {
                 id: "faq_001",
                 category_id: "cat_general",
                 question: "What is SkyPANEL?",
-                answer: "SkyPANEL manages VPS and containers across providers.",
+                answer: "SkyPANEL manages VPS workloads across providers.",
               },
             ],
           },

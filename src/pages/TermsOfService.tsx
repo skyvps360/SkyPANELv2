@@ -34,7 +34,6 @@ const sections = [
         <p>{BRAND_NAME} provides cloud infrastructure services including but not limited to:</p>
         <ul className="space-y-2 pl-6">
           <li>Virtual Private Server (VPS) hosting and lifecycle management</li>
-          <li>Container deployment, orchestration, and monitoring</li>
           <li>Network configuration, IP address management, and DNS tooling</li>
           <li>Automated backups, snapshots, and disaster recovery workflows</li>
           <li>Observability dashboards, usage analytics, and audit trails</li>

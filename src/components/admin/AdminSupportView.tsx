@@ -263,8 +263,17 @@ export const AdminSupportView: React.FC<AdminSupportViewProps> = ({
           headers: authHeader,
         }
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to delete ticket");
+      const raw = await res.text();
+      let data: any;
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch (parseError) {
+          console.warn("Failed to parse delete ticket response", parseError);
+        }
+      }
+      if (!res.ok)
+        throw new Error(data?.error || raw || "Failed to delete ticket");
 
       toast.success("Ticket deleted successfully");
       if (selectedTicket?.id === deleteTicketId) {

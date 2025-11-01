@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   RefreshCw,
   Database,
-  Box,
   AlertCircle,
   Server,
   MapPin,
@@ -70,7 +69,6 @@ export default function Status() {
       let vpsCount = 0;
       let vpsRunning = 0;
       let vpsStopped = 0;
-      let containersCount = 0;
 
       try {
         const statusResponse = await fetch('/api/health/status');
@@ -80,7 +78,6 @@ export default function Status() {
           vpsCount = statusData.services.vps?.total || 0;
           vpsRunning = statusData.services.vps?.running || 0;
           vpsStopped = statusData.services.vps?.stopped || 0;
-          containersCount = statusData.services.containers?.total || 0;
         }
       } catch (err) {
         console.warn('Failed to fetch status data:', err);
@@ -101,13 +98,6 @@ export default function Status() {
           icon: Server,
           instances: vpsCount,
           description: `Virtual Private Server provisioning and management${vpsCount > 0 ? ` (${vpsRunning} running, ${vpsStopped} stopped)` : ''}`
-        },
-        {
-          name: "Container Platform",
-          status: "operational",
-          icon: Box,
-          instances: containersCount,
-          description: "Docker container deployment and orchestration"
         },
         {
           name: "Database Services",
@@ -140,13 +130,6 @@ export default function Status() {
           icon: Server,
           instances: 0,
           description: "Virtual Private Server provisioning and management"
-        },
-        {
-          name: "Container Platform",
-          status: "degraded",
-          icon: Box,
-          instances: 0,
-          description: "Docker container deployment and orchestration"
         },
         {
           name: "Database Services",
@@ -213,7 +196,7 @@ export default function Status() {
             <Badge variant="outline" className="uppercase tracking-wide">Live platform health</Badge>
             <h1 className="text-3xl font-semibold md:text-4xl">{BRAND_NAME} service status</h1>
             <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
-              Real-time availability for containers, VPS, networking, and supporting systems. Data refreshes automatically every few minutes and whenever you request an update.
+              Real-time availability for VPS, networking, and supporting systems. Data refreshes automatically every few minutes and whenever you request an update.
             </p>
           </div>
           <div className="flex flex-col gap-3 text-sm text-muted-foreground md:items-end">

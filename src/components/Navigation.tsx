@@ -7,7 +7,6 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
-  Container,
   CreditCard,
   FileText,
   HelpCircle,
@@ -49,7 +48,6 @@ interface NavItem {
 const navigationItems: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "VPS", href: "/vps", icon: Server },
-  { name: "Containers", href: "/containers", icon: Container },
   { name: "Activity", href: "/activity", icon: Activity },
   { name: "Billing", href: "/billing", icon: CreditCard },
 ];

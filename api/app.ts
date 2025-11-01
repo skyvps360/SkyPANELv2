@@ -18,7 +18,6 @@ import { config, validateConfig } from './config/index.js'
 import authRoutes from './routes/auth.js'
 import paymentRoutes from './routes/payments.js'
 import adminRoutes from './routes/admin.js'
-import containersRoutes from './routes/containers.js'
 import vpsRoutes from './routes/vps.js'
 import supportRoutes from './routes/support.js'
 import activityRoutes from './routes/activity.js'
@@ -109,7 +108,6 @@ app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/admin', adminRoutes)
-app.use('/api/containers', containersRoutes)
 app.use('/api/vps', vpsRoutes)
 app.use('/api/support', supportRoutes)
 app.use('/api/activity', activityRoutes)

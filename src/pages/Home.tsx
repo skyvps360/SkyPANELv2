@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Container, 
+  Cpu,
   Server, 
   Shield, 
   Zap, 
@@ -37,10 +37,10 @@ export default function Home() {
 
   const features = [
     {
-      icon: Container,
-      title: 'Container Management',
-      description: 'Deploy, scale, and manage Docker containers with ease across multiple cloud providers.',
-      benefits: ['One-click deployment', 'Auto-scaling', 'Multi-cloud support']
+      icon: Cpu,
+      title: 'Automated Provisioning',
+      description: 'Provision optimized VPS instances in seconds with guided defaults and smart configuration tooling.',
+      benefits: ['One-click deployment', 'Provider-agnostic workflow', 'Instant scaling']
     },
     {
       icon: Server,
@@ -256,7 +256,7 @@ export default function Home() {
           badge={`${BRAND_NAME} Platform`}
           title1="Deploy & Scale"
           title2="With Confidence"
-          description="The most reliable cloud infrastructure platform for developers and businesses. Deploy containers and VPS instances in seconds with enterprise-grade security and performance."
+          description="The most reliable cloud infrastructure platform for developers and businesses. Provision VPS workloads in seconds with enterprise-grade security and performance."
         />
       </section>
 
@@ -499,7 +499,6 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/containers" className="hover:text-foreground transition-colors">Containers</Link></li>
                 <li><Link to="/vps" className="hover:text-foreground transition-colors">VPS Hosting</Link></li>
                 <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
                 <li><Link to="/api-docs" className="hover:text-foreground transition-colors">API</Link></li>

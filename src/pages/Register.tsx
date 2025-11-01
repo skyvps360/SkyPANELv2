@@ -82,7 +82,7 @@ export default function Register() {
             </div>
             <div className="space-y-2">
               <CardTitle className="text-3xl font-semibold">Create your account</CardTitle>
-              <CardDescription>{`Join ${BRAND_NAME} and start managing your containers`}</CardDescription>
+              <CardDescription>{`Join ${BRAND_NAME} and start managing your infrastructure`}</CardDescription>
             </div>
           </CardHeader>
 

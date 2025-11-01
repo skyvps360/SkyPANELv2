@@ -1,12 +1,11 @@
 /**
  * Dashboard Component
- * Main overview page showing containers, VPS instances, billing, and recent activity
+ * Main overview page showing VPS instances, billing, and recent activity
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Server, 
-  Container, 
   Wallet, 
   Activity, 
   TrendingUp, 
@@ -26,16 +25,6 @@ import { MonthlyResetIndicator } from '@/components/Dashboard/MonthlyResetIndica
 import { formatCurrency } from '@/lib/formatters';
 
 // Mock data interfaces
-interface ContainerStats {
-  id: string;
-  name: string;
-  status: 'running' | 'stopped' | 'error';
-  image: string;
-  cpu: number;
-  memory: number;
-  uptime: string;
-}
-
 interface MetricSummary {
   average: number;
   peak: number;
@@ -78,14 +67,13 @@ interface BillingStats {
 
 interface ActivityItem {
   id: string;
-  type: 'container' | 'vps' | 'billing' | 'support';
+  type: 'vps' | 'billing' | 'support' | 'activity';
   message: string;
   timestamp: string;
   status: 'success' | 'warning' | 'error' | 'info';
 }
 
 const Dashboard: React.FC = () => {
-  const [containers, setContainers] = useState<ContainerStats[]>([]);
   const [vpsInstances, setVpsInstances] = useState<VPSStats[]>([]);
   const [billing, setBilling] = useState<BillingStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
@@ -96,32 +84,19 @@ const Dashboard: React.FC = () => {
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [containersRes, vpsRes, walletRes, paymentsRes] = await Promise.all([
-        fetch('/api/containers', { headers: { Authorization: `Bearer ${token}` } }),
+      const [vpsRes, walletRes, paymentsRes] = await Promise.all([
         fetch('/api/vps', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/payments/wallet/balance', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/payments/history?limit=1&status=completed', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      const [containersData, vpsData, walletData, paymentsData] = await Promise.all([
-        containersRes.json(), vpsRes.json(), walletRes.json(), paymentsRes.json()
+      const [vpsData, walletData, paymentsData] = await Promise.all([
+        vpsRes.json(), walletRes.json(), paymentsRes.json()
       ]);
 
-      if (!containersRes.ok) throw new Error(containersData.error || 'Failed to load containers');
       if (!vpsRes.ok) throw new Error(vpsData.error || 'Failed to load VPS instances');
       if (!walletRes.ok) throw new Error(walletData.error || 'Failed to load wallet');
       if (!paymentsRes.ok) throw new Error(paymentsData.error || 'Failed to load payment history');
-
-      const containersMapped: ContainerStats[] = (containersData.containers || []).map((c: any) => ({
-        id: c.id,
-        name: c.name || c.container_name || 'container',
-        status: (c.status as any) || 'running',
-        image: c.image || '',
-        cpu: 0,
-        memory: 0,
-        uptime: '',
-      }));
-      setContainers(containersMapped);
 
       // Fetch detailed metrics for each VPS instance
       const vpsWithMetrics = await Promise.all(
@@ -226,8 +201,6 @@ const Dashboard: React.FC = () => {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'container':
-        return <Container className="h-4 w-4" />;
       case 'vps':
         return <Server className="h-4 w-4" />;
       case 'billing':
@@ -286,28 +259,12 @@ const Dashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Overview of your containers, VPS instances, and account status
+          Overview of your VPS instances and account status
         </p>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
-                    <Container className="h-6 w-6 text-primary" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Active Containers</p>
-                <p className="text-2xl font-bold">
-                  {containers.filter(c => c.status === 'running').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
@@ -416,56 +373,6 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Containers Overview */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Containers</CardTitle>
-              <Button asChild size="sm">
-                <Link to="/containers">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Container
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {containers.slice(0, 3).map((container) => (
-                <div key={container.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <Container className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium">{container.name}</p>
-                      <p className="text-xs text-muted-foreground">{container.image}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">CPU: {container.cpu}%</p>
-                      <p className="text-xs text-muted-foreground">Memory: {container.memory}%</p>
-                    </div>
-                    <Badge variant={container.status === 'running' ? 'default' : container.status === 'stopped' ? 'secondary' : 'destructive'}>
-                      {container.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {containers.length > 0 && (
-              <div className="mt-4">
-                <Link
-                  to="/containers"
-                  className="text-sm text-primary hover:underline font-medium"
-                >
-                  View all containers →
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Recent Activity */}

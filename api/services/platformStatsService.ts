@@ -40,16 +40,12 @@ interface PlatformStats {
     total: number;
     active: number;
   };
-  containers: {
-    total: number;
-  };
   support: {
     totalTickets: number;
     openTickets: number;
   };
   plans: {
     vpsPlans: number;
-    containerPlans: number;
   };
   regions: {
     total: number;
@@ -206,14 +202,6 @@ export class PlatformStatsService {
 
       const vpsRow = vpsResult.rows[0] || { total: 0, active: 0 };
 
-      // Get container count
-      const containerResult = await query(`
-        SELECT COUNT(*) as total
-        FROM containers
-      `);
-
-      const containerRow = containerResult.rows[0] || { total: 0 };
-
       // Get support ticket statistics
       const ticketResult = await query(`
         SELECT 
@@ -258,16 +246,12 @@ export class PlatformStatsService {
           total: parseInt(vpsRow.total) || 0,
           active: parseInt(vpsRow.active) || 0,
         },
-        containers: {
-          total: parseInt(containerRow.total) || 0,
-        },
         support: {
           totalTickets: parseInt(ticketRow.total) || 0,
           openTickets: parseInt(ticketRow.open) || 0,
         },
         plans: {
           vpsPlans: parseInt(plansRow.vps_plans) || 0,
-          containerPlans: 0, // No container plans table exists yet
         },
         regions: {
           total: regionCount,

@@ -33,7 +33,6 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
-import Containers from "./pages/Containers";
 import VPS from "./pages/VPS";
 import Billing from "./pages/Billing";
 import InvoiceDetail from "./pages/InvoiceDetail";
@@ -43,7 +42,6 @@ import BillingPaymentCancel from "./pages/BillingPaymentCancel";
 import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
-import ContainerDetail from "./pages/ContainerDetail";
 import VPSDetail from "./pages/VPSDetail";
 import VpsSshConsole from "./pages/VpsSshConsole";
 import AppLayout from "./components/AppLayout";
@@ -241,22 +239,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/containers"
-          element={
-            <ProtectedRoute>
-              <Containers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/containers/:id"
-          element={
-            <ProtectedRoute>
-              <ContainerDetail />
             </ProtectedRoute>
           }
         />

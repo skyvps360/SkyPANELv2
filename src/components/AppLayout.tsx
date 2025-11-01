@@ -27,7 +27,6 @@ import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Activity,
-  Container,
   CreditCard,
   FileText,
   HelpCircle,
@@ -52,27 +51,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BreadcrumbProvider, useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import type { VPSInstance } from "@/types/vps";
 import { Badge } from "@/components/ui/badge";
-
-// Container interface based on the Containers.tsx structure
-interface ContainerInfo {
-  id: string;
-  name: string;
-  image: string;
-  status: 'running' | 'stopped' | 'paused' | 'restarting' | 'error';
-  created: string;
-  ports: string[];
-  volumes: string[];
-  environment: Record<string, string>;
-  stats: {
-    cpu: number;
-    memory: number;
-    network: {
-      rx: number;
-      tx: number;
-    };
-    uptime: string;
-  };
-}
 
 interface TicketCommandItem {
   id: string;
@@ -216,11 +194,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     [user?.role]
   );
   
-  // State for VPS and Container search
+  // State for VPS and related search data
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);
-  const [containers, setContainers] = useState<ContainerInfo[]>([]);
   const [vpsLoading, setVpsLoading] = useState(false);
-  const [containersLoading, setContainersLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [supportTickets, setSupportTickets] = useState<TicketCommandItem[]>([]);
   const [supportTicketsLoading, setSupportTicketsLoading] = useState(false);
@@ -302,38 +278,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       console.error('Failed to load VPS instances:', error);
     } finally {
       setVpsLoading(false);
-    }
-  }, [token]);
-
-  // Fetch containers
-  const fetchContainers = useCallback(async () => {
-    if (!token) return;
-    
-    setContainersLoading(true);
-    try {
-      const res = await fetch('/api/containers', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error || 'Failed to load containers');
-
-      const mapped: ContainerInfo[] = (payload.containers || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        image: c.image,
-        status: (c.status as any) || 'stopped',
-        created: c.created_at,
-        ports: c.config?.ports ?? [],
-        volumes: c.config?.volumes ?? [],
-        environment: c.config?.environment ?? {},
-        stats: { cpu: 0, memory: 0, network: { rx: 0, tx: 0 }, uptime: '' }
-      }));
-
-      setContainers(mapped);
-    } catch (error: any) {
-      console.error('Failed to load containers:', error);
-    } finally {
-      setContainersLoading(false);
     }
   }, [token]);
 
@@ -446,7 +390,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     if (commandOpen && !dataLoaded && token) {
       setDataLoaded(true);
       fetchVPSInstances();
-      fetchContainers();
       fetchRecentInvoices();
       if (isAdmin) {
         fetchSupportTickets();
@@ -458,8 +401,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     dataLoaded,
     token,
     isAdmin,
-    fetchVPSInstances,
-    fetchContainers,
+  fetchVPSInstances,
     fetchRecentInvoices,
     fetchSupportTickets,
     fetchAdminCommandUsers,
@@ -496,15 +438,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         href: "/vps",
         shortcut: isMac ? "⌘V" : "Ctrl+V",
         shortcutKey: "v",
-        requiresShift: false,
-        requiresAlt: false,
-      },
-      {
-        icon: Container,
-        label: "Containers",
-        href: "/containers",
-        shortcut: isMac ? "⌘C" : "Ctrl+C",
-        shortcutKey: "c",
         requiresShift: false,
         requiresAlt: false,
       },
@@ -702,24 +635,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   };
 
-  // Helper function to get status color for containers
-  const getContainerStatusColor = (status: string): string => {
-    switch (status) {
-      case 'running':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'stopped':
-        return 'text-muted-foreground bg-gray-100 dark:bg-gray-800';
-      case 'paused':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'restarting':
-        return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
-      case 'error':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default:
-        return 'text-muted-foreground bg-gray-100 dark:bg-gray-800';
-    }
-  };
-
   return (
     <SidebarProvider
       defaultOpen={isSidebarOpen}
@@ -869,42 +784,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                                {vps.regionLabel && (
                                  <span>{vps.regionLabel}</span>
                                )}
-                             </div>
-                           </div>
-                         </div>
-                       </CommandItem>
-                     ))
-                   )}
-                 </CommandGroup>
-               </>
-             )}
-
-             {/* Containers Group */}
-             {(containers.length > 0 || containersLoading) && (
-               <>
-                 <CommandSeparator />
-                 <CommandGroup heading="Containers">
-                   {containersLoading ? (
-                     <CommandItem disabled>
-                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                       <span>Loading containers...</span>
-                     </CommandItem>
-                   ) : (
-                     containers.map((container) => (
-                       <CommandItem
-                         key={container.id}
-                         onSelect={() => handleNavigate('/containers')}
-                         className="flex items-center justify-between"
-                       >
-                         <div className="flex items-center">
-                           <Container className="mr-2 h-4 w-4" />
-                           <div className="flex flex-col">
-                             <span className="font-medium">{container.name}</span>
-                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                               <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getContainerStatusColor(container.status)}`}>
-                                 {container.status}
-                               </span>
-                               <span className="truncate max-w-[200px]">{container.image}</span>
                              </div>
                            </div>
                          </div>

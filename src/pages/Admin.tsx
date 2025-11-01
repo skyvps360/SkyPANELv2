@@ -8,8 +8,6 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
-  Box,
-  Boxes,
   Calendar,
   CheckCircle,
   ClipboardList,
@@ -57,7 +55,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -129,8 +126,6 @@ type AdminSection =
   | "dashboard"
   | "support"
   | "vps-plans"
-  | "container-plans"
-  | "containers"
   | "servers"
   | "providers"
   | "marketplace"
@@ -148,8 +143,6 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "dashboard",
   "support",
   "vps-plans",
-  "container-plans",
-  "containers",
   "servers",
   "providers",
   "marketplace",
@@ -198,7 +191,6 @@ const TICKET_PRIORITY_ORDER: Record<TicketPriority, number> = {
   medium: 2,
   low: 3,
 };
-
 
 interface StrategicPanel {
   id: AdminSection;
@@ -255,6 +247,14 @@ const SectionPanel: React.FC<SectionPanelProps> = ({
   );
 };
 
+interface TicketMessage {
+  id: string;
+  ticket_id: string;
+  sender_type: "user" | "admin";
+  sender_name: string;
+  message: string;
+  created_at: string;
+}
 
 interface SupportTicket {
   id: string;
@@ -270,13 +270,20 @@ interface SupportTicket {
   messages: TicketMessage[];
 }
 
-interface TicketMessage {
+type ProviderType = "linode" | "digitalocean" | "aws" | "gcp";
+
+interface Provider {
   id: string;
-  ticket_id: string;
-  sender_type: "user" | "admin";
-  sender_name: string;
-  message: string;
+  name: string;
+  type: ProviderType;
+  api_key_encrypted?: string;
+  configuration?: Record<string, unknown> | null;
+  active: boolean;
   created_at: string;
+  updated_at: string;
+  last_api_call?: string | null;
+  validation_status?: "valid" | "invalid" | "pending" | "unknown";
+  validation_message?: string | null;
 }
 
 interface VPSPlan {
@@ -292,63 +299,10 @@ interface VPSPlan {
   backup_upcharge_hourly?: number;
   daily_backups_enabled?: boolean;
   weekly_backups_enabled?: boolean;
-  specifications: any;
+  specifications: Record<string, unknown>;
   active: boolean;
   created_at: string;
   updated_at: string;
-}
-
-interface Provider {
-  id: string;
-  name: string;
-  type: "linode" | "digitalocean" | "aws" | "gcp";
-  api_key_encrypted?: string;
-  configuration?: any;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-  last_api_call?: string | null;
-  validation_status?: "valid" | "invalid" | "pending" | "unknown";
-  validation_message?: string | null;
-}
-
-interface ContainerPlan {
-  id: string;
-  name: string;
-  cpu_cores: number;
-  ram_gb: number;
-  storage_gb: number;
-  network_mbps: number;
-  base_price: number;
-  markup_price: number;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PricingConfig {
-  id?: string;
-  price_per_cpu: number;
-  price_per_ram_gb: number;
-  price_per_storage_gb: number;
-  price_per_network_mbps: number;
-  currency?: string;
-}
-
-interface AdminContainerInstance {
-  id: string;
-  name: string;
-  image: string;
-  organization_id: string;
-  config: Record<string, unknown> | null;
-  status: string;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  organization_name?: string | null;
-  organization_slug?: string | null;
-  creator_email?: string | null;
-  creator_name?: string | null;
 }
 
 interface AdminServerInstance {
@@ -436,6 +390,40 @@ interface LinodeRegion {
   capabilities: string[];
   status: string;
 }
+
+type ProviderValidationStatus = "valid" | "invalid" | "pending" | "unknown";
+
+interface AdminProvider extends Provider {
+  configuration: Record<string, unknown> | null;
+  validation_status?: ProviderValidationStatus;
+  validation_message?: string | null;
+  last_api_call?: string | null;
+  priority?: number | null;
+}
+
+interface ProviderFormState {
+  name: string;
+  type: string;
+  apiKey: string;
+  active: boolean;
+}
+
+interface NewVPSPlanState {
+  name: string;
+  description: string;
+  selectedProviderId: string;
+  selectedType: string;
+  markupPrice: number;
+  backupPriceMonthly: number | "";
+  backupPriceHourly: number | "";
+  backupUpchargeMonthly: number | "";
+  backupUpchargeHourly: number | "";
+  dailyBackupsEnabled: boolean;
+  weeklyBackupsEnabled: boolean;
+  active: boolean;
+}
+
+type EditablePlanState = Partial<VPSPlan>;
 
 const API_BASE_URL = "/api";
 
@@ -636,97 +624,6 @@ const Admin: React.FC = () => {
     null
   );
 
-  // Plans state
-  const [plans, setPlans] = useState<VPSPlan[]>([]);
-  const [editPlanId, setEditPlanId] = useState<string | null>(null);
-  const [editPlan, setEditPlan] = useState<Partial<VPSPlan>>({});
-  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
-  const [pricing, setPricing] = useState<PricingConfig>({
-    price_per_cpu: 0,
-    price_per_ram_gb: 0,
-    price_per_storage_gb: 0,
-    price_per_network_mbps: 0,
-    currency: "USD",
-  });
-  const [containerPlans, setContainerPlans] = useState<ContainerPlan[]>([]);
-  const [newContainerPlan, setNewContainerPlan] = useState<
-    Partial<ContainerPlan>
-  >({
-    name: "",
-    cpu_cores: 1,
-    ram_gb: 1,
-    storage_gb: 10,
-    network_mbps: 0,
-    base_price: 0,
-    markup_price: 0,
-    active: true,
-  });
-  const [editContainerPlanId, setEditContainerPlanId] = useState<string | null>(
-    null
-  );
-  const [editContainerPlan, setEditContainerPlan] = useState<
-    Partial<ContainerPlan>
-  >({});
-  const [deleteContainerPlanId, setDeleteContainerPlanId] = useState<
-    string | null
-  >(null);
-  const [containerInstances, setContainerInstances] = useState<
-    AdminContainerInstance[]
-  >([]);
-  const [containerInstancesLoading, setContainerInstancesLoading] =
-    useState(false);
-  const [containerStatusFilter, setContainerStatusFilter] =
-    useState<string>("all");
-  const [containerSearch, setContainerSearch] = useState("");
-
-  // Compute container plan price based on pricing configuration
-  const computeContainerPlanPrice = (plan: ContainerPlan) => {
-    const cpuPrice = (plan.cpu_cores || 0) * (pricing.price_per_cpu || 0);
-    const ramPrice = (plan.ram_gb || 0) * (pricing.price_per_ram_gb || 0);
-    const storagePrice =
-      (plan.storage_gb || 0) * (pricing.price_per_storage_gb || 0);
-    const networkPrice =
-      (plan.network_mbps || 0) * (pricing.price_per_network_mbps || 0);
-    return cpuPrice + ramPrice + storagePrice + networkPrice;
-  };
-
-  // Linode VPS state
-  const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
-  const [linodeRegions, setLinodeRegions] = useState<LinodeRegion[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [showAddVPSPlan, setShowAddVPSPlan] = useState(false);
-  const [newVPSPlan, setNewVPSPlan] = useState({
-    name: "",
-    selectedProviderId: "",
-    selectedType: "",
-    markupPrice: 0,
-    backupPriceMonthly: 0,
-    backupPriceHourly: 0,
-    backupUpchargeMonthly: 0,
-    backupUpchargeHourly: 0,
-    dailyBackupsEnabled: false,
-    weeklyBackupsEnabled: true,
-    active: true,
-  });
-  const [planTypeFilter, setPlanTypeFilter] = useState<string>("all");
-  const [planProviderFilter, setPlanProviderFilter] = useState<string>("all");
-  const [providerPlanPages, setProviderPlanPages] = useState<
-    Record<string, number>
-  >({});
-  const plansPerPage = 5;
-  const [showAddProvider, setShowAddProvider] = useState(false);
-  const [newProvider, setNewProvider] = useState({
-    name: "",
-    type: "",
-    apiKey: "",
-    active: true,
-  });
-  const [editProviderId, setEditProviderId] = useState<string | null>(null);
-  const [editProvider, setEditProvider] = useState<Partial<Provider>>({});
-  const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null);
-  const [validatingProviderId, setValidatingProviderId] = useState<
-    string | null
-  >(null);
   const [stackscriptConfigs, setStackscriptConfigs] = useState<
     StackscriptConfigRecord[]
   >([]);
@@ -769,6 +666,46 @@ const Admin: React.FC = () => {
   const [userEditModalOpen, setUserEditModalOpen] = useState(false);
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const [savingUserUpdate, setSavingUserUpdate] = useState(false);
+
+  const [providers, setProviders] = useState<AdminProvider[]>([]);
+  const [validatingProviderId, setValidatingProviderId] =
+    useState<string | null>(null);
+  const [showAddProvider, setShowAddProvider] = useState(false);
+  const [newProvider, setNewProvider] = useState<ProviderFormState>({
+    name: "",
+    type: "",
+    apiKey: "",
+    active: true,
+  });
+  const [editProviderId, setEditProviderId] = useState<string | null>(null);
+  const [editProvider, setEditProvider] = useState<Partial<AdminProvider>>({});
+  const [deleteProviderId, setDeleteProviderId] =
+    useState<string | null>(null);
+  const [providerPlanPages, setProviderPlanPages] = useState<Record<string, number>>({});
+  const [plans, setPlans] = useState<VPSPlan[]>([]);
+  const [planProviderFilter, setPlanProviderFilter] = useState<string>("all");
+  const [planTypeFilter, setPlanTypeFilter] = useState<string>("all");
+  const [linodeTypes, setLinodeTypes] = useState<LinodeType[]>([]);
+  const [linodeRegions, setLinodeRegions] = useState<LinodeRegion[]>([]);
+  const [showAddVPSPlan, setShowAddVPSPlan] = useState(false);
+  const [newVPSPlan, setNewVPSPlan] = useState<NewVPSPlanState>({
+    name: "",
+    description: "",
+    selectedProviderId: "",
+    selectedType: "",
+    markupPrice: 0,
+    backupPriceMonthly: "",
+    backupPriceHourly: "",
+    backupUpchargeMonthly: "",
+    backupUpchargeHourly: "",
+    dailyBackupsEnabled: false,
+    weeklyBackupsEnabled: true,
+    active: true,
+  });
+  const [editPlanId, setEditPlanId] = useState<string | null>(null);
+  const [editPlan, setEditPlan] = useState<EditablePlanState>({});
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
+  const plansPerPage = 10;
 
   // User action handlers
   const handleViewUser = useCallback(
@@ -933,50 +870,6 @@ const Admin: React.FC = () => {
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleTicketFocus = (event: Event) => {
-      const detail = (event as CustomEvent<{ ticketId?: string }>).detail;
-      if (!detail?.ticketId) {
-        return;
-      }
-      handleTabChange("support");
-      setPendingFocusTicketId(detail.ticketId);
-    };
-
-    const handleUserFocus = (event: Event) => {
-      const detail = (event as CustomEvent<{ userId?: string }>).detail;
-      if (!detail?.userId) {
-        return;
-      }
-      handleTabChange("user-management");
-      setPendingFocusUserId(detail.userId);
-    };
-
-    window.addEventListener(
-      "admin:focus-ticket",
-      handleTicketFocus as EventListener
-    );
-    window.addEventListener(
-      "admin:focus-user",
-      handleUserFocus as EventListener
-    );
-
-    return () => {
-      window.removeEventListener(
-        "admin:focus-ticket",
-        handleTicketFocus as EventListener
-      );
-      window.removeEventListener(
-        "admin:focus-user",
-        handleUserFocus as EventListener
-      );
-    };
-  }, [handleTabChange]);
-
-  useEffect(() => {
     if (!pendingFocusUserId || activeTab !== "user-management") {
       return;
     }
@@ -1109,47 +1002,6 @@ const Admin: React.FC = () => {
     });
     return groups;
   }, [filteredPlans]);
-
-  const containerStatusOptions = useMemo(() => {
-    const statuses = new Set<string>();
-    containerInstances.forEach((instance) => {
-      if (instance.status) {
-        statuses.add(instance.status);
-      }
-    });
-    return Array.from(statuses).sort();
-  }, [containerInstances]);
-
-  const filteredContainerInstances = useMemo(() => {
-    const term = containerSearch.trim().toLowerCase();
-    return containerInstances.filter((instance) => {
-      const matchesStatus =
-        containerStatusFilter === "all" ||
-        (instance.status ?? "").toLowerCase() ===
-        containerStatusFilter.toLowerCase();
-      if (!matchesStatus) {
-        return false;
-      }
-
-      if (!term) {
-        return true;
-      }
-
-      const haystack = [
-        instance.name,
-        instance.image,
-        instance.organization_name,
-        instance.organization_slug,
-        instance.creator_email,
-        instance.creator_name,
-      ]
-        .filter(Boolean)
-        .map((value) => String(value).toLowerCase())
-        .join(" ");
-
-      return haystack.includes(term);
-    });
-  }, [containerInstances, containerSearch, containerStatusFilter]);
 
   const serverStatusOptions = useMemo(() => {
     const statuses = new Set<string>();
@@ -1341,11 +1193,9 @@ const Admin: React.FC = () => {
         // Fetch data for dashboard overview
         fetchTickets();
         fetchPlans();
-        fetchContainerPlans();
         fetchServers();
         fetchAdminUsers();
         fetchProviders();
-        fetchAdminContainers();
         break;
       case "support":
         fetchTickets();
@@ -1369,13 +1219,6 @@ const Admin: React.FC = () => {
         fetchNetworkingRdns();
         break;
       case "theme":
-        break;
-      case "container-plans":
-        fetchPricing();
-        fetchContainerPlans();
-        break;
-      case "containers":
-        fetchAdminContainers();
         break;
       case "servers":
         fetchServers();
@@ -1731,79 +1574,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const fetchPricing = async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/pricing`, {
-        headers: authHeader,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load pricing");
-      setPricing(
-        data.pricing ?? {
-          price_per_cpu: 0,
-          price_per_ram_gb: 0,
-          price_per_storage_gb: 0,
-          price_per_network_mbps: 0,
-          currency: "USD",
-        }
-      );
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const savePricing = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/pricing`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify(pricing),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save pricing");
-      setPricing(data.pricing);
-      toast.success("Container pricing updated");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const fetchContainerPlans = async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/plans`, {
-        headers: authHeader,
-      });
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.error || "Failed to load container plans");
-      setContainerPlans(data.plans);
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const fetchAdminContainers = async () => {
-    if (!token) return;
-    setContainerInstancesLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/containers`, {
-        headers: authHeader,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load containers");
-      const items: AdminContainerInstance[] = Array.isArray(data.containers)
-        ? data.containers
-        : [];
-      setContainerInstances(items);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load containers");
-    } finally {
-      setContainerInstancesLoading(false);
-    }
-  };
-
   const fetchServers = async () => {
     if (!token) return;
     setServersLoading(true);
@@ -1909,32 +1679,6 @@ const Admin: React.FC = () => {
     },
     [token, selectedUserForProfile, fetchAdminUsers]
   );
-
-  const createContainerPlan = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/container/plans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify(newContainerPlan),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create plan");
-      setContainerPlans((prev) => [data.plan, ...prev]);
-      setNewContainerPlan({
-        name: "",
-        cpu_cores: 1,
-        ram_gb: 1,
-        storage_gb: 10,
-        network_mbps: 0,
-        base_price: 0,
-        markup_price: 0,
-        active: true,
-      });
-      toast.success("Container plan created");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
 
   const savePlan = async () => {
     if (!editPlanId) return;
@@ -2053,6 +1797,7 @@ const Admin: React.FC = () => {
       setPlans((prev) => [data.plan, ...prev]);
       setNewVPSPlan({
         name: "",
+        description: "",
         selectedProviderId: "",
         selectedType: "",
         markupPrice: 0,
@@ -2118,56 +1863,6 @@ const Admin: React.FC = () => {
       setPlans(plans.filter((p) => p.id !== planId));
       setDeletePlanId(null);
       toast.success("VPS plan deleted");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  // Update container plan
-  const updateContainerPlan = async () => {
-    if (!editContainerPlanId) return;
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/container/plans/${editContainerPlanId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify(editContainerPlan),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.error || "Failed to update container plan");
-      setContainerPlans(
-        containerPlans.map((p) =>
-          p.id === editContainerPlanId ? data.plan : p
-        )
-      );
-      setEditContainerPlanId(null);
-      setEditContainerPlan({});
-      toast.success("Container plan updated");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  // Delete container plan
-  const deleteContainerPlan = async (planId: string) => {
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/admin/container/plans/${planId}`,
-        {
-          method: "DELETE",
-          headers: authHeader,
-        }
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to delete container plan");
-      }
-      setContainerPlans(containerPlans.filter((p) => p.id !== planId));
-      setDeleteContainerPlanId(null);
-      toast.success("Container plan deleted");
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -2354,19 +2049,6 @@ const Admin: React.FC = () => {
     };
   }, [plans]);
 
-  const containerPlanStats = useMemo(() => {
-    if (!containerPlans.length) {
-      return { active: 0, drafts: 0 };
-    }
-    let active = 0;
-    containerPlans.forEach((plan) => {
-      if (plan.active) {
-        active += 1;
-      }
-    });
-    return { active, drafts: containerPlans.length - active };
-  }, [containerPlans]);
-
   const serverStats = useMemo(() => {
     if (!servers.length) {
       return { active: 0, provisioning: 0, attention: 0 };
@@ -2426,7 +2108,6 @@ const Admin: React.FC = () => {
     inactive: inactivePlanCount,
     avgMarkup: averagePlanMarkup,
   } = planStats;
-  const { active: activeContainerPlans } = containerPlanStats;
   const {
     active: activeServers,
     provisioning: provisioningServers,
@@ -2438,38 +2119,9 @@ const Admin: React.FC = () => {
   } = providerStats;
   const { total: totalAdminUsers, admins: adminUserCount } = adminStats;
 
-  const containerInstanceStats = useMemo(
-    () =>
-      containerInstances.reduce(
-        (acc, instance) => {
-          const status = (instance.status || "").toLowerCase();
-          acc.total += 1;
-          if (status.includes("run")) {
-            acc.active += 1;
-          } else if (
-            status.includes("provision") ||
-            status.includes("deploy") ||
-            status.includes("pending")
-          ) {
-            acc.provisioning += 1;
-          } else if (
-            status.includes("error") ||
-            status.includes("fail") ||
-            status.includes("offline")
-          ) {
-            acc.attention += 1;
-          }
-          return acc;
-        },
-        { total: 0, active: 0, provisioning: 0, attention: 0 }
-      ),
-    [containerInstances]
-  );
-
   const organizationStats = useMemo(() => {
     const ticketOrgs = new Set<string>();
     const serverOrgs = new Set<string>();
-    const containerOrgs = new Set<string>();
 
     tickets.forEach((ticket) => {
       if (ticket.organization_id) {
@@ -2483,25 +2135,17 @@ const Admin: React.FC = () => {
       }
     });
 
-    containerInstances.forEach((instance) => {
-      if (instance.organization_id) {
-        containerOrgs.add(instance.organization_id);
-      }
-    });
-
     const all = new Set<string>([
       ...ticketOrgs,
       ...serverOrgs,
-      ...containerOrgs,
     ]);
 
     return {
       total: all.size,
       withTickets: ticketOrgs.size,
       withServers: serverOrgs.size,
-      withContainers: containerOrgs.size,
     };
-  }, [tickets, servers, containerInstances]);
+  }, [tickets, servers]);
 
   const strategicPanels = useMemo<StrategicPanel[]>(() => {
     const markupText =
@@ -2515,7 +2159,7 @@ const Admin: React.FC = () => {
         title: "Support Operations",
         description: "Orchestrate escalations and keep customer promises on track.",
         icon: LifeBuoy,
-        accent: "text-amber-600",
+    accent: "text-amber-600",
         summary: [
           { label: "Open", value: formatCountValue(openTicketCount) },
           { label: "Urgent", value: formatCountValue(urgentTickets) },
@@ -2538,25 +2182,6 @@ const Admin: React.FC = () => {
           { label: "Attention", value: formatCountValue(attentionServers) },
         ],
         actionLabel: "Manage servers",
-      },
-      {
-        id: "containers",
-        title: "Containers",
-        description: "Oversee managed workloads and fast-moving deployments.",
-        icon: Boxes,
-    accent: "text-teal-600",
-        summary: [
-          { label: "Running", value: formatCountValue(containerInstanceStats.active) },
-          {
-            label: "Provisioning",
-            value: formatCountValue(containerInstanceStats.provisioning),
-          },
-          {
-            label: "Blueprints",
-            value: formatCountValue(activeContainerPlans),
-          },
-        ],
-        actionLabel: "Manage containers",
       },
       {
         id: "vps-plans",
@@ -2603,14 +2228,12 @@ const Admin: React.FC = () => {
       },
     ];
   }, [
-    activeContainerPlans,
     activePlanCount,
     activeProviders,
     activeServers,
     adminUserCount,
     attentionServers,
     averagePlanMarkup,
-    containerInstanceStats,
     inactivePlanCount,
     inactiveProviders,
     inProgressTickets,
@@ -2620,15 +2243,9 @@ const Admin: React.FC = () => {
     urgentTickets,
   ]);
 
-  const liveProvisioningCount = useMemo(
-    () => provisioningServers + containerInstanceStats.provisioning,
-    [containerInstanceStats.provisioning, provisioningServers]
-  );
+  const liveProvisioningCount = provisioningServers;
 
-  const criticalAttentionCount = useMemo(
-    () => attentionServers + containerInstanceStats.attention + urgentTickets,
-    [attentionServers, containerInstanceStats.attention, urgentTickets]
-  );
+  const criticalAttentionCount = attentionServers + urgentTickets;
 
   const dashboardTicketHighlights = useMemo(() => {
     const sorted = [...tickets]
@@ -2667,20 +2284,6 @@ const Admin: React.FC = () => {
       .slice(0, 4);
   }, [servers]);
 
-  const dashboardContainerBuilds = useMemo(() => {
-    return containerInstances
-      .filter((instance) => {
-        const status = (instance.status || "").toLowerCase();
-        return (
-          status.includes("provision") ||
-          status.includes("deploy") ||
-          status.includes("pending") ||
-          status.includes("build")
-        );
-      })
-      .slice(0, 4);
-  }, [containerInstances]);
-
   const handleRefresh = () => {
     if (!token) {
       toast.error("Authentication required");
@@ -2696,13 +2299,6 @@ const Admin: React.FC = () => {
         fetchProviders();
         fetchLinodeTypes();
         fetchLinodeRegions();
-        break;
-      case "container-plans":
-        fetchPricing();
-        fetchContainerPlans();
-        break;
-      case "containers":
-        fetchAdminContainers();
         break;
       case "servers":
         fetchServers();
@@ -2758,7 +2354,7 @@ const Admin: React.FC = () => {
                     {BRAND_NAME} Cloud Administration
                   </h1>
                   <p className="text-sm text-muted-foreground sm:text-base">
-                    Coordinate VPS plans, dedicated servers, containers, and client support from a single command surface.
+                    Coordinate VPS plans, dedicated servers, and client support from a single command surface.
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -2770,7 +2366,7 @@ const Admin: React.FC = () => {
                       {formatCountValue(organizationStats.total)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatCountValue(organizationStats.withServers)} with servers • {formatCountValue(organizationStats.withContainers)} with containers
+                      {formatCountValue(organizationStats.withServers)} with servers
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
@@ -2789,10 +2385,10 @@ const Admin: React.FC = () => {
                       Live workloads
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-foreground">
-                      {formatCountValue(activeServers + containerInstanceStats.active)}
+                      {formatCountValue(activeServers)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatCountValue(activeServers)} servers • {formatCountValue(containerInstanceStats.active)} containers
+                      Active servers across all providers
                     </p>
                   </div>
                 </div>
@@ -3028,52 +2624,6 @@ const Admin: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
-            <Card>
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-lg font-semibold text-foreground">
-                  Container Pipeline
-                </CardTitle>
-                <CardDescription>
-                  Monitor workloads that are provisioning or waiting on an image.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {dashboardContainerBuilds.length > 0 ? (
-                  dashboardContainerBuilds.map((instance) => (
-                    <div
-                      key={instance.id}
-                      className="flex flex-col gap-1 rounded-xl border border-border/60 bg-background/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {instance.name}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          {instance.organization_name ? (
-                            <>
-                              <span>{instance.organization_name}</span>
-                              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                            </>
-                          ) : null}
-                          <span>
-                            {instance.updated_at
-                              ? new Date(instance.updated_at).toLocaleString()
-                              : new Date(instance.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="capitalize">
-                        {formatStatusLabel(instance.status)}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
-                    No container builds are currently queued.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
     </SectionPanel>
 
     <SectionPanel section="theme" activeSection={activeTab}>
@@ -3741,6 +3291,7 @@ const Admin: React.FC = () => {
                 if (!open) {
                   setNewVPSPlan({
                     name: "",
+                    description: "",
                     selectedProviderId: "",
                     selectedType: "",
                     markupPrice: 0,
@@ -4135,6 +3686,7 @@ const Admin: React.FC = () => {
                       setShowAddVPSPlan(false);
                       setNewVPSPlan({
                         name: "",
+                        description: "",
                         selectedProviderId: "",
                         selectedType: "",
                         markupPrice: 0,
@@ -4856,447 +4408,6 @@ const Admin: React.FC = () => {
                       );
                     })
                   )}
-                </div>
-              </CardContent>
-            </Card>
-    </SectionPanel>
-
-    <SectionPanel section="container-plans" activeSection={activeTab}>
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Server className="h-5 w-5 text-muted-foreground" />
-                    Container Pricing
-                  </CardTitle>
-                  <CardDescription>
-                    Tune the smart pricing formula that powers container-based
-                    workloads.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-cpu">Per CPU</Label>
-                      <Input
-                        id="price-per-cpu"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_cpu}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_cpu: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-ram">Per RAM GB</Label>
-                      <Input
-                        id="price-per-ram"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_ram_gb}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_ram_gb: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-storage">Per Storage GB</Label>
-                      <Input
-                        id="price-per-storage"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_storage_gb}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_storage_gb: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price-per-mbps">Per Mbps</Label>
-                      <Input
-                        id="price-per-mbps"
-                        type="number"
-                        step="0.01"
-                        value={pricing.price_per_network_mbps}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            price_per_network_mbps: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pricing-currency">Currency</Label>
-                      <Input
-                        id="pricing-currency"
-                        value={pricing.currency}
-                        onChange={(e) =>
-                          setPricing((p) => ({
-                            ...p,
-                            currency: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={savePricing}
-                    className="gap-2"
-                  >
-                    Save Pricing
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card>
-                <CardHeader className="gap-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg font-semibold text-foreground">
-                        Container Plans
-                      </CardTitle>
-                      <CardDescription>
-                        Build opinionated presets for lightweight container
-                        workloads.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="rounded-lg border border-border bg-muted/40 p-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="container-plan-name">Name</Label>
-                        <Input
-                          id="container-plan-name"
-                          placeholder="Plan name"
-                          value={newContainerPlan.name as string}
-                          onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              name: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="container-plan-cpu">CPU Cores</Label>
-                        <Input
-                          id="container-plan-cpu"
-                          type="number"
-                          min={1}
-                          value={newContainerPlan.cpu_cores as number}
-                          onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              cpu_cores: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="container-plan-ram">RAM (GB)</Label>
-                        <Input
-                          id="container-plan-ram"
-                          type="number"
-                          min={1}
-                          value={newContainerPlan.ram_gb as number}
-                          onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              ram_gb: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="container-plan-storage">
-                          Storage (GB)
-                        </Label>
-                        <Input
-                          id="container-plan-storage"
-                          type="number"
-                          min={1}
-                          value={newContainerPlan.storage_gb as number}
-                          onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              storage_gb: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="container-plan-network">
-                          Network (Mbps)
-                        </Label>
-                        <Input
-                          id="container-plan-network"
-                          type="number"
-                          min={0}
-                          value={newContainerPlan.network_mbps as number}
-                          onChange={(e) =>
-                            setNewContainerPlan((p) => ({
-                              ...p,
-                              network_mbps: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          className="w-full gap-2"
-                          onClick={createContainerPlan}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Add Plan
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>CPU</TableHead>
-                          <TableHead>RAM</TableHead>
-                          <TableHead>Storage</TableHead>
-                          <TableHead>Network</TableHead>
-                          <TableHead>Estimated Price</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {containerPlans.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={8}
-                              className="py-8 text-center text-muted-foreground"
-                            >
-                              No container plans have been created yet.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          containerPlans.map((plan) => (
-                            <TableRow key={plan.id}>
-                              <TableCell className="font-medium text-foreground">
-                                {plan.name}
-                              </TableCell>
-                              <TableCell>{plan.cpu_cores}</TableCell>
-                              <TableCell>{plan.ram_gb} GB</TableCell>
-                              <TableCell>{plan.storage_gb} GB</TableCell>
-                              <TableCell>{plan.network_mbps} Mbps</TableCell>
-                              <TableCell>
-                                ${computeContainerPlanPrice(plan).toFixed(2)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    plan.active ? "default" : "secondary"
-                                  }
-                                >
-                                  {plan.active ? "Active" : "Inactive"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setEditContainerPlanId(plan.id);
-                                      setEditContainerPlan(plan);
-                                    }}
-                                    className="gap-1"
-                                  >
-                                    <Edit className="h-4 w-4" /> Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                      setDeleteContainerPlanId(plan.id)
-                                    }
-                                    className="gap-1"
-                                  >
-                                    <Trash2 className="h-4 w-4" /> Delete
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-    </SectionPanel>
-
-    <SectionPanel section="containers" activeSection={activeTab}>
-            <Card>
-              <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <Box className="h-5 w-5 text-muted-foreground" />
-                    Containers
-                  </CardTitle>
-                  <CardDescription>
-                    Audit container workloads across all organizations.
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={fetchAdminContainers}
-                  disabled={containerInstancesLoading}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  {containerInstancesLoading ? "Refreshing…" : "Refresh"}
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                  <div className="w-full md:w-80">
-                    <Label htmlFor="container-search">Search</Label>
-                    <div className="relative mt-1">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="container-search"
-                        placeholder="Search by name, organization, or creator"
-                        value={containerSearch}
-                        onChange={(e) => setContainerSearch(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                  <div className="w-full md:w-56">
-                    <Label htmlFor="container-status">Status</Label>
-                    <Select
-                      value={containerStatusFilter}
-                      onValueChange={(value) => setContainerStatusFilter(value)}
-                    >
-                      <SelectTrigger id="container-status" className="mt-1">
-                        <SelectValue placeholder="All status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        {containerStatusOptions.map((status) => (
-                          <SelectItem key={status} value={status.toLowerCase()}>
-                            {formatStatusLabel(status)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[14rem]">Name</TableHead>
-                        <TableHead className="min-w-[12rem]">
-                          Organization
-                        </TableHead>
-                        <TableHead className="w-32">Status</TableHead>
-                        <TableHead className="min-w-[12rem]">Image</TableHead>
-                        <TableHead className="min-w-[12rem]">Created</TableHead>
-                        <TableHead className="min-w-[12rem]">Updated</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {containerInstancesLoading ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={6}
-                            className="py-10 text-center text-muted-foreground"
-                          >
-                            Loading containers…
-                          </TableCell>
-                        </TableRow>
-                      ) : filteredContainerInstances.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={6}
-                            className="py-10 text-center text-muted-foreground"
-                          >
-                            No containers match the current filters.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredContainerInstances.map((instance) => (
-                          <TableRow key={instance.id} className="align-top">
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-medium text-foreground">
-                                  {instance.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Created by{" "}
-                                  {instance.creator_name ||
-                                    instance.creator_email ||
-                                    "Unknown"}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="text-sm text-foreground">
-                                  {instance.organization_name || "—"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {instance.organization_slug ||
-                                    instance.organization_id}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={statusBadgeClass(instance.status)}
-                              >
-                                {formatStatusLabel(instance.status)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-sm text-muted-foreground">
-                                {instance.image || "—"}
-                              </p>
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-sm text-muted-foreground">
-                                {formatDateTime(instance.created_at)}
-                              </p>
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-sm text-muted-foreground">
-                                {formatDateTime(instance.updated_at)}
-                              </p>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -6040,146 +5151,6 @@ const Admin: React.FC = () => {
       </div>
 
       <Dialog
-        open={Boolean(editContainerPlanId)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditContainerPlanId(null);
-            setEditContainerPlan({});
-          }
-        }}
-      >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Edit Container Plan</DialogTitle>
-            <DialogDescription>
-              Adjust resources and visibility for this container preset.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-container-name">Name</Label>
-              <Input
-                id="edit-container-name"
-                value={(editContainerPlan.name as string) || ""}
-                onChange={(e) =>
-                  setEditContainerPlan((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-container-cpu">CPU Cores</Label>
-                <Input
-                  id="edit-container-cpu"
-                  type="number"
-                  min={1}
-                  value={editContainerPlan.cpu_cores ?? ""}
-                  onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      cpu_cores: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-container-ram">RAM (GB)</Label>
-                <Input
-                  id="edit-container-ram"
-                  type="number"
-                  min={1}
-                  value={editContainerPlan.ram_gb ?? ""}
-                  onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      ram_gb: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-container-storage">Storage (GB)</Label>
-                <Input
-                  id="edit-container-storage"
-                  type="number"
-                  min={1}
-                  value={editContainerPlan.storage_gb ?? ""}
-                  onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      storage_gb: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-container-network">Network (Mbps)</Label>
-                <Input
-                  id="edit-container-network"
-                  type="number"
-                  min={0}
-                  value={editContainerPlan.network_mbps ?? ""}
-                  onChange={(e) =>
-                    setEditContainerPlan((prev) => ({
-                      ...prev,
-                      network_mbps: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-container-price">Price (USD)</Label>
-              <Input
-                id="edit-container-price"
-                type="number"
-                step="0.01"
-                value={editContainerPlan.base_price ?? ""}
-                onChange={(e) =>
-                  setEditContainerPlan((prev) => ({
-                    ...prev,
-                    base_price: Number(e.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Active</p>
-                <p className="text-xs text-muted-foreground">
-                  Toggle visibility without deleting the plan.
-                </p>
-              </div>
-              <Switch
-                checked={Boolean(editContainerPlan.active ?? false)}
-                onCheckedChange={(checked) =>
-                  setEditContainerPlan((prev) => ({ ...prev, active: checked }))
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setEditContainerPlanId(null);
-                setEditContainerPlan({});
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={updateContainerPlan}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
         open={Boolean(editProviderId)}
         onOpenChange={(open) => {
           if (!open) {
@@ -6326,41 +5297,6 @@ const Admin: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog
-        open={Boolean(deleteContainerPlanId)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteContainerPlanId(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete container plan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Removing this plan takes it out of circulation for new
-              deployments.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteContainerPlanId(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteContainerPlanId) {
-                  void deleteContainerPlan(deleteContainerPlanId);
-                }
-              }}
-              className={buttonVariants({ variant: "destructive" })}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog
         open={Boolean(deleteProviderId)}
         onOpenChange={(open) => {
