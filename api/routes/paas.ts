@@ -47,7 +47,6 @@ router.post(
     body("planId").isUUID(),
     body("clusterId").isUUID(),
     body("name").isString().notEmpty(),
-    body("hourlyRate").isFloat({ min: 0 }),
   ],
   async (req: AuthenticatedRequest, res) => {
     if (!ensureValid(req, res)) return;
@@ -64,8 +63,10 @@ router.post(
         name: req.body.name,
         endpoint: req.body.endpoint ?? null,
         metadata: req.body.metadata ?? {},
-        hourlyRate: req.body.hourlyRate,
       });
+      if (!deployment) {
+        return res.status(400).json({ success: false, error: "Selected plan is not available" });
+      }
       res.status(201).json({ success: true, deployment });
     } catch (error) {
       console.error("Failed to create deployment", error);

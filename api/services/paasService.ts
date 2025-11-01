@@ -121,7 +121,6 @@ export interface DeploymentInput {
   name: string;
   endpoint?: string | null;
   metadata?: Record<string, unknown>;
-  hourlyRate: number;
 }
 
 const toSnakeCaseMap = <T extends Record<string, unknown>>(input: T): Record<string, unknown> => {
@@ -297,7 +296,23 @@ export const paasService = {
 
   async updatePlan(id: string, input: Partial<PlanInput>) {
     const payload = toSnakeCaseMap(input);
-    const fields = Object.keys(payload);
+    const allowedFields = new Set([
+      "name",
+      "slug",
+      "description",
+      "cpu_millicores",
+      "memory_mb",
+      "storage_gb",
+      "network_mbps",
+      "max_containers",
+      "price_hourly",
+      "price_monthly",
+      "is_active",
+      "metadata",
+    ]);
+    const fields = Object.keys(payload).filter(
+      (field) => allowedFields.has(field) && payload[field] !== undefined,
+    );
     if (!fields.length) {
       const { rows } = await query("SELECT * FROM paas_plans WHERE id = $1", [id]);
       return rows[0] ?? null;
@@ -645,6 +660,16 @@ export const paasService = {
   },
 
   async createDeployment(input: DeploymentInput) {
+    const planResult = await query(
+      "SELECT price_hourly, is_active FROM paas_plans WHERE id = $1",
+      [input.planId],
+    );
+    const plan = planResult.rows[0];
+    if (!plan || plan.is_active === false) {
+      return null;
+    }
+    const hourlyRate = plan.price_hourly;
+
     const payload = toSnakeCaseMap({
       ...input,
       metadata: input.metadata ?? {},
@@ -664,10 +689,10 @@ export const paasService = {
         payload.name,
         payload.endpoint ?? null,
         payload.metadata ?? {},
-        payload.hourly_rate ?? 0,
+        hourlyRate ?? 0,
       ],
     );
-    return rows[0];
+    return rows[0] ?? null;
   },
 
   async listDeployments(organizationId: string) {
